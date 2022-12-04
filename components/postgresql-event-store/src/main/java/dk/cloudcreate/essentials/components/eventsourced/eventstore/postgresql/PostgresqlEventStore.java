@@ -29,7 +29,7 @@ import dk.cloudcreate.essentials.reactive.LocalEventBus;
 import dk.cloudcreate.essentials.types.LongRange;
 import org.jdbi.v3.core.ConnectionException;
 import org.slf4j.*;
-import reactor.core.publisher.Flux;
+import reactor.core.publisher.*;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
@@ -340,6 +340,59 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
         var lastBatchSizeForThisQuery            = new AtomicLong(batchFetchSize);
         var nextFromInclusiveGlobalOrder         = new AtomicLong(fromInclusiveGlobalOrder);
         var subscriptionGapHandler               = subscriberId.map(eventStreamGapHandler::gapHandlerFor);
+
+        return Flux.create((FluxSink<PersistedEvent> sink) -> {
+                       var scheduler = Schedulers.newSingle("Polling-Worker-Publish-" + subscriberId.orElse(NO_SUBSCRIBER_ID) + "-" + aggregateType, true);
+//                       var subscriptionWorker = scheduler.createWorker();
+                       sink.onRequest(eventDemandSize -> {
+                           eventStoreStreamLog.debug("[{}] Received demand for {} events",
+                                                     eventStreamLogName,
+                                                     eventDemandSize);
+                           scheduler.schedule(new PollEventStoreTask(eventDemandSize,
+                                                                              sink,
+                                                                              aggregateType,
+                                                                              onlyIncludeEventIfItBelongsToTenant,
+                                                                              eventStreamLogName,
+                                                                              eventStoreStreamLog,
+                                                                              pollingInterval,
+                                                                              consecutiveNoPersistedEventsReturned,
+                                                                              batchFetchSize,
+                                                                              lastBatchSizeForThisQuery,
+                                                                              nextFromInclusiveGlobalOrder,
+                                                                              subscriptionGapHandler));
+
+                       });
+
+                       sink.onCancel(scheduler);
+
+                   }, FluxSink.OverflowStrategy.ERROR);
+    }
+
+    @Override
+    public Flux<PersistedEvent> unboundedPollForEvents(AggregateType aggregateType,
+                                                       long fromInclusiveGlobalOrder,
+                                                       Optional<Integer> loadEventsByGlobalOrderBatchSize,
+                                                       Optional<Duration> pollingInterval,
+                                                       Optional<Tenant> onlyIncludeEventIfItBelongsToTenant,
+                                                       Optional<SubscriberId> subscriberId) {
+        requireNonNull(aggregateType, "You must supply an aggregateType");
+        requireNonNull(pollingInterval, "You must supply a pollingInterval option");
+        requireNonNull(onlyIncludeEventIfItBelongsToTenant, "You must supply a onlyIncludeEventIfItBelongsToTenant option");
+        requireNonNull(subscriberId, "You must supply a subscriberId option");
+
+        var eventStreamLogName  = "EventStream:" + aggregateType + ":" + subscriberId.orElseGet(SubscriberId::random);
+        var eventStoreStreamLog = LoggerFactory.getLogger(EventStore.class.getName() + ".PollingEventStream");
+
+        long batchFetchSize = loadEventsByGlobalOrderBatchSize.orElse(DEFAULT_QUERY_BATCH_SIZE);
+        eventStoreStreamLog.debug("[{}] Creating polling reactive '{}' EventStream with fromInclusiveGlobalOrder {} and batch size {}",
+                                  eventStreamLogName,
+                                  aggregateType,
+                                  fromInclusiveGlobalOrder,
+                                  batchFetchSize);
+        var consecutiveNoPersistedEventsReturned = new AtomicInteger(0);
+        var lastBatchSizeForThisQuery            = new AtomicLong(batchFetchSize);
+        var nextFromInclusiveGlobalOrder         = new AtomicLong(fromInclusiveGlobalOrder);
+        var subscriptionGapHandler               = subscriberId.map(eventStreamGapHandler::gapHandlerFor);
         var persistedEventsFlux = Flux.defer(() -> {
             EventStoreUnitOfWork unitOfWork;
             try {
@@ -471,7 +524,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                 }
             }
         } else if (currentConsecutiveNoPersistedEventsReturned > 0 && currentConsecutiveNoPersistedEventsReturned % 10 == 0) {
-            batchSizeForThisQuery = (long) (batchSizeForThisQuery + defaultBatchFetchSize * (currentConsecutiveNoPersistedEventsReturned / 10) * 0.3f);
+            batchSizeForThisQuery = (long) (batchSizeForThisQuery + defaultBatchFetchSize * (currentConsecutiveNoPersistedEventsReturned / 10) * 0.4f);
             if (batchSizeForThisQuery > defaultBatchFetchSize) {
                 eventStoreStreamLog.debug("[{}] loadEventsByGlobalOrder temporarily INCREASED query batchSize to {} from {} instead of default {} since number of consecutiveNoPersistedEventsReturned was {}",
                                           eventStreamLogName,
@@ -524,5 +577,188 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
     @Override
     public CONFIG getAggregateEventStreamConfiguration(AggregateType aggregateType) {
         return persistenceStrategy.getAggregateEventStreamConfiguration(aggregateType);
+    }
+
+    private class PollEventStoreTask implements Runnable {
+        private final long                             demandForEvents;
+        private final FluxSink<PersistedEvent>         sink;
+        private final AggregateType                    aggregateType;
+        private final Optional<Tenant>                 onlyIncludeEventIfItBelongsToTenant;
+        private final String                           eventStreamLogName;
+        private final Logger                           eventStoreStreamLog;
+        private final Optional<Duration>               pollingInterval;
+        private final AtomicInteger                    consecutiveNoPersistedEventsReturned;
+        private final long                             batchFetchSize;
+        private final AtomicLong                       lastBatchSizeForThisQuery;
+        private final AtomicLong                       nextFromInclusiveGlobalOrder;
+        private final Optional<SubscriptionGapHandler> subscriptionGapHandler;
+
+        public PollEventStoreTask(long demandForEvents,
+                                  FluxSink<PersistedEvent> sink,
+                                  AggregateType aggregateType,
+                                  Optional<Tenant> onlyIncludeEventIfItBelongsToTenant,
+                                  String eventStreamLogName,
+                                  Logger eventStoreStreamLog,
+                                  Optional<Duration> pollingInterval,
+                                  AtomicInteger consecutiveNoPersistedEventsReturned,
+                                  long batchFetchSize,
+                                  AtomicLong lastBatchSizeForThisQuery,
+                                  AtomicLong nextFromInclusiveGlobalOrder,
+                                  Optional<SubscriptionGapHandler> subscriptionGapHandler) {
+            this.demandForEvents = demandForEvents;
+            this.sink = sink;
+            this.aggregateType = aggregateType;
+            this.onlyIncludeEventIfItBelongsToTenant = onlyIncludeEventIfItBelongsToTenant;
+            this.eventStreamLogName = eventStreamLogName;
+            this.eventStoreStreamLog = eventStoreStreamLog;
+            this.pollingInterval = pollingInterval;
+            this.consecutiveNoPersistedEventsReturned = consecutiveNoPersistedEventsReturned;
+            this.batchFetchSize = batchFetchSize;
+            this.lastBatchSizeForThisQuery = lastBatchSizeForThisQuery;
+            this.nextFromInclusiveGlobalOrder = nextFromInclusiveGlobalOrder;
+            this.subscriptionGapHandler = subscriptionGapHandler;
+        }
+
+        @Override
+        public void run() {
+            eventStoreStreamLog.debug("[{}] Polling worker - Started with initial demand for events {}",
+                                      eventStreamLogName,
+                                      demandForEvents);
+            var pollingSleep             = pollingInterval.orElse(Duration.ofMillis(DEFAULT_POLLING_INTERVAL_MILLISECONDS)).toMillis();
+            var remainingDemandForEvents = demandForEvents;
+            while (remainingDemandForEvents > 0 && !sink.isCancelled()) {
+                remainingDemandForEvents -= pollForEvents(remainingDemandForEvents);
+                eventStoreStreamLog.trace("[{}] Polling worker - Outstanding demand for events {}",
+                                          eventStreamLogName,
+                                          remainingDemandForEvents);
+                try {
+                    Thread.sleep(pollingSleep);
+                } catch (InterruptedException e) {
+                    // Ignore
+                }
+            }
+            eventStoreStreamLog.debug("[{}] Polling worker - Completed with remaining demand for events {}. Is Cancelled: {}",
+                                      eventStreamLogName,
+                                      remainingDemandForEvents,
+                                      sink.isCancelled());
+        }
+
+        private long pollForEvents(long remainingDemandForEvents) {
+            eventStoreStreamLog.trace("[{}] Polling worker - Polling for {} events",
+                                      eventStreamLogName,
+                                      remainingDemandForEvents);
+            EventStoreUnitOfWork unitOfWork;
+            try {
+                unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
+            } catch (ConnectionException e) {
+                eventStoreStreamLog.debug(msg("[{}] Polling worker - Experienced a Postgresql Connection issue, will return an empty Flux",
+                                              eventStreamLogName), e);
+                return 0;
+            }
+
+            try {
+                long batchSizeForThisQuery = resolveBatchSizeForThisQuery(aggregateType,
+                                                                          eventStreamLogName,
+                                                                          eventStoreStreamLog,
+                                                                          lastBatchSizeForThisQuery.get(),
+                                                                          Math.min(batchFetchSize, remainingDemandForEvents),
+                                                                          consecutiveNoPersistedEventsReturned,
+                                                                          nextFromInclusiveGlobalOrder,
+                                                                          unitOfWork);
+                if (batchSizeForThisQuery == 0) {
+                    consecutiveNoPersistedEventsReturned.set(0);
+                    lastBatchSizeForThisQuery.set(remainingDemandForEvents);
+
+                    eventStoreStreamLog.debug("[{}] Polling worker - Skipping polling as no new events have been persisted since last poll",
+                                              eventStreamLogName);
+                    return 0;
+                } else {
+                    lastBatchSizeForThisQuery.set(batchSizeForThisQuery);
+                    eventStoreStreamLog.trace("[{}] Polling worker - Using batchSizeForThisQuery: {}",
+                                              eventStreamLogName,
+                                              batchSizeForThisQuery);
+                }
+
+                var globalOrderRange = LongRange.from(nextFromInclusiveGlobalOrder.get(), batchSizeForThisQuery);
+                var transientGapsToIncludeInQuery = subscriptionGapHandler.map(gapHandler -> gapHandler.findTransientGapsToIncludeInQuery(aggregateType, globalOrderRange))
+                                                                          .orElse(null);
+                var persistedEvents = loadEventsByGlobalOrder(aggregateType,
+                                                              globalOrderRange,
+                                                              transientGapsToIncludeInQuery,
+                                                              onlyIncludeEventIfItBelongsToTenant).collect(Collectors.toList());
+                subscriptionGapHandler.ifPresent(gapHandler -> gapHandler.reconcileGaps(aggregateType,
+                                                                                        globalOrderRange,
+                                                                                        persistedEvents,
+                                                                                        transientGapsToIncludeInQuery));
+                unitOfWork.commit();
+                if (persistedEvents.size() > 0) {
+                    consecutiveNoPersistedEventsReturned.set(0);
+                    if (log.isTraceEnabled()) {
+                        eventStoreStreamLog.debug("[{}] Polling worker - loadEventsByGlobalOrder using globalOrderRange {} and transientGapsToIncludeInQuery {} returned {} events: {}",
+                                                  eventStreamLogName,
+                                                  globalOrderRange,
+                                                  transientGapsToIncludeInQuery,
+                                                  persistedEvents.size(),
+                                                  persistedEvents.stream().map(PersistedEvent::globalEventOrder).collect(Collectors.toList()));
+                    } else {
+                        eventStoreStreamLog.debug("[{}] Polling worker - loadEventsByGlobalOrder using globalOrderRange {} and transientGapsToIncludeInQuery {} returned {} events",
+                                                  eventStreamLogName,
+                                                  globalOrderRange,
+                                                  transientGapsToIncludeInQuery,
+                                                  persistedEvents.size());
+                    }
+
+                    if (persistedEvents.size() > remainingDemandForEvents) {
+                        for (int index = 0; index < remainingDemandForEvents; index++) {
+                            var persistedEvent = persistedEvents.get(index);
+                            publishEventToSink(persistedEvent);
+                        }
+
+                        return remainingDemandForEvents;
+                    } else {
+                        persistedEvents.forEach(this::publishEventToSink);
+                        return persistedEvents.size();
+                    }
+                } else {
+                    consecutiveNoPersistedEventsReturned.incrementAndGet();
+                    eventStoreStreamLog.trace("[{}] Polling worker - loadEventsByGlobalOrder using globalOrderRange {} and transientGapsToIncludeInQuery {} returned no events",
+                                              eventStreamLogName,
+                                              globalOrderRange,
+                                              transientGapsToIncludeInQuery);
+                    return 0;
+                }
+            } catch (RuntimeException e) {
+                log.error(msg("[{}] Polling worker - Polling failed", eventStreamLogName), e);
+                if (unitOfWork != null) {
+                    try {
+                        unitOfWork.rollback(e);
+                    } catch (Exception rollbackException) {
+                        log.error(msg("[{}] Polling worker - Failed to rollback unit of work", eventStreamLogName), rollbackException);
+                    }
+                }
+                eventStoreStreamLog.error(msg("[{}] Polling worker - Returning Error for '{}' EventStream with nextFromInclusiveGlobalOrder {}",
+                                              eventStreamLogName,
+                                              aggregateType,
+                                              nextFromInclusiveGlobalOrder.get()),
+                                          e);
+                sink.error(e);
+                return 0;
+            }
+        }
+
+        private void publishEventToSink(PersistedEvent persistedEvent) {
+            eventStoreStreamLog.trace("[{}] Polling worker - Publishing '{}' Event '{}' with globalOrder {} to Flux",
+                                      eventStreamLogName,
+                                      persistedEvent.aggregateType(),
+                                      persistedEvent.event().getEventTypeOrNamePersistenceValue(),
+                                      persistedEvent.globalEventOrder());
+            sink.next(persistedEvent);
+            var nextGlobalOrder = persistedEvent.globalEventOrder().longValue() + 1L;
+            eventStoreStreamLog.trace("[{}] Polling worker - Updating nextFromInclusiveGlobalOrder from {} to {}",
+                                      eventStreamLogName,
+                                      nextFromInclusiveGlobalOrder.get(),
+                                      nextGlobalOrder);
+            nextFromInclusiveGlobalOrder.set(nextGlobalOrder);
+        }
     }
 }

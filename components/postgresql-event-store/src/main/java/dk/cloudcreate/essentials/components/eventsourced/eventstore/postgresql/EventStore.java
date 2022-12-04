@@ -394,7 +394,8 @@ public interface EventStore {
                                                    Optional<Tenant> onlyIncludeEventIfItBelongsToTenant);
 
     /**
-     * Asynchronously poll for new events related to the given <code>aggregateType</code>
+     * Asynchronously poll for new events related to the given <code>aggregateType</code><br>
+     * The returned Flux support backpressure, e.g. by using {@link Flux#limitRate(int)}
      *
      * @param aggregateType                       the aggregate type that the underlying events are associated with
      * @param fromInclusiveGlobalOrder            the first {@link GlobalEventOrder}'s to include in the returned {@link Flux}
@@ -421,7 +422,8 @@ public interface EventStore {
     }
 
     /**
-     * Asynchronously poll for new events related to the given <code>aggregateType</code> using default values - see {@link #pollEvents(AggregateType, GlobalEventOrder, Optional, Optional, Optional, Optional)}
+     * Asynchronously poll for new events related to the given <code>aggregateType</code> using default values - see {@link #pollEvents(AggregateType, GlobalEventOrder, Optional, Optional, Optional, Optional)}<br>
+     * The returned Flux support backpressure, e.g. by using {@link Flux#limitRate(int)}
      *
      * @param aggregateType            the aggregate type that the underlying events are associated with
      * @param fromInclusiveGlobalOrder the first {@link GlobalEventOrder}'s to include in the returned {@link Flux}
@@ -439,7 +441,8 @@ public interface EventStore {
     }
 
     /**
-     * Asynchronously poll for new events related to the given <code>aggregateType</code>
+     * Asynchronously poll for new events related to the given <code>aggregateType</code><br>
+     * The returned Flux support backpressure, e.g. by using {@link Flux#limitRate(int)}
      *
      * @param aggregateType                       the aggregate type that the underlying events are associated with
      * @param fromInclusiveGlobalOrder            the first {@link GlobalEventOrder}'s to include in the returned {@link Flux}
@@ -456,4 +459,52 @@ public interface EventStore {
                                     Optional<Duration> pollingInterval,
                                     Optional<Tenant> onlyIncludeEventIfItBelongsToTenant,
                                     Optional<SubscriberId> subscriptionId);
+
+    /**
+     * Asynchronously poll for new events related to the given <code>aggregateType</code><br>
+     * The returned Flux does NOT support backpressure
+     *
+     * @param aggregateType                       the aggregate type that the underlying events are associated with
+     * @param fromInclusiveGlobalOrder            the first {@link GlobalEventOrder}'s to include in the returned {@link Flux}
+     * @param loadEventsByGlobalOrderBatchSize    how many events should we maximum return from every call to {@link #loadEventsByGlobalOrder(AggregateType, LongRange, List, Optional)}
+     *                                            Default value is {@link AggregateEventStreamConfiguration#queryFetchSize} or {@link EventStore#DEFAULT_QUERY_BATCH_SIZE}
+     * @param pollingInterval                     how often should the {@link EventStore} be polled for new events. Default value is {@link #DEFAULT_POLLING_INTERVAL_MILLISECONDS}
+     * @param onlyIncludeEventIfItBelongsToTenant if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
+     * @param subscriptionId                      unique subscriber id which is used for creating a unique logger name. If {@link Optional#empty()} then a UUID value is generated and used
+     * @return a {@link Flux} that asynchronously will publish events associated with the provided <code>aggregateType</code>
+     */
+    default Flux<PersistedEvent> unboundedPollForEvents(AggregateType aggregateType,
+                                                        GlobalEventOrder fromInclusiveGlobalOrder,
+                                                        Optional<Integer> loadEventsByGlobalOrderBatchSize,
+                                                        Optional<Duration> pollingInterval,
+                                                        Optional<Tenant> onlyIncludeEventIfItBelongsToTenant,
+                                                        Optional<SubscriberId> subscriptionId) {
+        requireNonNull(fromInclusiveGlobalOrder, "No fromInclusiveGlobalOrder value provided");
+        return unboundedPollForEvents(aggregateType,
+                                      fromInclusiveGlobalOrder.longValue(),
+                                      loadEventsByGlobalOrderBatchSize,
+                                      pollingInterval,
+                                      onlyIncludeEventIfItBelongsToTenant,
+                                      subscriptionId);
+    }
+
+    /**
+     * Asynchronously poll for new events related to the given <code>aggregateType</code><br>
+     * The returned Flux does NOT support backpressure
+     *
+     * @param aggregateType                       the aggregate type that the underlying events are associated with
+     * @param fromInclusiveGlobalOrder            the first {@link GlobalEventOrder}'s to include in the returned {@link Flux}
+     * @param loadEventsByGlobalOrderBatchSize    how many events should we maximum return from every call to {@link #loadEventsByGlobalOrder(AggregateType, LongRange, List, Tenant)}
+     *                                            Default value is {@link AggregateEventStreamConfiguration#queryFetchSize} or {@link EventStore#DEFAULT_QUERY_BATCH_SIZE}
+     * @param pollingInterval                     how often should the {@link EventStore} be polled for new events. Default value is {@link #DEFAULT_POLLING_INTERVAL_MILLISECONDS}
+     * @param onlyIncludeEventIfItBelongsToTenant if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
+     * @param subscriptionId                      unique subscriber id which is used for creating a unique logger name. If {@link Optional#empty()} then a UUID value is generated and used
+     * @return a {@link Flux} that asynchronously will publish events associated with the provided <code>aggregateType</code>
+     */
+    Flux<PersistedEvent> unboundedPollForEvents(AggregateType aggregateType,
+                                                long fromInclusiveGlobalOrder,
+                                                Optional<Integer> loadEventsByGlobalOrderBatchSize,
+                                                Optional<Duration> pollingInterval,
+                                                Optional<Tenant> onlyIncludeEventIfItBelongsToTenant,
+                                                Optional<SubscriberId> subscriptionId);
 }

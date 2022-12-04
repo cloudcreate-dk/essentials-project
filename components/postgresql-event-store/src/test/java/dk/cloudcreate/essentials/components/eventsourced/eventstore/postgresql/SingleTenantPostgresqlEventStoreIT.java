@@ -17,58 +17,44 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.CommitStage;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.PersistedEvents;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.PostgresqlEventStreamGapHandler;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateEventStreamConfiguration;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypePersistenceStrategy;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.test_data.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreManagedUnitOfWorkFactory;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWork;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.components.foundation.types.CorrelationId;
-import dk.cloudcreate.essentials.components.foundation.types.EventId;
-import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
+import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
 import dk.cloudcreate.essentials.reactive.EventHandler;
-import dk.cloudcreate.essentials.types.LongRange;
-import dk.cloudcreate.essentials.types.NumberType;
+import dk.cloudcreate.essentials.types.*;
 import org.awaitility.Awaitility;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.postgres.PostgresPlugin;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.junit.jupiter.*;
+import reactor.core.publisher.Flux;
 
-import java.time.Duration;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-import java.util.stream.LongStream;
+import java.util.function.Function;
+import java.util.stream.*;
 
 import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateEventStreamConfiguration.standardSingleTenantConfigurationUsingJackson;
 import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson;
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 
 @Testcontainers
 class SingleTenantPostgresqlEventStoreIT {
@@ -130,11 +116,11 @@ class SingleTenantPostgresqlEventStoreIT {
     @Test
     void persisting_events_related_to_two_different_aggregates_in_one_unitofwork() {
         // Given
-        var orderId1 = OrderId.of("beed77fb-d911-1111-9c48-03ed5bfe8f89");
-        var customerId1 = CustomerId.of("Test-Customer-Id-10");
+        var orderId1     = OrderId.of("beed77fb-d911-1111-9c48-03ed5bfe8f89");
+        var customerId1  = CustomerId.of("Test-Customer-Id-10");
         var orderNumber1 = 1234;
-        var orderId2 = OrderId.of("ceed77fb-d911-9c48-1111-03ed5bfe8f89");
-        var customerId2 = CustomerId.of("Test-Customer-Id2-10");
+        var orderId2     = OrderId.of("ceed77fb-d911-9c48-1111-03ed5bfe8f89");
+        var customerId2  = CustomerId.of("Test-Customer-Id2-10");
         var orderNumber2 = 4321;
 
         // When
@@ -215,7 +201,7 @@ class SingleTenantPostgresqlEventStoreIT {
     @Test
     void loadLastPersistedEventRelatedTo__before_and_after_persisting_an_event() {
         // Given
-        var orderId = OrderId.of("beed77fb-d911-1111-9c48-03ed5bfe8f89");
+        var orderId    = OrderId.of("beed77fb-d911-1111-9c48-03ed5bfe8f89");
         var unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
         assertThat(eventStore.loadLastPersistedEventRelatedTo(aggregateType, orderId)).isEmpty();
 
@@ -255,7 +241,7 @@ class SingleTenantPostgresqlEventStoreIT {
     @Test
     void loadLastPersistedEventRelatedTo_before_and_after_persisting_three_event() {
         // Given
-        var orderId = OrderId.of("beed77fb-1111-1111-9c48-03ed5bfe8f89");
+        var orderId    = OrderId.of("beed77fb-1111-1111-9c48-03ed5bfe8f89");
         var unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
         assertThat(eventStore.loadLastPersistedEventRelatedTo(aggregateType, orderId)).isEmpty();
 
@@ -299,7 +285,7 @@ class SingleTenantPostgresqlEventStoreIT {
     @Test
     void loadEvent() {
         // Given
-        var orderId = OrderId.of("beed77fb-1112-1111-9c48-03ed5bfe8f89");
+        var orderId    = OrderId.of("beed77fb-1112-1111-9c48-03ed5bfe8f89");
         var unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
         assertThat(eventStore.loadLastPersistedEventRelatedTo(aggregateType, orderId)).isEmpty();
 
@@ -343,7 +329,7 @@ class SingleTenantPostgresqlEventStoreIT {
     @Test
     void fetchStream_with_open_EventOrder_range() {
         // Given
-        var orderId = OrderId.of("beed77fb-1112-1112-9c48-03ed5bfe8f89");
+        var orderId    = OrderId.of("beed77fb-1112-1112-9c48-03ed5bfe8f89");
         var unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
         assertThat(eventStore.loadLastPersistedEventRelatedTo(aggregateType, orderId)).isEmpty();
 
@@ -413,7 +399,7 @@ class SingleTenantPostgresqlEventStoreIT {
     @Test
     void fetchStream_with_closed_EventOrder_range() {
         // Given
-        var orderId = OrderId.of("beed77fb-1113-1113-9c48-03ed5bfe8f89");
+        var orderId    = OrderId.of("beed77fb-1113-1113-9c48-03ed5bfe8f89");
         var unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
         assertThat(eventStore.loadLastPersistedEventRelatedTo(aggregateType, orderId)).isEmpty();
 
@@ -484,7 +470,7 @@ class SingleTenantPostgresqlEventStoreIT {
     @Test
     void persist_and_load_a_single_event() {
         // Given
-        var orderId = OrderId.of("beed77fb-d911-480f-9c48-03ed5bfe8f89");
+        var orderId    = OrderId.of("beed77fb-d911-480f-9c48-03ed5bfe8f89");
         var customerId = CustomerId.of("Test-Customer-Id");
         var persistableEvents = List.of(new OrderEvent.OrderAdded(orderId,
                                                                   customerId,
@@ -562,7 +548,7 @@ class SingleTenantPostgresqlEventStoreIT {
     @Test
     void append_events_to_existing_aggregate_eventstream() {
         // Given
-        var orderId = OrderId.of("beed77fb-d911-480f-9c48-03ed5bfeffff");
+        var orderId    = OrderId.of("beed77fb-d911-480f-9c48-03ed5bfeffff");
         var customerId = CustomerId.of("Test-Customer-Id-2");
         var initialEvents = List.of(new OrderEvent.OrderAdded(orderId,
                                                               customerId,
@@ -724,7 +710,7 @@ class SingleTenantPostgresqlEventStoreIT {
     @Test
     void append_events_to_with_overlapping_event_order() {
         // Given
-        var orderId = OrderId.of("beed77fb-d911-480f-9c48-03ed5bfe1111");
+        var orderId    = OrderId.of("beed77fb-d911-480f-9c48-03ed5bfe1111");
         var customerId = CustomerId.of("Test-Customer-Id-3");
         var initialEvents = List.of(new OrderEvent.OrderAdded(orderId,
                                                               customerId,
@@ -949,7 +935,7 @@ class SingleTenantPostgresqlEventStoreIT {
 
         // Check we can split the number of order events in two
         assertThat(totalNumberOfOrderEvents % 2).isEqualTo(0);
-        var batchSize = totalNumberOfOrderEvents / 2;
+        var batchSize      = totalNumberOfOrderEvents / 2;
         var allOrderEvents = new ArrayList<PersistedEvent>();
         // First batch
         var persistedOrdersEventsStream = eventStore.loadEventsByGlobalOrder(ORDERS, LongRange.from(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER.longValue(), batchSize));
@@ -994,8 +980,10 @@ class SingleTenantPostgresqlEventStoreIT {
         assertThat(globalEventOrdersFound).isEqualTo("3,5,6,10,11,12,13,14,15,16,17,18,19,20,45,72");
     }
 
-    @Test
-    void test_pollEvents() {
+    private void testSimpleEventPolling(Function<SubscriberId, Flux<PersistedEvent>> productsFluxSupplier,
+                                        Function<SubscriberId, Flux<PersistedEvent>> ordersFluxSupplier) {
+        requireNonNull(productsFluxSupplier);
+        requireNonNull(ordersFluxSupplier);
         // Add support for the Product aggregate
         eventStore.addAggregateEventStreamConfiguration(standardSingleTenantConfigurationUsingJackson(PRODUCTS,
                                                                                                       createObjectMapper(),
@@ -1005,29 +993,19 @@ class SingleTenantPostgresqlEventStoreIT {
         var testEvents = createTestEvents();
 
         var productEventsReceived = new ArrayList<PersistedEvent>();
-        var productsSubscriberId = SubscriberId.of("ProductsSub1");
-        var productEventsFlux = eventStore.pollEvents(PRODUCTS,
-                                                      GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
-                                                      Optional.of(2),
-                                                      Optional.of(Duration.ofMillis(100)),
-                                                      Optional.empty(),
-                                                      Optional.of(productsSubscriberId))
-                                          .subscribe(e -> {
-                                              System.out.println("Received Product event: " + e);
-                                              productEventsReceived.add(e);
-                                          });
+        var productsSubscriberId  = SubscriberId.of("ProductsSub1");
+        var productEventsFlux = productsFluxSupplier.apply(productsSubscriberId)
+                                                    .subscribe(e -> {
+                                                        System.out.println("Received Product event: " + e);
+                                                        productEventsReceived.add(e);
+                                                    });
         var orderEventsReceived = new ArrayList<PersistedEvent>();
-        var ordersSubscriberId = SubscriberId.of("OrdersSub1");
-        var orderEventsFlux = eventStore.pollEvents(ORDERS,
-                                                    GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
-                                                    Optional.of(10),
-                                                    Optional.of(Duration.ofMillis(100)),
-                                                    Optional.empty(),
-                                                    Optional.of(ordersSubscriberId))
-                                        .subscribe(e -> {
-                                            System.out.println("Received Order event: " + e);
-                                            orderEventsReceived.add(e);
-                                        });
+        var ordersSubscriberId  = SubscriberId.of("OrdersSub1");
+        var orderEventsFlux = ordersFluxSupplier.apply(ordersSubscriberId)
+                                                .subscribe(e -> {
+                                                    System.out.println("Received Order event: " + e);
+                                                    orderEventsReceived.add(e);
+                                                });
 
         // Persist all test events
         testEvents.forEach((aggregateType, aggregatesAndEvents) -> {
@@ -1102,6 +1080,56 @@ class SingleTenantPostgresqlEventStoreIT {
     }
 
     @Test
+    void test_pollEvents_with_rate_limit() {
+        testSimpleEventPolling(productsSubscriberId -> eventStore.pollEvents(PRODUCTS,
+                                                                             GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
+                                                                             Optional.of(2),
+                                                                             Optional.of(Duration.ofMillis(100)),
+                                                                             Optional.empty(),
+                                                                             Optional.of(productsSubscriberId))
+                                                                 .limitRate(10),
+                               ordersSubscriberId -> eventStore.pollEvents(ORDERS,
+                                                                           GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
+                                                                           Optional.of(10),
+                                                                           Optional.of(Duration.ofMillis(100)),
+                                                                           Optional.empty(),
+                                                                           Optional.of(ordersSubscriberId))
+                                                               .limitRate(10));
+    }
+
+    @Test
+    void test_pollEvents_with_unbounded_rate() {
+        testSimpleEventPolling(productsSubscriberId -> eventStore.pollEvents(PRODUCTS,
+                                                                             GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
+                                                                             Optional.of(2),
+                                                                             Optional.of(Duration.ofMillis(100)),
+                                                                             Optional.empty(),
+                                                                             Optional.of(productsSubscriberId)),
+                               ordersSubscriberId -> eventStore.pollEvents(ORDERS,
+                                                                           GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
+                                                                           Optional.of(10),
+                                                                           Optional.of(Duration.ofMillis(100)),
+                                                                           Optional.empty(),
+                                                                           Optional.of(ordersSubscriberId)));
+    }
+
+    @Test
+    void test_unboundedPollForEvents() {
+        testSimpleEventPolling(productsSubscriberId -> eventStore.unboundedPollForEvents(PRODUCTS,
+                                                                                         GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
+                                                                                         Optional.of(2),
+                                                                                         Optional.of(Duration.ofMillis(100)),
+                                                                                         Optional.empty(),
+                                                                                         Optional.of(productsSubscriberId)),
+                               ordersSubscriberId -> eventStore.unboundedPollForEvents(ORDERS,
+                                                                                       GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
+                                                                                       Optional.of(10),
+                                                                                       Optional.of(Duration.ofMillis(100)),
+                                                                                       Optional.empty(),
+                                                                                       Optional.of(ordersSubscriberId)));
+    }
+
+    @Test
     void test_pollEvents_with_pauses() throws InterruptedException {
         // Add support for the Product aggregate
         eventStore.addAggregateEventStreamConfiguration(standardSingleTenantConfigurationUsingJackson(PRODUCTS,
@@ -1111,7 +1139,7 @@ class SingleTenantPostgresqlEventStoreIT {
                                                                                                       JSONColumnType.JSON));
 
         var productEventsReceived = new ArrayList<PersistedEvent>();
-        var productsSubscriberId = SubscriberId.of("ProductsSub1");
+        var productsSubscriberId  = SubscriberId.of("ProductsSub1");
         var productEventsFlux = eventStore.pollEvents(PRODUCTS,
                                                       GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
                                                       Optional.of(2),
@@ -1123,7 +1151,7 @@ class SingleTenantPostgresqlEventStoreIT {
                                               productEventsReceived.add(e);
                                           });
         var orderEventsReceived = new ArrayList<PersistedEvent>();
-        var ordersSubscriberId = SubscriberId.of("OrdersSub1");
+        var ordersSubscriberId  = SubscriberId.of("OrdersSub1");
         var orderEventsFlux = eventStore.pollEvents(ORDERS,
                                                     GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
                                                     Optional.of(10),
@@ -1141,7 +1169,7 @@ class SingleTenantPostgresqlEventStoreIT {
 
         // Persist all test events
         System.out.println("----> Starting persisting all events");
-        var index = new AtomicInteger();
+        var index      = new AtomicInteger();
         var testEvents = createTestEvents();
         testEvents.forEach((aggregateType, aggregatesAndEvents) -> {
             aggregatesAndEvents.forEach((aggregateId, events) -> {
@@ -1230,8 +1258,8 @@ class SingleTenantPostgresqlEventStoreIT {
     @Test
     void test_pollEvents_with_large_gaps() throws InterruptedException {
         var orderEventsReceived = new ArrayList<PersistedEvent>();
-        var ordersSubscriberId = SubscriberId.of("OrdersSub1");
-        var batchSize = 10;
+        var ordersSubscriberId  = SubscriberId.of("OrdersSub1");
+        var batchSize           = 10;
         var orderEventsFlux = eventStore.pollEvents(ORDERS,
                                                     GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
                                                     Optional.of(batchSize),
@@ -1245,11 +1273,11 @@ class SingleTenantPostgresqlEventStoreIT {
         System.out.println("------------------ PERSISTING ALL EVENTS --------------------------");
 
         // Persist all test events
-        var index = new AtomicInteger();
+        var index                = new AtomicInteger();
         var expectedNumberOfGaps = new AtomicInteger();
-        var aggregatesAndEvents = createTestEvents().get(ORDERS);
+        var aggregatesAndEvents  = createTestEvents().get(ORDERS);
         aggregatesAndEvents.forEach((aggregateId, events) -> {
-            var currentIndex = index.get();
+            var currentIndex                                = index.get();
             var rollbackAddingEventsToForceAnEventStreamGap = (currentIndex % batchSize == 0);
             if (rollbackAddingEventsToForceAnEventStreamGap) {
                 System.out.println("---> failAddingEventsToForceAnEventStreamGap for aggregate '" + aggregateId + "': " + rollbackAddingEventsToForceAnEventStreamGap);
@@ -1325,7 +1353,7 @@ class SingleTenantPostgresqlEventStoreIT {
         var eventsPerAggregateType = new HashMap<AggregateType, Map<?, List<?>>>();
 
         // Products
-        var aggregateType = PRODUCTS;
+        var aggregateType       = PRODUCTS;
         var aggregatesAndEvents = new HashMap<Object, List<?>>();
         for (int i = 0; i < 10; i++) {
             var productId = ProductId.random();
