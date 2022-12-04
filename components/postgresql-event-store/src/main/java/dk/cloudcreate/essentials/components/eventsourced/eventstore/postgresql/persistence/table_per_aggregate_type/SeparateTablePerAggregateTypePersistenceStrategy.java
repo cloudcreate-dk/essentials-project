@@ -485,7 +485,11 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
                                       .setFetchSize(1)
                                       .map(new PersistedEventRowMapper(this, configuration))
                                       .findOne();
-        log.debug("[{}] Found Last-Persisted-Event for Aggregate with id '{}': {}", configuration.aggregateType, aggregateId, lastPersistedEvent);
+        if (lastPersistedEvent.isPresent()) {
+            log.debug("[{}] Found Last-Persisted-Event for Aggregate with id '{}': {}", configuration.aggregateType, aggregateId, lastPersistedEvent);
+        } else {
+            log.debug("[{}] Did NOT find any Last-Persisted-Event for Aggregate with id '{}'", configuration.aggregateType, aggregateId);
+        }
         return lastPersistedEvent;
     }
 
