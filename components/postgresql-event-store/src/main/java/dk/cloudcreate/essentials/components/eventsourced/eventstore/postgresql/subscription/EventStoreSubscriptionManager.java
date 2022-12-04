@@ -636,8 +636,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                       subscriberId,
                                       aggregateType), e);
                     }
-                    // Save resume point to be the next global order event AFTER the one we know we just handled
-                    log.debug("[{}-{}] Saving ResumePoint {}",
+                    // Save resume point to be the next global order event
+                    log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
                               subscriberId,
                               aggregateType,
                               resumePoint.getResumeFromAndIncluding());
@@ -827,11 +827,6 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                      subscriberId,
                                      aggregateType);
                             try {
-                                fencedLockAwareSubscriber.onLockReleased(lock);
-                            } catch (Exception e) {
-                                log.error(msg("FencedLockAwareSubscriber#onLockReleased failed for lock {}", lock.getName()), e);
-                            }
-                            try {
                                 if (subscription != null) {
                                     log.debug("[{}-{}] Stopping subscription flux",
                                               subscriberId,
@@ -847,12 +842,18 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                               subscriberId,
                                               aggregateType), e);
                             }
+
+                            try {
+                                fencedLockAwareSubscriber.onLockReleased(lock);
+                            } catch (Exception e) {
+                                log.error(msg("FencedLockAwareSubscriber#onLockReleased failed for lock {}", lock.getName()), e);
+                            }
+
                             // Save resume point to be the next global order event AFTER the one we know we just handled
-                            log.debug("[{}-{}] Advancing ResumePoint from {} to {}",
+                            log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
                                       subscriberId,
                                       aggregateType,
-                                      resumePoint.getResumeFromAndIncluding(),
-                                      resumePoint.getResumeFromAndIncluding().increment());
+                                      resumePoint.getResumeFromAndIncluding());
                             resumePoint.setResumeFromAndIncluding(resumePoint.getResumeFromAndIncluding());
                             durableSubscriptionRepository.saveResumePoint(resumePoint);
                             active = false;
