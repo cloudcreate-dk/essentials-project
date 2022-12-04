@@ -342,30 +342,29 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
         var subscriptionGapHandler               = subscriberId.map(eventStreamGapHandler::gapHandlerFor);
 
         return Flux.create((FluxSink<PersistedEvent> sink) -> {
-                       var scheduler = Schedulers.newSingle("Polling-Worker-Publish-" + subscriberId.orElse(NO_SUBSCRIBER_ID) + "-" + aggregateType, true);
-//                       var subscriptionWorker = scheduler.createWorker();
-                       sink.onRequest(eventDemandSize -> {
-                           eventStoreStreamLog.debug("[{}] Received demand for {} events",
-                                                     eventStreamLogName,
-                                                     eventDemandSize);
-                           scheduler.schedule(new PollEventStoreTask(eventDemandSize,
-                                                                              sink,
-                                                                              aggregateType,
-                                                                              onlyIncludeEventIfItBelongsToTenant,
-                                                                              eventStreamLogName,
-                                                                              eventStoreStreamLog,
-                                                                              pollingInterval,
-                                                                              consecutiveNoPersistedEventsReturned,
-                                                                              batchFetchSize,
-                                                                              lastBatchSizeForThisQuery,
-                                                                              nextFromInclusiveGlobalOrder,
-                                                                              subscriptionGapHandler));
+            var scheduler = Schedulers.newSingle("Polling-Worker-Publish-" + subscriberId.orElse(NO_SUBSCRIBER_ID) + "-" + aggregateType, true);
+            sink.onRequest(eventDemandSize -> {
+                eventStoreStreamLog.debug("[{}] Received demand for {} events",
+                                          eventStreamLogName,
+                                          eventDemandSize);
+                scheduler.schedule(new PollEventStoreTask(eventDemandSize,
+                                                          sink,
+                                                          aggregateType,
+                                                          onlyIncludeEventIfItBelongsToTenant,
+                                                          eventStreamLogName,
+                                                          eventStoreStreamLog,
+                                                          pollingInterval,
+                                                          consecutiveNoPersistedEventsReturned,
+                                                          batchFetchSize,
+                                                          lastBatchSizeForThisQuery,
+                                                          nextFromInclusiveGlobalOrder,
+                                                          subscriptionGapHandler));
 
-                       });
+            });
 
-                       sink.onCancel(scheduler);
+            sink.onCancel(scheduler);
 
-                   }, FluxSink.OverflowStrategy.ERROR);
+        }, FluxSink.OverflowStrategy.ERROR);
     }
 
     @Override
@@ -691,6 +690,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                                                                                         persistedEvents,
                                                                                         transientGapsToIncludeInQuery));
                 unitOfWork.commit();
+                unitOfWork = null;
                 if (persistedEvents.size() > 0) {
                     consecutiveNoPersistedEventsReturned.set(0);
                     if (log.isTraceEnabled()) {
@@ -708,17 +708,26 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                                                   persistedEvents.size());
                     }
 
+                    var eventsToPublish = persistedEvents;
                     if (persistedEvents.size() > remainingDemandForEvents) {
-                        for (int index = 0; index < remainingDemandForEvents; index++) {
-                            var persistedEvent = persistedEvents.get(index);
-                            publishEventToSink(persistedEvent);
-                        }
-
-                        return remainingDemandForEvents;
-                    } else {
-                        persistedEvents.forEach(this::publishEventToSink);
-                        return persistedEvents.size();
+                        eventStoreStreamLog.debug("[{}] Polling worker - Found {} event(s) to publish, but will only publish {} of the found event(s) as this matches with the remainingDemandForEvents",
+                                                  eventStreamLogName,
+                                                  persistedEvents.size(),
+                                                  remainingDemandForEvents);
+                        eventsToPublish = persistedEvents.subList(0, (int) remainingDemandForEvents);
                     }
+
+                    for (int index = 0; index < eventsToPublish.size(); index++) {
+                        if (sink.isCancelled()) {
+                            eventStoreStreamLog.debug("[{}] Polling worker - Is Cancelled: true. Skipping publishing further events (has only published {} out of the planned {} events)",
+                                                      eventStreamLogName,
+                                                      index + 1,
+                                                      eventsToPublish.size());
+                            return index;
+                        }
+                        publishEventToSink(eventsToPublish.get(index));
+                    }
+                    return eventsToPublish.size();
                 } else {
                     consecutiveNoPersistedEventsReturned.incrementAndGet();
                     eventStoreStreamLog.trace("[{}] Polling worker - loadEventsByGlobalOrder using globalOrderRange {} and transientGapsToIncludeInQuery {} returned no events",
@@ -731,6 +740,8 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                 log.error(msg("[{}] Polling worker - Polling failed", eventStreamLogName), e);
                 if (unitOfWork != null) {
                     try {
+                        eventStoreStreamLog.debug("[{}] Polling worker - rolling back UnitOfWork due to error during polling",
+                                                  eventStreamLogName);
                         unitOfWork.rollback(e);
                     } catch (Exception rollbackException) {
                         log.error(msg("[{}] Polling worker - Failed to rollback unit of work", eventStreamLogName), rollbackException);
