@@ -336,7 +336,19 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
                                                  .get();
         System.out.println("test_start_and_stop_subscription - Total number of Order Events: " + totalNumberOfOrderEvents);
         Awaitility.waitAtMost(Duration.ofSeconds(10))
-                  .untilAsserted(() -> assertThat(orderEventsReceived.size()).isEqualTo(totalNumberOfOrderEvents));
+                  .untilAsserted(() -> {
+                      var receivedGlobalOrders = orderEventsReceived.stream()
+                                                                    .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
+                                                                    .collect(Collectors.toList());
+                      if (orderEventsReceived.size() > totalNumberOfOrderEvents) {
+                          System.out.println("******************** RECEIVED MORE EVENTS THAN EXPECTED ********************");
+                          System.out.println("Received orderEventsReceived      : " + orderEventsReceived.size());
+                          System.out.println("Expected totalNumberOfOrderEvents : " + totalNumberOfOrderEvents);
+                          System.out.println("orderEventsReceived - globalOrders: " + receivedGlobalOrders);
+                      }
+                      assertThat(orderEventsReceived).doesNotHaveDuplicates();
+                      assertThat(orderEventsReceived.size()).isEqualTo(totalNumberOfOrderEvents);
+                  });
         assertThat(orderEventsReceived.stream().filter(persistedEvent -> !persistedEvent.aggregateType().equals(ORDERS)).findAny()).isEmpty();
         assertThat(orderEventsReceived.stream()
                                       .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
@@ -424,10 +436,16 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
         System.out.println("Total number of Order Events: " + totalNumberOfOrderEvents);
         Awaitility.waitAtMost(Duration.ofSeconds(10))
                   .untilAsserted(() -> {
-                      System.out.println("Received " + orderEventsReceived.size() + " out of " + totalNumberOfOrderEvents);
+                      var receivedGlobalOrders = orderEventsReceived.stream()
+                                                                    .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
+                                                                    .collect(Collectors.toList());
                       if (orderEventsReceived.size() > totalNumberOfOrderEvents) {
-                          System.out.println("Received events: " + orderEventsReceived);
+                          System.out.println("******************** RECEIVED MORE EVENTS THAN EXPECTED ********************");
+                          System.out.println("Received orderEventsReceived      : " + orderEventsReceived.size());
+                          System.out.println("Expected totalNumberOfOrderEvents : " + totalNumberOfOrderEvents);
+                          System.out.println("orderEventsReceived - globalOrders: " + receivedGlobalOrders);
                       }
+                      assertThat(orderEventsReceived).doesNotHaveDuplicates();
                       assertThat(orderEventsReceived.size()).isEqualTo(totalNumberOfOrderEvents);
                   });
         assertThat(orderEventsReceived.stream().filter(persistedEvent -> !persistedEvent.aggregateType().equals(ORDERS)).findAny()).isEmpty();
