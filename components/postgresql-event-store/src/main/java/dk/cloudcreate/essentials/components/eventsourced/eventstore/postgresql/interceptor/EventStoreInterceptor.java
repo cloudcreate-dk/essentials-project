@@ -224,7 +224,7 @@ public interface EventStoreInterceptor {
     }
 
     /**
-     * Operation matching the {@link EventStore#loadEventsByGlobalOrder(AggregateType, LongRange, Optional)}  method call
+     * Operation matching the {@link EventStore#loadEventsByGlobalOrder(AggregateType, LongRange, List, Optional)}  method call
      */
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     class LoadEventsByGlobalOrder {
