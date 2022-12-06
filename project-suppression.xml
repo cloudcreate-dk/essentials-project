@@ -210,4 +210,22 @@
         <packageUrl regex="true">^pkg:maven/org\.yaml/snakeyaml@.*$</packageUrl>
         <vulnerabilityName>CVE-2022-41854</vulnerabilityName>
     </suppress>
+    <suppress>
+        <notes><![CDATA[
+        According to https://nvd.nist.gov/vuln/detail/CVE-2022-1471 this issue is only relevant when
+        parsing untrusted content. Essentials is only using SnakeYAML for testing and reading local yaml files.
+   file name: snakeyaml-1.33.jar
+   ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.yaml/snakeyaml@.*$</packageUrl>
+        <vulnerabilityName>CVE-2022-1471</vulnerabilityName>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+        According to https://nvd.nist.gov/vuln/detail/CVE-2022-45868 this issue is only
+        relevant if the H2 DB was started via the CLI with the argument -webAdminPassword
+        Essentials only use H2 for in memory tests.
+   ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.h2database/h2@.*$</packageUrl>
+        <vulnerabilityName>CVE-2022-45868</vulnerabilityName>
+    </suppress>
 </suppressions>

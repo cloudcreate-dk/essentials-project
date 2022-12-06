@@ -596,7 +596,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                  } catch (Exception cause) {
                                                      onErrorHandlingEvent(e, cause);
                                                  } finally {
-                                                     resumePoint.setResumeFromAndIncluding(e.globalEventOrder());
+                                                     resumePoint.setResumeFromAndIncluding(e.globalEventOrder().increment());
                                                  }
                                              });
                 } else {
@@ -636,13 +636,12 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                       subscriberId,
                                       aggregateType), e);
                     }
-                    // Save resume point to be the next global order event AFTER the one we know we just handled
-                    log.debug("[{}-{}] Advancing ResumePoint from {} to {}",
+                    // Save resume point to be the next global order event
+                    log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
                               subscriberId,
                               aggregateType,
-                              resumePoint.getResumeFromAndIncluding(),
-                              resumePoint.getResumeFromAndIncluding().increment());
-                    resumePoint.setResumeFromAndIncluding(resumePoint.getResumeFromAndIncluding().increment());
+                              resumePoint.getResumeFromAndIncluding());
+                    resumePoint.setResumeFromAndIncluding(resumePoint.getResumeFromAndIncluding());
                     durableSubscriptionRepository.saveResumePoint(resumePoint);
                     started = false;
                     log.info("[{}-{}] Stopped subscription",
@@ -814,7 +813,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                          } catch (Exception cause) {
                                                              onErrorHandlingEvent(e, cause);
                                                          } finally {
-                                                             resumePoint.setResumeFromAndIncluding(e.globalEventOrder());
+                                                             resumePoint.setResumeFromAndIncluding(e.globalEventOrder().increment());
                                                          }
                                                      });
                         }
@@ -828,11 +827,6 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                      subscriberId,
                                      aggregateType);
                             try {
-                                fencedLockAwareSubscriber.onLockReleased(lock);
-                            } catch (Exception e) {
-                                log.error(msg("FencedLockAwareSubscriber#onLockReleased failed for lock {}", lock.getName()), e);
-                            }
-                            try {
                                 if (subscription != null) {
                                     log.debug("[{}-{}] Stopping subscription flux",
                                               subscriberId,
@@ -840,21 +834,27 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                     subscription.dispose();
                                 } else {
                                     log.debug("[{}-{}] Didn't find a subscription flux to dispose",
-                                             subscriberId,
-                                             aggregateType);
+                                              subscriberId,
+                                              aggregateType);
                                 }
                             } catch (Exception e) {
                                 log.error(msg("[{}-{}] Failed to dispose subscription flux",
                                               subscriberId,
                                               aggregateType), e);
                             }
+
+                            try {
+                                fencedLockAwareSubscriber.onLockReleased(lock);
+                            } catch (Exception e) {
+                                log.error(msg("FencedLockAwareSubscriber#onLockReleased failed for lock {}", lock.getName()), e);
+                            }
+
                             // Save resume point to be the next global order event AFTER the one we know we just handled
-                            log.debug("[{}-{}] Advancing ResumePoint from {} to {}",
+                            log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
                                       subscriberId,
                                       aggregateType,
-                                      resumePoint.getResumeFromAndIncluding(),
-                                      resumePoint.getResumeFromAndIncluding().increment());
-                            resumePoint.setResumeFromAndIncluding(resumePoint.getResumeFromAndIncluding().increment());
+                                      resumePoint.getResumeFromAndIncluding());
+                            resumePoint.setResumeFromAndIncluding(resumePoint.getResumeFromAndIncluding());
                             durableSubscriptionRepository.saveResumePoint(resumePoint);
                             active = false;
                             log.info("[{}-{}] Stopped subscription",

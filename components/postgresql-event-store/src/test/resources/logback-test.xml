@@ -25,6 +25,10 @@
     </appender>
 
     <logger name="dk.cloudcreate.essentials" level="TRACE"/>
+    <logger name="dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.PostgresqlEventStreamGapHandler" level="DEBUG"/>
+    <logger name="dk.cloudcreate.essentials.components.foundation.transaction.jdbi.GenericHandleAwareUnitOfWorkFactory" level="INFO"/>
+    <logger name="dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreManagedUnitOfWork" level="INFO"/>
+    <logger name="dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory" level="INFO"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
