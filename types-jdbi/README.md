@@ -9,7 +9,7 @@ many of the most popular libraries and frameworks such as Jackson, Spring Boot, 
 
 ## Types-JDBI
 
-This library focuses purely on providing [JDBI v3](https://jdbi.org) **argument** support for the **types** defined in the Essentials `types`
+This library focuses purely on providing [JDBI v3](https://jdbi.org) `ArgumentFactory` and `ColumnMapper` support for the **types** defined in the Essentials `types`
 library.
 
 To use `Types-JDBI` just add the following Maven dependency:
@@ -17,7 +17,7 @@ To use `Types-JDBI` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jdbi</artifactId>
-    <version>0.8.1</version>
+    <version>0.8.2</version>
 </dependency>
 ```
 
@@ -81,12 +81,12 @@ var customerId = CustomerId.random();
 var productId  = ProductId.random();
 var accountId  = AccountId.random();
 
-handle.useHandle(handle -> handle.createUpdate("INSERT INTO orders(id, customer_id, product_id, account_id) VALUES (:id, :customerId, :productId, :accountId)")
-                                  .bind("id", orderId)
-                                  .bind("customerId", customerId)
-                                  .bind("productId", productId)
-                                  .bind("accountId", accountId)
-                                  .execute());
+jdbi.useHandle(handle -> handle.createUpdate("INSERT INTO orders(id, customer_id, product_id, account_id) VALUES (:id, :customerId, :productId, :accountId)")
+                               .bind("id", orderId)
+                               .bind("customerId", customerId)
+                               .bind("productId", productId)
+                               .bind("accountId", accountId)
+                               .execute());
 ```
 
 ## ColumnMapper
@@ -106,9 +106,8 @@ jdbi.registerColumnMapper(new PercentageColumnMapper());
 
 An example of using it:
 ```
-return handle.useHandle(handle -> 
-                 handle.createQuery("SELECT MAX(discount) FROM ORDERS")
-                 .setFetchSize(1)
-                 .mapTo(Percentage.class)
-                 .findOne();
+return jdbi.useHandle(handle -> handle.createQuery("SELECT MAX(discount) FROM ORDERS")
+                                      .setFetchSize(1)
+                                      .mapTo(Percentage.class)
+                                      .findOne();
 ```
