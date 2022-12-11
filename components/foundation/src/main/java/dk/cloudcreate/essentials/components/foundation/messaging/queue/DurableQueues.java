@@ -41,7 +41,7 @@ import java.util.*;
 public interface DurableQueues extends Lifecycle {
 
     /**
-     * The sorting order for the {@link DefaultQueuedMessage#id}
+     * The sorting order for the {@link QueuedMessage#getId()}
      */
     enum QueueingSortOrder {
         /**
@@ -55,18 +55,18 @@ public interface DurableQueues extends Lifecycle {
     }
 
     /**
-     * Get a queued message that's marked as a {@link DefaultQueuedMessage#isDeadLetterMessage}
+     * Get a queued message that's marked as a {@link QueuedMessage#isDeadLetterMessage}
      *
      * @param queueEntryId the messages unique queue entry id
-     * @return the message wrapped in an {@link Optional} if the message exists and {@link DefaultQueuedMessage#isDeadLetterMessage}, otherwise {@link Optional#empty()}
+     * @return the message wrapped in an {@link Optional} if the message exists and {@link QueuedMessage#isDeadLetterMessage}, otherwise {@link Optional#empty()}
      */
     Optional<QueuedMessage> getDeadLetterMessage(QueueEntryId queueEntryId);
 
     /**
-     * Get a queued message that is NOT marked as a {@link DefaultQueuedMessage#isDeadLetterMessage}
+     * Get a queued message that is NOT marked as a {@link QueuedMessage#isDeadLetterMessage}
      *
      * @param queueEntryId the messages unique queue entry id
-     * @return the message wrapped in an {@link Optional} if the message exists and NOT a {@link DefaultQueuedMessage#isDeadLetterMessage}, otherwise {@link Optional#empty()}
+     * @return the message wrapped in an {@link Optional} if the message exists and NOT a {@link QueuedMessage#isDeadLetterMessage}, otherwise {@link Optional#empty()}
      */
     Optional<QueuedMessage> getQueuedMessage(QueueEntryId queueEntryId);
 
@@ -78,13 +78,13 @@ public interface DurableQueues extends Lifecycle {
     TransactionalMode getTransactionalMode();
 
     /**
-     * Start an asynchronous message consumer.<br>https://www.enterpriseintegrationpatterns.com
-     * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName}
+     * Start an asynchronous message consumer.<br>
+     * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance
      *
      * @param queueName           the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
      * @param redeliveryPolicy    the redelivery policy in case the handling of a message fails
      * @param parallelConsumers   the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
-     * @param queueMessageHandler the message handler that will receive {@link DefaultQueuedMessage}'s
+     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s
      * @return the queue consumer
      */
     DurableQueueConsumer consumeFromQueue(QueueName queueName,
@@ -150,7 +150,7 @@ public interface DurableQueues extends Lifecycle {
     QueueEntryId queueMessageAsDeadLetterMessage(QueueName queueName, Object payload, Exception causeOfError);
 
     /**
-     * Queue multiple messages to the same queue. All the messages will receive the same {@link DefaultQueuedMessage#nextDeliveryTimestamp}<br>
+     * Queue multiple messages to the same queue. All the messages will receive the same {@link QueuedMessage#getNextDeliveryTimestamp()}<br>
      * Note this method MUST be called within an existing {@link UnitOfWork} IF
      * using {@link TransactionalMode#FullyTransactional}
      *
@@ -162,13 +162,13 @@ public interface DurableQueues extends Lifecycle {
     List<QueueEntryId> queueMessages(QueueName queueName, List<?> payloads, Optional<Duration> deliveryDelay);
 
     /**
-     * Queue multiple messages to the same queue. All the messages will receive the same {@link DefaultQueuedMessage#nextDeliveryTimestamp}<br>
+     * Queue multiple messages to the same queue. All the messages will receive the same {@link QueuedMessage#getNextDeliveryTimestamp()}<br>
      * Note this method MUST be called within an existing {@link UnitOfWork} IF
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName the name of the Queue the messages will be added to
      * @param payloads  the message payloads
-     * @return the unique entry id's for the messages queued ordered in the same order as the payloads that were queued
+     * @return the unique entry id's for the messages queued, ordered in the same order as the payloads that were queued
      */
     default List<QueueEntryId> queueMessages(QueueName queueName, List<?> payloads) {
         return queueMessages(queueName, payloads, Optional.empty());
@@ -190,7 +190,8 @@ public interface DurableQueues extends Lifecycle {
                          Duration deliveryDelay);
 
     /**
-     * Mark a Message as a Dead Letter Message.  Dead Letter Messages won't be delivered to any {@link DurableQueueConsumer} (called by the {@link DurableQueueConsumer})<br>
+     * Mark an already Queued Message as a Dead Letter Message (or Poison Message).<br>
+     * Dead Letter Messages won't be delivered to any {@link DurableQueueConsumer} (called by the {@link DurableQueueConsumer})<br>
      * To deliver a Dead Letter Message you must first resurrect the message using {@link #resurrectDeadLetterMessage(QueueEntryId, Duration)}<br>
      * Note this method MUST be called within an existing {@link UnitOfWork} IF
      * using {@link TransactionalMode#FullyTransactional}
@@ -228,7 +229,7 @@ public interface DurableQueues extends Lifecycle {
 
     /**
      * Delete a message (Queued or Dead Letter Message)<br>
-     * Note this method MUST be called within an existing {@link dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork} IF
+     * Note this method MUST be called within an existing {@link UnitOfWork} IF
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueEntryId the unique id of the Message to delete
@@ -242,7 +243,7 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName the name of the Queue where we will query for the next message ready for delivery
-     * @return the message wrapped in an {@link Optional} or {@link Optional#empty()} if no message is ready for delivery
+     * @return the next message ready to be delivered (wrapped in an {@link Optional}) or {@link Optional#empty()} if no message is ready for delivery
      */
     Optional<QueuedMessage> getNextMessageReadyForDelivery(QueueName queueName);
 
@@ -258,7 +259,7 @@ public interface DurableQueues extends Lifecycle {
      * Get the total number of messages queued (i.e. not including Dead Letter Messages) for the given queue
      *
      * @param queueName the name of the Queue where we will query for queued messages
-     * @return the number of queued messages
+     * @return the number of queued messages for the given queue
      */
     long getTotalMessagesQueuedFor(QueueName queueName);
 
@@ -266,7 +267,7 @@ public interface DurableQueues extends Lifecycle {
      * Query Queued Messages (i.e. not including Dead Letter Messages) for the given Queue
      *
      * @param queueName         the name of the Queue where we will query for queued messages
-     * @param queueingSortOrder the sort order for the {@link DefaultQueuedMessage#id}
+     * @param queueingSortOrder the sort order for the {@link QueuedMessage#getId()}
      * @param startIndex        the index of the first message to include (used for pagination)
      * @param pageSize          how many messages to include (used for pagination)
      * @return the messages matching the criteria
@@ -274,13 +275,13 @@ public interface DurableQueues extends Lifecycle {
     List<QueuedMessage> getQueuedMessages(QueueName queueName, QueueingSortOrder queueingSortOrder, long startIndex, long pageSize);
 
     /**
-     * Query Dead Letter Messages (i.e. not normally Queued Messages) for the given Queue
+     * Query Dead Letter Messages (i.e. not normal Queued Messages) for the given Queue
      *
      * @param queueName         the name of the Queue where we will query for queued messages
-     * @param queueingSortOrder the sort order for the {@link DefaultQueuedMessage#id}
+     * @param queueingSortOrder the sort order for the {@link QueuedMessage#getId()}
      * @param startIndex        the index of the first message to include (used for pagination)
      * @param pageSize          how many messages to include (used for pagination)
-     * @return the messages matching the criteria
+     * @return the dead letter messages matching the criteria
      */
     List<QueuedMessage> getDeadLetterMessages(QueueName queueName, QueueingSortOrder queueingSortOrder, long startIndex, long pageSize);
 
