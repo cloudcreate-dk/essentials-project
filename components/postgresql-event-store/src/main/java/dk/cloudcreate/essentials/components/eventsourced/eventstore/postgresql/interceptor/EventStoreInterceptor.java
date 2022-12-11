@@ -133,6 +133,16 @@ public interface EventStoreInterceptor {
         public List<?> getEventsToAppend() {
             return eventsToAppend;
         }
+
+        @Override
+        public String toString() {
+            return "AppendToStream{" +
+                    "aggregateType=" + aggregateType +
+                    ", aggregateId=" + aggregateId +
+                    ", appendEventsAfterEventOrder=" + appendEventsAfterEventOrder +
+                    ", eventsToAppend=" + eventsToAppend +
+                    '}';
+        }
     }
 
     /**
@@ -156,6 +166,14 @@ public interface EventStoreInterceptor {
         public ID getAggregateId() {
             return aggregateId;
         }
+
+        @Override
+        public String toString() {
+            return "LoadLastPersistedEventRelatedTo{" +
+                    "aggregateType=" + aggregateType +
+                    ", aggregateId=" + aggregateId +
+                    '}';
+        }
     }
 
     /**
@@ -176,6 +194,14 @@ public interface EventStoreInterceptor {
 
         public EventId getEventId() {
             return eventId;
+        }
+
+        @Override
+        public String toString() {
+            return "LoadEvent{" +
+                    "aggregateType=" + aggregateType +
+                    ", eventId=" + eventId +
+                    '}';
         }
     }
 
@@ -221,6 +247,16 @@ public interface EventStoreInterceptor {
         public void setTenant(Optional<Tenant> tenant) {
             this.tenant = requireNonNull(tenant, "No tenant provided");
         }
+
+        @Override
+        public String toString() {
+            return "FetchStream{" +
+                    "aggregateType=" + aggregateType +
+                    ", aggregateId=" + aggregateId +
+                    ", eventOrderRange=" + eventOrderRange +
+                    ", tenant=" + tenant +
+                    '}';
+        }
     }
 
     /**
@@ -256,6 +292,15 @@ public interface EventStoreInterceptor {
 
         public void setOnlyIncludeEventIfItBelongsToTenant(Optional<Tenant> onlyIncludeEventIfItBelongsToTenant) {
             this.onlyIncludeEventIfItBelongsToTenant = requireNonNull(onlyIncludeEventIfItBelongsToTenant, "No onlyIncludeEventIfItBelongsToTenant option provided");
+        }
+
+        @Override
+        public String toString() {
+            return "LoadEventsByGlobalOrder{" +
+                    "aggregateType=" + aggregateType +
+                    ", globalOrderRange=" + globalOrderRange +
+                    ", onlyIncludeEventIfItBelongsToTenant=" + onlyIncludeEventIfItBelongsToTenant +
+                    '}';
         }
     }
 
