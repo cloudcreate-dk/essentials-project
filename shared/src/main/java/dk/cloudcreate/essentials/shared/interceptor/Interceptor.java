@@ -28,7 +28,7 @@ package dk.cloudcreate.essentials.shared.interceptor;
  * default <RESULT> intercept(ConcreteOperation operation, InterceptorChain<ConcreteOperation, RESULT> interceptorChain) {
  *     return interceptorChain.proceed();
  * }
- * }
+ * }</pre>
  * which allows concrete Interceptors to only override the Operations that it's concerned with
  * <p>
  * Example of using the {@link InterceptorChain}:
