@@ -165,6 +165,11 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
         return this;
     }
 
+    @Override
+    public ConfigurableEventStore<CONFIG> removeGenericInMemoryProjector(InMemoryProjector inMemoryProjector) {
+        inMemoryProjectors.remove(requireNonNull(inMemoryProjector, "No inMemoryProjection"));
+        return this;
+    }
 
     @Override
     public ConfigurableEventStore<CONFIG> addSpecificInMemoryProjector(Class<?> projectionType,
@@ -175,8 +180,20 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
     }
 
     @Override
+    public ConfigurableEventStore<CONFIG> removeSpecificInMemoryProjector(Class<?> projectionType) {
+        inMemoryProjectorPerProjectionType.remove(requireNonNull(projectionType, "No projectionType provided"));
+        return this;
+    }
+
+    @Override
     public ConfigurableEventStore<CONFIG> addEventStoreInterceptor(EventStoreInterceptor eventStoreInterceptor) {
         this.eventStoreInterceptors.add(requireNonNull(eventStoreInterceptor, "No eventStoreInterceptor provided"));
+        return this;
+    }
+
+    @Override
+    public ConfigurableEventStore<CONFIG> removeEventStoreInterceptor(EventStoreInterceptor eventStoreInterceptor) {
+        this.eventStoreInterceptors.remove(requireNonNull(eventStoreInterceptor, "No eventStoreInterceptor provided"));
         return this;
     }
 
@@ -546,7 +563,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
     }
 
     @Override
-    public EventStoreUnitOfWorkFactory getUnitOfWorkFactory() {
+    public EventStoreUnitOfWorkFactory<EventStoreUnitOfWork> getUnitOfWorkFactory() {
         return unitOfWorkFactory;
     }
 
@@ -578,6 +595,9 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
         return persistenceStrategy.getAggregateEventStreamConfiguration(aggregateType);
     }
 
+    /**
+     * Task responsible for polling the event store on behalf of a single subscriber
+     */
     private class PollEventStoreTask implements Runnable {
         private final long                             demandForEvents;
         private final FluxSink<PersistedEvent>         sink;
