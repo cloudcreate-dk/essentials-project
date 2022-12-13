@@ -529,7 +529,7 @@ public class MongoDurableQueues implements DurableQueues {
                 return Optional.empty();
             }
         } catch (Exception e) {
-            if (e instanceof UncategorizedMongoDbException && e.getMessage().contains("WriteConflict")) {
+            if (e instanceof UncategorizedMongoDbException && e.getMessage() != null &&  (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
                 log.trace("[{}] WriteConflict finding next message ready for delivery. Will retry", queueName);
                 if (transactionalMode == TransactionalMode.FullyTransactional) {
                     unitOfWorkFactory.getRequiredUnitOfWork().markAsRollbackOnly(e);
