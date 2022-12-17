@@ -18,6 +18,11 @@ public class GetNextMessageReadyForDelivery {
      */
     public final QueueName           queueName;
 
+    /**
+     * Create a new builder that produces a new {@link GetNextMessageReadyForDelivery} instance
+     *
+     * @return a new {@link GetNextMessageReadyForDeliveryBuilder} instance
+     */
     public static GetNextMessageReadyForDeliveryBuilder builder() {
         return new GetNextMessageReadyForDeliveryBuilder();
     }

@@ -12,6 +12,11 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 public class PurgeQueue {
     public final QueueName queueName;
 
+    /**
+     * Create a new builder that produces a new {@link PurgeQueue} instance
+     *
+     * @return a new {@link PurgeQueueBuilder} instance
+     */
     public static PurgeQueueBuilder builder() {
         return new PurgeQueueBuilder();
     }

@@ -31,6 +31,10 @@ public class ResurrectDeadLetterMessageBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link ResurrectDeadLetterMessage} instance from the builder properties
+     * @return the {@link ResurrectDeadLetterMessage} instance
+     */
     public ResurrectDeadLetterMessage build() {
         return new ResurrectDeadLetterMessage(queueEntryId, deliveryDelay);
     }

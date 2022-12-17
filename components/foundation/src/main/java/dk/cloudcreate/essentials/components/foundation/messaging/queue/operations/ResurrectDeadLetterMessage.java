@@ -18,6 +18,11 @@ public class ResurrectDeadLetterMessage {
     public final QueueEntryId queueEntryId;
     private      Duration     deliveryDelay;
 
+    /**
+     * Create a new builder that produces a new {@link ResurrectDeadLetterMessage} instance
+     *
+     * @return a new {@link ResurrectDeadLetterMessageBuilder} instance
+     */
     public static ResurrectDeadLetterMessageBuilder builder() {
         return new ResurrectDeadLetterMessageBuilder();
     }

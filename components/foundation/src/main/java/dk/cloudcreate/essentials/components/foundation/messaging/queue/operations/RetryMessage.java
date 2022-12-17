@@ -19,6 +19,11 @@ public class RetryMessage {
     private      Exception    causeForRetry;
     private      Duration     deliveryDelay;
 
+    /**
+     * Create a new builder that produces a new {@link RetryMessage} instance
+     *
+     * @return a new {@link RetryMessageBuilder} instance
+     */
     public static RetryMessageBuilder builder() {
         return new RetryMessageBuilder();
     }

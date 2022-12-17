@@ -18,6 +18,10 @@ public class GetNextMessageReadyForDeliveryBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link GetNextMessageReadyForDelivery} instance from the builder properties
+     * @return the {@link GetNextMessageReadyForDelivery} instance
+     */
     public GetNextMessageReadyForDelivery build() {
         return new GetNextMessageReadyForDelivery(queueName);
     }

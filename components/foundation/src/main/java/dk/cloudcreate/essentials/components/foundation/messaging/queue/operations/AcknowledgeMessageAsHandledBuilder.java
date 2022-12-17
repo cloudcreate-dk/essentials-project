@@ -17,6 +17,10 @@ public class AcknowledgeMessageAsHandledBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link AcknowledgeMessageAsHandled} instance from the builder properties
+     * @return the {@link AcknowledgeMessageAsHandled} instance
+     */
     public AcknowledgeMessageAsHandled build() {
         return new AcknowledgeMessageAsHandled(queueEntryId);
     }

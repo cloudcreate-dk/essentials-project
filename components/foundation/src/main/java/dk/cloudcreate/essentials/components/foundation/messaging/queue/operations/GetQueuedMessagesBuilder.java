@@ -52,6 +52,10 @@ public class GetQueuedMessagesBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link GetQueuedMessages} instance from the builder properties
+     * @return the {@link GetQueuedMessages} instance
+     */
     public GetQueuedMessages build() {
         return new GetQueuedMessages(queueName, queueingSortOrder, startIndex, pageSize);
     }

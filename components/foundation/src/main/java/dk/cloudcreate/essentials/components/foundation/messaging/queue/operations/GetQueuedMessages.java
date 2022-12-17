@@ -15,6 +15,11 @@ public class GetQueuedMessages {
     private long startIndex;
     private long pageSize;
 
+    /**
+     * Create a new builder that produces a new {@link GetQueuedMessages} instance
+     *
+     * @return a new {@link GetQueuedMessagesBuilder} instance
+     */
     public static GetQueuedMessagesBuilder builder() {
         return new GetQueuedMessagesBuilder();
     }

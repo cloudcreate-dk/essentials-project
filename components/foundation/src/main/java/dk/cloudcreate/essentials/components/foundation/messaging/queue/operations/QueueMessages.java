@@ -20,6 +20,11 @@ public class QueueMessages {
     public final List<?>   payloads;
     private Optional<Duration> deliveryDelay;
 
+    /**
+     * Create a new builder that produces a new {@link QueueMessages} instance
+     *
+     * @return a new {@link QueueMessagesBuilder} instance
+     */
     public static QueueMessagesBuilder builder() {
         return new QueueMessagesBuilder();
     }

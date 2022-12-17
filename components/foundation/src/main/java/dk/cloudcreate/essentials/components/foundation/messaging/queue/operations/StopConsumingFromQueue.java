@@ -16,6 +16,11 @@ public class StopConsumingFromQueue {
      */
     public final DurableQueueConsumer durableQueueConsumer;
 
+    /**
+     * Create a new builder that produces a new {@link ConsumeFromQueue} instance
+     *
+     * @return a new {@link ConsumeFromQueueBuilder} instance
+     */
     public static ConsumeFromQueueBuilder builder() {
         return new ConsumeFromQueueBuilder();
     }

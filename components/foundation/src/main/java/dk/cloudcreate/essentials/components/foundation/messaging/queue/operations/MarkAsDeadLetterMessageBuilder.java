@@ -29,6 +29,10 @@ public class MarkAsDeadLetterMessageBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link MarkAsDeadLetterMessage} instance from the builder properties
+     * @return the {@link MarkAsDeadLetterMessage} instance
+     */
     public MarkAsDeadLetterMessage build() {
         return new MarkAsDeadLetterMessage(queueEntryId, causeForBeingMarkedAsDeadLetter);
     }

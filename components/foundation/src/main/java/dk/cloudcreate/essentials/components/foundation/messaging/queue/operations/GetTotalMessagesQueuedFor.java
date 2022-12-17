@@ -15,6 +15,11 @@ public class GetTotalMessagesQueuedFor {
      */
     public final QueueName           queueName;
 
+    /**
+     * Create a new builder that produces a new {@link GetTotalMessagesQueuedFor} instance
+     *
+     * @return a new {@link GetTotalMessagesQueuedForBuilder} instance
+     */
     public static GetTotalMessagesQueuedForBuilder builder() {
         return new GetTotalMessagesQueuedForBuilder();
     }

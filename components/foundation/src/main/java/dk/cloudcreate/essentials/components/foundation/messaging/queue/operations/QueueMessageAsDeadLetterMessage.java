@@ -17,6 +17,11 @@ public class QueueMessageAsDeadLetterMessage {
     private      Object    payload;
     private      Exception causeOfError;
 
+    /**
+     * Create a new builder that produces a new {@link QueueMessageAsDeadLetterMessage} instance
+     *
+     * @return a new {@link QueueMessageAsDeadLetterMessageBuilder} instance
+     */
     public static QueueMessageAsDeadLetterMessageBuilder builder() {
         return new QueueMessageAsDeadLetterMessageBuilder();
     }

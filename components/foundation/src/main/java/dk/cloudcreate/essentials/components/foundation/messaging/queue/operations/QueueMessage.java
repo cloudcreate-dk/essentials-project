@@ -21,6 +21,11 @@ public class QueueMessage {
     private      Optional<Exception> causeOfEnqueuing;
     private      Optional<Duration>  deliveryDelay;
 
+    /**
+     * Create a new builder that produces a new {@link QueueMessage} instance
+     *
+     * @return a new {@link QueueMessageBuilder} instance
+     */
     public static QueueMessageBuilder builder() {
         return new QueueMessageBuilder();
     }

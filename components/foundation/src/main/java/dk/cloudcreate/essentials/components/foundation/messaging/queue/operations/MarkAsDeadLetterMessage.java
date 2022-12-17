@@ -20,6 +20,11 @@ public class MarkAsDeadLetterMessage {
     public final QueueEntryId queueEntryId;
     private      Exception    causeForBeingMarkedAsDeadLetter;
 
+    /**
+     * Create a new builder that produces a new {@link MarkAsDeadLetterMessage} instance
+     *
+     * @return a new {@link MarkAsDeadLetterMessageBuilder} instance
+     */
     public static MarkAsDeadLetterMessageBuilder builder() {
         return new MarkAsDeadLetterMessageBuilder();
     }

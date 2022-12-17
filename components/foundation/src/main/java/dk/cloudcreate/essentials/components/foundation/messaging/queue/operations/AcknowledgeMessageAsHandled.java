@@ -15,6 +15,11 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 public class AcknowledgeMessageAsHandled {
     public final QueueEntryId queueEntryId;
 
+    /**
+     * Create a new builder that produces a new {@link AcknowledgeMessageAsHandled} instance
+     *
+     * @return a new {@link AcknowledgeMessageAsHandledBuilder} instance
+     */
     public static AcknowledgeMessageAsHandledBuilder builder() {
         return new AcknowledgeMessageAsHandledBuilder();
     }

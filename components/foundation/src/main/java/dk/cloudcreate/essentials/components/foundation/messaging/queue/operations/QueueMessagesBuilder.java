@@ -5,6 +5,9 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import java.time.Duration;
 import java.util.*;
 
+/**
+ * Builder for {@link QueueMessages}
+ */
 public class QueueMessagesBuilder {
     private QueueName          queueName;
     private List<?>            payloads;
@@ -50,6 +53,10 @@ public class QueueMessagesBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link QueueMessages} instance from the builder properties
+     * @return the {@link QueueMessages} instance
+     */
     public QueueMessages build() {
         return new QueueMessages(queueName, payloads, deliveryDelay);
     }

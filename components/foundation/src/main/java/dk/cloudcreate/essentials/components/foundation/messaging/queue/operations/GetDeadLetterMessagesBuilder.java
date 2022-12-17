@@ -51,6 +51,10 @@ public class GetDeadLetterMessagesBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link GetDeadLetterMessages} instance from the builder properties
+     * @return the {@link GetDeadLetterMessages} instance
+     */
     public GetDeadLetterMessages build() {
         return new GetDeadLetterMessages(queueName, queueingSortOrder, startIndex, pageSize);
     }

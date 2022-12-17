@@ -18,6 +18,10 @@ public class DeleteMessageBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link DeleteMessage} instance from the builder properties
+     * @return the {@link DeleteMessage} instance
+     */
     public DeleteMessage build() {
         return new DeleteMessage(queueEntryId);
     }

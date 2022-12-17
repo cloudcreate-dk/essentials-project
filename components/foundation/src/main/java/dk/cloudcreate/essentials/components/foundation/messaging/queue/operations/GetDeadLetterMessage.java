@@ -15,6 +15,11 @@ public class GetDeadLetterMessage {
      */
     public final QueueEntryId queueEntryId;
 
+    /**
+     * Create a new builder that produces a new {@link GetDeadLetterMessage} instance
+     *
+     * @return a new {@link GetDeadLetterMessageBuilder} instance
+     */
     public static GetDeadLetterMessageBuilder builder() {
         return new GetDeadLetterMessageBuilder();
     }

@@ -15,6 +15,11 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 public class DeleteMessage {
     public final QueueEntryId queueEntryId;
 
+    /**
+     * Create a new builder that produces a new {@link DeleteMessage} instance
+     *
+     * @return a new {@link DeleteMessageBuilder} instance
+     */
     public static DeleteMessageBuilder builder() {
         return new DeleteMessageBuilder();
     }

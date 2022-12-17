@@ -2,6 +2,9 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue.operatio
 
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
 
+/**
+ * Builder for {@link QueueMessageAsDeadLetterMessage}
+ */
 public class QueueMessageAsDeadLetterMessageBuilder {
     private QueueName queueName;
     private Object    payload;
@@ -37,6 +40,10 @@ public class QueueMessageAsDeadLetterMessageBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link QueueMessageAsDeadLetterMessage} instance from the builder properties
+     * @return the {@link QueueMessageAsDeadLetterMessage} instance
+     */
     public QueueMessageAsDeadLetterMessage build() {
         return new QueueMessageAsDeadLetterMessage(queueName, payload, causeOfError);
     }

@@ -4,6 +4,9 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 
 import java.time.Duration;
 
+/**
+ * Builder for {@link RetryMessage}
+ */
 public class RetryMessageBuilder {
     private QueueEntryId queueEntryId;
     private Exception causeForRetry;
@@ -39,6 +42,10 @@ public class RetryMessageBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link RetryMessage} instance from the builder properties
+     * @return the {@link RetryMessage} instance
+     */
     public RetryMessage build() {
         return new RetryMessage(queueEntryId, causeForRetry, deliveryDelay);
     }

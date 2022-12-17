@@ -18,6 +18,10 @@ public class PurgeQueueBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link PurgeQueue} instance from the builder properties
+     * @return the {@link PurgeQueue} instance
+     */
     public PurgeQueue build() {
         return new PurgeQueue(queueName);
     }

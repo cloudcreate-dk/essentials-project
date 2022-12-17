@@ -17,6 +17,11 @@ public class ConsumeFromQueue {
     public final int                  parallelConsumers;
     public final QueuedMessageHandler queueMessageHandler;
 
+    /**
+     * Create a new builder that produces a new {@link ConsumeFromQueue} instance
+     *
+     * @return a new {@link ConsumeFromQueueBuilder} instance
+     */
     public static ConsumeFromQueueBuilder builder() {
         return new ConsumeFromQueueBuilder();
     }

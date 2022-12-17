@@ -2,6 +2,9 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue.operatio
 
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueEntryId;
 
+/**
+ * Builder for {@link GetDeadLetterMessage}
+ */
 public class GetDeadLetterMessageBuilder {
     private QueueEntryId queueEntryId;
 
@@ -14,6 +17,10 @@ public class GetDeadLetterMessageBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link GetDeadLetterMessage} instance from the builder properties
+     * @return the {@link GetDeadLetterMessage} instance
+     */
     public GetDeadLetterMessage build() {
         return new GetDeadLetterMessage(queueEntryId);
     }

@@ -15,6 +15,11 @@ public class GetDeadLetterMessages {
     private long startIndex;
     private long pageSize;
 
+    /**
+     * Create a new builder that produces a new {@link GetDeadLetterMessages} instance
+     *
+     * @return a new {@link GetDeadLetterMessagesBuilder} instance
+     */
     public static GetDeadLetterMessagesBuilder builder() {
         return new GetDeadLetterMessagesBuilder();
     }

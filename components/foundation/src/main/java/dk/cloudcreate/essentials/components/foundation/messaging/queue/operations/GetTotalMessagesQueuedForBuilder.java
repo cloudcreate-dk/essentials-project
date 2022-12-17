@@ -18,6 +18,10 @@ public class GetTotalMessagesQueuedForBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link GetTotalMessagesQueuedFor} instance from the builder properties
+     * @return the {@link GetTotalMessagesQueuedFor} instance
+     */
     public GetTotalMessagesQueuedFor build() {
         return new GetTotalMessagesQueuedFor(queueName);
     }

@@ -15,6 +15,11 @@ public class GetQueuedMessage {
      */
     public final QueueEntryId queueEntryId;
 
+    /**
+     * Create a new builder that produces a new {@link GetQueuedMessage} instance
+     *
+     * @return a new {@link GetQueuedMessageBuilder} instance
+     */
     public static GetQueuedMessageBuilder builder() {
         return new GetQueuedMessageBuilder();
     }

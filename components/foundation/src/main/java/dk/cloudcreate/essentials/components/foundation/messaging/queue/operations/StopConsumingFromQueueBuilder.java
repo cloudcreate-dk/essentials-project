@@ -17,6 +17,11 @@ public class StopConsumingFromQueueBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link StopConsumingFromQueue} instance from the builder properties
+     *
+     * @return the {@link StopConsumingFromQueue} instance
+     */
     public StopConsumingFromQueue build() {
         return new StopConsumingFromQueue(durableQueueConsumer);
     }

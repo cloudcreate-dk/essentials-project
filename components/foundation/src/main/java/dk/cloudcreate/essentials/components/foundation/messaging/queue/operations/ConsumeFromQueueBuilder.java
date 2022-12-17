@@ -3,6 +3,9 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue.operatio
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 
+/**
+ * Builder for {@link ConsumeFromQueue}
+ */
 public class ConsumeFromQueueBuilder {
     private QueueName            queueName;
     private RedeliveryPolicy     redeliveryPolicy;
@@ -46,6 +49,10 @@ public class ConsumeFromQueueBuilder {
         return this;
     }
 
+    /**
+     * Builder an {@link ConsumeFromQueue} instance from the builder properties
+     * @return the {@link ConsumeFromQueue} instance
+     */
     public ConsumeFromQueue build() {
         return new ConsumeFromQueue(queueName, redeliveryPolicy, parallelConsumers, queueMessageHandler);
     }
