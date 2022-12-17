@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql;
 
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
+import dk.cloudcreate.essentials.reactive.LocalEventBus;
 import org.jdbi.v3.core.Jdbi;
 
 import java.time.Duration;
@@ -51,8 +52,37 @@ public class PostgresqlFencedLockManager extends DBFencedLockManager<HandleAware
               unitOfWorkFactory,
               lockManagerInstanceId,
               lockTimeOut,
-              lockConfirmationInterval
-        );
+              lockConfirmationInterval,
+              Optional.empty()
+             );
+    }
+
+
+    /**
+     * @param jdbi                     the jdbi instance
+     * @param unitOfWorkFactory        The unit of work factory
+     * @param lockManagerInstanceId    The unique name for this lock manager instance. If left {@link Optional#empty()} then the machines hostname is used
+     * @param fencedLocksTableName     the name of the table where the fenced locks will be maintained - {@link PostgresqlFencedLockStorage#DEFAULT_FENCED_LOCKS_TABLE_NAME}
+     * @param lockTimeOut              the period between {@link FencedLock#getLockLastConfirmedTimestamp()} and the current time before the lock is marked as timed out
+     * @param lockConfirmationInterval how often should the locks be confirmed. MUST is less than the <code>lockTimeOut</code>
+     * @param eventBus                 optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
+     */
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public PostgresqlFencedLockManager(Jdbi jdbi,
+                                       HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
+                                       Optional<String> lockManagerInstanceId,
+                                       Optional<String> fencedLocksTableName,
+                                       Duration lockTimeOut,
+                                       Duration lockConfirmationInterval,
+                                       Optional<LocalEventBus<Object>> eventBus) {
+        super(new PostgresqlFencedLockStorage(jdbi,
+                                              fencedLocksTableName),
+              unitOfWorkFactory,
+              lockManagerInstanceId,
+              lockTimeOut,
+              lockConfirmationInterval,
+              eventBus
+             );
     }
 
     /**
@@ -62,17 +92,20 @@ public class PostgresqlFencedLockManager extends DBFencedLockManager<HandleAware
      * @param unitOfWorkFactory        The unit of work factory
      * @param lockTimeOut              the period between {@link FencedLock#getLockLastConfirmedTimestamp()} and the current time before the lock is marked as timed out
      * @param lockConfirmationInterval how often should the locks be confirmed. MUST is less than the <code>lockTimeOut</code>
+     * @param eventBus                 optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
      */
     public PostgresqlFencedLockManager(Jdbi jdbi,
                                        HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
                                        Duration lockTimeOut,
-                                       Duration lockConfirmationInterval) {
+                                       Duration lockConfirmationInterval,
+                                       Optional<LocalEventBus<Object>> eventBus) {
         this(jdbi,
              unitOfWorkFactory,
              Optional.empty(),
              Optional.empty(),
              lockTimeOut,
-             lockConfirmationInterval
-        );
+             lockConfirmationInterval,
+             eventBus
+            );
     }
 }

@@ -16,9 +16,10 @@
 
 package dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo;
 
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.mongo.ClientSessionAwareUnitOfWork;
+import dk.cloudcreate.essentials.reactive.LocalEventBus;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.convert.MongoConverter;
 
@@ -29,10 +30,11 @@ public class MongoFencedLockManagerBuilder {
     private MongoTemplate                                             mongoTemplate;
     private MongoConverter                                            mongoConverter;
     private UnitOfWorkFactory<? extends ClientSessionAwareUnitOfWork> unitOfWorkFactory;
-    private Optional<String>                                          lockManagerInstanceId = Optional.empty();
+    private Optional<String>                                          lockManagerInstanceId     = Optional.empty();
     private Optional<String>                                          fencedLocksCollectionName = Optional.empty();
     private Duration                                                  lockTimeOut;
     private Duration                                                  lockConfirmationInterval;
+    private Optional<LocalEventBus<Object>>                           eventBus                  = Optional.empty();
 
     /**
      * @param mongoTemplate the mongoTemplate instance
@@ -80,6 +82,24 @@ public class MongoFencedLockManagerBuilder {
     }
 
     /**
+     * @param lockManagerInstanceId The unique name for this lock manager instance. If null then the machines hostname is used
+     * @return this builder instance
+     */
+    public MongoFencedLockManagerBuilder setLockManagerInstanceId(String lockManagerInstanceId) {
+        this.lockManagerInstanceId = Optional.ofNullable(lockManagerInstanceId);
+        return this;
+    }
+
+    /**
+     * @param fencedLocksCollectionName The name of the collection where the locks will be stored. If null then the {@link MongoFencedLockStorage#DEFAULT_FENCED_LOCKS_COLLECTION_NAME} value will be used
+     * @return this builder instance
+     */
+    public MongoFencedLockManagerBuilder setFencedLocksCollectionName(String fencedLocksCollectionName) {
+        this.fencedLocksCollectionName = Optional.ofNullable(fencedLocksCollectionName);
+        return this;
+    }
+
+    /**
      * @param lockTimeOut the period between {@link FencedLock#getLockLastConfirmedTimestamp()} and the current time before the lock is marked as timed out
      * @return this builder instance
      */
@@ -98,6 +118,24 @@ public class MongoFencedLockManagerBuilder {
     }
 
     /**
+     * @param eventBus optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
+     * @return this builder instance
+     */
+    public MongoFencedLockManagerBuilder setEventBus(Optional<LocalEventBus<Object>> eventBus) {
+        this.eventBus = eventBus;
+        return this;
+    }
+
+    /**
+     * @param eventBus optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
+     * @return this builder instance
+     */
+    public MongoFencedLockManagerBuilder setEventBus(LocalEventBus<Object> eventBus) {
+        this.eventBus = Optional.ofNullable(eventBus);
+        return this;
+    }
+
+    /**
      * Create the new {@link MongoFencedLockManager} instance
      *
      * @return the new {@link MongoFencedLockManager} instance
@@ -109,7 +147,8 @@ public class MongoFencedLockManagerBuilder {
                                           lockManagerInstanceId,
                                           fencedLocksCollectionName,
                                           lockTimeOut,
-                                          lockConfirmationInterval);
+                                          lockConfirmationInterval,
+                                          eventBus);
     }
 
 

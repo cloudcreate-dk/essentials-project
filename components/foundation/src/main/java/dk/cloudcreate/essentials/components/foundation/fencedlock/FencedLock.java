@@ -68,6 +68,10 @@ public interface FencedLock extends AutoCloseable {
 
     void registerCallback(LockCallback lockCallback);
 
+    /**
+     * Closing a {@link FencedLock} will automatically call {@link #release()}
+     * @throws Exception
+     */
     @Override
     default void close() throws Exception {
         release();

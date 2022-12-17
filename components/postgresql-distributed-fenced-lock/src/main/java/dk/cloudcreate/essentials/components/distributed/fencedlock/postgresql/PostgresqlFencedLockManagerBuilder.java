@@ -16,8 +16,9 @@
 
 package dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql;
 
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
+import dk.cloudcreate.essentials.reactive.LocalEventBus;
 import org.jdbi.v3.core.Jdbi;
 
 import java.time.Duration;
@@ -30,10 +31,11 @@ public class PostgresqlFencedLockManagerBuilder {
     private Optional<String>                                              fencedLocksTableName  = Optional.empty();
     private Duration                                                      lockTimeOut;
     private Duration                                                      lockConfirmationInterval;
+    private Optional<LocalEventBus<Object>>                               eventBus              = Optional.empty();
 
     /**
      * @param jdbi the jdbi instance used
-     * @return
+     * @return this builder instance
      */
     public PostgresqlFencedLockManagerBuilder setJdbi(Jdbi jdbi) {
         this.jdbi = jdbi;
@@ -42,7 +44,7 @@ public class PostgresqlFencedLockManagerBuilder {
 
     /**
      * @param unitOfWorkFactory The unit of work factory
-     * @return
+     * @return this builder instance
      */
     public PostgresqlFencedLockManagerBuilder setUnitOfWorkFactory(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory) {
         this.unitOfWorkFactory = unitOfWorkFactory;
@@ -51,7 +53,7 @@ public class PostgresqlFencedLockManagerBuilder {
 
     /**
      * @param lockManagerInstanceId The unique name for this lock manager instance. If left {@link Optional#empty()} then the machines hostname is used
-     * @return
+     * @return this builder instance
      */
     public PostgresqlFencedLockManagerBuilder setLockManagerInstanceId(Optional<String> lockManagerInstanceId) {
         this.lockManagerInstanceId = lockManagerInstanceId;
@@ -60,10 +62,28 @@ public class PostgresqlFencedLockManagerBuilder {
 
     /**
      * @param fencedLocksTableName the name of the table where the fenced locks will be maintained - {@link PostgresqlFencedLockStorage#DEFAULT_FENCED_LOCKS_TABLE_NAME}
-     * @return
+     * @return this builder instance
      */
     public PostgresqlFencedLockManagerBuilder setFencedLocksTableName(Optional<String> fencedLocksTableName) {
         this.fencedLocksTableName = fencedLocksTableName;
+        return this;
+    }
+
+    /**
+     * @param lockManagerInstanceId The unique name for this lock manager instance. If null then the machines hostname is used
+     * @return this builder instance
+     */
+    public PostgresqlFencedLockManagerBuilder setLockManagerInstanceId(String lockManagerInstanceId) {
+        this.lockManagerInstanceId = Optional.ofNullable(lockManagerInstanceId);
+        return this;
+    }
+
+    /**
+     * @param fencedLocksTableName the name of the table where the fenced locks will be maintained - {@link PostgresqlFencedLockStorage#DEFAULT_FENCED_LOCKS_TABLE_NAME}
+     * @return this builder instance
+     */
+    public PostgresqlFencedLockManagerBuilder setFencedLocksTableName(String fencedLocksTableName) {
+        this.fencedLocksTableName = Optional.ofNullable(fencedLocksTableName);
         return this;
     }
 
@@ -78,10 +98,28 @@ public class PostgresqlFencedLockManagerBuilder {
 
     /**
      * @param lockConfirmationInterval how often should the locks be confirmed. MUST is less than the <code>lockTimeOut</code>
-     * @return
+     * @return this builder instance
      */
     public PostgresqlFencedLockManagerBuilder setLockConfirmationInterval(Duration lockConfirmationInterval) {
         this.lockConfirmationInterval = lockConfirmationInterval;
+        return this;
+    }
+
+    /**
+     * @param eventBus optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
+     * @return this builder instance
+     */
+    public PostgresqlFencedLockManagerBuilder setEventBus(Optional<LocalEventBus<Object>> eventBus) {
+        this.eventBus = eventBus;
+        return this;
+    }
+
+    /**
+     * @param eventBus optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
+     * @return this builder instance
+     */
+    public PostgresqlFencedLockManagerBuilder setEventBus(LocalEventBus<Object> eventBus) {
+        this.eventBus = Optional.ofNullable(eventBus);
         return this;
     }
 
@@ -96,7 +134,8 @@ public class PostgresqlFencedLockManagerBuilder {
                                                lockManagerInstanceId,
                                                fencedLocksTableName,
                                                lockTimeOut,
-                                               lockConfirmationInterval);
+                                               lockConfirmationInterval,
+                                               eventBus);
     }
 
     /**
