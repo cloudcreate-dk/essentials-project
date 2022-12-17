@@ -25,6 +25,16 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class LongRangeTest {
+
+    @Test
+    void test_empty_range() {
+        var range = LongRange.EMPTY_RANGE;
+        assertThat(range.isClosedRange()).isTrue();
+        assertThat(range.isOpenRange()).isFalse();
+        assertThat(range.covers(-1)).isFalse();
+        assertThat(range.covers(0)).isTrue();
+        assertThat(range.covers(1)).isFalse();
+    }
     @Test
     void test_between() {
         var range = LongRange.between(-10, 10);
