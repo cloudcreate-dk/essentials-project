@@ -27,10 +27,11 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Generic interceptor chain concept that supports intercepting concrete {@link Interceptor} operations to modify the behaviour or
  * add to the default behaviour
  *
- * @param <OPERATION> the type of operation to intercept, aka. the argument to the interceptor
- * @param <RESULT>    the result of the operation
+ * @param <OPERATION>        the type of operation to intercept, aka. the argument to the interceptor
+ * @param <RESULT>           the result of the operation
+ * @param <INTERCEPTOR_TYPE> The type of interceptor
  */
-public interface InterceptorChain<OPERATION, RESULT> {
+public interface InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE extends Interceptor> {
     /**
      * To continue the processing a {@link Interceptor} will call this method, which in turn will call other {@link Interceptor}'s (if more interceptors are configured)
      * and finally the default implementation will be called.<br>
@@ -67,10 +68,10 @@ public interface InterceptorChain<OPERATION, RESULT> {
      * @param <RESULT>                 the result of the operation
      * @return a new {@link InterceptorChain} instance for the provided <code>operation</code>
      */
-    static <OPERATION, RESULT> InterceptorChain<OPERATION, RESULT> newInterceptorChainForOperation(OPERATION operation,
-                                                                                                   List<Interceptor> interceptors,
-                                                                                                   BiFunction<Interceptor, InterceptorChain<OPERATION, RESULT>, RESULT> interceptorMethodInvoker,
-                                                                                                   Supplier<RESULT> defaultBehaviour) {
+    static <OPERATION, RESULT, INTERCEPTOR_TYPE extends Interceptor> InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE> newInterceptorChainForOperation(OPERATION operation,
+                                                                                                                                                           List<INTERCEPTOR_TYPE> interceptors,
+                                                                                                                                                           BiFunction<INTERCEPTOR_TYPE, InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE>, RESULT> interceptorMethodInvoker,
+                                                                                                                                                           Supplier<RESULT> defaultBehaviour) {
         return new DefaultInterceptorChain<>(operation, interceptors, interceptorMethodInvoker, defaultBehaviour);
     }
 
@@ -82,12 +83,12 @@ public interface InterceptorChain<OPERATION, RESULT> {
      * @param <OPERATION> the type of operation to intercept, aka. the argument to the interceptor
      * @param <RESULT>    the result of the operation
      */
-    class DefaultInterceptorChain<OPERATION, RESULT> implements InterceptorChain<OPERATION, RESULT> {
-        private static final Logger                                                               log = LoggerFactory.getLogger(DefaultInterceptorChain.class);
-        private final        OPERATION                                                            operation;
-        private final        Iterator<Interceptor>                                                interceptorIterator;
-        private final        BiFunction<Interceptor, InterceptorChain<OPERATION, RESULT>, RESULT> interceptorMethodInvoker;
-        private final        Supplier<RESULT>                                                     defaultEventStoreBehaviour;
+    class DefaultInterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE extends Interceptor> implements InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE> {
+        private static final Logger                                                                                      log = LoggerFactory.getLogger(DefaultInterceptorChain.class);
+        private final        OPERATION                                                                                   operation;
+        private final        Iterator<INTERCEPTOR_TYPE>                                                                  interceptorIterator;
+        private final        BiFunction<INTERCEPTOR_TYPE, InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE>, RESULT> interceptorMethodInvoker;
+        private final        Supplier<RESULT>                                                                            defaultBehaviour;
 
         /**
          * Create a new {@link InterceptorChain} instance for the provided <code>operation</code>
@@ -98,13 +99,13 @@ public interface InterceptorChain<OPERATION, RESULT> {
          * @param defaultBehaviour         the default behaviour for the given <code>operation</code> in case none of the interceptors provided a different result and stopped the interceptor chain
          */
         public DefaultInterceptorChain(OPERATION operation,
-                                       List<Interceptor> interceptors,
-                                       BiFunction<Interceptor, InterceptorChain<OPERATION, RESULT>, RESULT> interceptorMethodInvoker,
+                                       List<INTERCEPTOR_TYPE> interceptors,
+                                       BiFunction<INTERCEPTOR_TYPE, InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE>, RESULT> interceptorMethodInvoker,
                                        Supplier<RESULT> defaultBehaviour) {
             this.operation = requireNonNull(operation, "No operation provided");
             this.interceptorIterator = requireNonNull(interceptors, "No interceptors provided").iterator();
             this.interceptorMethodInvoker = requireNonNull(interceptorMethodInvoker, "No interceptorMethodInvoker provided");
-            this.defaultEventStoreBehaviour = requireNonNull(defaultBehaviour, "No defaultBehaviour supplier provided");
+            this.defaultBehaviour = requireNonNull(defaultBehaviour, "No defaultBehaviour supplier provided");
         }
 
         @Override
@@ -115,13 +116,20 @@ public interface InterceptorChain<OPERATION, RESULT> {
                 return interceptorMethodInvoker.apply(interceptor, this);
             } else {
                 log.trace("Invoking default behaviour for operation '{}'", operation.getClass().getSimpleName());
-                return defaultEventStoreBehaviour.get();
+                return defaultBehaviour.get();
             }
         }
 
         @Override
         public OPERATION operation() {
             return operation;
+        }
+
+        @Override
+        public String toString() {
+            return "InterceptorChain{" +
+                    "operation=" + operation +
+                    '}';
         }
     }
 }
