@@ -50,6 +50,22 @@ public class Percentage extends BigDecimalType<Percentage> {
     }
 
     /**
+     * Convert a Percentage string representation, where "0" is 0% and "100" is 100%.<br>
+     * If the string representation contains a "%" character, then it will be ignored.
+     *
+     * @param percent the percentage string
+     * @param mathContext the math context applied to the underlying {@link BigDecimal}
+     * @return the corresponding Percentage instance
+     */
+    public static Percentage from(String percent, MathContext mathContext) {
+        requireNonNull(percent, "Supplied percent is null");
+        var cleanedPercentageString = percent.replace('%', ' ')
+                                             .trim();
+        return new Percentage(new BigDecimal(cleanedPercentageString,
+                                             requireNonNull(mathContext, "mathContext is null")));
+    }
+
+    /**
      * Convert a Percentage {@link BigDecimal} representation, where "0" is 0% and  "100" is 100%.
      *
      * @param percent the percentage string
@@ -77,7 +93,7 @@ public class Percentage extends BigDecimalType<Percentage> {
     @SuppressWarnings("unchecked")
     public <T extends BigDecimalType<T>> T of(T amount) {
         requireNonNull(amount, "Supplied amount is null");
-        return (T) SingleValueType.from(amount.value.multiply(this.value().divide(_100.value)).setScale(Math.max(amount.scale(), this.scale()), RoundingMode.HALF_UP),
+        return (T) SingleValueType.from(amount.value.multiply(this.value().divide(_100.value, RoundingMode.HALF_UP)).setScale(Math.max(amount.scale(), this.scale()), RoundingMode.HALF_UP),
                                         amount.getClass());
     }
 
@@ -91,6 +107,6 @@ public class Percentage extends BigDecimalType<Percentage> {
      */
     public BigDecimal of(BigDecimal amount) {
         requireNonNull(amount, "Supplied amount is null");
-        return amount.multiply(this.value().divide(_100.value));
+        return amount.multiply(this.value().divide(_100.value, RoundingMode.HALF_UP));
     }
 }

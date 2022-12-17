@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.types;
 
-import java.math.BigDecimal;
+import java.math.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -45,8 +45,18 @@ public class Amount extends BigDecimalType<Amount> {
         return new Amount(new BigDecimal(requireNonNull(value, "value is null")));
     }
 
+    public static Amount of(String value, MathContext mathContext) {
+        return new Amount(new BigDecimal(requireNonNull(value, "value is null"),
+                                         requireNonNull(mathContext, "mathContext is null")));
+    }
+
     public static Amount ofNullable(String value) {
         return value != null ? new Amount(new BigDecimal(value)) : null;
+    }
+
+    public static Amount ofNullable(String value, MathContext mathContext) {
+        return value != null ? new Amount(new BigDecimal(value,
+                                                         requireNonNull(mathContext, "mathContext is null"))) : null;
     }
 
     public static Amount of(BigDecimal value) {
