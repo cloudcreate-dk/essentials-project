@@ -12,15 +12,23 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 public class PurgeQueue {
     public final QueueName queueName;
 
+    public static PurgeQueueBuilder builder() {
+        return new PurgeQueueBuilder();
+    }
+
     /**
      * Delete all messages (Queued or Dead letter Messages) in the given queue
      *
-     * @param queueName     the name of the Queue the messages will be added to
+     * @param queueName     the name of the Queue where all the messages will be deleted
      */
     public PurgeQueue(QueueName queueName) {
         this.queueName = requireNonNull(queueName, "No queueName provided");
     }
 
+    /**
+     *
+     * @return the name of the Queue where all the messages will be deleted
+     */
     public QueueName getQueueName() {
         return queueName;
     }

@@ -15,6 +15,10 @@ public class GetDeadLetterMessage {
      */
     public final QueueEntryId queueEntryId;
 
+    public static GetDeadLetterMessageBuilder builder() {
+        return new GetDeadLetterMessageBuilder();
+    }
+
     /**
      * Get a queued message that's marked as a {@link QueuedMessage#isDeadLetterMessage}<br>
      *
@@ -24,6 +28,9 @@ public class GetDeadLetterMessage {
         this.queueEntryId = requireNonNull(queueEntryId, "No queueEntryId provided");
     }
 
+    /**
+     * @return the messages unique queue entry id
+     */
     public QueueEntryId getQueueEntryId() {
         return queueEntryId;
     }

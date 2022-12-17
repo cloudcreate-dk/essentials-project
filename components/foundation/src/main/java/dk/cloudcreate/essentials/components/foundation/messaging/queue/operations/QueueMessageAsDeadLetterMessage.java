@@ -17,6 +17,10 @@ public class QueueMessageAsDeadLetterMessage {
     private      Object    payload;
     private      Exception causeOfError;
 
+    public static QueueMessageAsDeadLetterMessageBuilder builder() {
+        return new QueueMessageAsDeadLetterMessageBuilder();
+    }
+
     /**
      * Queue the message directly as a Dead Letter Message. Dead Letter Messages won't be delivered to any {@link DurableQueueConsumer}<br>
      * To deliver a Dead Letter Message you must first resurrect the message using {@link DurableQueues#resurrectDeadLetterMessage(QueueEntryId, Duration)}
@@ -31,22 +35,42 @@ public class QueueMessageAsDeadLetterMessage {
         this.causeOfError = causeOfError;
     }
 
+    /**
+     *
+     * @return the name of the Queue the message is added to
+     */
     public QueueName getQueueName() {
         return queueName;
     }
 
+    /**
+     *
+     * @return the message payload
+     */
     public Object getPayload() {
         return payload;
     }
 
+    /**
+     *
+     * @param payload the message payload
+     */
     public void setPayload(Object payload) {
         this.payload = payload;
     }
 
+    /**
+     *
+     * @return the reason for the message being queued directly as a Dead Letter Message
+     */
     public Exception getCauseOfError() {
         return causeOfError;
     }
 
+    /**
+     *
+     * @param causeOfError the reason for the message being queued directly as a Dead Letter Message
+     */
     public void setCauseOfError(Exception causeOfError) {
         this.causeOfError = causeOfError;
     }

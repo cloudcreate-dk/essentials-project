@@ -20,6 +20,10 @@ public class QueueMessages {
     public final List<?>   payloads;
     private Optional<Duration> deliveryDelay;
 
+    public static QueueMessagesBuilder builder() {
+        return new QueueMessagesBuilder();
+    }
+
     /**
      * Queue multiple messages to the same queue. All the messages will receive the same {@link QueuedMessage#getNextDeliveryTimestamp()}<br>
      * Note this method MUST be called within an existing {@link UnitOfWork} IF
@@ -27,7 +31,7 @@ public class QueueMessages {
      *
      * @param queueName     the name of the Queue the messages will be added to
      * @param payloads      the message payloads
-     * @param deliveryDelay how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
+     * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      */
     public QueueMessages(QueueName queueName, List<?> payloads, Optional<Duration> deliveryDelay) {
         this.queueName = requireNonNull(queueName, "No queueName provided");
@@ -35,20 +39,59 @@ public class QueueMessages {
         this.deliveryDelay = requireNonNull(deliveryDelay, "No deliveryDelay provided");
     }
 
+    /**
+     * Queue multiple messages to the same queue. All the messages will receive the same {@link QueuedMessage#getNextDeliveryTimestamp()}<br>
+     * Note this method MUST be called within an existing {@link UnitOfWork} IF
+     * using {@link TransactionalMode#FullyTransactional}
+     *
+     * @param queueName     the name of the Queue the messages will be added to
+     * @param payloads      the message payloads
+     * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
+     */
+    public QueueMessages(QueueName queueName, List<?> payloads, Duration deliveryDelay) {
+        this(queueName,
+             payloads,
+             Optional.ofNullable(deliveryDelay));
+    }
+
+    /**
+     *
+     * @return the name of the Queue the messages will be added to
+     */
     public QueueName getQueueName() {
         return queueName;
     }
 
+    /**
+     *
+     * @return the message payloads
+     */
     public List<?> getPayloads() {
         return payloads;
     }
 
+    /**
+     *
+     * @return optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
+     */
     public Optional<Duration> getDeliveryDelay() {
         return deliveryDelay;
     }
 
+    /**
+     *
+     * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
+     */
     public void setDeliveryDelay(Optional<Duration> deliveryDelay) {
         this.deliveryDelay = requireNonNull(deliveryDelay, "No deliveryDelay provided");
+    }
+
+    /**
+     *
+     * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
+     */
+    public void setDeliveryDelay(Duration deliveryDelay) {
+        this.deliveryDelay = Optional.ofNullable(deliveryDelay);
     }
 
     @Override
@@ -57,5 +100,11 @@ public class QueueMessages {
                 "queueName=" + queueName +
                 ", payloads=" + payloads +
                 '}';
+    }
+
+    public void validate() {
+        requireNonNull(queueName, "You must provide a queueName");
+        requireNonNull(payloads, "You must provide a payloads list");
+        requireNonNull(deliveryDelay, "You must provide a deliveryDelay option");
     }
 }

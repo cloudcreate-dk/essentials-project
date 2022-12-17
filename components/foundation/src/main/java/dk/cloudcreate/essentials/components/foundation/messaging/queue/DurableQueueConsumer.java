@@ -41,16 +41,16 @@ public interface DurableQueueConsumer extends Lifecycle {
     class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>> implements DurableQueueConsumer {
         private static final Logger log = LoggerFactory.getLogger(DefaultDurableQueueConsumer.class);
 
-        private final RedeliveryPolicy               redeliveryPolicy;
-        private final QueueName                      queueName;
-        private final QueuedMessageHandler           queuedMessageHandler;
+        public final QueueName                      queueName;
+        private volatile boolean started;
+        public final RedeliveryPolicy               redeliveryPolicy;
+        public final int                            numberOfParallelMessageConsumers;
+        public final QueuedMessageHandler           queuedMessageHandler;
         private final ScheduledExecutorService       scheduler;
-        private final int                            numberOfParallelMessageConsumers;
         private final DURABLE_QUEUES                 durableQueues;
         private       Consumer<DurableQueueConsumer> removeDurableQueueConsumer;
         private       UOW_FACTORY                    unitOfWorkFactory;
 
-        private volatile boolean started;
 
         public DefaultDurableQueueConsumer(QueueName queueName,
                                            QueuedMessageHandler queuedMessageHandler,
@@ -189,6 +189,17 @@ public interface DurableQueueConsumer extends Lifecycle {
             } catch (Exception e) {
                 log.error(msg("[{}] Error Polling Queue", queueName), e);
             }
+        }
+
+        @Override
+        public String toString() {
+            return "DurableQueueConsumer{" +
+                    "queueName=" + queueName +
+                    ", started=" + started +
+                    ", redeliveryPolicy=" + redeliveryPolicy +
+                    ", numberOfParallelMessageConsumers=" + numberOfParallelMessageConsumers +
+                    ", queuedMessageHandler=" + queuedMessageHandler +
+                    '}';
         }
     }
 }

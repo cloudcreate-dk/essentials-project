@@ -20,6 +20,10 @@ public class MarkAsDeadLetterMessage {
     public final QueueEntryId queueEntryId;
     private      Exception    causeForBeingMarkedAsDeadLetter;
 
+    public static MarkAsDeadLetterMessageBuilder builder() {
+        return new MarkAsDeadLetterMessageBuilder();
+    }
+
     /**
      * Mark a Message as a Dead Letter Message (or Poison Message).  Dead Letter Messages won't be delivered to any {@link DurableQueueConsumer} (called by the {@link DurableQueueConsumer})<br>
      * To deliver a Dead Letter Message you must first resurrect the message using {@link DurableQueues#resurrectDeadLetterMessage(QueueEntryId, Duration)}<br>
@@ -34,14 +38,26 @@ public class MarkAsDeadLetterMessage {
         this.causeForBeingMarkedAsDeadLetter = causeForBeingMarkedAsDeadLetter;
     }
 
+    /**
+     *
+     * @return the unique id of the message that must be marked as a Dead Letter Message
+     */
     public QueueEntryId getQueueEntryId() {
         return queueEntryId;
     }
 
+    /**
+     *
+     * @return the reason for the message being marked as a Dead Letter Message
+     */
     public Exception getCauseForBeingMarkedAsDeadLetter() {
         return causeForBeingMarkedAsDeadLetter;
     }
 
+    /**
+     *
+     * @param causeForBeingMarkedAsDeadLetter the reason for the message being marked as a Dead Letter Message
+     */
     public void setCauseForBeingMarkedAsDeadLetter(Exception causeForBeingMarkedAsDeadLetter) {
         this.causeForBeingMarkedAsDeadLetter = causeForBeingMarkedAsDeadLetter;
     }
@@ -52,5 +68,10 @@ public class MarkAsDeadLetterMessage {
                 "queueEntryId=" + queueEntryId +
                 ", causeForBeingMarkedAsDeadLetter=" + causeForBeingMarkedAsDeadLetter +
                 '}';
+    }
+
+    public void validate() {
+        requireNonNull(queueEntryId, "You must provide a queueEntryId");
+        requireNonNull(causeForBeingMarkedAsDeadLetter, "You must provide a causeForBeingMarkedAsDeadLetter");
     }
 }

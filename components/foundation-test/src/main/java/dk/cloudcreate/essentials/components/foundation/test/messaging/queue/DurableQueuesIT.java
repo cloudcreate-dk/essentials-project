@@ -262,8 +262,8 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(deadLetterMessage.get()).usingRecursiveComparison().isEqualTo(firstDeadLetterMessage);
 
         // And When
-        var wasResurrected = withDurableQueue(() ->durableQueues.resurrectDeadLetterMessage(message1Id, Duration.ofMillis(1000)));
-        assertThat(wasResurrected).isTrue();
+        var wasResurrectedResult = withDurableQueue(() ->durableQueues.resurrectDeadLetterMessage(message1Id, Duration.ofMillis(1000)));
+        assertThat(wasResurrectedResult).isPresent();
 
         // Then
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);

@@ -18,6 +18,10 @@ public class ResurrectDeadLetterMessage {
     public final QueueEntryId queueEntryId;
     private      Duration     deliveryDelay;
 
+    public static ResurrectDeadLetterMessageBuilder builder() {
+        return new ResurrectDeadLetterMessageBuilder();
+    }
+
     /**
      * Resurrect a Dead Letter Message for redelivery after the specified <code>deliveryDelay</code><br>
      * Note this method MUST be called within an existing {@link UnitOfWork} IF
@@ -31,14 +35,26 @@ public class ResurrectDeadLetterMessage {
         this.deliveryDelay = deliveryDelay;
     }
 
+    /**
+     *
+     * @return the unique id of the Dead Letter Message that must we will retry the delivery of
+     */
     public QueueEntryId getQueueEntryId() {
         return queueEntryId;
     }
 
+    /**
+     *
+     * @return how long will the queue wait until it delivers the message to the {@link DurableQueueConsumer}
+     */
     public Duration getDeliveryDelay() {
         return deliveryDelay;
     }
 
+    /**
+     *
+     * @param deliveryDelay how long will the queue wait until it delivers the message to the {@link DurableQueueConsumer}
+     */
     public void setDeliveryDelay(Duration deliveryDelay) {
         this.deliveryDelay = deliveryDelay;
     }
@@ -49,5 +65,10 @@ public class ResurrectDeadLetterMessage {
                 "queueEntryId=" + queueEntryId +
                 ", deliveryDelay=" + deliveryDelay +
                 '}';
+    }
+
+    public void validate() {
+        requireNonNull(queueEntryId, "You must provide a queueEntryId");
+        requireNonNull(deliveryDelay, "You must provide a deliveryDelay");
     }
 }

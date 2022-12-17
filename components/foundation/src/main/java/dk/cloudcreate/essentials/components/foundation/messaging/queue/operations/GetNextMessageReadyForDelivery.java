@@ -13,7 +13,14 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Operation also matched {@link DurableQueuesInterceptor#intercept(GetNextMessageReadyForDelivery, InterceptorChain)}
  */
 public class GetNextMessageReadyForDelivery {
+    /**
+     * the name of the Queue where we will query for the next message ready for delivery
+     */
     public final QueueName           queueName;
+
+    public static GetNextMessageReadyForDeliveryBuilder builder() {
+        return new GetNextMessageReadyForDeliveryBuilder();
+    }
 
     /**
      * Query the next Queued Message (i.e. not including Dead Letter Messages) that's ready to be delivered to a {@link DurableQueueConsumer}<br>
@@ -26,6 +33,10 @@ public class GetNextMessageReadyForDelivery {
         this.queueName = requireNonNull(queueName, "No queueName provided");
     }
 
+    /**
+     *
+     * @return the name of the Queue where we will query for the next message ready for delivery
+     */
     public QueueName getQueueName() {
         return queueName;
     }

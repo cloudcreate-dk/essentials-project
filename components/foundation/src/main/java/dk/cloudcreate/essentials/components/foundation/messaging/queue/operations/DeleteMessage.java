@@ -7,7 +7,7 @@ import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * Mark the message as acknowledged - this operation deleted the messages from the Queue<br>
+ * Delete a message (Queued or Dead Letter Message)<br>
  * Note this method MUST be called within an existing {@link UnitOfWork} IF
  * using {@link TransactionalMode#FullyTransactional}<br>
  * Operation also matches {@link DurableQueuesInterceptor#intercept(DeleteMessage, InterceptorChain)}
@@ -15,17 +15,25 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 public class DeleteMessage {
     public final QueueEntryId queueEntryId;
 
+    public static DeleteMessageBuilder builder() {
+        return new DeleteMessageBuilder();
+    }
+
     /**
-     * Mark the message as acknowledged - this operation deleted the messages from the Queue<br>
+     * Delete a message (Queued or Dead Letter Message)<br>
      * Note this method MUST be called within an existing {@link UnitOfWork} IF
      * using {@link TransactionalMode#FullyTransactional}
      *
-     * @param queueEntryId the unique id of the Message to acknowledge
+     * @param queueEntryId the unique id of the Message to delete
      */
     public DeleteMessage(QueueEntryId queueEntryId) {
         this.queueEntryId = requireNonNull(queueEntryId, "No queueEntryId provided");
     }
 
+    /**
+     *
+     * @return the unique id of the Message to delete
+     */
     public QueueEntryId getQueueEntryId() {
         return queueEntryId;
     }

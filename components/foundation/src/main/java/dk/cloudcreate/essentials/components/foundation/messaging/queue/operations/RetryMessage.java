@@ -19,6 +19,10 @@ public class RetryMessage {
     private      Exception    causeForRetry;
     private      Duration     deliveryDelay;
 
+    public static RetryMessageBuilder builder() {
+        return new RetryMessageBuilder();
+    }
+
     /**
      * Schedule the message for redelivery after the specified <code>deliveryDelay</code> (called by the {@link DurableQueueConsumer})<br>
      * Note this method MUST be called within an existing {@link UnitOfWork} IF
@@ -34,22 +38,42 @@ public class RetryMessage {
         this.deliveryDelay = deliveryDelay;
     }
 
+    /**
+     *
+     * @return the unique id of the message that must we will retry the delivery of
+     */
     public QueueEntryId getQueueEntryId() {
         return queueEntryId;
     }
 
+    /**
+     *
+     * @return the reason why the message delivery has to be retried
+     */
     public Exception getCauseForRetry() {
         return causeForRetry;
     }
 
+    /**
+     *
+     * @param causeForRetry the reason why the message delivery has to be retried
+     */
     public void setCauseForRetry(Exception causeForRetry) {
         this.causeForRetry = causeForRetry;
     }
 
+    /**
+     *
+     * @return how long will the queue wait until it delivers the message to the {@link DurableQueueConsumer}
+     */
     public Duration getDeliveryDelay() {
         return deliveryDelay;
     }
 
+    /**
+     *
+     * @param deliveryDelay how long will the queue wait until it delivers the message to the {@link DurableQueueConsumer}
+     */
     public void setDeliveryDelay(Duration deliveryDelay) {
         this.deliveryDelay = deliveryDelay;
     }
@@ -61,5 +85,11 @@ public class RetryMessage {
                 ", causeForRetry=" + causeForRetry +
                 ", deliveryDelay=" + deliveryDelay +
                 '}';
+    }
+
+    public void validate() {
+        requireNonNull(queueEntryId, "You must provide a queueEntryId");
+        requireNonNull(causeForRetry, "You must provide a causeForRetry");
+        requireNonNull(deliveryDelay, "You must provide a deliveryDelay");
     }
 }
