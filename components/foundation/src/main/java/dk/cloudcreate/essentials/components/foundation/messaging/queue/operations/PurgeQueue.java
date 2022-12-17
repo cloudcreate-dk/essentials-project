@@ -7,7 +7,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * Delete all messages (Queued or Dead letter Messages) in the given queue<br>
- * Operation matching {@link DurableQueuesInterceptor#intercept(PurgeQueue, InterceptorChain)}
+ * Operation also matches {@link DurableQueuesInterceptor#intercept(PurgeQueue, InterceptorChain)}
  */
 public class PurgeQueue {
     public final QueueName queueName;
@@ -19,14 +19,13 @@ public class PurgeQueue {
     /**
      * Delete all messages (Queued or Dead letter Messages) in the given queue
      *
-     * @param queueName     the name of the Queue where all the messages will be deleted
+     * @param queueName the name of the Queue where all the messages will be deleted
      */
     public PurgeQueue(QueueName queueName) {
         this.queueName = requireNonNull(queueName, "No queueName provided");
     }
 
     /**
-     *
      * @return the name of the Queue where all the messages will be deleted
      */
     public QueueName getQueueName() {

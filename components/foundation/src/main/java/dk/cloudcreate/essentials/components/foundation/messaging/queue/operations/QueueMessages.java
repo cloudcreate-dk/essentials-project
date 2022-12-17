@@ -13,7 +13,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Queue multiple messages to the same queue. All the messages will receive the same {@link QueuedMessage#getNextDeliveryTimestamp()}<br>
  * Note this method MUST be called within an existing {@link UnitOfWork} IF
  * using {@link TransactionalMode#FullyTransactional}
- * Operation matching {@link DurableQueuesInterceptor#intercept(QueueMessages, InterceptorChain)}
+ * Operation also matches {@link DurableQueuesInterceptor#intercept(QueueMessages, InterceptorChain)}
  */
 public class QueueMessages {
     public final QueueName queueName;
