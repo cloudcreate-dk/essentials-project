@@ -20,10 +20,10 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.b
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.operations.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.reactive.LocalEventBus;
 import dk.cloudcreate.essentials.types.LongRange;
@@ -198,24 +198,18 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
     }
 
     @Override
-    public <ID> AggregateEventStream<ID> appendToStream(AggregateType aggregateType,
-                                                        ID aggregateId,
-                                                        Optional<Long> appendEventsAfterEventOrder,
-                                                        List<?> events) {
+    public <ID> AggregateEventStream<ID> appendToStream(AppendToStream<ID> operation) {
+        requireNonNull(operation, "You must supply an AppendToStream operation instance");
         var unitOfWork = unitOfWorkFactory.getRequiredUnitOfWork();
 
-        var operation = new EventStoreInterceptor.AppendToStream<>(aggregateType,
-                                                                   aggregateId,
-                                                                   appendEventsAfterEventOrder,
-                                                                   events);
         var aggregateEventStream = newInterceptorChainForOperation(operation,
                                                                    eventStoreInterceptors,
                                                                    (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                                    () -> persistenceStrategy.persist(unitOfWork,
-                                                                                                     aggregateType,
-                                                                                                     aggregateId,
-                                                                                                     appendEventsAfterEventOrder,
-                                                                                                     events))
+                                                                                                     operation.aggregateType,
+                                                                                                     operation.aggregateId,
+                                                                                                     operation.getAppendEventsAfterEventOrder(),
+                                                                                                     operation.getEventsToAppend()))
                 .proceed();
         unitOfWork.registerEventsPersisted(aggregateEventStream.eventList());
         return aggregateEventStream;
@@ -223,51 +217,42 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
 
 
     @Override
-    public <ID> Optional<PersistedEvent> loadLastPersistedEventRelatedTo(AggregateType aggregateType,
-                                                                         ID aggregateId) {
-        var operation = new EventStoreInterceptor.LoadLastPersistedEventRelatedTo<>(aggregateType,
-                                                                                    aggregateId);
+    public <ID> Optional<PersistedEvent> loadLastPersistedEventRelatedTo(LoadLastPersistedEventRelatedTo<ID> operation) {
+        requireNonNull(operation, "You must supply an LoadLastPersistedEventRelatedTo operation instance");
         return newInterceptorChainForOperation(operation,
                                                eventStoreInterceptors,
                                                (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                () -> persistenceStrategy.loadLastPersistedEventRelatedTo(unitOfWorkFactory.getRequiredUnitOfWork(),
-                                                                                                         aggregateType,
-                                                                                                         aggregateId))
+                                                                                                         operation.aggregateType,
+                                                                                                         operation.aggregateId))
                 .proceed();
 
     }
 
     @Override
-    public Optional<PersistedEvent> loadEvent(AggregateType aggregateType,
-                                              EventId eventId) {
-        var operation = new EventStoreInterceptor.LoadEvent(aggregateType,
-                                                            eventId);
+    public Optional<PersistedEvent> loadEvent(LoadEvent operation) {
+        requireNonNull(operation, "You must supply an LoadEvent operation instance");
         return newInterceptorChainForOperation(operation,
                                                eventStoreInterceptors,
                                                (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                () -> persistenceStrategy.loadEvent(unitOfWorkFactory.getRequiredUnitOfWork(),
-                                                                                   aggregateType,
-                                                                                   eventId))
+                                                                                   operation.aggregateType,
+                                                                                   operation.eventId))
                 .proceed();
     }
 
     @Override
-    public <ID> Optional<AggregateEventStream<ID>> fetchStream(AggregateType aggregateType,
-                                                               ID aggregateId,
-                                                               LongRange eventOrderRange,
-                                                               Optional<Tenant> tenant) {
-        var operation = new EventStoreInterceptor.FetchStream<>(aggregateType,
-                                                                aggregateId,
-                                                                eventOrderRange,
-                                                                tenant);
+    public <ID> Optional<AggregateEventStream<ID>> fetchStream(FetchStream<ID> operation) {
+        requireNonNull(operation, "You must supply an LoadEvent operation instance");
+
         return newInterceptorChainForOperation(operation,
                                                eventStoreInterceptors,
                                                (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                () -> persistenceStrategy.loadAggregateEvents(unitOfWorkFactory.getRequiredUnitOfWork(),
-                                                                                             aggregateType,
-                                                                                             aggregateId,
-                                                                                             eventOrderRange,
-                                                                                             tenant))
+                                                                                             operation.aggregateType,
+                                                                                             operation.aggregateId,
+                                                                                             operation.getEventOrderRange(),
+                                                                                             operation.getTenant()))
                 .proceed();
     }
 
@@ -276,11 +261,12 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                                                                   ID aggregateId,
                                                                   Class<AGGREGATE> projectionType) {
         requireNonNull(projectionType, "No projectionType provided");
-        var inMemoryProjector = inMemoryProjectorPerProjectionType.computeIfAbsent(projectionType, _aggregateType -> inMemoryProjectors.stream().filter(_inMemoryProjection -> _inMemoryProjection.supports(projectionType))
-                                                                                                                                       .findFirst()
-                                                                                                                                       .orElseThrow(() -> new EventStoreException(msg("Couldn't find an {} that supports projection-type '{}'",
-                                                                                                                                                                                      InMemoryProjector.class.getSimpleName(),
-                                                                                                                                                                                      projectionType.getName()))));
+        var inMemoryProjector = inMemoryProjectorPerProjectionType.computeIfAbsent(projectionType,
+                                                                                   _aggregateType -> inMemoryProjectors.stream().filter(_inMemoryProjection -> _inMemoryProjection.supports(projectionType))
+                                                                                                                       .findFirst()
+                                                                                                                       .orElseThrow(() -> new EventStoreException(msg("Couldn't find an {} that supports projection-type '{}'",
+                                                                                                                                                                      InMemoryProjector.class.getSimpleName(),
+                                                                                                                                                                      projectionType.getName()))));
         return inMemoryProjection(aggregateType,
                                   aggregateId,
                                   projectionType,
@@ -310,25 +296,17 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
     }
 
     @Override
-    public Stream<PersistedEvent> loadEventsByGlobalOrder(AggregateType aggregateType,
-                                                          LongRange globalEventOrderRange,
-                                                          List<GlobalEventOrder> includeAdditionalGlobalOrders,
-                                                          Optional<Tenant> onlyIncludeEventIfItBelongsToTenant) {
-        requireNonNull(aggregateType, "No aggregateType provided");
-        requireNonNull(globalEventOrderRange, "You must specify a globalOrderRange");
-        requireNonNull(onlyIncludeEventIfItBelongsToTenant, "You must specify an onlyIncludeEventIfItBelongsToTenant option");
+    public Stream<PersistedEvent> loadEventsByGlobalOrder(LoadEventsByGlobalOrder operation) {
+        requireNonNull(operation, "You must supply an LoadEventsByGlobalOrder operation instance");
 
-        var operation = new EventStoreInterceptor.LoadEventsByGlobalOrder(aggregateType,
-                                                                          globalEventOrderRange,
-                                                                          onlyIncludeEventIfItBelongsToTenant);
         return newInterceptorChainForOperation(operation,
                                                eventStoreInterceptors,
                                                (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                () -> persistenceStrategy.loadEventsByGlobalOrder(unitOfWorkFactory.getRequiredUnitOfWork(),
-                                                                                                 aggregateType,
-                                                                                                 globalEventOrderRange,
-                                                                                                 includeAdditionalGlobalOrders,
-                                                                                                 onlyIncludeEventIfItBelongsToTenant))
+                                                                                                 operation.aggregateType,
+                                                                                                 operation.getGlobalEventOrderRange(),
+                                                                                                 operation.getIncludeAdditionalGlobalOrders(),
+                                                                                                 operation.getOnlyIncludeEventIfItBelongsToTenant()))
                 .proceed();
     }
 
@@ -359,7 +337,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
         var subscriptionGapHandler               = subscriberId.map(eventStreamGapHandler::gapHandlerFor);
 
         return Flux.create((FluxSink<PersistedEvent> sink) -> {
-            var scheduler = Schedulers.newSingle("Polling-Worker-Publish-" + subscriberId.orElse(NO_SUBSCRIBER_ID) + "-" + aggregateType, true);
+            var scheduler = Schedulers.newSingle("Publish-" + subscriberId.orElse(NO_SUBSCRIBER_ID) + "-" + aggregateType, true);
             sink.onRequest(eventDemandSize -> {
                 eventStoreStreamLog.debug("[{}] Received demand for {} events",
                                           eventStreamLogName,

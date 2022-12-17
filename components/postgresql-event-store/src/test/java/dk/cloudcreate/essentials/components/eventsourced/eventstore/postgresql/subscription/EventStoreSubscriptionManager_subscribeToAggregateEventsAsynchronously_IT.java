@@ -235,7 +235,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
         assertThat(ordersSubscription.currentResumePoint().get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // When the subscriber is stopped we store the next global event order
         var ordersSubscriptionResumePoint = durableSubscriptionRepository.getResumePoint(ordersSubscription.subscriberId(), ordersSubscription.aggregateType());
         assertThat(ordersSubscriptionResumePoint).isPresent();
-        Awaitility.waitAtMost(Duration.ofSeconds(5))
+        Awaitility.waitAtMost(Duration.ofSeconds(10))
                           .untilAsserted(() -> assertThat(ordersSubscriptionResumePoint.get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()));  // When the subscriber is stopped we store the next global event order));
 
 
