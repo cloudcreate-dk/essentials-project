@@ -32,6 +32,17 @@ public class JacksonJSONSerializer implements JSONSerializer {
         this.objectMapper = requireNonNull(objectMapper, "No object mapper instance provided");
     }
 
+    @Override
+    public String serialize(Object obj) {
+        requireNonNull(obj, "you must provide a non-null object");
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            throw new JSONSerializationException(msg("Failed to serialize {} to JSON", obj.getClass().getName()),
+                                                 e);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <T> T deserialize(String json, String javaType) {

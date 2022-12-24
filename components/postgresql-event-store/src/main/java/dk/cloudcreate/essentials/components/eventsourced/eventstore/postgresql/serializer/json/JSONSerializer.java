@@ -23,6 +23,15 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.p
  */
 public interface JSONSerializer {
     /**
+     * Serialize the object to JSON
+     *
+     * @param obj the object to serialize
+     * @return the serialized json payload as a String
+     * @throws JSONSerializationException in case the json couldn't be deserialized to the specified java type
+     */
+    String serialize(Object obj);
+
+    /**
      * Deserialize the payload in the <code>json</code> parameter into the Java type specified by the Fully Qualified Class Name contained
      * in the <code>javaType</code> parameter
      *
