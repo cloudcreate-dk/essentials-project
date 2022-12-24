@@ -35,6 +35,10 @@ public class GlobalEventOrder extends LongType<GlobalEventOrder> {
      * Special value that contains the {@link GlobalEventOrder} of the FIRST Event persisted in context of a given {@link AggregateType}
      */
     public static final GlobalEventOrder FIRST_GLOBAL_EVENT_ORDER = GlobalEventOrder.of(1);
+    /**
+     * Special value that contains the maximum allowed {@link GlobalEventOrder} value
+     */
+    public static final GlobalEventOrder MAX_GLOBAL_EVENT_ORDER = GlobalEventOrder.of(Long.MAX_VALUE);
 
     public GlobalEventOrder(Long value) {
         super(value);
