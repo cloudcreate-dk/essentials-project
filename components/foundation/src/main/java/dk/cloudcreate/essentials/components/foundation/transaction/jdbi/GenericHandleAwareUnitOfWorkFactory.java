@@ -225,7 +225,11 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
 
                 beforeRollback(cause);
 
-                handle.rollback();
+                try {
+                    handle.rollback();
+                } catch (Exception e) {
+                    // Ignore
+                }
                 status = UnitOfWorkStatus.RolledBack;
                 close();
 
