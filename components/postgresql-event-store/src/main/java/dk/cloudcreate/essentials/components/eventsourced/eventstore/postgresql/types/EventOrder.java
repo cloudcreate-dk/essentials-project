@@ -37,6 +37,10 @@ public class EventOrder extends LongType<EventOrder> {
      * Special value that contains the {@link EventOrder} of the FIRST Event persisted in context of a given aggregate id
      */
     public static final EventOrder FIRST_EVENT_ORDER   = EventOrder.of(0);
+    /**
+     * Special value that contains the maximum allowed {@link EventOrder} value
+     */
+    public static final EventOrder MAX_EVENT_ORDER     = EventOrder.of(Long.MAX_VALUE);
 
     public EventOrder(Long value) {
         super(value);
@@ -46,7 +50,11 @@ public class EventOrder extends LongType<EventOrder> {
         return new EventOrder(value);
     }
 
-    public EventOrder increaseAndGet() {
-        return new EventOrder(value() + 1);
+    public EventOrder increment() {
+        return new EventOrder(value + 1);
+    }
+
+    public EventOrder decrement() {
+        return new EventOrder(value - 1);
     }
 }
