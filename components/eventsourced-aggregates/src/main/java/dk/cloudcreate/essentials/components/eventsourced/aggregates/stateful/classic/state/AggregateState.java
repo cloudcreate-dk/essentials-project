@@ -116,7 +116,7 @@ public abstract class AggregateState<ID, EVENT_TYPE extends Event<ID>> {
                                                                                 this.getClass().getName(),
                                                                                 this.aggregateId));
         }
-        var nextEventOrderToBeApplied = eventOrderOfLastAppliedEvent().increaseAndGet();
+        var nextEventOrderToBeApplied = eventOrderOfLastAppliedEvent().increment();
         event.eventOrder(nextEventOrderToBeApplied);
         applyEventToTheAggregate(event);
         eventOrderOfLastAppliedEvent = nextEventOrderToBeApplied;

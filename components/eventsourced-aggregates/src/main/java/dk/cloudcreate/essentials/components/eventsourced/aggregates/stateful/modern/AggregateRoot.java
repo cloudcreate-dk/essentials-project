@@ -285,7 +285,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends Aggre
         isRehydrating = true;
         persistedEvents.forEach(event -> {
             applyEventToTheAggregateState(event);
-            eventOrderOfLastAppliedEvent = eventOrderOfLastAppliedEvent().increaseAndGet();
+            eventOrderOfLastAppliedEvent = eventOrderOfLastAppliedEvent().increment();
         });
         eventOrderOfLastRehydratedEvent = eventOrderOfLastAppliedEvent;
         isRehydrating = false;
@@ -303,7 +303,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends Aggre
      */
     protected void apply(Function<EventOrder, EVENT_TYPE> eventSupplier) {
         requireNonNull(eventSupplier, "No eventSupplier provided");
-        var event = eventSupplier.apply(eventOrderOfLastAppliedEvent().increaseAndGet());
+        var event = eventSupplier.apply(eventOrderOfLastAppliedEvent().increment());
         requireNonNull(event, "No event was returned from the eventSupplier");
         apply(event);
     }
@@ -327,7 +327,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends Aggre
         requireNonNull(event, "You must supply an event");
         applyEventToTheAggregateState(event);
         uncommittedEvents.add(event);
-        eventOrderOfLastAppliedEvent = eventOrderOfLastAppliedEvent().increaseAndGet();
+        eventOrderOfLastAppliedEvent = eventOrderOfLastAppliedEvent().increment();
     }
 
     /**

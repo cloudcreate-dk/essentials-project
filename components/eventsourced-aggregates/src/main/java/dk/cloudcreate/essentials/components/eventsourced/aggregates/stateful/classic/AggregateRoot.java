@@ -152,7 +152,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE extends Event<ID>, AGGREGATE_
                                                                                 this.getClass().getName(),
                                                                                 this.aggregateId));
         }
-        var nextEventOrderToBeApplied = eventOrderOfLastAppliedEvent().increaseAndGet();
+        var nextEventOrderToBeApplied = eventOrderOfLastAppliedEvent().increment();
         event.eventOrder(nextEventOrderToBeApplied);
         applyEventToTheAggregateState(event);
         eventOrderOfLastAppliedEvent = nextEventOrderToBeApplied;

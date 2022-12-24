@@ -285,7 +285,7 @@ public abstract class FlexAggregate<ID, AGGREGATE_TYPE extends FlexAggregate<ID,
         requireNonNull(event, "You must supply an event");
         applyRehydratedEventToTheAggregate(event);
         hasBeenRehydrated = true;
-        eventOrderOfLastRehydratedEvent = eventOrderOfLastRehydratedEvent.increaseAndGet();
+        eventOrderOfLastRehydratedEvent = eventOrderOfLastRehydratedEvent.increment();
     }
 
     /**
