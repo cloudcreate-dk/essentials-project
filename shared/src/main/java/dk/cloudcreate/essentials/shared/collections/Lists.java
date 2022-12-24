@@ -16,10 +16,9 @@
 
 package dk.cloudcreate.essentials.shared.collections;
 
-import dk.cloudcreate.essentials.shared.FailFast;
 import dk.cloudcreate.essentials.shared.functional.tuple.*;
 
-import java.util.List;
+import java.util.*;
 import java.util.stream.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -52,5 +51,35 @@ public class Lists {
         return IntStream.range(0, list.size())
                         .mapToObj(index -> Tuple.of(index, listElementIterator.next()));
 
+    }
+
+    /**
+     * Get the first element in a list
+     *
+     * @param list the non-null list
+     * @param <T>  the type of elements in the list
+     * @return the first element wrapped in an {@link Optional} or {@link Optional#empty()} if the list is empty
+     */
+    public static <T> Optional<T> first(List<T> list) {
+        requireNonNull(list, "You must provide a non null list");
+        if (list.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(list.get(0));
+    }
+
+    /**
+     * Get the last element in a list
+     *
+     * @param list the non-null list
+     * @param <T>  the type of elements in the list
+     * @return the last element wrapped in an {@link Optional} or {@link Optional#empty()} if the list is empty
+     */
+    public static <T> Optional<T> last(List<T> list) {
+        requireNonNull(list, "You must provide a non null list");
+        if (list.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(list.get(list.size() - 1));
     }
 }
