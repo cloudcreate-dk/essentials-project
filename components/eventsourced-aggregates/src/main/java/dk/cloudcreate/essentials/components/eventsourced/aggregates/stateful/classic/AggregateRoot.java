@@ -51,16 +51,16 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * @see AggregateRootWithState
  */
 public abstract class AggregateRoot<ID, EVENT_TYPE extends Event<ID>, AGGREGATE_TYPE extends AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE>> implements StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_TYPE> {
-    private PatternMatchingMethodInvoker<Event<ID>> invoker;
-    private ID                                      aggregateId;
-    private List<EVENT_TYPE>                        uncommittedChanges;
+    private transient PatternMatchingMethodInvoker<Event<ID>> invoker;
+    private           ID                                      aggregateId;
+    private           List<EVENT_TYPE>                        uncommittedChanges;
     /**
      * Zero based event order
      */
-    private EventOrder                              eventOrderOfLastAppliedEvent;
-    private boolean                                 hasBeenRehydrated;
-    private boolean                                 isRehydrating;
-    private EventOrder                              eventOrderOfLastRehydratedEvent;
+    private           EventOrder                              eventOrderOfLastAppliedEvent;
+    private           boolean                                 hasBeenRehydrated;
+    private           boolean                                 isRehydrating;
+    private           EventOrder                              eventOrderOfLastRehydratedEvent;
 
     public AggregateRoot() {
         initialize();

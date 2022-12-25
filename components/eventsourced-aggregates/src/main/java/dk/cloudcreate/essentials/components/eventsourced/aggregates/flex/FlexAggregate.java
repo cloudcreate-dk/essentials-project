@@ -177,8 +177,8 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  */
 @SuppressWarnings("unchecked")
 public abstract class FlexAggregate<ID, AGGREGATE_TYPE extends FlexAggregate<ID, AGGREGATE_TYPE>> implements Aggregate<ID, AGGREGATE_TYPE> {
-    private PatternMatchingMethodInvoker<Object> invoker;
-    private ID                                   aggregateId;
+    private transient PatternMatchingMethodInvoker<Object> invoker;
+    private           ID                                   aggregateId;
 
     /**
      * Zero based event order
