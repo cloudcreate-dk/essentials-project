@@ -48,8 +48,8 @@ class AggregateSnapshotDeletionStrategyTest {
 
         assertThat(strategy.resolveSnapshotsToDelete(NO_EXISTING_SNAPSHOTS)).isEmpty();
         assertThat(strategy.resolveSnapshotsToDelete(ONE_EXISTING_SNAPSHOT).collect(Collectors.toList())).isEqualTo(List.of());
-        assertThat(strategy.resolveSnapshotsToDelete(THREE_EXISTING_SNAPSHOTS).collect(Collectors.toList())).isEqualTo(List.of());
-        assertThat(strategy.resolveSnapshotsToDelete(FIVE_EXISTING_SNAPSHOTS).collect(Collectors.toList())).isEqualTo(FIVE_EXISTING_SNAPSHOTS.subList(0, 2));
+        assertThat(strategy.resolveSnapshotsToDelete(THREE_EXISTING_SNAPSHOTS).collect(Collectors.toList())).isEqualTo(THREE_EXISTING_SNAPSHOTS.subList(0, 1));
+        assertThat(strategy.resolveSnapshotsToDelete(FIVE_EXISTING_SNAPSHOTS).collect(Collectors.toList())).isEqualTo(FIVE_EXISTING_SNAPSHOTS.subList(0, 3));
     }
 
     @Test

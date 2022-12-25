@@ -51,7 +51,10 @@ public interface AggregateSnapshotDeletionStrategy {
     boolean requiresExistingSnapshotDetailsToDetermineWhichAggregateSnapshotsToDelete();
 
     /**
-     * Out of all the existing snapshots (loaded without the snapshot payload), return the {@link AggregateSnapshot}'s that should be deleted
+     * Out of all the existing snapshots (loaded without the snapshot payload), return the {@link AggregateSnapshot}'s that should be deleted<br>
+     * This method is called just prior to adding a new {@link AggregateSnapshot}, so if the purpose it to keep
+     * 3 snapshots, and we already have 3 snapshots, then this method should return a {@link Stream} containing
+     * the oldest snapshot, which will then be deleted
      *
      * @param existingSnapshots     all the existing snapshots pertaining to a given aggregate instance
      * @param <ID>                  the id type for the aggregate
@@ -111,9 +114,11 @@ public interface AggregateSnapshotDeletionStrategy {
 
         @Override
         public <ID, AGGREGATE_IMPL_TYPE> Stream<AggregateSnapshot<ID, AGGREGATE_IMPL_TYPE>> resolveSnapshotsToDelete(List<AggregateSnapshot<ID, AGGREGATE_IMPL_TYPE>> existingSnapshots) {
-            if (existingSnapshots.size() > numberOfHistoricSnapshotsToKeep) {
+            if (existingSnapshots.size() >= numberOfHistoricSnapshotsToKeep) {
+                // Delete the oldest snapshots
                 return existingSnapshots.stream()
-                                        .limit(existingSnapshots.size() - numberOfHistoricSnapshotsToKeep); // Delete the oldest snapshots
+                                        .limit(existingSnapshots.size() - numberOfHistoricSnapshotsToKeep + 1); // (+1 is because right after this method is called we will add a new snapshot)
+
 
             } else {
                 return Stream.empty();
