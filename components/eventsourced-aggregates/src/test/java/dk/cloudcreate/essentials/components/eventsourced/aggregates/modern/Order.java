@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.aggregates.modern;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.*;
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.modern.AggregateRoot;
 
@@ -24,9 +25,15 @@ import java.util.*;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 public class Order extends AggregateRoot<OrderId, OrderEvent, Order> {
-    // Fields are public for framework tests performed - this isn't a pattern to replicate in a business application
+    // NOTE: Fields are public for framework tests performed - this isn't a pattern to replicate in a business application
+
+    // Annotated with @JsonDeserialize to support AggregateSnapshot JSON serialization
+    @JsonDeserialize(keyUsing = ProductIdKeyDeserializer.class)
     public Map<ProductId, Integer> productAndQuantity;
     public boolean                 accepted;
+
+    protected Order() {
+    }
 
     /**
      * Used for rehydration

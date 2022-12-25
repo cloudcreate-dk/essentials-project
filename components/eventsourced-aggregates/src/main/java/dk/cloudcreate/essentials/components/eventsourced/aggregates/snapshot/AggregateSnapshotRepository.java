@@ -57,6 +57,23 @@ public interface AggregateSnapshotRepository {
                                                                                                 Class<AGGREGATE_IMPL_TYPE> aggregateImplType);
 
     /**
+     * Load all {@link AggregateSnapshot}'s related to the given aggregate instance
+     *
+     * @param aggregateType          the aggregate type (determining the aggregate's event stream name)
+     * @param aggregateId            the identifier for the aggregate instance
+     * @param aggregateImplType      the concrete aggregate implementation type
+     * @param includeSnapshotPayload should the {@link AggregateSnapshot#aggregateSnapshot} be loaded?
+     * @param <ID>                   the aggregate ID type
+     * @param <AGGREGATE_IMPL_TYPE>  the concrete aggregate implementation type
+     * @return list of all {@link AggregateSnapshot}'s in ascending {@link AggregateSnapshot#eventOrderOfLastIncludedEvent} order (the oldest snapshot first) related to the given aggregate instance
+     */
+    <ID, AGGREGATE_IMPL_TYPE> List<AggregateSnapshot<ID, AGGREGATE_IMPL_TYPE>> loadAllSnapshots(AggregateType aggregateType,
+                                                                                                ID aggregateId,
+                                                                                                Class<AGGREGATE_IMPL_TYPE> aggregateImplType,
+                                                                                                boolean includeSnapshotPayload);
+
+
+    /**
      * Callback from an Aggregate Repository to notify that the aggregate has been updated
      *
      * @param aggregate             the aggregate instance after the changes (in the form of events) has been marked as committed within the aggregate
@@ -102,16 +119,17 @@ public interface AggregateSnapshotRepository {
 
     @SuppressWarnings("unchecked")
     class PostgresqlAggregateSnapshotRepository implements AggregateSnapshotRepository {
-        private static final Logger                                                              log                                    = LoggerFactory.getLogger(PostgresqlAggregateSnapshotRepository.class);
-        public static final  String                                                              DEFAULT_AGGREGATE_SNAPSHOTS_TABLE_NAME = "aggregate_snapshots";
-        private final        ConfigurableEventStore<? extends AggregateEventStreamConfiguration> eventStore;
-        private final        HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork>       unitOfWorkFactory;
-        private final        String                                                              snapshotTableName;
-        private final        JSONSerializer                                                      jsonSerializer;
-        private final        AggregateSnapshotRowMapper                                          aggregateSnapshotWithSnapshotPayloadRowMapper;
-        private final        AggregateSnapshotRowMapper                                          aggregateSnapshotWithoutSnapshotPayloadRowMapper;
-        private final        AddNewAggregateSnapshotStrategy                                     addNewSnapshotStrategy;
-        private final        AggregateSnapshotDeletionStrategy                                   snapshotDeletionStrategy;
+        private static final Logger log                                    = LoggerFactory.getLogger(PostgresqlAggregateSnapshotRepository.class);
+        public static final  String DEFAULT_AGGREGATE_SNAPSHOTS_TABLE_NAME = "aggregate_snapshots";
+
+        private final ConfigurableEventStore<? extends AggregateEventStreamConfiguration> eventStore;
+        private final HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork>       unitOfWorkFactory;
+        private final String                                                              snapshotTableName;
+        private final JSONSerializer                                                      jsonSerializer;
+        private final AggregateSnapshotRowMapper                                          aggregateSnapshotWithSnapshotPayloadRowMapper;
+        private final AggregateSnapshotRowMapper                                          aggregateSnapshotWithoutSnapshotPayloadRowMapper;
+        private final AddNewAggregateSnapshotStrategy                                     addNewSnapshotStrategy;
+        private final AggregateSnapshotDeletionStrategy                                   snapshotDeletionStrategy;
 
         public PostgresqlAggregateSnapshotRepository(ConfigurableEventStore<? extends AggregateEventStreamConfiguration> eventStore,
                                                      HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
@@ -145,6 +163,19 @@ public interface AggregateSnapshotRepository {
             this(eventStore,
                  unitOfWorkFactory,
                  Optional.ofNullable(snapshotTableName),
+                 jsonSerializer,
+                 addNewSnapshotStrategy,
+                 snapshotDeletionStrategy);
+        }
+
+        public PostgresqlAggregateSnapshotRepository(ConfigurableEventStore<? extends AggregateEventStreamConfiguration> eventStore,
+                                                     HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
+                                                     JSONSerializer jsonSerializer,
+                                                     AddNewAggregateSnapshotStrategy addNewSnapshotStrategy,
+                                                     AggregateSnapshotDeletionStrategy snapshotDeletionStrategy) {
+            this(eventStore,
+                 unitOfWorkFactory,
+                 Optional.empty(),
                  jsonSerializer,
                  addNewSnapshotStrategy,
                  snapshotDeletionStrategy);
@@ -197,10 +228,14 @@ public interface AggregateSnapshotRepository {
             requireNonNull(aggregateId, "No aggregateId supplied");
             requireNonNull(withLastIncludedEventOrderLessThanOrEqualTo, "No withLastIncludedEventOrderLessThanOrEqualTo supplied");
             requireNonNull(aggregateImplType, "No aggregateImplType supplied");
+            var config                = eventStore.getAggregateEventStreamConfiguration(aggregateType);
+            var serializedAggregateId = config.aggregateIdSerializer.serialize(aggregateId);
             return unitOfWorkFactory.withUnitOfWork(uow -> uow.handle().createQuery("SELECT * FROM " + snapshotTableName +
                                                                                             " WHERE aggregate_impl_type = :aggregate_impl_type AND " +
                                                                                             "aggregate_id = :aggregate_id AND " +
                                                                                             "last_included_event_order <= :last_included_event_order")
+                                                              .bind("aggregate_impl_type", aggregateImplType.getName())
+                                                              .bind("aggregate_id", serializedAggregateId)
                                                               .bind("last_included_event_order", withLastIncludedEventOrderLessThanOrEqualTo)
                                                               .map(aggregateSnapshotWithSnapshotPayloadRowMapper)
                                                               .map(snapshot -> (AggregateSnapshot<ID, AGGREGATE_IMPL_TYPE>) snapshot)
@@ -225,13 +260,13 @@ public interface AggregateSnapshotRepository {
                     var rowsUpdated = uow.handle().createUpdate("INSERT INTO " + snapshotTableName + "(\n" +
                                                                         "aggregate_impl_type, aggregate_id, aggregate_type, last_included_event_order, snapshot, created_ts" +
                                                                         "\n) VALUES (\n" +
-                                                                        ":aggregate_impl_type, :aggregate_id, :aggregate_type, :last_included_event_order, :snapshot, :created_ts" +
+                                                                        ":aggregate_impl_type, :aggregate_id, :aggregate_type, :last_included_event_order, :snapshot::jsonb, :created_ts" +
                                                                         "\n) ON CONFLICT DO NOTHING")
                                          .bind("aggregate_impl_type", aggregateImplType)
                                          .bind("aggregate_id", serializedAggregateId)
                                          .bind("aggregate_type", aggregateType.value())
                                          .bind("last_included_event_order", lastAppliedEventOrder.longValue())
-                                         .bind("snapshot::jsonb", jsonSerializer.serialize(aggregate))
+                                         .bind("snapshot", jsonSerializer.serialize(aggregate))
                                          .bind("created_ts", OffsetDateTime.now(Clock.systemUTC()))
                                          .execute();
 
@@ -281,7 +316,7 @@ public interface AggregateSnapshotRepository {
         protected Optional<EventOrder> findMostRecentLastIncludedEventOrderFor(String serializedAggregateId,
                                                                                String aggregateImplType,
                                                                                HandleAwareUnitOfWork uow) {
-            return uow.handle().createQuery("SELECT MAX(last_included_event_order) FROM " + snapshotTableName +
+            return uow.handle().createQuery("SELECT coalesce(MAX(last_included_event_order), -1) FROM " + snapshotTableName +
                                                     " WHERE aggregate_impl_type = :aggregate_impl_type AND " +
                                                     "aggregate_id = :aggregate_id")
                       .bind("aggregate_impl_type", aggregateImplType)
@@ -323,7 +358,7 @@ public interface AggregateSnapshotRepository {
 
                         deleteSnapshots(aggregateType,
                                         persistedEvents.aggregateId(),
-                                        aggregateImplType.getClass(),
+                                        aggregate.getClass(),
                                         eventOrdersToDelete);
                     }
                 }
@@ -334,6 +369,23 @@ public interface AggregateSnapshotRepository {
             }
         }
 
+        @Override
+        public <ID, AGGREGATE_IMPL_TYPE> List<AggregateSnapshot<ID, AGGREGATE_IMPL_TYPE>> loadAllSnapshots(AggregateType aggregateType,
+                                                                                                           ID aggregateId,
+                                                                                                           Class<AGGREGATE_IMPL_TYPE> aggregateImplType,
+                                                                                                           boolean includeSnapshotPayload) {
+            requireNonNull(aggregateType, "No aggregateType supplied");
+            requireNonNull(aggregateId, "No aggregateId supplied");
+            requireNonNull(aggregateImplType, "No aggregateImplType supplied");
+            var config                = eventStore.getAggregateEventStreamConfiguration(aggregateType);
+            var serializedAggregateId = config.aggregateIdSerializer.serialize(aggregateId);
+
+            return unitOfWorkFactory.withUnitOfWork(uow -> loadAllSnapshots(serializedAggregateId,
+                                                                            aggregateImplType.getName(),
+                                                                            includeSnapshotPayload,
+                                                                            uow));
+        }
+
         protected <ID, AGGREGATE_IMPL_TYPE> List<AggregateSnapshot<ID, AGGREGATE_IMPL_TYPE>> loadAllSnapshots(String serializedAggregateId,
                                                                                                               String aggregateImplType,
                                                                                                               boolean includeSnapshotPayload,
@@ -341,7 +393,7 @@ public interface AggregateSnapshotRepository {
             var selectColumns = includeSnapshotPayload ? "*" : "aggregate_impl_type, aggregate_id, aggregate_type, last_included_event_order, created_ts, statistics";
             return uow.handle().createQuery("SELECT " + selectColumns + " FROM " + snapshotTableName + " WHERE " +
                                                     "aggregate_impl_type = :aggregate_impl_type AND aggregate_id = :aggregate_id " +
-                                                    "ORDER BY last_included_event_order DESC")
+                                                    "ORDER BY last_included_event_order ASC")
                       .bind("aggregate_impl_type", aggregateImplType)
                       .bind("aggregate_id", serializedAggregateId)
                       .map(includeSnapshotPayload ? aggregateSnapshotWithSnapshotPayloadRowMapper : aggregateSnapshotWithoutSnapshotPayloadRowMapper)
@@ -400,7 +452,7 @@ public interface AggregateSnapshotRepository {
                                                                                                         "aggregate_id = :aggregate_id AND last_included_event_order IN (<snapshotEventOrdersToDelete>)")
                                                                          .bind("aggregate_impl_type", withAggregateImplementationType.getName())
                                                                          .bind("aggregate_id", serializedAggregateId)
-                                                                         .bindList("snapshotEventOrdersToDelete", snapshotEventOrdersToDelete)
+                                                                         .bindList("snapshotEventOrdersToDelete", snapshotEventOrdersToDelete.stream().map(eventOrder -> eventOrder.longValue()).collect(Collectors.toList()))
                                                                          .execute());
             log.debug("Deleted {} historic snapshots related to Aggregate '{}' with id '{}' and snapshotEventOrdersToDelete: {}",
                       rowsUpdated,

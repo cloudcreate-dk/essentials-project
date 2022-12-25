@@ -22,6 +22,7 @@ import dk.cloudcreate.essentials.shared.reflection.Reflector;
 import org.objenesis.*;
 import org.objenesis.instantiator.ObjectInstantiator;
 
+import java.lang.reflect.Modifier;
 import java.util.concurrent.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -92,8 +93,9 @@ public interface StatefulAggregateInstanceFactory {
         public <ID, AGGREGATE> AGGREGATE create(ID id, Class<AGGREGATE> aggregateType) {
             requireNonNull(id, "You must provide an id value");
             requireNonNull(aggregateType, "You must provide an aggregateTypeClass");
-            var reflector = Reflector.reflectOn(aggregateType);
-            if (reflector.hasDefaultConstructor()) {
+            var reflector                = Reflector.reflectOn(aggregateType);
+            var defaultNoArgsConstructor = reflector.getDefaultConstructor();
+            if (defaultNoArgsConstructor.isPresent() && Modifier.isPublic(defaultNoArgsConstructor.get().getModifiers())) {
                 return reflector.newInstance();
             } else if (reflector.hasMatchingConstructorBasedOnArguments(id)) {
                 return reflector.newInstance(id);
