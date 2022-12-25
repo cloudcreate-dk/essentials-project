@@ -96,7 +96,17 @@ public class Reflector {
      * @return true if the type has a default no-arguments constructor, otherwise false
      */
     public boolean hasDefaultConstructor() {
-        return this.constructors.stream().filter(_constructor -> _constructor.getParameterCount() == 0).count() == 1;
+        return getDefaultConstructor().isPresent();
+    }
+
+    /**
+     * Get the default no-arguments constructor
+     *
+     * @return The default no-args constructor wrapped in an {@link Optional}, otherwise an {@link Optional#empty()} if no
+     * default no-args constructor exists
+     */
+    public Optional<Constructor<?>> getDefaultConstructor() {
+        return this.constructors.stream().filter(_constructor -> _constructor.getParameterCount() == 0).findFirst();
     }
 
     /**
