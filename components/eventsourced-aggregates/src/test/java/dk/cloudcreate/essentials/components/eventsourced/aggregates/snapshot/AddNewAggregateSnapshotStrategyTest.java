@@ -38,7 +38,7 @@ class AddNewAggregateSnapshotStrategyTest {
 
         assertThat(strategy.shouldANewAggregateSnapshotBeAdded(AGGREGATE,
                                                                testData.onePersistedEvent,
-                                                               Optional.empty())).isTrue();
+                                                               Optional.empty())).isFalse();
         assertThat(strategy.shouldANewAggregateSnapshotBeAdded(AGGREGATE,
                                                                testData.twoPersistedEvents,
                                                                Optional.empty())).isTrue();

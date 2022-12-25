@@ -3,6 +3,7 @@ package dk.cloudcreate.essentials.components.eventsourced.aggregates.snapshot;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateEventStream;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventOrder;
 import dk.cloudcreate.essentials.shared.collections.Lists;
+import dk.cloudcreate.essentials.types.NumberType;
 
 import java.util.*;
 
@@ -74,8 +75,8 @@ public interface AddNewAggregateSnapshotStrategy {
         public <ID, AGGREGATE_IMPL_TYPE> boolean shouldANewAggregateSnapshotBeAdded(AGGREGATE_IMPL_TYPE aggregate,
                                                                                     AggregateEventStream<ID> persistedEvents,
                                                                                     Optional<EventOrder> mostRecentlyStoredSnapshotLastIncludedEventOrder) {
-            return mostRecentlyStoredSnapshotLastIncludedEventOrder.isEmpty() ||
-                    (Lists.last(persistedEvents.eventList()).get().eventOrder().longValue() - mostRecentlyStoredSnapshotLastIncludedEventOrder.get().longValue() >= numberOfEventsBetweenAddingANewSnapshot);
+
+            return (Lists.last(persistedEvents.eventList()).get().eventOrder().longValue() - mostRecentlyStoredSnapshotLastIncludedEventOrder.map(NumberType::longValue).orElse(-1L) >= numberOfEventsBetweenAddingANewSnapshot);
         }
     }
 }
