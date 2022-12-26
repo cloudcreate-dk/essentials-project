@@ -19,7 +19,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.reactive.command.LocalCommandBus;
+import dk.cloudcreate.essentials.reactive.command.CommandBus;
 
 import java.util.Collection;
 import java.util.concurrent.*;
@@ -68,11 +68,11 @@ public interface Inboxes {
      *
      * @param <MESSAGE_TYPE> the type of message
      * @param inboxConfig    the inbox configuration
-     * @param forwardTo      forward messages to this command bus using {@link LocalCommandBus#sendAndDontWait(Object)}
+     * @param forwardTo      forward messages to this command bus using {@link CommandBus#sendAndDontWait(Object)}
      * @return the {@link Inbox}
      */
     default <MESSAGE_TYPE> Inbox<MESSAGE_TYPE> getOrCreateInbox(InboxConfig inboxConfig,
-                                                                LocalCommandBus forwardTo) {
+                                                                CommandBus forwardTo) {
         requireNonNull(forwardTo, "No forwardTo command bus provided");
         return getOrCreateInbox(inboxConfig,
                                 forwardTo::sendAndDontWait);

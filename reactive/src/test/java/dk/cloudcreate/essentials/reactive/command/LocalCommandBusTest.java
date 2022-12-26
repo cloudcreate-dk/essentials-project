@@ -16,15 +16,13 @@
 
 package dk.cloudcreate.essentials.reactive.command;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.awaitility.Awaitility;
+import org.junit.jupiter.api.*;
+import org.slf4j.*;
 
 import java.time.Duration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 
 class LocalCommandBusTest {
     public static final String          ON_PURPOSE = "On purpose";
@@ -74,6 +72,38 @@ class LocalCommandBusTest {
         // Then
         assertThat(result).isEqualTo(TestCommandHandler.TEST);
         assertThat(cmdHandler.receivedCommand).isEqualTo("Hello World");
+    }
+
+    @Test
+    void test_sendAndDontWait() {
+        // Given
+        var cmdHandler = new TestCommandHandler(String.class);
+        commandBus.addCommandHandler(cmdHandler);
+
+        // When
+        commandBus.sendAndDontWait("Hello World");
+
+        // Then
+        Awaitility.waitAtMost(Duration.ofMillis(500))
+                  .untilAsserted(() -> assertThat(cmdHandler.receivedCommand).isEqualTo("Hello World"));
+    }
+
+    @Test
+    void test_sendAndDontWait_with_delay() {
+        // Given
+        var cmdHandler = new TestCommandHandler(String.class);
+        commandBus.addCommandHandler(cmdHandler);
+
+        // When
+        commandBus.sendAndDontWait("Hello World",
+                                   Duration.ofMillis(1000));
+
+        // Then
+        Awaitility.await()
+                  .atLeast(Duration.ofMillis(500))
+                  .untilAsserted(() -> assertThat(cmdHandler.receivedCommand).isNotNull());
+        Awaitility.waitAtMost(Duration.ofMillis(600))
+                  .untilAsserted(() -> assertThat(cmdHandler.receivedCommand).isEqualTo("Hello World"));
     }
 
     @Test
