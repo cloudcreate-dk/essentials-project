@@ -46,9 +46,9 @@ class PostgresqlAggregateSnapshotRepository_keepALimitedNumberOfHistoricSnapshot
     private EventStoreManagedUnitOfWorkFactory unitOfWorkFactory;
 
     private PostgresqlEventStore<SeparateTablePerAggregateEventStreamConfiguration> eventStore;
-    private AggregateSnapshotRepository.PostgresqlAggregateSnapshotRepository       snapshotRepository;
+    private PostgresqlAggregateSnapshotRepository                                   snapshotRepository;
     private StatefulAggregateRepository<OrderId, OrderEvent, Order>                 ordersRepository;
-    private AggregateSnapshotRepository.PostgresqlAggregateSnapshotRepository       snapshotRepositorySpy;
+    private PostgresqlAggregateSnapshotRepository                                   snapshotRepositorySpy;
 
     @BeforeEach
     void setup() {
@@ -69,11 +69,11 @@ class PostgresqlAggregateSnapshotRepository_keepALimitedNumberOfHistoricSnapshot
                                                                                                      new TestPersistableEventMapper(),
                                                                                                      aggregateEventStreamConfigurationFactory));
 
-        snapshotRepository = new AggregateSnapshotRepository.PostgresqlAggregateSnapshotRepository(eventStore,
-                                                                                                   unitOfWorkFactory,
-                                                                                                   aggregateEventStreamConfigurationFactory.jsonSerializer,
-                                                                                                   AddNewAggregateSnapshotStrategy.updateWhenBehindByNumberOfEvents(NUMBER_OF_EVENTS_BETWEEN_SNAPSHOTS),
-                                                                                                   AggregateSnapshotDeletionStrategy.keepALimitedNumberOfHistoricSnapshots(NUMBER_OF_HISTORIC_SNAPSHOTS_TO_KEEP));
+        snapshotRepository = new PostgresqlAggregateSnapshotRepository(eventStore,
+                                                                       unitOfWorkFactory,
+                                                                       aggregateEventStreamConfigurationFactory.jsonSerializer,
+                                                                       AddNewAggregateSnapshotStrategy.updateWhenBehindByNumberOfEvents(NUMBER_OF_EVENTS_BETWEEN_SNAPSHOTS),
+                                                                       AggregateSnapshotDeletionStrategy.keepALimitedNumberOfHistoricSnapshots(NUMBER_OF_HISTORIC_SNAPSHOTS_TO_KEEP));
 
 
         eventStore.addAggregateEventStreamConfiguration(ORDERS,

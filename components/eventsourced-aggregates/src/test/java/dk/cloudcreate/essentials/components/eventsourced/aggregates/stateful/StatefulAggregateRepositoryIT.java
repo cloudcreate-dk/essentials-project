@@ -46,9 +46,9 @@ class StatefulAggregateRepositoryIT {
     private EventStoreManagedUnitOfWorkFactory unitOfWorkFactory;
 
     private PostgresqlEventStore<SeparateTablePerAggregateEventStreamConfiguration> eventStore;
-    private AggregateSnapshotRepository.PostgresqlAggregateSnapshotRepository       snapshotRepository;
+    private PostgresqlAggregateSnapshotRepository                                   snapshotRepository;
     private StatefulAggregateRepository<OrderId, OrderEvent, Order>                 ordersRepository;
-    private AggregateSnapshotRepository.PostgresqlAggregateSnapshotRepository       snapshotRepositorySpy;
+    private PostgresqlAggregateSnapshotRepository                                   snapshotRepositorySpy;
 
     @BeforeEach
     void setup() {
@@ -69,11 +69,11 @@ class StatefulAggregateRepositoryIT {
                                                                                                      new TestPersistableEventMapper(),
                                                                                                      aggregateEventStreamConfigurationFactory));
 
-        snapshotRepository = new AggregateSnapshotRepository.PostgresqlAggregateSnapshotRepository(eventStore,
-                                                                                                   unitOfWorkFactory,
-                                                                                                   aggregateEventStreamConfigurationFactory.jsonSerializer,
-                                                                                                   AddNewAggregateSnapshotStrategy.updateWhenBehindByNumberOfEvents(2),
-                                                                                                   AggregateSnapshotDeletionStrategy.keepALimitedNumberOfHistoricSnapshots(3));
+        snapshotRepository = new PostgresqlAggregateSnapshotRepository(eventStore,
+                                                                       unitOfWorkFactory,
+                                                                       aggregateEventStreamConfigurationFactory.jsonSerializer,
+                                                                       AddNewAggregateSnapshotStrategy.updateWhenBehindByNumberOfEvents(2),
+                                                                       AggregateSnapshotDeletionStrategy.keepALimitedNumberOfHistoricSnapshots(3));
         snapshotRepositorySpy = Mockito.spy(snapshotRepository);
         ordersRepository = StatefulAggregateRepository.from(eventStore,
                                                             ORDERS,
