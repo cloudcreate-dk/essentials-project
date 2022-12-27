@@ -160,15 +160,17 @@ public interface DurableQueueConsumer extends Lifecycle {
                                                queuedMessage.getRedeliveryAttempts());
                                      return durableQueues.acknowledgeMessageAsHandled(queuedMessage.getId());
                                  } catch (Exception e) {
-                                     log.debug(msg("[{}:{}] QueueMessageHandler for failed to handle: {}",
+                                     log.debug(msg("[{}:{}] QueueMessageHandler for failed to handle message: {}",
                                                    queueName,
                                                    queuedMessage.getId(),
                                                    queuedMessage), e);
-                                     if (queuedMessage.getTotalDeliveryAttempts() >= redeliveryPolicy.maximumNumberOfRedeliveries + 1) {
+                                     var isPermanentError = redeliveryPolicy.isPermanentError(queuedMessage, e);
+                                     if (isPermanentError || queuedMessage.getTotalDeliveryAttempts() >= redeliveryPolicy.maximumNumberOfRedeliveries + 1) {
                                          // Dead letter
-                                         log.debug("[{}:{}] Marking Message as Dead Letter: {}",
+                                         log.debug("[{}:{}] Marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
                                                    queueName,
                                                    queuedMessage.getId(),
+                                                   isPermanentError,
                                                    queuedMessage);
                                          return durableQueues.markAsDeadLetterMessage(queuedMessage.getId(), e);
                                      } else {

@@ -76,7 +76,7 @@ public class LocalCommandBus extends AbstractCommandBus {
     @SuppressWarnings("unchecked")
     public <C> void sendAndDontWait(C command) {
         var commandHandler = findCommandHandlerCapableOfHandling(command);
-        log.debug("Asynchronously sending command of type '{}' to {} '{}'", command.getClass().getName(), CommandHandler.class.getSimpleName(), commandHandler.toString());
+        log.debug("sendAndDontWait command of type '{}' to {} '{}'", command.getClass().getName(), CommandHandler.class.getSimpleName(), commandHandler.toString());
         Mono.fromCallable(() -> CommandBusInterceptorChain.newInterceptorChain(command,
                                                                                commandHandler,
                                                                                interceptors,
@@ -103,7 +103,7 @@ public class LocalCommandBus extends AbstractCommandBus {
     public <C> void sendAndDontWait(C command, Duration delayMessageDelivery) {
         var commandHandler = findCommandHandlerCapableOfHandling(command);
         requireNonNull(delayMessageDelivery, "You must provide a delayMessageDelivery value");
-        log.debug("Delayed {} Asynchronously sending command of type '{}' to {} '{}'",
+        log.debug("Delayed {} sendAndDontWait for command of type '{}' to {} '{}'",
                   delayMessageDelivery,
                   command.getClass().getName(),
                   CommandHandler.class.getSimpleName(),
