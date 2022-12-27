@@ -134,15 +134,19 @@ public class PostgresqlDurableQueues implements DurableQueues {
     public void start() {
         if (!started) {
             started = true;
+            log.info("Starting");
             durableQueueConsumers.values().forEach(PostgresqlDurableQueueConsumer::start);
+            log.info("Started");
         }
     }
 
     @Override
     public void stop() {
         if (started) {
+            log.info("Stopping");
             durableQueueConsumers.values().forEach(PostgresqlDurableQueueConsumer::stop);
             started = false;
+            log.info("Stopped");
         }
     }
 
@@ -185,11 +189,15 @@ public class PostgresqlDurableQueues implements DurableQueues {
         requireNonNull(durableQueueConsumer, "You must provide a durableQueueConsumer");
         requireFalse(durableQueueConsumer.isStarted(), msg("Cannot remove DurableQueueConsumer '{}' since it's started!", durableQueueConsumer.queueName()));
         var operation = new StopConsumingFromQueue(durableQueueConsumer);
-        newInterceptorChainForOperation(operation,
-                                        interceptors,
-                                        (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
-                                        () -> (DurableQueueConsumer) durableQueueConsumers.remove(durableQueueConsumer.queueName()))
-                .proceed();
+        try {
+            newInterceptorChainForOperation(operation,
+                                            interceptors,
+                                            (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
+                                            () -> (DurableQueueConsumer) durableQueueConsumers.remove(durableQueueConsumer.queueName()))
+                    .proceed();
+        } catch (Exception e) {
+            log.error(msg("Failed to perform {}", operation), e);
+        }
     }
 
     @Override

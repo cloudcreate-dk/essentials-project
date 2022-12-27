@@ -198,15 +198,19 @@ public class MongoDurableQueues implements DurableQueues {
     public void start() {
         if (!started) {
             started = true;
+            log.info("Starting");
             durableQueueConsumers.values().forEach(MongoDurableQueueConsumer::start);
+            log.info("Started");
         }
     }
 
     @Override
     public void stop() {
         if (started) {
+            log.info("Stopping");
             durableQueueConsumers.values().forEach(MongoDurableQueueConsumer::stop);
             started = false;
+            log.info("Stopped");
         }
     }
 
@@ -438,7 +442,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                  queueEntryId,
                                                                  nextDeliveryTimestamp,
                                                                  updateResult);
-                                                       return Optional.of((QueuedMessage)updateResult);
+                                                       return Optional.of((QueuedMessage) updateResult);
                                                    } else {
                                                        log.error("Failed to Mark Message with id '{}' for Retry", queueEntryId);
                                                        return Optional.<QueuedMessage>empty();
@@ -475,7 +479,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                                   sharedQueueCollectionName);
                                                    if (updateResult != null && updateResult.isDeadLetterMessage) {
                                                        log.debug("[{}] Marked message with id '{}' as Dead Letter Message. Message entry after update: {}", updateResult.queueName, queueEntryId, updateResult);
-                                                       return Optional.of((QueuedMessage)updateResult);
+                                                       return Optional.of((QueuedMessage) updateResult);
                                                    } else {
                                                        log.error("Failed to Mark as Message message with id '{}' as Dead Letter Message", queueEntryId);
                                                        return Optional.<QueuedMessage>empty();
@@ -516,7 +520,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                  queueEntryId,
                                                                  nextDeliveryTimestamp,
                                                                  updateResult);
-                                                       return Optional.of((QueuedMessage)updateResult);
+                                                       return Optional.of((QueuedMessage) updateResult);
                                                    } else {
                                                        log.error("Failed to resurrect Dead Letter Message with id '{}'", queueEntryId);
                                                        return Optional.<QueuedMessage>empty();
@@ -758,11 +762,15 @@ public class MongoDurableQueues implements DurableQueues {
         requireNonNull(durableQueueConsumer, "You must provide a durableQueueConsumer");
         requireFalse(durableQueueConsumer.isStarted(), msg("Cannot remove DurableQueueConsumer '{}' since it's started!", durableQueueConsumer.queueName()));
         var operation = new StopConsumingFromQueue(durableQueueConsumer);
-        newInterceptorChainForOperation(operation,
-                                        interceptors,
-                                        (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
-                                        () -> (DurableQueueConsumer) durableQueueConsumers.remove(durableQueueConsumer.queueName()))
-                .proceed();
+        try {
+            newInterceptorChainForOperation(operation,
+                                            interceptors,
+                                            (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
+                                            () -> (DurableQueueConsumer) durableQueueConsumers.remove(durableQueueConsumer.queueName()))
+                    .proceed();
+        } catch (Exception e) {
+            log.error(msg("Failed to perform {}", operation), e);
+        }
     }
 
     private static ObjectMapper createObjectMapper() {
