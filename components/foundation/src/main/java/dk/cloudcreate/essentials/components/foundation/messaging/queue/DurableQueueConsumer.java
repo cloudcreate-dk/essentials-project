@@ -41,15 +41,15 @@ public interface DurableQueueConsumer extends Lifecycle {
     class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>> implements DurableQueueConsumer {
         private static final Logger log = LoggerFactory.getLogger(DefaultDurableQueueConsumer.class);
 
-        public final QueueName                      queueName;
-        private volatile boolean started;
-        public final RedeliveryPolicy               redeliveryPolicy;
-        public final int                            numberOfParallelMessageConsumers;
-        public final QueuedMessageHandler           queuedMessageHandler;
-        private final ScheduledExecutorService       scheduler;
-        private final DURABLE_QUEUES                 durableQueues;
-        private       Consumer<DurableQueueConsumer> removeDurableQueueConsumer;
-        private       UOW_FACTORY                    unitOfWorkFactory;
+        public final     QueueName                      queueName;
+        private volatile boolean                        started;
+        public final     RedeliveryPolicy               redeliveryPolicy;
+        public final     int                            numberOfParallelMessageConsumers;
+        public final     QueuedMessageHandler           queuedMessageHandler;
+        private final    ScheduledExecutorService       scheduler;
+        private final    DURABLE_QUEUES                 durableQueues;
+        private          Consumer<DurableQueueConsumer> removeDurableQueueConsumer;
+        private          UOW_FACTORY                    unitOfWorkFactory;
 
 
         public DefaultDurableQueueConsumer(QueueName queueName,
@@ -106,10 +106,13 @@ public interface DurableQueueConsumer extends Lifecycle {
         public void stop() {
             if (started) {
                 log.info("[{}] Stopping DurableQueueConsumer", queueName);
-                scheduler.shutdownNow();
                 started = false;
-                removeDurableQueueConsumer.accept(this);
-                log.info("[{}] DurableQueueConsumer stopped", queueName);
+                try {
+                    scheduler.shutdownNow();
+                } finally {
+                    removeDurableQueueConsumer.accept(this);
+                    log.info("[{}] DurableQueueConsumer stopped", queueName);
+                }
             }
         }
 
@@ -130,15 +133,24 @@ public interface DurableQueueConsumer extends Lifecycle {
 
 
         private void pollQueue() {
-            log.trace("[{}] Polling Queue for the next message ready for delivery", queueName);
-            if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
-                if (unitOfWorkFactory.getCurrentUnitOfWork().isPresent()) {
-                    throw new DurableQueueException(msg("Previous UnitOfWork isn't completed/removed: {}", unitOfWorkFactory.getCurrentUnitOfWork().get()), queueName);
-                }
+            if (!started) {
+                log.trace("[{}] Skipping Polling Queue as the consumer is not started", queueName);
+                return;
+            }
 
-                unitOfWorkFactory.usingUnitOfWork(handleAwareUnitOfWork -> processNextMessageReadyForDelivery());
-            } else {
-                processNextMessageReadyForDelivery();
+            try {
+                log.trace("[{}] Polling Queue for the next message ready for delivery", queueName);
+                if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
+                    if (unitOfWorkFactory.getCurrentUnitOfWork().isPresent()) {
+                        throw new DurableQueueException(msg("Previous UnitOfWork isn't completed/removed: {}", unitOfWorkFactory.getCurrentUnitOfWork().get()), queueName);
+                    }
+
+                    unitOfWorkFactory.usingUnitOfWork(handleAwareUnitOfWork -> processNextMessageReadyForDelivery());
+                } else {
+                    processNextMessageReadyForDelivery();
+                }
+            } catch (DurableQueueException e) {
+                log.error(msg("[{}] Failed to poll queue", queueName), e);
             }
         }
 
