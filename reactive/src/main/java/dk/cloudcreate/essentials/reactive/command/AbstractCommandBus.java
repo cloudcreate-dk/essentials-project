@@ -1,6 +1,7 @@
 package dk.cloudcreate.essentials.reactive.command;
 
 import dk.cloudcreate.essentials.reactive.command.interceptor.*;
+import dk.cloudcreate.essentials.shared.Exceptions;
 import org.slf4j.*;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -141,7 +142,13 @@ public abstract class AbstractCommandBus implements CommandBus {
         return commandHandlers.contains(requireNonNull(commandHandler, "No commandHandler provided"));
     }
 
-    protected static class FallbackSendAndDontWaitErrorHandler implements SendAndDontWaitErrorHandler {
+    /**
+     * Fallback {@link SendAndDontWaitErrorHandler} that only error logs any issues.<br>
+     * Note: If the {@link FallbackSendAndDontWaitErrorHandler} is used with a Durable Command Bus (e.g. using DurableQueues),
+     * then any failing command will not be retried.<br>
+     * Instead use {@link RethrowingSendAndDontWaitErrorHandler}
+     */
+    public static class FallbackSendAndDontWaitErrorHandler implements SendAndDontWaitErrorHandler {
         private static final Logger log = LoggerFactory.getLogger(FallbackSendAndDontWaitErrorHandler.class);
 
         @Override
@@ -150,6 +157,24 @@ public abstract class AbstractCommandBus implements CommandBus {
                           CommandHandler.class.getSimpleName(),
                           commandHandler.getClass().getName(),
                           command), exception);
+        }
+    }
+
+    /**
+     * Fallback {@link SendAndDontWaitErrorHandler} that error logs any issues and rethrows the exception.<br>
+     * The {@link RethrowingSendAndDontWaitErrorHandler} is compatible with a Durable Command Bus (e.g. using DurableQueues),
+     * as rethrowing the exceptions allows the command to be retried
+     */
+    public static class RethrowingSendAndDontWaitErrorHandler implements SendAndDontWaitErrorHandler {
+        private static final Logger log = LoggerFactory.getLogger(FallbackSendAndDontWaitErrorHandler.class);
+
+        @Override
+        public void handleError(Exception exception, Object command, CommandHandler commandHandler) {
+            log.error(msg("SendAndDontWait ERROR: {} '{}' failed to handle command: {}",
+                          CommandHandler.class.getSimpleName(),
+                          commandHandler.getClass().getName(),
+                          command), exception);
+            Exceptions.sneakyThrow(exception);
         }
     }
 
