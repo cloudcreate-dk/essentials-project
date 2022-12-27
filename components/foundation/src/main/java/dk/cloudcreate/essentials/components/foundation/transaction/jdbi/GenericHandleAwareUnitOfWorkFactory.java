@@ -172,7 +172,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
                 try {
                     handle.commit();
                 } catch (Exception e) {
-                    throw new UnitOfWorkException("Failed to persist Events", e);
+                    throw new UnitOfWorkException("Failed to commit UnitOfWork", e);
                 } finally {
                     close();
                     unitOfWorkFactory.removeUnitOfWork();
