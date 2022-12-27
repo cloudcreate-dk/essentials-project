@@ -16,28 +16,83 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging;
 
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
+
 import java.time.Duration;
 import java.util.Objects;
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 
+/**
+ * In case the message delivery, handled by the {@link DurableQueueConsumer}, experiences an error/exception,
+ * then the {@link RedeliveryPolicy} determines, with the aid of the {@link MessageDeliveryErrorHandler} and the provided
+ * delivery settings, IF a Message should be retried ({@link DurableQueues#retryMessage(RetryMessage)}
+ * or if it's going to be marked as a Poison-Message/Dead-Letter-Message ({@link DurableQueues#markAsDeadLetterMessage(MarkAsDeadLetterMessage)})
+ *
+ * @see RedeliveryPolicy#builder()
+ * @see RedeliveryPolicy#exponentialBackoff()
+ * @see RedeliveryPolicy#linearBackoff()
+ * @see RedeliveryPolicy#fixedBackoff()
+ */
 public class RedeliveryPolicy {
-    public final Duration initialRedeliveryDelay;
-    public final Duration followupRedeliveryDelay;
-    public final double   followupRedeliveryDelayMultiplier;
-    public final Duration maximumFollowupRedeliveryThreshold;
-    public final int      maximumNumberOfRedeliveries;
+    public final Duration                    initialRedeliveryDelay;
+    public final Duration                    followupRedeliveryDelay;
+    public final double                      followupRedeliveryDelayMultiplier;
+    public final Duration                    maximumFollowupRedeliveryThreshold;
+    public final int                         maximumNumberOfRedeliveries;
+    public final MessageDeliveryErrorHandler deliveryErrorHandler;
+
+    /**
+     * Create a generic builder for defining a {@link RedeliveryPolicy}
+     *
+     * @return a generic builder for defining a {@link RedeliveryPolicy}
+     */
+    public static RedeliveryPolicyBuilder builder() {
+        return new RedeliveryPolicyBuilder();
+    }
+
+    /**
+     * Create a builder for defining a {@link RedeliveryPolicy} that allows for defining
+     * an Exponential Backoff strategy
+     *
+     * @return a builder for defining a {@link RedeliveryPolicy} that allows for defining
+     * an Exponential Backoff strategy
+     */
+    public static ExponentialBackoffBuilder exponentialBackoff() {
+        return new ExponentialBackoffBuilder();
+    }
+
+    /**
+     * Create a builder for defining a {@link RedeliveryPolicy} with a Linear Backoff strategy
+     *
+     * @return a builder for defining a {@link RedeliveryPolicy} with a Linear Backoff strategy
+     */
+    public static LinearBackoffBuilder linearBackoff() {
+        return new LinearBackoffBuilder();
+    }
+
+    /**
+     * Create a builder for defining a {@link RedeliveryPolicy} with a Fixed Backoff strategy
+     *
+     * @return a builder for defining a {@link RedeliveryPolicy} with a Fixed Backoff strategy
+     */
+    public static FixedBackoffBuilder fixedBackoff() {
+        return new FixedBackoffBuilder();
+    }
 
     public RedeliveryPolicy(Duration initialRedeliveryDelay,
                             Duration followupRedeliveryDelay,
                             double followupRedeliveryDelayMultiplier,
                             Duration maximumFollowupRedeliveryDelayThreshold,
-                            int maximumNumberOfRedeliveries) {
+                            int maximumNumberOfRedeliveries,
+                            MessageDeliveryErrorHandler deliveryErrorHandler) {
         this.initialRedeliveryDelay = requireNonNull(initialRedeliveryDelay, "You must specify an initialRedeliveryDelay");
         this.followupRedeliveryDelay = requireNonNull(followupRedeliveryDelay, "You must specify an followupRedeliveryDelay");
         this.followupRedeliveryDelayMultiplier = followupRedeliveryDelayMultiplier;
         this.maximumFollowupRedeliveryThreshold = requireNonNull(maximumFollowupRedeliveryDelayThreshold, "You must specify an maximumFollowupRedeliveryDelayThreshold");
         this.maximumNumberOfRedeliveries = maximumNumberOfRedeliveries;
+        this.deliveryErrorHandler = requireNonNull(deliveryErrorHandler, "You must specify a " + MessageDeliveryErrorHandler.class.getSimpleName());
     }
 
     @Override
@@ -66,6 +121,7 @@ public class RedeliveryPolicy {
                 ", followupRedeliveryDelayMultiplier=" + followupRedeliveryDelayMultiplier +
                 ", maximumFollowupRedeliveryThreshold=" + maximumFollowupRedeliveryThreshold +
                 ", maximumNumberOfRedeliveries=" + maximumNumberOfRedeliveries +
+                ", deliveryErrorHandler=" + deliveryErrorHandler +
                 '}';
     }
 
@@ -74,7 +130,8 @@ public class RedeliveryPolicy {
         if (currentNumberOfRedeliveryAttempts == 0) {
             return initialRedeliveryDelay;
         }
-        var calculatedRedeliveryDelay = initialRedeliveryDelay.plus(Duration.ofMillis((long) (followupRedeliveryDelay.toMillis() * followupRedeliveryDelayMultiplier)));
+        var calculatedRedeliveryDelay = initialRedeliveryDelay.plus(
+                Duration.ofMillis((long) (followupRedeliveryDelay.toMillis() * followupRedeliveryDelayMultiplier)));
         if (calculatedRedeliveryDelay.compareTo(maximumFollowupRedeliveryThreshold) >= 0) {
             return maximumFollowupRedeliveryThreshold;
         } else {
@@ -84,21 +141,25 @@ public class RedeliveryPolicy {
 
     public static RedeliveryPolicy fixedBackoff(Duration redeliveryDelay,
                                                 int maximumNumberOfRedeliveries) {
-        return new RedeliveryPolicy(redeliveryDelay,
-                                    redeliveryDelay,
-                                    1.0d,
-                                    redeliveryDelay,
-                                    maximumNumberOfRedeliveries);
+        return builder().setInitialRedeliveryDelay(redeliveryDelay)
+                        .setFollowupRedeliveryDelay(redeliveryDelay)
+                        .setFollowupRedeliveryDelayMultiplier(1.0d)
+                        .setMaximumFollowupRedeliveryDelayThreshold(redeliveryDelay)
+                        .setMaximumNumberOfRedeliveries(maximumNumberOfRedeliveries)
+                        .setDeliveryErrorHandler(MessageDeliveryErrorHandler.alwaysRetry())
+                        .build();
     }
 
     public static RedeliveryPolicy linearBackoff(Duration redeliveryDelay,
                                                  Duration maximumFollowupRedeliveryDelayThreshold,
                                                  int maximumNumberOfRedeliveries) {
-        return new RedeliveryPolicy(redeliveryDelay,
-                                    redeliveryDelay,
-                                    1.0d,
-                                    maximumFollowupRedeliveryDelayThreshold,
-                                    maximumNumberOfRedeliveries);
+        return builder().setInitialRedeliveryDelay(redeliveryDelay)
+                        .setFollowupRedeliveryDelay(redeliveryDelay)
+                        .setFollowupRedeliveryDelayMultiplier(1.0d)
+                        .setMaximumFollowupRedeliveryDelayThreshold(maximumFollowupRedeliveryDelayThreshold)
+                        .setMaximumNumberOfRedeliveries(maximumNumberOfRedeliveries)
+                        .setDeliveryErrorHandler(MessageDeliveryErrorHandler.alwaysRetry())
+                        .build();
     }
 
     public static RedeliveryPolicy exponentialBackoff(Duration initialRedeliveryDelay,
@@ -106,11 +167,16 @@ public class RedeliveryPolicy {
                                                       double followupRedeliveryDelayMultiplier,
                                                       Duration maximumFollowupRedeliveryDelayThreshold,
                                                       int maximumNumberOfRedeliveries) {
-        return new RedeliveryPolicy(initialRedeliveryDelay,
-                                    followupRedeliveryDelay,
-                                    followupRedeliveryDelayMultiplier,
-                                    maximumFollowupRedeliveryDelayThreshold,
-                                    maximumNumberOfRedeliveries);
+        return builder().setInitialRedeliveryDelay(initialRedeliveryDelay)
+                        .setFollowupRedeliveryDelay(followupRedeliveryDelay)
+                        .setFollowupRedeliveryDelayMultiplier(followupRedeliveryDelayMultiplier)
+                        .setMaximumFollowupRedeliveryDelayThreshold(maximumFollowupRedeliveryDelayThreshold)
+                        .setMaximumNumberOfRedeliveries(maximumNumberOfRedeliveries)
+                        .setDeliveryErrorHandler(MessageDeliveryErrorHandler.alwaysRetry())
+                        .build();
     }
 
+    public boolean isPermanentError(QueuedMessage queuedMessage, Exception error) {
+        return deliveryErrorHandler.isPermanentError(queuedMessage, error);
+    }
 }
