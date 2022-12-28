@@ -98,7 +98,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
     }
 
     @Test
-    void test_sendAndDontWait() {
+    void test_sendAndDontWait_with_managed_transaction() {
         // Given
         var cmdHandler = new TestCommandHandler(String.class);
         commandBus.addCommandHandler(cmdHandler);
@@ -111,6 +111,52 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
                   .untilAsserted(() -> assertThat(cmdHandler.receivedCommand).isEqualTo("Hello World"));
     }
 
+    @Test
+    void test_sendAndDontWait() {
+        // Given
+        var cmdHandler = new TestCommandHandler(String.class);
+        commandBus.addCommandHandler(cmdHandler);
+
+        //
+        commandBus.sendAndDontWait("Hello World");
+
+        // Then
+        Awaitility.waitAtMost(Duration.ofMillis(500))
+                  .untilAsserted(() -> assertThat(cmdHandler.receivedCommand).isEqualTo("Hello World"));
+    }
+
+    @Test
+    void test_sendAndDontWait_with_managed_transaction_and_with_error() {
+        // Given
+        var cmdHandler = new ExceptionThrowingCommandHandler();
+        commandBus.addCommandHandler(cmdHandler);
+        var command = "Hello World";
+        var errorQueueSizePrior = durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+                                                                      DurableQueues.QueueingSortOrder.ASC,
+                                                                      0,
+                                                                      10).size();
+
+        // When
+        commandBus.sendAndDontWait(command);
+
+        // Then
+        Awaitility.waitAtMost(Duration.ofMillis(500))
+                  .untilAsserted(() -> assertThat(errorHandler.exception).isNotNull());
+        assertThat(errorHandler.exception).isInstanceOf(RuntimeException.class);
+        assertThat(errorHandler.exception).hasMessage(ON_PURPOSE);
+        assertThat(errorHandler.command).isEqualTo(command);
+        assertThat(errorHandler.commandHandler).isEqualTo(cmdHandler);
+
+        Awaitility.waitAtMost(Duration.ofMillis(1000))
+                  .untilAsserted(() -> assertThat(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+                                                                                      DurableQueues.QueueingSortOrder.ASC,
+                                                                                      0,
+                                                                                      10)).hasSize(errorQueueSizePrior + 1));
+        assertThat(Lists.last(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+                                                                  DurableQueues.QueueingSortOrder.ASC,
+                                                                  0,
+                                                                  10)).get().getPayload()).isEqualTo(command);
+    }
     @Test
     void test_sendAndDontWait_with_error() {
         // Given

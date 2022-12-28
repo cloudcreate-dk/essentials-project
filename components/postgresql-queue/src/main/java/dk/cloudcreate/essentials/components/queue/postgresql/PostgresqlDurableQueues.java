@@ -24,7 +24,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 import dk.cloudcreate.essentials.components.queue.postgresql.jdbi.*;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
@@ -158,6 +158,11 @@ public class PostgresqlDurableQueues implements DurableQueues {
     @Override
     public TransactionalMode getTransactionalMode() {
         return TransactionalMode.FullyTransactional;
+    }
+
+    @Override
+    public Optional<UnitOfWorkFactory<? extends UnitOfWork>> getUnitOfWorkFactory() {
+        return Optional.ofNullable(unitOfWorkFactory);
     }
 
     @Override

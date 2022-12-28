@@ -24,7 +24,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
@@ -162,7 +162,8 @@ public class MongoDurableQueues implements DurableQueues {
      * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
      * @param sharedQueueCollectionName  the name of the collection that will contain all messages (across all {@link QueueName}'s)
      */
-    protected MongoDurableQueues(TransactionalMode transactionalMode, MongoTemplate mongoTemplate,
+    protected MongoDurableQueues(TransactionalMode transactionalMode,
+                                 MongoTemplate mongoTemplate,
                                  SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
                                  Duration messageHandlingTimeout,
                                  ObjectMapper messagePayloadObjectMapper,
@@ -222,6 +223,11 @@ public class MongoDurableQueues implements DurableQueues {
     @Override
     public TransactionalMode getTransactionalMode() {
         return transactionalMode;
+    }
+
+    @Override
+    public Optional<UnitOfWorkFactory<? extends UnitOfWork>> getUnitOfWorkFactory() {
+        return Optional.ofNullable(unitOfWorkFactory);
     }
 
     @Override
