@@ -19,7 +19,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 
 import java.time.Duration;
 import java.util.*;
@@ -114,6 +114,13 @@ public interface DurableQueues extends Lifecycle {
      * @return The transactional behaviour mode of a {@link DurableQueues} instance<br>
      */
     TransactionalMode getTransactionalMode();
+
+    /**
+     * @return If {@link #getTransactionalMode()} is {@link TransactionalMode#FullyTransactional} then
+     * it will return the {@link UnitOfWorkFactory} wrapped in an {@link Optional}, otherwise it will return
+     * an {@link Optional#empty()}
+     */
+    Optional<UnitOfWorkFactory<? extends UnitOfWork>> getUnitOfWorkFactory();
 
     /**
      * Start an asynchronous message consumer.<br>

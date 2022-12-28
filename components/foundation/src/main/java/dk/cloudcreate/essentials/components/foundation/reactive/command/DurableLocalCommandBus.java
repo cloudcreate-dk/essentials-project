@@ -211,9 +211,19 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
                       CommandHandler.class.getSimpleName(),
                       commandHandler.toString());
         }
-        durableQueues.queueMessage(durableQueueName,
-                                   command,
-                                   messageDeliveryDelay);
+
+        if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
+            // Allow sendAndDontWait to automatically start a new or join in an existing UnitOfWork
+            durableQueues.getUnitOfWorkFactory().get().usingUnitOfWork(() -> {
+                durableQueues.queueMessage(durableQueueName,
+                                           command,
+                                           messageDeliveryDelay);
+            });
+        } else {
+            durableQueues.queueMessage(durableQueueName,
+                                       command,
+                                       messageDeliveryDelay);
+        }
     }
 
     private void processSendAndDontWaitMessage(QueuedMessage queuedMessage) {
@@ -243,6 +253,9 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
                                                            }
                                                        })
                                   .proceed();
+        if (durableQueues.getTransactionalMode() == TransactionalMode.ManualAcknowledgement) {
+            durableQueues.acknowledgeMessageAsHandled(queuedMessage.getId());
+        }
     }
 
 }
