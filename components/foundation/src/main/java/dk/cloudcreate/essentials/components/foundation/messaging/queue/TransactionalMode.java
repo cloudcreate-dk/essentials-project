@@ -40,11 +40,17 @@ public enum TransactionalMode {
      * discover messages that have been under delivery for a long time (aka. stuck messages or timed-out messages) and reset them in order for them to be redelivered.<br>
      * Example:
      * <pre>{@code
-     * var msgId = durableQueues.queueMessage(queueName, message);
+     * durableQueues.queueMessage(queueName, message);
      * var msgUnderDelivery = durableQueues.getNextMessageReadyForDelivery(queueName);
      * if (msgUnderDelivery.isPresent()) {
-     *    handleMessage(msgUnderDelivery.get());
-     *    durableQueues.acknowledgeMessageAsHandled(nextMessage.get().getId());
+     *    try {
+     *       handleMessage(msgUnderDelivery.get());
+     *       durableQueues.acknowledgeMessageAsHandled(msgUnderDelivery.get().getId());
+     *    } catch (Exception e) {
+     *       durableQueues.retryMessage(msgUnderDelivery.get().getId(),
+     *                                  e,
+     *                                  Duration.ofMillis(500));
+     *    }
      * }
      * }</pre>
      */
