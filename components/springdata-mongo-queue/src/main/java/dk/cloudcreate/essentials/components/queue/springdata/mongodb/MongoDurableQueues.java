@@ -118,16 +118,34 @@ public class MongoDurableQueues implements DurableQueues {
      * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
      * @param sharedQueueCollectionName  the name of the collection that will contain all messages (across all {@link QueueName}'s)
      */
-    protected MongoDurableQueues(MongoTemplate mongoTemplate,
-                                 SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
-                                 ObjectMapper messagePayloadObjectMapper,
-                                 String sharedQueueCollectionName) {
+    public MongoDurableQueues(MongoTemplate mongoTemplate,
+                              SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
+                              ObjectMapper messagePayloadObjectMapper,
+                              String sharedQueueCollectionName) {
         this(TransactionalMode.FullyTransactional,
              mongoTemplate,
              unitOfWorkFactory,
              null,
              messagePayloadObjectMapper,
              sharedQueueCollectionName);
+    }
+
+    /**
+     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with custom messagePayloadObjectMapper and with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
+     *
+     * @param mongoTemplate              the {@link MongoTemplate} used
+     * @param unitOfWorkFactory          the {@link UnitOfWorkFactory} needed to access the database
+     * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     */
+    public MongoDurableQueues(MongoTemplate mongoTemplate,
+                              SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
+                              ObjectMapper messagePayloadObjectMapper) {
+        this(TransactionalMode.FullyTransactional,
+             mongoTemplate,
+             unitOfWorkFactory,
+             null,
+             messagePayloadObjectMapper,
+             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME);
     }
 
     /**
@@ -139,16 +157,35 @@ public class MongoDurableQueues implements DurableQueues {
      * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
      * @param sharedQueueCollectionName  the name of the collection that will contain all messages (across all {@link QueueName}'s)
      */
-    protected MongoDurableQueues(MongoTemplate mongoTemplate,
-                                 Duration messageHandlingTimeout,
-                                 ObjectMapper messagePayloadObjectMapper,
-                                 String sharedQueueCollectionName) {
+    public MongoDurableQueues(MongoTemplate mongoTemplate,
+                              Duration messageHandlingTimeout,
+                              ObjectMapper messagePayloadObjectMapper,
+                              String sharedQueueCollectionName) {
         this(TransactionalMode.ManualAcknowledgement,
              mongoTemplate,
              null,
              messageHandlingTimeout,
              messagePayloadObjectMapper,
              sharedQueueCollectionName);
+    }
+
+    /**
+     * Create {@link DurableQueues} running in {@link TransactionalMode#ManualAcknowledgement} with custom messagePayloadObjectMapper and with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
+     *
+     * @param mongoTemplate              the {@link MongoTemplate} used
+     * @param messageHandlingTimeout     Defines the timeout for messages being delivered, but haven't yet been acknowledged.
+     *                                   After this timeout the message delivery will be reset and the message will again be a candidate for delivery
+     * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     */
+    public MongoDurableQueues(MongoTemplate mongoTemplate,
+                              Duration messageHandlingTimeout,
+                              ObjectMapper messagePayloadObjectMapper) {
+        this(TransactionalMode.ManualAcknowledgement,
+             mongoTemplate,
+             null,
+             messageHandlingTimeout,
+             messagePayloadObjectMapper,
+             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME);
     }
 
     /**
