@@ -25,7 +25,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.p
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.types.*;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
+import dk.cloudcreate.essentials.reactive.EventBus;
 import dk.cloudcreate.essentials.types.LongRange;
 import org.jdbi.v3.core.ConnectionException;
 import org.slf4j.*;
@@ -65,9 +65,9 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
      */
     private final ConcurrentMap<Class<?>, InMemoryProjector> inMemoryProjectorPerProjectionType;
     private final HashSet<InMemoryProjector>                 inMemoryProjectors;
-    private final List<EventStoreInterceptor>                eventStoreInterceptors;
-    private final EventStoreLocalEventBus                    eventStoreLocalEventBus;
-    private final EventStreamGapHandler<CONFIG>              eventStreamGapHandler;
+    private final List<EventStoreInterceptor>   eventStoreInterceptors;
+    private final EventStoreEventBus            eventStoreEventBus;
+    private final EventStreamGapHandler<CONFIG> eventStreamGapHandler;
 
     /**
      * Create a {@link PostgresqlEventStore} without EventStreamGapHandler (specifically with {@link NoEventStreamGapHandler}) as a backwards compatible configuration
@@ -90,19 +90,19 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
      *
      * @param unitOfWorkFactory                       the unit of work factory
      * @param aggregateEventStreamPersistenceStrategy the persistence strategy
-     * @param eventStoreLocalEventBusOption           option that contains {@link EventStoreLocalEventBus} to use. If empty a new {@link EventStoreLocalEventBus} instance will be used
+     * @param eventStoreLocalEventBusOption           option that contains {@link EventStoreEventBus} to use. If empty a new {@link EventStoreEventBus} instance will be used
      * @param eventStreamGapHandlerFactory            the {@link EventStreamGapHandler} to use for tracking event stream gaps
      * @param <STRATEGY>                              the persistence strategy type
      */
     public <STRATEGY extends AggregateEventStreamPersistenceStrategy<CONFIG>> PostgresqlEventStore(EventStoreUnitOfWorkFactory unitOfWorkFactory,
                                                                                                    STRATEGY aggregateEventStreamPersistenceStrategy,
-                                                                                                   Optional<EventStoreLocalEventBus> eventStoreLocalEventBusOption,
+                                                                                                   Optional<EventStoreEventBus> eventStoreLocalEventBusOption,
                                                                                                    Function<PostgresqlEventStore<CONFIG>, EventStreamGapHandler<CONFIG>> eventStreamGapHandlerFactory) {
         this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "No unitOfWorkFactory provided");
         this.persistenceStrategy = requireNonNull(aggregateEventStreamPersistenceStrategy, "No eventStreamPersistenceStrategy provided");
         requireNonNull(eventStoreLocalEventBusOption, "No eventStoreLocalEventBus option provided");
         requireNonNull(eventStreamGapHandlerFactory, "No eventStreamGapHandlerFactory provided");
-        this.eventStoreLocalEventBus = eventStoreLocalEventBusOption.orElseGet(() -> new EventStoreLocalEventBus(unitOfWorkFactory));
+        this.eventStoreEventBus = eventStoreLocalEventBusOption.orElseGet(() -> new EventStoreEventBus(unitOfWorkFactory));
         this.eventStreamGapHandler = eventStreamGapHandlerFactory.apply(this);
 
         eventStoreInterceptors = new ArrayList<>();
@@ -130,7 +130,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
 
     /**
      * Create a {@link PostgresqlEventStore} with EventStreamGapHandler (specifically with {@link PostgresqlEventStreamGapHandler})<br>
-     * Same as calling {@link #PostgresqlEventStore(EventStoreUnitOfWorkFactory, AggregateEventStreamPersistenceStrategy, Optional, Function)} with an empty {@link EventStoreLocalEventBus} {@link Optional}
+     * Same as calling {@link #PostgresqlEventStore(EventStoreUnitOfWorkFactory, AggregateEventStreamPersistenceStrategy, Optional, Function)} with an empty {@link EventStoreEventBus} {@link Optional}
      *
      * @param unitOfWorkFactory                       the unit of work factory
      * @param aggregateEventStreamPersistenceStrategy the persistence strategy
@@ -155,8 +155,8 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
     }
 
     @Override
-    public LocalEventBus<PersistedEvents> localEventBus() {
-        return eventStoreLocalEventBus.localEventBus();
+    public EventBus<PersistedEvents> localEventBus() {
+        return eventStoreEventBus;
     }
 
     @Override

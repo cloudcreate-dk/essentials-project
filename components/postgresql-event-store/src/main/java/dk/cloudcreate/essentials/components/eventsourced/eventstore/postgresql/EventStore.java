@@ -24,7 +24,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.t
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.types.*;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
+import dk.cloudcreate.essentials.reactive.*;
 import dk.cloudcreate.essentials.types.*;
 import reactor.core.publisher.Flux;
 
@@ -66,7 +66,7 @@ public interface EventStore {
      *
      * @return the local event bus
      */
-    LocalEventBus<PersistedEvents> localEventBus();
+    EventBus<PersistedEvents> localEventBus();
 
     /**
      * Append the <code>eventsToAppend</code> to the {@link AggregateEventStream} related to the aggregate with id <code>aggregateId</code> and which
