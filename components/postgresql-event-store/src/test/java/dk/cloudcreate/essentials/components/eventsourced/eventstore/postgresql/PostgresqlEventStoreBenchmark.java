@@ -28,6 +28,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.p
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.test_data.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreManagedUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
+import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
@@ -81,7 +82,7 @@ public class PostgresqlEventStoreBenchmark {
             ds = new HikariDataSource(hikariConfig);
             var jdbi = Jdbi.create(ds);
             jdbi.installPlugin(new PostgresPlugin());
-            jdbi.setSqlLogger(new EventStoreSqlLogger());
+            jdbi.setSqlLogger(new SqlExecutionTimeLogger());
 
             aggregateType = AggregateType.of("Orders");
             unitOfWorkFactory = new EventStoreManagedUnitOfWorkFactory(jdbi);

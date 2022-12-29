@@ -72,9 +72,10 @@ public class OrderEventsHandler extends AnnotatedEventHandler<OrderEvent> {
 }
 ```
 
-### LocalCommandBus
-The `LocalCommandBus` provides an indirection between a command and the `CommandHandler` that's capable of handling the command.  
-The CommandBus pattern provides location transparency, the sender of the command doesn't need to know which `CommandHandler` supports
+### CommandBus/LocalCommandBus
+The `LocalCommandBus` provides the default implementation for the `CommandBus` concepts, which provides an indirection between a command and the `CommandHandler` 
+that's capable of handling the command.  
+The `CommandBus` pattern provides location transparency, the sender of the command doesn't need to know which `CommandHandler` supports
 the given command.   
 
 There MUST always be one and only one `CommandHandler` capable of handling a given Command.  
@@ -86,7 +87,8 @@ a `CommandHandler` to return a value if needed (e.g. such as a server generated 
 Commands can be:
 - Sent synchronously using `#send(Object)`  
 - Sent asynchronously using `#sendAsync(Object)` which returns a `Mono` that will contain the result of the command handling
-- Send asynchronously without waiting for the result of processing the Command using `#sendAndDontWait(Object)`
+- Send asynchronously without waiting for the result of processing the Command using `#sendAndDontWait(Object)`/`#sendAndDontWait(Object, Duration)`
+  - If you need durability for the Commands sent using `sendAndDontWait` please use `DurableLocalCommandBus` from `essentials-components`'s `foundation` instead.
 
 ```
 var commandBus = new LocalCommandBus();
