@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.test.messaging.queue;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.test_data.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import org.awaitility.Awaitility;
@@ -78,12 +79,12 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
 
         // When
         var message1 = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234);
-        var idMsg1   = withDurableQueue(() ->durableQueues.queueMessage(queueName, message1));
+        var idMsg1   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
         var message2 = new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), 2);
 
-        var idMsg2   = withDurableQueue(() ->durableQueues.queueMessage(queueName, message2));
+        var idMsg2   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
         var message3 = new OrderEvent.OrderAccepted(OrderId.random());
-        var idMsg3   = withDurableQueue(() ->durableQueues.queueMessage(queueName, message3));
+        var idMsg3   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message3));
 
         // Then
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(3);
@@ -138,22 +139,27 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         durableQueues.purgeQueue(queueName);
 
         var message1 = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234);
-        var idMsg1   = withDurableQueue(() ->durableQueues.queueMessage(queueName, message1));
+        var idMsg1   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
         var message2 = new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), 2);
 
-        var idMsg2   = withDurableQueue(() ->durableQueues.queueMessage(queueName, message2));
+        var idMsg2   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
         var message3 = new OrderEvent.OrderAccepted(OrderId.random());
-        var idMsg3   = withDurableQueue(() ->durableQueues.queueMessage(queueName, message3));
+        var idMsg3   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message3));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(3);
         var recordingQueueMessageHandler = new RecordingQueuedMessageHandler();
 
         // When
-        var consumer = durableQueues.consumeFromQueue(queueName,
-                                                      RedeliveryPolicy.fixedBackoff(Duration.ofMillis(200), 5),
-                                                      1,
-                                                      recordingQueueMessageHandler
-                                                     );
+        var consumer = durableQueues.consumeFromQueue(ConsumeFromQueue.builder()
+                                                                      .setQueueName(queueName)
+                                                                      .setRedeliveryPolicy(
+                                                                              RedeliveryPolicy.fixedBackoff()
+                                                                                              .setRedeliveryDelay(Duration.ofMillis(200))
+                                                                                              .setMaximumNumberOfRedeliveries(5)
+                                                                                              .build())
+                                                                      .setParallelConsumers(1)
+                                                                      .setQueueMessageHandler(recordingQueueMessageHandler)
+                                                                      .build());
 
         // Then
         Awaitility.waitAtMost(Duration.ofSeconds(2))
@@ -171,7 +177,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         var queueName = QueueName.of("TestQueue");
 
         var message1 = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234);
-        usingDurableQueue(() ->durableQueues.queueMessageAsDeadLetterMessage(queueName, message1, new RuntimeException("On purpose")));
+        usingDurableQueue(() -> durableQueues.queueMessageAsDeadLetterMessage(queueName, message1, new RuntimeException("On purpose")));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
         var deadLetterMessages = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20);
@@ -196,7 +202,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         var queueName = QueueName.of("TestQueue");
 
         var message1 = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 12345);
-        usingDurableQueue(() ->durableQueues.queueMessage(queueName, message1));
+        usingDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
 
@@ -228,7 +234,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         var queueName = QueueName.of("TestQueue");
 
         var message1   = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 123456);
-        var message1Id = withDurableQueue(() ->durableQueues.queueMessage(queueName, message1));
+        var message1Id = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
         AtomicInteger deliveryCountForMessage1 = new AtomicInteger();
@@ -255,14 +261,14 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(recordingQueueMessageHandler.messages.get(5)).usingRecursiveComparison().isEqualTo(message1);
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0); // Dead letter messages is not counted
-        var deadLetterMessage = withDurableQueue(() ->durableQueues.getDeadLetterMessage(message1Id));
+        var deadLetterMessage = withDurableQueue(() -> durableQueues.getDeadLetterMessage(message1Id));
         assertThat(deadLetterMessage).isPresent();
         assertThat(deadLetterMessage.get().getPayload()).usingRecursiveComparison().isEqualTo(message1);
         var firstDeadLetterMessage = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20).get(0);
         assertThat(deadLetterMessage.get()).usingRecursiveComparison().isEqualTo(firstDeadLetterMessage);
 
         // And When
-        var wasResurrectedResult = withDurableQueue(() ->durableQueues.resurrectDeadLetterMessage(message1Id, Duration.ofMillis(1000)));
+        var wasResurrectedResult = withDurableQueue(() -> durableQueues.resurrectDeadLetterMessage(message1Id, Duration.ofMillis(1000)));
         assertThat(wasResurrectedResult).isPresent();
 
         // Then
@@ -273,7 +279,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                   });
         assertThat(recordingQueueMessageHandler.messages.get(6)).usingRecursiveComparison().isEqualTo(message1);
         Awaitility.waitAtMost(Duration.ofMillis(500))
-                          .untilAsserted(() -> assertThat(durableQueues.getQueuedMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20)).isEmpty());
+                  .untilAsserted(() -> assertThat(durableQueues.getQueuedMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20)).isEmpty());
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
         assertThat(durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20)).isEmpty();
 

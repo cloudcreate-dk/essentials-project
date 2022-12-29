@@ -157,6 +157,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
                                                                   0,
                                                                   10)).get().getPayload()).isEqualTo(command);
     }
+
     @Test
     void test_sendAndDontWait_with_error() {
         // Given
@@ -185,9 +186,9 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
                                                                                       0,
                                                                                       10)).hasSize(errorQueueSizePrior + 1));
         assertThat(Lists.last(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
-                                                       DurableQueues.QueueingSortOrder.ASC,
-                                                       0,
-                                                       10)).get().getPayload()).isEqualTo(command);
+                                                                  DurableQueues.QueueingSortOrder.ASC,
+                                                                  0,
+                                                                  10)).get().getPayload()).isEqualTo(command);
     }
 
     @Test
