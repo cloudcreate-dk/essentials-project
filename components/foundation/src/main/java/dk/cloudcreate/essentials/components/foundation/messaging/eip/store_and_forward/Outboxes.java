@@ -161,7 +161,7 @@ public interface Outboxes {
                                                                        .onLockReleased(lock -> durableQueueConsumer.cancel())
                                                                        .build());
                         break;
-                    case CompetingConsumers:
+                    case GlobalCompetingConsumers:
                         durableQueueConsumer = consumeFromDurableQueue();
                         break;
                     default:
@@ -188,7 +188,7 @@ public interface Outboxes {
                     case SingleGlobalConsumer:
                         fencedLockManager.cancelAsyncLockAcquiring(config.outboxName.asLockName());
                         break;
-                    case CompetingConsumers:
+                    case GlobalCompetingConsumers:
                         if (durableQueueConsumer != null) {
                             durableQueueConsumer.cancel();
                             durableQueueConsumer = null;

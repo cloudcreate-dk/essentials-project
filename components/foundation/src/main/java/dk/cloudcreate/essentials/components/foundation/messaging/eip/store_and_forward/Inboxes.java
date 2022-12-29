@@ -163,7 +163,7 @@ public interface Inboxes {
                                                                        .onLockReleased(lock -> durableQueueConsumer.cancel())
                                                                        .build());
                         break;
-                    case CompetingConsumers:
+                    case GlobalCompetingConsumers:
                         durableQueueConsumer = consumeFromDurableQueue();
                         break;
                     default:
@@ -190,7 +190,7 @@ public interface Inboxes {
                     case SingleGlobalConsumer:
                         fencedLockManager.cancelAsyncLockAcquiring(config.inboxName.asLockName());
                         break;
-                    case CompetingConsumers:
+                    case GlobalCompetingConsumers:
                         if (durableQueueConsumer != null) {
                             durableQueueConsumer.cancel();
                             durableQueueConsumer = null;

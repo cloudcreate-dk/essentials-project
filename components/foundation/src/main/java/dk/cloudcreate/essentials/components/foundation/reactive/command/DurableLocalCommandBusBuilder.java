@@ -2,7 +2,7 @@ package dk.cloudcreate.essentials.components.foundation.reactive.command;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
-import dk.cloudcreate.essentials.reactive.command.*;
+import dk.cloudcreate.essentials.reactive.command.SendAndDontWaitErrorHandler;
 import dk.cloudcreate.essentials.reactive.command.interceptor.CommandBusInterceptor;
 
 import java.time.Duration;
@@ -21,7 +21,7 @@ public class DurableLocalCommandBusBuilder {
     private CommandQueueRedeliveryPolicyResolver commandQueueRedeliveryPolicyResolver = sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy.linearBackoff(Duration.ofMillis(150),
                                                                                                                                                              Duration.ofMillis(1000),
                                                                                                                                                              20));
-    private SendAndDontWaitErrorHandler          sendAndDontWaitErrorHandler          = new AbstractCommandBus.RethrowingSendAndDontWaitErrorHandler();
+    private SendAndDontWaitErrorHandler          sendAndDontWaitErrorHandler          = new SendAndDontWaitErrorHandler.RethrowingSendAndDontWaitErrorHandler();
     private List<CommandBusInterceptor>          interceptors                         = new ArrayList<>();
 
     public DurableLocalCommandBusBuilder setDurableQueues(DurableQueues durableQueues) {
@@ -56,6 +56,16 @@ public class DurableLocalCommandBusBuilder {
 
     public DurableLocalCommandBusBuilder setInterceptors(CommandBusInterceptor... interceptors) {
         this.interceptors = List.of(interceptors);
+        return this;
+    }
+
+    public DurableLocalCommandBusBuilder addInterceptors(List<CommandBusInterceptor> interceptors) {
+        this.interceptors.addAll(interceptors);
+        return this;
+    }
+
+    public DurableLocalCommandBusBuilder addInterceptors(CommandBusInterceptor... interceptors) {
+        this.interceptors.addAll(List.of(interceptors));
         return this;
     }
 

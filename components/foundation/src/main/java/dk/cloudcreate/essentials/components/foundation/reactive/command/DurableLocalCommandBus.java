@@ -24,7 +24,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * Which {@link QueueName} that is used will be determined by the {@link CommandQueueNameSelector} and the {@link RedeliveryPolicy} is determined by the {@link CommandQueueRedeliveryPolicyResolver}<br>
  * <br>
  * Note: If the {@link SendAndDontWaitErrorHandler} provided doesn't rethrow the exception, then the underlying {@link DurableQueues} will not be able to retry the command.<br>
- * Due to this the {@link DurableLocalCommandBus} defaults to using the {@link RethrowingSendAndDontWaitErrorHandler}
+ * Due to this the {@link DurableLocalCommandBus} defaults to using the {@link SendAndDontWaitErrorHandler.RethrowingSendAndDontWaitErrorHandler}
  *
  * @see AnnotatedCommandHandler
  */
@@ -51,14 +51,14 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
     }
 
     public DurableLocalCommandBus(DurableQueues durableQueues) {
-        super(new RethrowingSendAndDontWaitErrorHandler(), List.of());
+        super(new SendAndDontWaitErrorHandler.RethrowingSendAndDontWaitErrorHandler(), List.of());
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
     }
 
     public DurableLocalCommandBus(DurableQueues durableQueues,
                                   CommandQueueNameSelector commandQueueNameSelector,
                                   CommandQueueRedeliveryPolicyResolver commandQueueRedeliveryPolicyResolver) {
-        super(new RethrowingSendAndDontWaitErrorHandler(), List.of());
+        super(new SendAndDontWaitErrorHandler.RethrowingSendAndDontWaitErrorHandler(), List.of());
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
         this.commandQueueNameSelector = requireNonNull(commandQueueNameSelector, "No durableQueueNameSelector provided");
         this.commandQueueRedeliveryPolicyResolver = requireNonNull(commandQueueRedeliveryPolicyResolver, "No commandQueueRedeliveryPolicyResolver provided");
@@ -82,14 +82,14 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
 
     public DurableLocalCommandBus(DurableQueues durableQueues,
                                   List<CommandBusInterceptor> interceptors) {
-        super(new RethrowingSendAndDontWaitErrorHandler(), interceptors);
+        super(new SendAndDontWaitErrorHandler.RethrowingSendAndDontWaitErrorHandler(), interceptors);
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
     }
 
     public DurableLocalCommandBus(DurableQueues durableQueues,
                                   CommandQueueNameSelector commandQueueNameSelector,
                                   List<CommandBusInterceptor> interceptors) {
-        super(new RethrowingSendAndDontWaitErrorHandler(), interceptors);
+        super(new SendAndDontWaitErrorHandler.RethrowingSendAndDontWaitErrorHandler(), interceptors);
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
         this.commandQueueNameSelector = requireNonNull(commandQueueNameSelector, "No durableQueueNameSelector provided");
     }

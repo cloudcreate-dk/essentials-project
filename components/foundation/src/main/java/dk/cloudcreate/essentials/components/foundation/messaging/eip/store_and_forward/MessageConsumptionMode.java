@@ -21,11 +21,11 @@ package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_
  */
 public enum MessageConsumptionMode {
     /**
-     * Only a single consumer instance in a cluster will be allowed to handle messages
+     * Only a single consumer instance in a cluster will be allowed to consume messages at a time (supports failover if the given consumer is shutdown or crashes)
      */
     SingleGlobalConsumer,
     /**
      * Multiple consumers in a cluster can compete to handle messages, but a message will only be handled a single consumer
      */
-    CompetingConsumers
+    GlobalCompetingConsumers
 }

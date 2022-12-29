@@ -60,7 +60,7 @@ class DurableQueueOutboxesTest {
                             .setRedeliveryPolicy(RedeliveryPolicy
                                                          .fixedBackoff(Duration.ofMillis(10),
                                                                        1))
-                            .setMessageConsumptionMode(MessageConsumptionMode.CompetingConsumers)
+                            .setMessageConsumptionMode(MessageConsumptionMode.GlobalCompetingConsumers)
                             .setNumberOfParallelMessageConsumers(2).build(),
                 o -> {
                 });
@@ -84,7 +84,7 @@ class DurableQueueOutboxesTest {
                 OutboxConfig.builder()
                             .setOutboxName(outboxName)
                             .setRedeliveryPolicy(redeliveryPolicy)
-                            .setMessageConsumptionMode(MessageConsumptionMode.CompetingConsumers)
+                            .setMessageConsumptionMode(MessageConsumptionMode.GlobalCompetingConsumers)
                             .build(),
                 o -> {
                 });
@@ -178,7 +178,7 @@ class DurableQueueOutboxesTest {
                 OutboxConfig.builder()
                             .setOutboxName(outboxName)
                             .setRedeliveryPolicy(redeliveryPolicy)
-                            .setMessageConsumptionMode(MessageConsumptionMode.CompetingConsumers)
+                            .setMessageConsumptionMode(MessageConsumptionMode.GlobalCompetingConsumers)
                             .build(),
                 o -> {
                 });
