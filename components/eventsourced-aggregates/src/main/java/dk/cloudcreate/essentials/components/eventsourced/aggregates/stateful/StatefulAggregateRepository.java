@@ -544,7 +544,7 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                                                                        LongRange.from(loadMoreEventsWithEventOrderFromAndIncluding));
             if (potentialPersistedEventStream.isEmpty()) {
                 log.trace("[{}:{}] Didn't find a any {} events persisted after eventOrder: {}. Has SNAPSHOT: {}",
-                          aggregateType, aggregateId, aggregateImplementationType.getName(), aggregateSnapshot.get().eventOrderOfLastIncludedEvent, aggregateSnapshot.isPresent());
+                          aggregateType, aggregateId, aggregateImplementationType.getName(), loadMoreEventsWithEventOrderFromAndIncluding, aggregateSnapshot.isPresent());
                 return aggregateSnapshot.map(snapshot -> {
                     log.trace("[{}:{}] Returning '{}' SNAPSHOT as it's up-to-date as of eventOrderOfLastIncludedEvent: {}",
                               aggregateType, aggregateId, aggregateImplementationType.getName(), aggregateSnapshot.get().eventOrderOfLastIncludedEvent);
