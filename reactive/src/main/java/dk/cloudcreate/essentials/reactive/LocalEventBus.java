@@ -22,7 +22,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.*;
 import reactor.core.scheduler.*;
 
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.LockSupport;
 
@@ -70,7 +70,8 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * @param <EVENT_TYPE> the event type being published by the event bus
  * @see AnnotatedEventHandler
  */
-public class LocalEventBus<EVENT_TYPE> {
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+public class LocalEventBus<EVENT_TYPE> implements EventBus<EVENT_TYPE> {
     private final Logger log;
 
     private final String                                              busName;
@@ -94,6 +95,46 @@ public class LocalEventBus<EVENT_TYPE> {
              onErrorHandler);
     }
 
+    /**
+     * Create a {@link LocalEventBus} with the given name,
+     * using system available processors of parallel asynchronous processing threads
+     *
+     * @param busName the name of the bus
+     */
+    public LocalEventBus(String busName) {
+        this(busName,
+             Schedulers.newBoundedElastic(Runtime.getRuntime().availableProcessors(), 1000, requireNonNull(busName, "busName was null"), 60, true),
+             Optional.empty());
+    }
+
+    /**
+     * Create a {@link LocalEventBus} with the given name,
+     * using system available processors of parallel asynchronous processing threads
+     *
+     * @param busName                the name of the bus
+     * @param optionalOnErrorHandler optional error handler which will be called if any subscriber/consumer fails to handle an event<br>
+     *                               If {@link Optional#empty()}, a default error logging handler is used
+     */
+    public LocalEventBus(String busName, Optional<OnErrorHandler<EVENT_TYPE>> optionalOnErrorHandler) {
+        this(busName,
+             Schedulers.newBoundedElastic(Runtime.getRuntime().availableProcessors(), 1000, requireNonNull(busName, "busName was null"), 60, true),
+             optionalOnErrorHandler);
+    }
+
+
+    /**
+     * Create a {@link LocalEventBus} with the given name, the given number of parallel asynchronous processing threads
+     *
+     * @param busName                the name of the bus
+     * @param parallelThreads        the number of parallel asynchronous processing threads
+     * @param optionalOnErrorHandler optional error handler which will be called if any subscriber/consumer fails to handle an event<br>
+     *                               If {@link Optional#empty()}, a default error logging handler is used
+     */
+    public LocalEventBus(String busName, int parallelThreads, Optional<OnErrorHandler<EVENT_TYPE>> optionalOnErrorHandler) {
+        this(busName,
+             Schedulers.newBoundedElastic(parallelThreads, 1000, requireNonNull(busName, "busName was null"), 60, true),
+             optionalOnErrorHandler);
+    }
 
     /**
      * Create a {@link LocalEventBus} with the given name, the given number of parallel asynchronous processing threads
@@ -111,15 +152,29 @@ public class LocalEventBus<EVENT_TYPE> {
     /**
      * Create a {@link LocalEventBus} with the given name, the given number of parallel asynchronous processing threads
      *
+     * @param busName         the name of the bus
+     * @param parallelThreads the number of parallel asynchronous processing threads
+     */
+    public LocalEventBus(String busName, int parallelThreads) {
+        this(busName,
+             Schedulers.newBoundedElastic(parallelThreads, 1000, requireNonNull(busName, "busName was null"), 60, true),
+             Optional.empty());
+    }
+
+    /**
+     * Create a {@link LocalEventBus} with the given name, the given number of parallel asynchronous processing threads
+     *
      * @param busName                   the name of the bus
      * @param asyncSubscribersScheduler the asynchronous event scheduler (for the asynchronous consumers/subscribers)
-     * @param onErrorHandler            the error handler which will be called if any subscriber/consumer fails to handle an event
+     * @param optionalOnErrorHandler    optional error handler which will be called if any subscriber/consumer fails to handle an event<br>
+     *                                  If {@link Optional#empty()}, a default error logging handler is used
      */
-    public LocalEventBus(String busName, Scheduler asyncSubscribersScheduler, OnErrorHandler<EVENT_TYPE> onErrorHandler) {
+    public LocalEventBus(String busName, Scheduler asyncSubscribersScheduler, Optional<OnErrorHandler<EVENT_TYPE>> optionalOnErrorHandler) {
         this.busName = requireNonNull(busName, "busName was null");
         listenerScheduler = requireNonNull(asyncSubscribersScheduler, "asyncSubscribersScheduler is null");
         log = LoggerFactory.getLogger("LocalEventBus - " + busName);
-        this.onErrorHandler = requireNonNull(onErrorHandler, "onErrorHandler is null");
+        this.onErrorHandler = requireNonNull(optionalOnErrorHandler, "onErrorHandler is null")
+                .orElse((failingSubscriber, event, exception) -> log.error(msg("Error for '{}' handling {}", failingSubscriber, event), exception));
         eventSink = Sinks.many().multicast().onBackpressureBuffer();
         eventFlux = eventSink.asFlux().parallel().runOn(listenerScheduler);
         asyncSubscribers = new ConcurrentHashMap<>();
@@ -127,13 +182,20 @@ public class LocalEventBus<EVENT_TYPE> {
     }
 
     /**
-     * Publish the event to all subscribers/consumer<br>
-     * First we call all asynchronous subscribers, after which we will call all synchronous subscribers on the calling thread (i.e. on the same thread that the publish method is called on)
+     * Create a {@link LocalEventBus} with the given name, the given number of parallel asynchronous processing threads
      *
-     * @param event the event to publish
-     * @return this bus instance
+     * @param busName                   the name of the bus
+     * @param asyncSubscribersScheduler the asynchronous event scheduler (for the asynchronous consumers/subscribers)
+     * @param onErrorHandler            the error handler which will be called if any subscriber/consumer fails to handle an event
      */
-    public LocalEventBus<EVENT_TYPE> publish(EVENT_TYPE event) {
+    public LocalEventBus(String busName, Scheduler asyncSubscribersScheduler, OnErrorHandler<EVENT_TYPE> onErrorHandler) {
+        this(busName,
+             asyncSubscribersScheduler,
+             Optional.of(onErrorHandler));
+    }
+
+    @Override
+    public EventBus<EVENT_TYPE> publish(EVENT_TYPE event) {
         requireNonNull(event, "No event was supplied");
         log.debug("Publishing event of type '{}' to {} async-subscriber(s)", event.getClass().getName(), asyncSubscribers.size());
         if (asyncSubscribers.size() > 0) {
@@ -168,13 +230,8 @@ public class LocalEventBus<EVENT_TYPE> {
         return this;
     }
 
-    /**
-     * Add an asynchronous subscriber/consumer
-     *
-     * @param subscriber the subscriber to add
-     * @return this bus instance
-     */
-    public LocalEventBus<EVENT_TYPE> addAsyncSubscriber(EventHandler<EVENT_TYPE> subscriber) {
+    @Override
+    public EventBus<EVENT_TYPE> addAsyncSubscriber(EventHandler<EVENT_TYPE> subscriber) {
         requireNonNull(subscriber, "You must supply a subscriber instance");
         log.info("[{}] Adding asynchronous subscriber {}", busName, subscriber);
         asyncSubscribers.computeIfAbsent(subscriber, busEventSubscriber -> eventFlux.subscribe(event -> {
@@ -191,13 +248,8 @@ public class LocalEventBus<EVENT_TYPE> {
         return this;
     }
 
-    /**
-     * Remove an asynchronous subscriber/consumer
-     *
-     * @param subscriber the subscriber to remove
-     * @return this bus instance
-     */
-    public LocalEventBus<EVENT_TYPE> removeAsyncSubscriber(EventHandler<EVENT_TYPE> subscriber) {
+    @Override
+    public EventBus<EVENT_TYPE> removeAsyncSubscriber(EventHandler<EVENT_TYPE> subscriber) {
         requireNonNull(subscriber, "You must supply a subscriber instance");
         log.info("[{}] Removing asynchronous subscriber {}", busName, subscriber);
         var processorSubscription = asyncSubscribers.remove(subscriber);
@@ -207,36 +259,28 @@ public class LocalEventBus<EVENT_TYPE> {
         return this;
     }
 
-    /**
-     * Add a synchronous subscriber/consumer
-     *
-     * @param subscriber the subscriber to add
-     * @return this bus instance
-     */
-    public LocalEventBus<EVENT_TYPE> addSyncSubscriber(EventHandler<EVENT_TYPE> subscriber) {
+    @Override
+    public EventBus<EVENT_TYPE> addSyncSubscriber(EventHandler<EVENT_TYPE> subscriber) {
         requireNonNull(subscriber, "You must supply a subscriber instance");
         log.info("[{}] Adding synchronous subscriber {}", busName, subscriber);
         syncSubscribers.add(subscriber);
         return this;
     }
 
-    /**
-     * Remove a synchronous subscriber/consumer
-     *
-     * @param subscriber the subscriber to remove
-     * @return this bus instance
-     */
-    public LocalEventBus<EVENT_TYPE> removeSyncSubscriber(EventHandler<EVENT_TYPE> subscriber) {
+    @Override
+    public EventBus<EVENT_TYPE> removeSyncSubscriber(EventHandler<EVENT_TYPE> subscriber) {
         requireNonNull(subscriber, "You must supply a subscriber instance");
         log.info("[{}] Removing synchronous subscriber {}", busName, subscriber);
         syncSubscribers.remove(subscriber);
         return this;
     }
 
+    @Override
     public boolean hasSyncSubscriber(EventHandler<EVENT_TYPE> subscriber) {
         return syncSubscribers.contains(subscriber);
     }
 
+    @Override
     public boolean hasAsyncSubscriber(EventHandler<EVENT_TYPE> subscriber) {
         return asyncSubscribers.containsKey(subscriber);
     }

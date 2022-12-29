@@ -19,6 +19,7 @@ package dk.cloudcreate.essentials.reactive;
 /**
  * Common interface for all Event message handlers<br>
  *
+ * @see EventBus
  * @see AnnotatedEventHandler
  */
 @FunctionalInterface
