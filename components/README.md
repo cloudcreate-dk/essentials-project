@@ -20,6 +20,7 @@ such as:
     - `Tenant` and `TenantId`
 - **Common Interfaces**
     - `Lifecycle`
+- **DurableLocalCommandBus** (`CommandBus` variant that uses `DurableQueues` to ensure Commands sent using `sendAndDontWait` aren't lost in case of failure)
 - **FencedLock**
 - **PostgreSQL**
     - `ListenNotify`
@@ -1294,15 +1295,15 @@ Each Queue is uniquely identified by its `QueueName` Queued messages can, per Qu
 a `QueuedMessageHandler`, by registering it as a `DurableQueueConsumer`
 using `DurableQueues#consumeFromQueue(QueueName, QueuedMessageHandler, QueueRedeliveryPolicy, int)`
 
-The `DurableQueues` supports delayed message delivery as well as **Dead Letter Messages**, which are messages that have
+The `DurableQueues` supports delayed message delivery as well as **Poison-Message/Dead-Letter-Messages**, which are messages that have
 been marked as a **Dead Letter Messages** (due to an error processing the
 message).  
 Dead Letter Messages won't be delivered to a `DurableQueueConsumer`, unless you
-call `DurableQueues#resurrectDeadLetterMessage(QueueEntryId, Duration)`
+call `DurableQueues#resurrectDeadLetterMessage(QueueEntryId, Duration)` (or run a database script)
 
-The `DurableQueueConsumer` supports retrying failed messages, according to the specified `QueueRedeliveryPolicy`, and
-ultimately marking a repeatedly failing message as a **Dead Letter Message**.
-The `QueueRedeliveryPolicy` supports fixed, linear and exponential backoff strategies.
+The `DurableQueueConsumer` supports retrying failed messages, according to the specified `RedeliveryPolicy`, and
+ultimately marking a repeatedly failing message as a **Poison-Message/Dead-Letter-Message**.
+The `RedeliveryPolicy` supports fixed, linear and exponential backoff strategies.
 
 ## PostgresqlDurableQueues
 
@@ -1381,21 +1382,21 @@ to use the same MongoDB database) then the shared database transaction guarantee
 are committed or rollback as one
 
 ```
-    @Autowired
-    private MongoTemplate mongoTemplate;
+@Autowired
+private MongoTemplate mongoTemplate;
 
-    @Autowired
-    private MongoDatabaseFactory databaseFactory;
+@Autowired
+private MongoDatabaseFactory databaseFactory;
 
-    @Autowired
-    private MongoTransactionManager transactionManager;
-    
-    
-    void setup() {
-        var durableQueues = new MongoDurableQueues(mongoTemplate,
-                                          new SpringMongoTransactionAwareUnitOfWorkFactory(transactionManager,
-                                                                                           databaseFactory));
-    }
+@Autowired
+private MongoTransactionManager transactionManager;
+
+
+void setup() {
+    var durableQueues = new MongoDurableQueues(mongoTemplate,
+                                               new SpringMongoTransactionAwareUnitOfWorkFactory(transactionManager,
+                                                                                                databaseFactory));
+}
 ```
 
 ### ManualAcknowledgement
@@ -1411,13 +1412,13 @@ discovering messages that have been under delivery for a long time (aka. stuck m
 reset them in order for them to be redelivered.
 
 ```
-    @Autowired
-    private MongoTemplate mongoTemplate;
+@Autowired
+private MongoTemplate mongoTemplate;
 
-    void setup() {
-        var durableQueues = new MongoDurableQueues(mongoTemplate,
-                                          Duration.ofSeconds(5));
-    }
+void setup() {
+    var durableQueues = new MongoDurableQueues(mongoTemplate,
+                                      Duration.ofSeconds(5));
+}
 ```
 
 ## Using DurableQueues
