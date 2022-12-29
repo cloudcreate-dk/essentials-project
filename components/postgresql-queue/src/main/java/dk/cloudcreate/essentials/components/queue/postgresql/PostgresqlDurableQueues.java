@@ -77,6 +77,19 @@ public class PostgresqlDurableQueues implements DurableQueues {
     }
 
     /**
+     * Create {@link DurableQueues} with custom messagePayloadObjectMapper with sharedQueueTableName: {@value DEFAULT_DURABLE_QUEUES_TABLE_NAME}
+     *
+     * @param unitOfWorkFactory          the {@link UnitOfWorkFactory} needed to access the database
+     * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     */
+    public PostgresqlDurableQueues(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
+                                   ObjectMapper messagePayloadObjectMapper) {
+        this(unitOfWorkFactory,
+             messagePayloadObjectMapper,
+             DEFAULT_DURABLE_QUEUES_TABLE_NAME);
+    }
+
+    /**
      * Create {@link DurableQueues} with custom messagePayloadObjectMapper and sharedQueueTableName
      *
      * @param unitOfWorkFactory          the {@link UnitOfWorkFactory} needed to access the database
