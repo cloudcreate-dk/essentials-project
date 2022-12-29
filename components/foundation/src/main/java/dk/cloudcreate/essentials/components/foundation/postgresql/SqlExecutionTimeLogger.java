@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence;
+package dk.cloudcreate.essentials.components.foundation.postgresql;
 
 import org.jdbi.v3.core.statement.StatementContext;
 import org.slf4j.*;
@@ -24,10 +24,13 @@ import java.time.Duration;
 
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
-public class EventStoreSqlLogger implements org.jdbi.v3.core.statement.SqlLogger {
+/**
+ * Log the execution time for SQL statements
+ */
+public class SqlExecutionTimeLogger implements org.jdbi.v3.core.statement.SqlLogger {
     private final Logger log;
 
-    public EventStoreSqlLogger() {
+    public SqlExecutionTimeLogger() {
         log = LoggerFactory.getLogger("EventStore.Sql");
     }
 

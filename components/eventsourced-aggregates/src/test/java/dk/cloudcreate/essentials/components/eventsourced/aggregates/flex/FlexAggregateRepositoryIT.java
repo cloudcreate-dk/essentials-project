@@ -29,6 +29,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.p
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
+import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
@@ -74,7 +75,7 @@ public class FlexAggregateRepositoryIT {
                            postgreSQLContainer.getUsername(),
                            postgreSQLContainer.getPassword());
         jdbi.installPlugin(new PostgresPlugin());
-        jdbi.setSqlLogger(new EventStoreSqlLogger());
+        jdbi.setSqlLogger(new SqlExecutionTimeLogger());
 
         aggregateType = ORDERS;
         unitOfWorkFactory = new EventStoreManagedUnitOfWorkFactory(jdbi);

@@ -33,6 +33,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.p
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
+import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
@@ -80,7 +81,7 @@ class OrderWithStateAggregateRootRepositoryIT {
                            postgreSQLContainer.getUsername(),
                            postgreSQLContainer.getPassword());
         jdbi.installPlugin(new PostgresPlugin());
-        jdbi.setSqlLogger(new EventStoreSqlLogger());
+        jdbi.setSqlLogger(new SqlExecutionTimeLogger());
 
         aggregateType = ORDERS;
         unitOfWorkFactory = new EventStoreManagedUnitOfWorkFactory(jdbi);
