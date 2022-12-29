@@ -24,22 +24,25 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
 import org.springframework.context.*;
 
+import java.util.Collection;
+
 /**
- * When using Spring or Spring Boot it will be easier to register the {@link LocalEventBus}, {@link LocalCommandBus}, {@link CommandHandler} and {@link EventHandler} instances as {@literal @Bean} or {@literal @Component}
- * and automatically have the {@link CommandHandler} beans registered as with the single {@link LocalCommandBus} bean and the {@link EventHandler} beans registered as subscribers with the single {@link LocalEventBus} bean.
+ * When using Spring or Spring Boot it will be easier to register the {@link EventBus}, {@link CommandBus}, {@link CommandHandler} and {@link EventHandler} instances as {@literal @Bean} or {@literal @Component}
+ * and automatically have the {@link CommandHandler} beans registered as with the single {@link CommandBus} bean and the {@link EventHandler} beans registered as subscribers with one or more {@link EventBus} beans.
  * <br>
  * All you need to do is to add a  {@literal @Bean}  of type {@link ReactiveHandlersBeanPostProcessor} which:
  * Registers {@link CommandHandler} or {@link EventHandler}'s in the application context with the <b>single</b>
- * {@link LocalEventBus} and {@link LocalCommandBus} defined in the application context.<br>
- * {@link EventHandler}'s are registered as synchronous event handler's ({@link LocalEventBus#addSyncSubscriber(EventHandler)})
+ * {@link EventBus}'s and {@link CommandBus} defined in the application context.<br>
+ * {@link EventHandler}'s are registered as synchronous event handler's ({@link EventBus#addSyncSubscriber(EventHandler)})
  * unless it's annotated with the {@link AsyncEventHandler} annotation, in which case it's registered as an asynchronous event handler
- * ({@link LocalEventBus#addAsyncSubscriber(EventHandler)}
+ * ({@link EventBus#addAsyncSubscriber(EventHandler)}
  */
 public class ReactiveHandlersBeanPostProcessor implements DestructionAwareBeanPostProcessor, ApplicationContextAware {
     private static final Logger log = LoggerFactory.getLogger(ReactiveHandlersBeanPostProcessor.class);
-    private ApplicationContext applicationContext;
-    private LocalEventBus      eventBus;
-    private LocalCommandBus    commandBus;
+
+    private ApplicationContext   applicationContext;
+    private Collection<EventBus> eventBus;
+    private CommandBus           commandBus;
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
@@ -47,16 +50,16 @@ public class ReactiveHandlersBeanPostProcessor implements DestructionAwareBeanPo
             var actualHandlerClass = resolveBeanClass(bean);
             if (actualHandlerClass.isAnnotationPresent(AsyncEventHandler.class)) {
                 log.debug("Adding asynchronous event handler '{}' of type '{}' to the {}",
-                         beanName,
-                         actualHandlerClass.getName(),
-                         LocalEventBus.class.getSimpleName());
-                eventBus().addAsyncSubscriber((EventHandler) bean);
+                          beanName,
+                          actualHandlerClass.getName(),
+                          LocalEventBus.class.getSimpleName());
+                eventBusses().forEach(eventBus -> eventBus.addAsyncSubscriber((EventHandler) bean));
             } else {
                 log.debug("Adding synchronous event handler '{}' of type '{}' to the {}",
-                         beanName,
-                         actualHandlerClass.getName(),
-                         LocalEventBus.class.getSimpleName());
-                eventBus().addSyncSubscriber((EventHandler) bean);
+                          beanName,
+                          actualHandlerClass.getName(),
+                          LocalEventBus.class.getSimpleName());
+                eventBusses().forEach(eventBus -> eventBus.addSyncSubscriber((EventHandler) bean));
             }
         } else if (isCommandHandler(bean)) {
             var actualHandlerClass = resolveBeanClass(bean);
@@ -68,19 +71,21 @@ public class ReactiveHandlersBeanPostProcessor implements DestructionAwareBeanPo
         }
         return bean;
     }
+
     @Override
     public void postProcessBeforeDestruction(Object bean, String beanName) throws BeansException {
         if (isEventHandler(bean)) {
             var actualHandlerClass = resolveBeanClass(bean);
             if (actualHandlerClass.isAnnotationPresent(AsyncEventHandler.class)) {
-                eventBus().removeAsyncSubscriber((EventHandler) bean);
+                eventBusses().forEach(eventBus -> eventBus.removeAsyncSubscriber((EventHandler) bean));
             } else {
-                eventBus().removeSyncSubscriber((EventHandler) bean);
+                eventBusses().forEach(eventBus -> eventBus.removeSyncSubscriber((EventHandler) bean));
             }
         } else if (isCommandHandler(bean)) {
             commandBus().removeCommandHandler((CommandHandler) bean);
         }
     }
+
     @Override
     public boolean requiresDestruction(Object bean) {
         return isReactiveHandler(bean);
@@ -92,16 +97,16 @@ public class ReactiveHandlersBeanPostProcessor implements DestructionAwareBeanPo
         this.applicationContext = applicationContext;
     }
 
-    private LocalEventBus eventBus() {
+    private Collection<EventBus> eventBusses() {
         if (eventBus == null) {
-            eventBus = applicationContext.getBean(LocalEventBus.class);
+            eventBus = applicationContext.getBeansOfType(EventBus.class).values();
         }
         return eventBus;
     }
 
-    private LocalCommandBus commandBus() {
+    private CommandBus commandBus() {
         if (commandBus == null) {
-            commandBus = applicationContext.getBean(LocalCommandBus.class);
+            commandBus = applicationContext.getBean(CommandBus.class);
         }
         return commandBus;
     }
