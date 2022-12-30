@@ -75,7 +75,6 @@
         <assertj.version>3.23.1</assertj.version>
         <spring-data-mongodb.version>3.4.6</spring-data-mongodb.version>
         <mongodb-driver-sync.version>4.8.1</mongodb-driver-sync.version>
-        <spring-boot.version>2.7.6</spring-boot.version>
         <log4j-to-slf4j.version>2.19.0</log4j-to-slf4j.version>
     </properties>
 
@@ -95,6 +94,7 @@
         <module>components/foundation-test</module>
         <module>components/eventsourced-aggregates</module>
         <module>components/spring-boot-starter-postgresql</module>
+        <module>components/spring-boot-starter-mongodb</module>
         <module>components/postgresql-distributed-fenced-lock</module>
         <module>components/postgresql-event-store</module>
         <module>components/postgresql-queue</module>

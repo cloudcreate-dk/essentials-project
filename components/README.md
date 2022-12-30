@@ -64,21 +64,31 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 ```
 
 Per default only the `EssentialsComponentsConfiguration` is auto-configured:
-- Jackson/FasterXML JSON modules: 
-  - `EssentialTypesJacksonModule` 
+- Jackson/FasterXML JSON modules:
+  - `EssentialTypesJacksonModule`
   - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath)
   - `ObjectMapper` with bean name `essentialComponentsObjectMapper` which provides good defaults for JSON serialization
-- `Jdbi` to use the provided Spring `DataSource` 
-- `SpringTransactionAwareJdbiUnitOfWorkFactory` configured using the Spring provided `PlatformTransactionManager`
-  - This `UnitOfWorkFactory` will only be auto-registered if the `SpringTransactionAwareEventStoreUnitOfWorkFactory` is not on the classpath (see `EventStoreConfiguration`) 
+- `Jdbi` to use the provided Spring `DataSource`
+- `SpringTransactionAwareJdbiUnitOfWorkFactory` configured to use the Spring provided `PlatformTransactionManager`
+  - This `UnitOfWorkFactory` will only be auto-registered if the `SpringTransactionAwareEventStoreUnitOfWorkFactory` is not on the classpath (see `EventStoreConfiguration`)
 - `PostgresqlFencedLockManager` using the `essentialComponentsObjectMapper` as JSON serializer
+  - Supports additional properties:
+  - ```
+    essentials.fenced-lock-manager.fenced-locks-table-name=fenced_locks
+    essentials.fenced-lock-manager.lock-confirmation-interval=5s
+    essentials.fenced-lock-manager.lock-time-out=12s
+    ```
 - `PostgresqlDurableQueues` using the `essentialComponentsObjectMapper` as JSON serializer
+  - Supports additional properties:
+  - ```
+    essentials.durable-queues.shared-queue-table-name=durable_queues
+    ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `PostgresqlDurableQueues`
 - `LocalEventBus<Object>` with bus-name `default` and Bean name `eventBus`
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
 
- If your project also specifies the 
+If your project also specifies the
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
@@ -89,12 +99,12 @@ Per default only the `EssentialsComponentsConfiguration` is auto-configured:
 then the `EventStoreConfiguration` will also auto-configure the `EventStore`:
 - `PostgresqlEventStore` using `PostgresqlEventStreamGapHandler` (using default configuration)
   - You can configure `NoEventStreamGapHandler` using Spring properties:
-  - `essentials.eventstore.use-event-stream-gap-handler=false`
+  - `essentials.event-store.use-event-stream-gap-handler=false`
 - `SeparateTablePerAggregateTypePersistenceStrategy` using `IdentifierColumnType.TEXT` for persisting `AggregateId`'s and `JSONColumnType.JSONB` for persisting Event and EventMetadata JSON payloads
   - ColumnTypes can be overridden by using Spring properties:
   - ```
-    essentials.eventstore.identifier-column-type=uuid
-    essentials.eventstore.json-column-type=jsonb
+       essentials.event-store.identifier-column-type=uuid
+       essentials.event-store.json-column-type=jsonb
     ```
 - `EventStoreUnitOfWorkFactory` in the form of `SpringTransactionAwareEventStoreUnitOfWorkFactory`
 - `EventStoreEventBus` with an internal `LocalEventBus<PersistedEvents>` with bus-name `EventStoreLocalBus`
@@ -102,11 +112,57 @@ then the `EventStoreConfiguration` will also auto-configure the `EventStore`:
 - `EventStoreSubscriptionManager` with default `EventStoreSubscriptionManagerProperties` values
   - The default `EventStoreSubscriptionManager` values can be overridden using Spring properties:
   - ```
-    essentials.eventstore.subscription-manager.event-store-polling-batch-size=5
-    essentials.eventstore.subscription-manager.snapshot-resume-points-every=2s
-    essentials.eventstore.subscription-manager.event-store-polling-interval=200
+      essentials.event-store.subscription-manager.event-store-polling-batch-size=5
+      essentials.event-store.subscription-manager.snapshot-resume-points-every=2s
+      essentials.event-store.subscription-manager.event-store-polling-interval=200
     ```
+
 See [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
+
+# Essentials MongoDB: Spring Boot starter
+This library Spring Boot auto-configuration for all MongoDB focused Essentials components.
+All `@Beans` auto-configured by this library use `@ConditionalOnMissingBean` to allow for easy overriding.
+
+To use `spring-boot-starter-mongodb` to add the following dependency:
+```
+<dependency>
+    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <artifactId>spring-boot-starter-mongodb</artifactId>
+    <version>0.8.2</version>
+</dependency>
+```
+
+The `EssentialsComponentsConfiguration` auto-configures:
+- Jackson/FasterXML JSON modules:
+  - `EssentialTypesJacksonModule`
+  - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath)
+  - `ObjectMapper` with bean name `essentialComponentsObjectMapper` which provides good defaults for JSON serialization
+- `SingleValueTypeRandomIdGenerator` to support server generated Id creations for SpringData Mongo classes with @Id fields of type `SingleValueType`
+- `MongoCustomConversions` with a `SingleValueTypeConverter` covering `LockName`, `QueueEntryId` and `QueueName`
+- `MongoTransactionManager` as it is needed by the `SpringMongoTransactionAwareUnitOfWorkFactory`
+- `SpringMongoTransactionAwareUnitOfWorkFactory` configured to use the `MongoTransactionManager`
+- `MongoFencedLockManager` using the `essentialComponentsObjectMapper` as JSON serializer
+  - Supports additional properties:
+  - ```
+    essentials.fenced-lock-manager.fenced-locks-collection-name=fenced_locks
+    essentials.fenced-lock-manager.lock-confirmation-interval=5s
+    essentials.fenced-lock-manager.lock-time-out=12s
+    ```
+- `MongoDurableQueues` using the `essentialComponentsObjectMapper` as JSON serializer
+  - Supports additional properties:
+  - ```
+    essentials.durable-queues.shared-queue-collection-name=durable_queues
+    essentials.durable-queues.transactional-mode=fullytransactional
+    # Only relevant if transactional-mode=manualacknowledgement
+    # essentials.durable-queues.message-handling-timeout=5s
+    ```
+- `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `MongoDurableQueues`
+- `LocalEventBus<Object>` with bus-name `default` and Bean name `eventBus`
+- `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
+- Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
+
+
+See [spring-boot-starter-mongodb](spring-boot-starter-mongodb/README.md)
 
 # Event Sourced Aggregates
 
