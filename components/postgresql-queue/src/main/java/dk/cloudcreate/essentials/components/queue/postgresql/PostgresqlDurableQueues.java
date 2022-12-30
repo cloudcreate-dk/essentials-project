@@ -252,6 +252,14 @@ public class PostgresqlDurableQueues implements DurableQueues {
         requireNonNull(causeOfEnqueuing, "You must provide a causeOfEnqueuing option");
         requireNonNull(deliveryDelay, "You must provide a deliveryDelay option");
 
+        var queueEntryId          = QueueEntryId.random();
+        var addedTimestamp        = Instant.now();
+        var nextDeliveryTimestamp = isDeadLetterMessage ? null : addedTimestamp.plus(deliveryDelay.orElse(Duration.ZERO));
+        log.debug("[{}] Queuing {}Message with entry-id {} and nextDeliveryTimestamp {}",
+                  queueName,
+                  isDeadLetterMessage ? "Dead Letter " : "",
+                  queueEntryId,
+                  nextDeliveryTimestamp);
 
         String jsonPayload;
         try {
@@ -259,10 +267,6 @@ public class PostgresqlDurableQueues implements DurableQueues {
         } catch (JsonProcessingException e) {
             throw new DurableQueueException(e, queueName);
         }
-        var addedTimestamp        = OffsetDateTime.now(Clock.systemUTC());
-        var nextDeliveryTimestamp = isDeadLetterMessage ? null : addedTimestamp.plus(deliveryDelay.orElse(Duration.ZERO));
-
-        var queueEntryId = QueueEntryId.random();
         var update = unitOfWorkFactory.getRequiredUnitOfWork().handle().createUpdate(bind("INSERT INTO {:tableName} (\n" +
                                                                                                   "       id,\n" +
                                                                                                   "       queue_name,\n" +

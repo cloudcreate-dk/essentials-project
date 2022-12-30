@@ -207,12 +207,14 @@ public class MongoDurableQueues implements DurableQueues {
                                  String sharedQueueCollectionName) {
         this.transactionalMode = requireNonNull(transactionalMode, "No transactionalMode instance provided");
         this.mongoTemplate = requireNonNull(mongoTemplate, "No mongoTemplate instance provided");
+        log.info("Using transactionalMode: {}", transactionalMode);
         switch (transactionalMode) {
             case FullyTransactional:
                 this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "No unitOfWorkFactory instance provided");
                 break;
             case ManualAcknowledgement:
                 this.messageHandlingTimeout = (int) requireNonNull(messageHandlingTimeout, "No messageHandlingTimeout instance provided").toSeconds();
+                log.info("Using messageHandlingTimeout: {} seconds", messageHandlingTimeout);
                 break;
         }
         this.messagePayloadObjectMapper = requireNonNull(messagePayloadObjectMapper, "No messagePayloadObjectMapper");
@@ -317,6 +319,15 @@ public class MongoDurableQueues implements DurableQueues {
         requireNonNull(causeOfEnqueuing, "You must provide a causeOfEnqueuing option");
         requireNonNull(deliveryDelay, "You must provide a deliveryDelay option");
 
+        var queueEntryId = QueueEntryId.random();
+        var addedTimestamp        = Instant.now();
+        var nextDeliveryTimestamp = isDeadLetterMessage ? null : addedTimestamp.plus(deliveryDelay.orElse(Duration.ZERO));
+        log.debug("[{}] Queuing {}Message with entry-id {} and nextDeliveryTimestamp {}. TransactionalMode: {}",
+                  queueName,
+                  isDeadLetterMessage ? "Dead Letter " : "",
+                  queueEntryId,
+                  nextDeliveryTimestamp,
+                  transactionalMode);
         if (transactionalMode == TransactionalMode.FullyTransactional) {
             unitOfWorkFactory.getRequiredUnitOfWork();
         }
@@ -327,10 +338,8 @@ public class MongoDurableQueues implements DurableQueues {
         } catch (JsonProcessingException e) {
             throw new DurableQueueException(e, queueName);
         }
-        var addedTimestamp        = Instant.now();
-        var nextDeliveryTimestamp = isDeadLetterMessage ? null : addedTimestamp.plus(deliveryDelay.orElse(Duration.ZERO));
 
-        var message = new DurableQueuedMessage(QueueEntryId.random(),
+        var message = new DurableQueuedMessage(queueEntryId,
                                                queueName,
                                                false,
                                                jsonPayload,
@@ -344,11 +353,12 @@ public class MongoDurableQueues implements DurableQueues {
                                                isDeadLetterMessage);
 
         mongoTemplate.save(message, sharedQueueCollectionName);
-        log.debug("[{}] Queued {}Message with entry-id {} and nextDeliveryTimestamp {}",
+        log.debug("[{}] Queued {}Message with entry-id {} and nextDeliveryTimestamp {}. TransactionalMode: {}",
                   queueName,
                   isDeadLetterMessage ? "Dead Letter " : "",
                   message.getId(),
-                  nextDeliveryTimestamp);
+                  nextDeliveryTimestamp,
+                  transactionalMode);
         return message.getId();
     }
 
@@ -618,6 +628,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> {
+                                                   log.trace("[{}] Performing GetNextMessageReadyForDelivery using transactionalMode: {}", operation.queueName, transactionalMode);
                                                    if (transactionalMode == TransactionalMode.FullyTransactional) {
                                                        unitOfWorkFactory.getRequiredUnitOfWork();
                                                    }
