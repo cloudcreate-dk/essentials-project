@@ -376,7 +376,7 @@ Inbox<ShipOrder> orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder
                                                                .messageConsumptionMode(MessageConsumptionMode.SingleGlobalConsumer)
                                                                .numberOfParallelMessageConsumers(5)
                                                                .build(),
-                                                               ShipOrder shipOrder -> {
+                                                               (ShipOrder shipOrder) -> {
                                                                    // Handle message
                                                                }); 
 ```
