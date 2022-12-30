@@ -209,8 +209,20 @@ public interface Inboxes {
 
             @Override
             public void addMessageReceived(MESSAGE_TYPE message) {
-                durableQueues.queueMessage(inboxQueueName,
-                                           message);
+                // An Inbox is usually used to bridge receiving messages from a Messaging system
+                // In these cases we rarely have other business logic that's already started a Transaction/UnitOfWork.
+                // So to simplify using the Inbox we allow adding a message to start a UnitOfWork if none exists
+
+                if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
+                    // Allow addMessageReceived to automatically start a new or join in an existing UnitOfWork
+                    durableQueues.getUnitOfWorkFactory().get().usingUnitOfWork(() -> {
+                        durableQueues.queueMessage(inboxQueueName,
+                                                   message);
+                    });
+                } else {
+                    durableQueues.queueMessage(inboxQueueName,
+                                               message);
+                }
             }
 
             private DurableQueueConsumer consumeFromDurableQueue() {
