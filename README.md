@@ -14,13 +14,14 @@ need to add these third party dependencies (such as Spring, JDBI, Postgresql JDB
 
 Each module's README.md will provide information about which third party dependencies that are typically for the Essentials module to be functional.
 
-For more advanced **components** such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `Inbox` and `Outbox` see: [Essentials Components](components/README.md)
+## Advanced Components
+See: [Essentials Components](components/README.md) for information about **components** such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `DurableLocalCommandbus`, `Inbox` and `Outbox` 
 
+## Essentials modules
 ![Essentials modules overview](Essentials.jpg)
 
 **NOTE:**
 **The libraries are WORK-IN-PROGRESS**
-
 
 ## Shared
 
@@ -67,6 +68,8 @@ To use `Shared` just add the following Maven dependency:
 </dependency>
 ```
 
+See [shared](shared/README.md) for more information
+
 ## Types
 
 This library focuses purely on providing base semantic types and utility types that can be used to better documented and more
@@ -105,6 +108,8 @@ To use `Types` just add the following Maven dependency:
 </dependency>
 ```
 
+See [types](types/README.md) for more information
+
 ## Reactive
 
 This library contains the smallest set of supporting reactive building blocks needed for other Essentials libraries
@@ -117,6 +122,8 @@ To use `Reactive` just add the following Maven dependency:
     <version>0.8.2</version>
 </dependency>
 ```
+
+See [reactive](reactive/README.md) for more information
 
 ### LocalEventBus
 Simple event bus that supports both synchronous and asynchronous subscribers that are registered and listening for events published within the local the JVM  
@@ -194,6 +201,7 @@ To use `Immutable` just add the following Maven dependency:
 </dependency>
 ```
 
+See [immutable](immutable/README.md) for more information
 
 ## Immutable Jackson
 This library focuses purely on providing [Jackson (FasterXML)](https://github.com/FasterXML/jackson) deserialization support for immutable classes or other classes that don't have a suitable creator
@@ -241,6 +249,7 @@ To use `Immutable-Jackson` just add the following Maven dependency:
 </dependency>
 ```
 
+See [immutable-jackson](immutable-jackson/README.md) for more information
 
 ## Types Jackson
 
@@ -262,6 +271,7 @@ To use `Types-Jackson` just add the following Maven dependency:
 </dependency>
 ```
 
+See [types-jackson](types-jackson/README.md) for more information
 
 ## Types Spring Data Mongo
 
@@ -306,6 +316,8 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
 </dependency>
 ```
 
+See [types-springdata-mongo](types-springdata-mongo/README.md) for more information
+
 ## Types Spring Data JPA
 
 This library focuses purely on providing [Spring Data JPA](https://spring.io/projects/spring-data-jpa) persistence support for the **types** defined in the
@@ -338,6 +350,8 @@ To use `Types-SpringData-JPA` just add the following Maven dependency:
 </dependency>
 ```
 
+See [types-springdata-jpa](types-springdata-jpa/README.md) for more information
+
 ## Types Spring Web
 
 This library focuses purely on providing [Spring](https://spring.io/projects/spring-framework) [WebMvc/MVC](https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#spring-web) 
@@ -369,6 +383,8 @@ public Mono<Order> updatePrice(@PathVariable CustomerId customerId,
     ...
 }
 ```
+
+See [types-spring-web](types-spring-web/README.md) for more information
 
 ## Types JDBI (v3)
 
@@ -423,6 +439,8 @@ To use `Types-JDBI` just add the following Maven dependency:
 </dependency>
 ```
 
+See [types-jdbi](types-jdbi/README.md) for more information
+
 ## Types Avro
 This library focuses purely on providing [AVRO](https://avro.apache.org) serialization and deserialization support for the **types** defined in the Essentials `types` library.
 
@@ -434,6 +452,8 @@ To use `Types-Avro` just add the following Maven dependency:
     <version>0.8.2</version>
 </dependency>
 ```
+
+See [types-avro](types-avro/README.md) for more information
 
 Some concrete `Types` such as `Amount`, `Percentage` and `CurrencyCode` come with supported our of the box.  
 This allows you to define Avro schema/IDL protocol and directly refer these logical-types in your Avro Schema/IDL protocol. 
