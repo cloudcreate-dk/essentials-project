@@ -139,7 +139,7 @@ public interface DurableQueueConsumer extends Lifecycle {
             }
 
             try {
-                log.trace("[{}] Polling Queue for the next message ready for delivery", queueName);
+                log.trace("[{}] Polling Queue for the next message ready for delivery. Transactional mode: {}", queueName, durableQueues.getTransactionalMode());
                 if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
                     if (unitOfWorkFactory.getCurrentUnitOfWork().isPresent()) {
                         throw new DurableQueueException(msg("Previous UnitOfWork isn't completed/removed: {}", unitOfWorkFactory.getCurrentUnitOfWork().get()), queueName);
