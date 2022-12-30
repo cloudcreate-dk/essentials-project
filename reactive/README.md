@@ -121,7 +121,7 @@ public class OrdersCommandHandler extends AnnotatedCommandHandler {
 ```
 
 ## Command Interceptors
-You can register `CommandBusInterceptor`'s (such as the `dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.command.UnitOfWorkControllingCommandBusInterceptor`
+You can register `CommandBusInterceptor`'s (such as the `dk.cloudcreate.essentials.components.foundation.reactive.command.UnitOfWorkControllingCommandBusInterceptor`
 from the PostgresqlEventStore module from [Essentials Components](https://github.com/cloudcreate-dk/essentials-components)), which allows you to 
 intercept Commands before and after they're being handled by the `LocalCommandBus`
 
