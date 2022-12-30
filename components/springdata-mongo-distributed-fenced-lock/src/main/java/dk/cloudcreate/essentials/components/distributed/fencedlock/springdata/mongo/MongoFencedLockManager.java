@@ -27,6 +27,9 @@ import org.springframework.data.mongodb.core.convert.MongoConverter;
 import java.time.Duration;
 import java.util.Optional;
 
+/**
+ * Provides a {@link FencedLockManager} implementation using MongoDB and the SpringData MongoDB library to coordinate intra-service distributed locks
+ */
 public class MongoFencedLockManager extends DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> {
     private static final Logger log = LoggerFactory.getLogger(MongoFencedLockManager.class);
 
