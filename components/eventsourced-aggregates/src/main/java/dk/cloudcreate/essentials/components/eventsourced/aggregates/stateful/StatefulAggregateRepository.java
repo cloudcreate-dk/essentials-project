@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful;
 
 
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.*;
-import dk.cloudcreate.essentials.components.eventsourced.aggregates.snapshot.AggregateSnapshotRepository;
+import dk.cloudcreate.essentials.components.eventsourced.aggregates.snapshot.*;
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.classic.Event;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
@@ -522,14 +522,23 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                     '}';
         }
 
+        @SuppressWarnings("unchecked")
         @Override
         public Optional<AGGREGATE_IMPL_TYPE> tryLoad(ID aggregateId, Optional<EventOrder> expectedLatestEventOrder) {
             log.trace("Trying to load {} with id '{}' and expectedLatestEventOrder {}", aggregateImplementationType.getName(), aggregateId, expectedLatestEventOrder);
             var unitOfWork = eventStore.getUnitOfWorkFactory().getRequiredUnitOfWork();
 
-            var aggregateSnapshot = aggregateSnapshotRepository.flatMap(repository -> repository.loadSnapshot(aggregateType,
-                                                                                                              aggregateId,
-                                                                                                              aggregateRootImplementationType()));
+            Optional<AggregateSnapshot> aggregateSnapshot = aggregateSnapshotRepository.flatMap(repository -> repository.loadSnapshot(aggregateType,
+                                                                                                                                      aggregateId,
+                                                                                                                                      aggregateRootImplementationType()));
+            if (aggregateSnapshot.isPresent() && aggregateSnapshot.get().aggregateSnapshot instanceof BrokenSnapshot) {
+                log.debug("[{}:{}] Broken '{}' SNAPSHOT with eventOrderOfLastIncludedEvent: {}",
+                          aggregateType, aggregateId, aggregateImplementationType.getName(), aggregateSnapshot.get().eventOrderOfLastIncludedEvent);
+                aggregateSnapshotRepository.get().deleteSnapshots(aggregateType,
+                                                                  aggregateId,
+                                                                  aggregateImplementationType,
+                                                                  List.of(aggregateSnapshot.get().eventOrderOfLastIncludedEvent));
+            }
             long loadMoreEventsWithEventOrderFromAndIncluding = aggregateSnapshot.map(snapshot -> {
                                                                                      var nextEventOrder = snapshot.eventOrderOfLastIncludedEvent.increment();
                                                                                      log.debug("[{}:{}] Using '{}' SNAPSHOT (globalEventOrderOfLastIncludedEvent + 1) as loadFromEventOrder: {}",
@@ -542,13 +551,13 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
             var potentialPersistedEventStream = eventStore.fetchStream(aggregateType,
                                                                        aggregateId,
                                                                        LongRange.from(loadMoreEventsWithEventOrderFromAndIncluding));
-            if (potentialPersistedEventStream.isEmpty()) {
+            if (aggregateSnapshot.isPresent() && potentialPersistedEventStream.isEmpty()) {
                 log.trace("[{}:{}] Didn't find a any {} events persisted after eventOrder: {}. Has SNAPSHOT: {}",
                           aggregateType, aggregateId, aggregateImplementationType.getName(), loadMoreEventsWithEventOrderFromAndIncluding, aggregateSnapshot.isPresent());
                 return aggregateSnapshot.map(snapshot -> {
                     log.trace("[{}:{}] Returning '{}' SNAPSHOT as it's up-to-date as of eventOrderOfLastIncludedEvent: {}",
                               aggregateType, aggregateId, aggregateImplementationType.getName(), aggregateSnapshot.get().eventOrderOfLastIncludedEvent);
-                    return snapshot.aggregateSnapshot;
+                    return (AGGREGATE_IMPL_TYPE) snapshot.aggregateSnapshot;
                 });
             } else {
                 var persistedEventsStream = potentialPersistedEventStream.get();
@@ -568,7 +577,7 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                 }
                 log.debug("[{}:{}] Found '{}' with expectedLatestEventOrder: {}. Has SNAPSHOT: {}",
                           aggregateIdType, aggregateId, aggregateImplementationType.getName(), expectedLatestEventOrder, aggregateSnapshot.isPresent());
-                AGGREGATE_IMPL_TYPE aggregate = aggregateSnapshot.map(snapshot -> snapshot.aggregateSnapshot)
+                AGGREGATE_IMPL_TYPE aggregate = aggregateSnapshot.map(snapshot -> (AGGREGATE_IMPL_TYPE) snapshot.aggregateSnapshot)
                                                                  .orElseGet(() -> aggregateRootInstanceFactory.create(aggregateId, aggregateImplementationType));
                 return Optional.of(unitOfWork.registerLifecycleCallbackForResource(aggregate.rehydrate(persistedEventsStream),
                                                                                    unitOfWorkCallback));

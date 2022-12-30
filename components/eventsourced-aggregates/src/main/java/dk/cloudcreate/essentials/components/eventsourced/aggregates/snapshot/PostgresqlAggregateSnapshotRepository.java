@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
+import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 @SuppressWarnings("unchecked")
 /**
@@ -433,12 +434,22 @@ public class PostgresqlAggregateSnapshotRepository implements AggregateSnapshotR
             var aggregateImplType = Classes.forName(rs.getString("aggregate_impl_type"));
 
 
-            var snapshotPayload = resultSetContainsSnapshotPayload ? jsonSerializer.deserialize(rs.getString("snapshot"), aggregateImplType) : null;
+            var aggregateId     = config.aggregateIdSerializer.deserialize(rs.getString("aggregate_id"));
+            var snapshotPayload = deserializeSnapshot(rs, aggregateId, aggregateImplType);
             return new AggregateSnapshot(aggregateType,
-                                         config.aggregateIdSerializer.deserialize(rs.getString("aggregate_id")),
+                                         aggregateId,
                                          aggregateImplType,
                                          snapshotPayload,
                                          EventOrder.of(rs.getLong("last_included_event_order")));
+        }
+
+        private Object deserializeSnapshot(ResultSet rs, Object aggregateId, Class<?> aggregateImplType) throws SQLException {
+            try {
+                return resultSetContainsSnapshotPayload ? jsonSerializer.deserialize(rs.getString("snapshot"), aggregateImplType) : null;
+            } catch (Exception e) {
+                log.error(msg("Failed to deserialize '{}' with id '{}'", aggregateImplType, aggregateId), e);
+                return new BrokenSnapshot(e);
+            }
         }
     }
 }

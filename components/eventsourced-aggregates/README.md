@@ -34,6 +34,16 @@ aggregate state).
 Check the `Order` and `FlexAggregateRepositoryIT` examples
 in `essentials-components/eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/flex`
 
+To use `EventSourced Aggregates` just add the following Maven dependency:
+
+```
+<dependency>
+    <groupId>dk.cloudcreate.essentials.components/groupId>
+    <artifactId>eventsourced-aggregates</artifactId>
+    <version>0.8.2</version>
+</dependency>
+```
+
 ## Persisting an Aggregate
 Flow showing the internal processing for persisting a new Aggregate instance:
 ```
@@ -427,6 +437,67 @@ unitOfWorkFactory.usingUnitOfWork(unitOfWork -> {
 // Using Spring Transaction Template
 var order = transactionTemplate.execute(status -> ordersRepository.load(orderId));
 ```
+
+### Aggregate Snapshots
+Sometimes we need to work with Aggregates that over time end up persisting a lot of events and where loading all Aggregate related Events from the `EventStore`
+will incur too much overhead.
+
+For such cases we can use the `AggregateSnapshotRepository` concept, which can be used together with e.g. the `StatefulAggregateRepository`:
+
+```
+var ordersRepository = StatefulAggregateRepository.from(eventStore,
+                                                      ORDERS,
+                                                      reflectionBasedAggregateRootFactory(),
+                                                      Order.class,
+                                                      snapshotRepository);
+```
+The `AggregateSnapshotRepository` supports persisting snapshots of Aggregates and these snapshots can be used when loading the Aggregate.
+If an Account aggregate has 1000 events and the last snapshot persisted included 997 of these events, then loading the Account aggregate would entail:
+-  Checking if we have an `AggregateSnapshot` for the specific Account Aggregate instance
+- If there's an `AggregateSnapshot`, then we begin with loading this snapshot, which provides us with an Aggregate instance. 
+- Afterwards we will load all Events (related to the same Aggregate instance) that have occurred since the `AggregateSnapshot` was persisted.
+- All events returned (if any) will be rehydrated onto the Aggregate instance
+
+When ever an Aggregate is added or updated, the `AggregateSnapshotRepository` will persist a new `AggregateSnapshot` according to the 
+specified `AddNewAggregateSnapshotStrategy`. It will also delete any historic `AggregateSnapshot` according to the `AggregateSnapshotDeletionStrategy`.
+
+### Persisting `AggregateSnapshot`'s
+The `PostgresqlAggregateSnapshotRepository` is the only durable `AggregateSnapshotRepository`.
+It will create any new `AggregateSnapshot` in the same thread and transaction which added/changed the Aggregate instance.
+This means that adding aggregate snapshots in the database (including any clean-ups) will effectively affect aggregate persistence performance.  
+It's therefore advisable to combine `PostgresqlAggregateSnapshotRepository` with the `DelayedUpdateAggregateSnapshotDelegate`, which will directly delegates all operations to the provided <code>delegateRepository</code>,
+except for `AggregateSnapshotRepository#aggregateUpdated(Object, AggregateEventStream)` and `AggregateSnapshotRepository#deleteSnapshots(AggregateType, Object, Class, List)`, which are performed **asynchronously** in the background.
+
+```
+var aggregateEventStreamConfigurationFactory = SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson(createObjectMapper(),
+                                                                                                                                                          IdentifierColumnType.UUID,
+                                                                                                                                                                  JSONColumnType.JSONB);
+var snapshotRepository = new PostgresqlAggregateSnapshotRepository(eventStore,
+                                                                   unitOfWorkFactory,
+                                                                   aggregateEventStreamConfigurationFactory.jsonSerializer,
+                                                                   AddNewAggregateSnapshotStrategy.updateWhenBehindByNumberOfEvents(2),
+                                                                   AggregateSnapshotDeletionStrategy.keepALimitedNumberOfHistoricSnapshots(3));
+
+ordersRepository = StatefulAggregateRepository.from(eventStore,
+                                                    ORDERS,
+                                                    reflectionBasedAggregateRootFactory(),
+                                                    Order.class,
+                                                    DelayedUpdateAggregateSnapshotDelegate.delegateTo(snapshotRepository));
+```
+
+#### AddNewAggregateSnapshotStrategy
+The `AddNewAggregateSnapshotStrategy` specifies how often an `AggregateSnapshot` should be stored.  
+Out of the box it supports:
+- `AddNewAggregateSnapshotStrategy.updateWhenBehindByNumberOfEvents(numberOfEventsBetweenEachSnapshot)`
+- `AddNewAggregateSnapshotStrategy.updateOnEachAggregateUpdate()`
+
+#### AggregateSnapshotDeletionStrategy
+The `AggregateSnapshotDeletionStrategy` controls which historic aggregate snapshots (i.e. old aggregate snapshots) should be deleted when a new aggregate snapshot is persisted
+Out of the box it supports:
+- `AggregateSnapshotDeletionStrategy.keepALimitedNumberOfHistoricSnapshots(numberOfHistoricSnapshotsToKeep)`
+- `AggregateSnapshotDeletionStrategy.keepAllHistoricSnapshots()`
+- `AggregateSnapshotDeletionStrategy.deleteAllHistoricSnapshots()`
+
 
 To use `EventSourced Aggregates` just add the following Maven dependency:
 

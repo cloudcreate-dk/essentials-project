@@ -32,7 +32,7 @@ public class AggregateSnapshot<ID, AGGREGATE_IMPL_TYPE> {
      */
     public final EventOrder          eventOrderOfLastIncludedEvent;
     /**
-     * The aggregate snapshot loaded from the repository
+     * The aggregate snapshot loaded from the repository - if this is of type {@link BrokenSnapshot} then the Aggregate snapshot couldn't be deserialized
      */
     public final AGGREGATE_IMPL_TYPE aggregateSnapshot;
 

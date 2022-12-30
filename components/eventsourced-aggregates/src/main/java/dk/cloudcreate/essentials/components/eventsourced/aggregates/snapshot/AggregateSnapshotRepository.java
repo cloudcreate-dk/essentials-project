@@ -8,6 +8,7 @@ import java.util.*;
 /**
  * Repository storing and updating Aggregate instance snapshots
  * @see PostgresqlAggregateSnapshotRepository
+ * @see DelayedAddAndDeleteAggregateSnapshotDelegate
  */
 public interface AggregateSnapshotRepository {
     /**

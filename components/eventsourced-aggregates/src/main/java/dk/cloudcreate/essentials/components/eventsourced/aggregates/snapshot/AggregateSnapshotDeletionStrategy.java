@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 import static dk.cloudcreate.essentials.shared.FailFast.requireTrue;
 
 /**
- * Strategy for deleting historic aggregate snapshots (i.e. old aggregate snapshots) when a new aggregate snapshot is persisted
+ * Strategy for which historic aggregate snapshots (i.e. old aggregate snapshots) should be deleted when a new aggregate snapshot is persisted
  */
 public interface AggregateSnapshotDeletionStrategy {
 
