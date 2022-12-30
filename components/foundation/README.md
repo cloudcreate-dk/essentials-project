@@ -41,9 +41,13 @@ To use `foundation` just add the following Maven dependency:
 
 ## DurableQueues
 
-The `DurableQueues` concept supports inter-service Durable Queues (point to point communication), the only requirement is that message producers and message consumers can access
-the same underlying durable Queue storage. In a microservice (or service oriented architecture) it's common for different instances belonging to the same logical service to share
-database in which case they can use the `DurableQueues` concept for handling asynchronous durable message handling across different service instances deployed in a cluster.
+The `DurableQueues` concept supports intra-service point-to-point messaging using durable Queues that guarantee At-Least-Once delivery of messages. The only requirement is that message producers and message consumers can access
+the same underlying durable Queue storage.
+
+In a service oriented architecture it's common for all deployed instances of a given service (e.g. a Sales service) to share the same underlying
+database(s). As long as the different deployed (Sales) services instances can share the same underlying database, then you use the `DurableQueues` concept for point-to-point messaging across all deployed (Sales service)
+instances in the cluster.  
+If you need cross-service point-to-point messaging support, e.g. across instances of different services (such as across Sales, Billing and Shipping services), then you need to use a dedicated distributed Queueing service such as RabbitMQ.
 
 This library focuses on providing a Durable Queue supporting message redelivery and Dead Letter Message functionality
 and comes in two flavours  
@@ -298,8 +302,9 @@ if (msgUnderDelivery.isPresent()) {
 
 Provides a JVM local and durable, in regard to `sendAndDontWait(Object)/sendAndDontWait(Object, Duration))`, variant of the `CommandBus` concept Durability for
 `sendAndDontWait(Object)/sendAndDontWait(Object, Duration))` is delegated to `DurableQueues`.  
-Which `QueueName` that is used will be determined by the `CommandQueueNameSelector` and the `RedeliveryPolicy` is determined by the `CommandQueueRedeliveryPolicyResolver`.   
-Note: If the `SendAndDontWaitErrorHandler` provided doesn't rethrow the exception, then the underlying `DurableQueues` will not be able to retry the command.  
+What `QueueName` that is used during `sendAndDontWait` is determined by the `CommandQueueNameSelector` and the `RedeliveryPolicy` is determined by the `CommandQueueRedeliveryPolicyResolver`.
+The `SendAndDontWaitErrorHandler` allows custom error handling of `CommandHandler` exceptions.  
+If the `SendAndDontWaitErrorHandler` provided doesn't rethrow the exception, then the underlying `DurableQueues` will not be able to retry the command.  
 Due to this the `DurableLocalCommandBus` defaults to using the `RethrowingSendAndDontWaitErrorHandler`
 
 ### Simple configuration example using defaults:
@@ -362,7 +367,7 @@ public Inboxes inboxes(DurableQueues durableQueues, FencedLockManager fencedLock
 ### Configuring a concrete `Inbox`:
 
 ```
-Inbox<ShipOrder> orderEventsInbox = = inboxes.getOrCreateInbox(InboxConfig.builder()
+Inbox<ShipOrder> orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder()
                                                                .inboxName(InboxName.of("OrderService:OrderEvents"))
                                                                .redeliveryPolicy(RedeliveryPolicy.fixedBackoff()
                                                                                                  .setRedeliveryDelay(Duration.ofMillis(100))
@@ -380,7 +385,6 @@ Inbox<ShipOrder> orderEventsInbox = = inboxes.getOrCreateInbox(InboxConfig.build
 
 ```
 @KafkaListener(topics = ORDER_EVENTS_TOPIC_NAME, groupId = "order-processing", containerFactory = "kafkaListenerContainerFactory")
-@Transactional
 public void handle(OrderEvent event) {
     if (event instanceof OrderAccepted) {
         orderEventsInbox.addMessageReceived(new ShipOrder(event.getId()));
@@ -393,7 +397,7 @@ public void handle(OrderEvent event) {
 `Inboxes` also supports forwarding messages directly onto an instance of the `CommandBus` concept (such as `LocalCommandBus`)
 
 ```
-Inbox<ShipOrder> orderEventsInbox = = inboxes.getOrCreateInbox(InboxConfig.builder()
+Inbox<ShipOrder> orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder()
                                                                .inboxName(InboxName.of("OrderService:OrderEvents"))
                                                                .redeliveryPolicy(RedeliveryPolicy.fixedBackoff()
                                                                                                  .setRedeliveryDelay(Duration.ofMillis(100))
@@ -405,15 +409,15 @@ Inbox<ShipOrder> orderEventsInbox = = inboxes.getOrCreateInbox(InboxConfig.build
                                                                 commandBus; 
 ```
 
-Alternatively, if you're using a `DurableLocalCommandBus`, then you can just forward messages directly onto it (as it internally uses the `DurableQueues` concept to ensure that `sendAndDontWait`
-commands
-first are enqueued before being delivered to a `CommandHandler`):
+### Alternatively use the `DurableLocalCommandBus`
+Alternatively, if you're using a `DurableLocalCommandBus`, then you can just forward messages directly onto the `DurableLocalCommandBus` by calling `sendAndDontWait`.
+Internally `DurableLocalCommandBus`'s  `sendAndDontWait` operation also uses the `DurableQueues` concept to ensure that
+commands send have guaranteed delivery:
 
 ```
 DurableLocalCommandBus durableCommandBus;
 
 @KafkaListener(topics = ORDER_EVENTS_TOPIC_NAME, groupId = "order-processing", containerFactory = "kafkaListenerContainerFactory")
-@Transactional
 public void handle(OrderEvent event) {
     if (event instanceof OrderAccepted) {
         durableCommandBus.sendAndDontWait(new ShipOrder(event.getId()));
@@ -482,7 +486,18 @@ unitOfWorkFactory.usingUnitOfWork(() -> kafkaOutbox.sendMessage(new ExternalOrde
 
 This library provides a Distributed Locking Manager based of the Fenced Locking concept
 described [here](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)  
-and comes in two different flavours.
+and comes in two different flavours: `MongoFencedLockManager` and `PostgresqlFencedLockManager`
+
+A `FencedLockManager` is responsible for obtaining distributed `FencedLock`'s, which are named exclusive locks.  
+Only one `FencedLockManager` instance can acquire a `FencedLock` at a time.
+The implementation has been on supporting **intra-service** (i.e. across different deployed instances of the **same** service) Lock support through database based implementations (`MongoFencedLockManager` and `PostgresqlFencedLockManager`).  
+In a service oriented architecture it's common for all deployed instances of a given service (e.g. a Sales service) to share the same underlying
+database(s). As long as the different deployed (Sales) services instances can share the same underlying database, then you use the `FencedLockManager` concept for handling distributed locks across all deployed (Sales service) 
+instances in the cluster.  
+If you need cross-service lock support, e.g. across instances of different services (such as across Sales, Billing and Shipping services), then you need to use a dedicated distributed locking service such as Zookeeper.
+
+To coordinate this properly it's important that each `getLockManagerInstanceId()` is unique across the cluster.  
+Per default it uses the local machine hostname as `getLockManagerInstanceId()` value.
 
 The common interfaces across the different implementations are `FencedLockManager`, `FencedLock` and `LockCallback`.
 
