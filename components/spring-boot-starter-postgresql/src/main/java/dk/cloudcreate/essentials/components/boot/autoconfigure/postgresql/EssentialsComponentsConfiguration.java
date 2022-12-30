@@ -9,6 +9,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.command.UnitOfWorkControllingCommandBusInterceptor;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
@@ -17,6 +18,7 @@ import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTi
 import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.spring.jdbi.SpringTransactionAwareJdbiUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
@@ -34,6 +36,7 @@ import org.springframework.context.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.event.*;
 import org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import java.time.Duration;
@@ -103,6 +106,23 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
         jdbi.installPlugin(new PostgresPlugin());
         jdbi.setSqlLogger(new SqlExecutionTimeLogger());
         return jdbi;
+    }
+
+    /**
+     * Define the {@link SpringTransactionAwareJdbiUnitOfWorkFactory}, but only if an EventStore specific variant isn't on the classpath.<br>
+     * The {@link SpringTransactionAwareJdbiUnitOfWorkFactory} supports joining {@link UnitOfWork}'s
+     * with the underlying Spring managed Transaction (i.e. supports methods annotated with @Transactional)
+     *
+     * @param jdbi               the jdbi instance
+     * @param transactionManager the Spring Transactional manager as we allow Spring to demarcate the transaction
+     * @return The {@link EventStoreUnitOfWorkFactory}
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.spring.SpringTransactionAwareEventStoreUnitOfWorkFactory")
+    public HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory(Jdbi jdbi,
+                                                                                           PlatformTransactionManager transactionManager) {
+        return new SpringTransactionAwareJdbiUnitOfWorkFactory(jdbi, transactionManager);
     }
 
     /**
@@ -184,6 +204,12 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
             durableCommandBusBuilder.addInterceptors(new UnitOfWorkControllingCommandBusInterceptor(unitOfWorkFactory));
         }
         return durableCommandBusBuilder.build();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public LocalEventBus<Object> eventBus() {
+        return new LocalEventBus<Object>("default");
     }
 
     /**

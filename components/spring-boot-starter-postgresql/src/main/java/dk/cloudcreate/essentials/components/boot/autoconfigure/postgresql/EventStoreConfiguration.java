@@ -19,8 +19,8 @@ package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.PostgresqlEventStreamGapHandler;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.spring.SpringTransactionAwareEventStoreUnitOfWorkFactory;
@@ -32,10 +32,10 @@ import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import org.jdbi.v3.core.Jdbi;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.time.Duration;
 import java.util.Optional;
 
 import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson;
@@ -45,6 +45,7 @@ import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postg
  */
 @AutoConfiguration
 @ConditionalOnClass(name = "dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore")
+@EnableConfigurationProperties(EventStoreProperties.class)
 public class EventStoreConfiguration {
 
     /**
@@ -98,13 +99,16 @@ public class EventStoreConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public EventStoreSubscriptionManager eventStoreSubscriptionManager(EventStore eventStore, FencedLockManager fencedLockManager, Jdbi jdbi) {
+    public EventStoreSubscriptionManager eventStoreSubscriptionManager(EventStore eventStore,
+                                                                       FencedLockManager fencedLockManager,
+                                                                       Jdbi jdbi,
+                                                                       EventStoreProperties eventStoreProperties) {
         return EventStoreSubscriptionManager.builder()
                                             .setEventStore(eventStore)
-                                            .setEventStorePollingBatchSize(10)
-                                            .setEventStorePollingInterval(Duration.ofMillis(100))
+                                            .setEventStorePollingBatchSize(eventStoreProperties.getSubscriptionManager().getEventStorePollingBatchSize())
+                                            .setEventStorePollingInterval(eventStoreProperties.getSubscriptionManager().getEventStorePollingInterval())
                                             .setFencedLockManager(fencedLockManager)
-                                            .setSnapshotResumePointsEvery(Duration.ofSeconds(10))
+                                            .setSnapshotResumePointsEvery(eventStoreProperties.getSubscriptionManager().getSnapshotResumePointsEvery())
                                             .setDurableSubscriptionRepository(new PostgresqlDurableSubscriptionRepository(jdbi))
                                             .build();
     }
@@ -123,13 +127,14 @@ public class EventStoreConfiguration {
     public SeparateTablePerAggregateTypePersistenceStrategy eventStorePersistenceStrategy(Jdbi jdbi,
                                                                                           EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
                                                                                           PersistableEventMapper persistableEventMapper,
-                                                                                          ObjectMapper essentialComponentsObjectMapper) {
+                                                                                          ObjectMapper essentialComponentsObjectMapper,
+                                                                                          EventStoreProperties eventStoreProperties) {
         return new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                     unitOfWorkFactory,
                                                                     persistableEventMapper,
                                                                     standardSingleTenantConfigurationUsingJackson(essentialComponentsObjectMapper,
-                                                                                                                  IdentifierColumnType.UUID,
-                                                                                                                  JSONColumnType.JSONB));
+                                                                                                                  eventStoreProperties.getIdentifierColumnType(),
+                                                                                                                  eventStoreProperties.getJsonColumnType()));
     }
 
     /**
@@ -144,11 +149,13 @@ public class EventStoreConfiguration {
     @ConditionalOnMissingBean
     public ConfigurableEventStore<SeparateTablePerAggregateEventStreamConfiguration> eventStore(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
                                                                                                 SeparateTablePerAggregateTypePersistenceStrategy persistenceStrategy,
-                                                                                                EventStoreEventBus eventStoreLocalEventBus) {
+                                                                                                EventStoreEventBus eventStoreLocalEventBus,
+                                                                                                EventStoreProperties eventStoreProperties) {
         return new PostgresqlEventStore<>(eventStoreUnitOfWorkFactory,
                                           persistenceStrategy,
                                           Optional.of(eventStoreLocalEventBus),
-                                          eventStore -> new PostgresqlEventStreamGapHandler<>(eventStore, eventStoreUnitOfWorkFactory));
-
+                                          eventStore -> eventStoreProperties.isUseEventStreamGapHandler() ?
+                                                        new PostgresqlEventStreamGapHandler<>(eventStore, eventStoreUnitOfWorkFactory) :
+                                                        new NoEventStreamGapHandler<>());
     }
 }

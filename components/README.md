@@ -50,6 +50,64 @@ To use `foundation` just add the following Maven dependency:
 
 See [foundation](foundation/README.md)
 
+# Essentials Postgresql: Spring Boot starter
+This library Spring Boot auto-configuration for all Postgresql focused Essentials components.
+All `@Beans` auto-configured by this library use `@ConditionalOnMissingBean` to allow for easy overriding.
+
+To use `spring-boot-starter-postgresql` to add the following dependency:
+```
+<dependency>
+    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <artifactId>spring-boot-starter-postgresql</artifactId>
+    <version>0.8.2</version>
+</dependency>
+```
+
+Per default only the `EssentialsComponentsConfiguration` is auto-configured:
+- Jackson/FasterXML JSON modules: 
+  - `EssentialTypesJacksonModule` 
+  - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath)
+  - `ObjectMapper` with bean name `essentialComponentsObjectMapper` which provides good defaults for JSON serialization
+- `Jdbi` to use the provided Spring `DataSource` 
+- `SpringTransactionAwareJdbiUnitOfWorkFactory` configured using the Spring provided `PlatformTransactionManager`
+  - This `UnitOfWorkFactory` will only be auto-registered if the `SpringTransactionAwareEventStoreUnitOfWorkFactory` is not on the classpath (see `EventStoreConfiguration`) 
+- `PostgresqlFencedLockManager` using the `essentialComponentsObjectMapper` as JSON serializer
+- `PostgresqlDurableQueues` using the `essentialComponentsObjectMapper` as JSON serializer
+- `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `PostgresqlDurableQueues`
+- `LocalEventBus<Object>` with bus-name `default` and Bean name `eventBus`
+- `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
+- Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
+
+ If your project also specifies the 
+```
+<dependency>
+    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <artifactId>spring-postgresql-event-store</artifactId>
+    <version>0.8.2</version>
+</dependency>
+```
+then the `EventStoreConfiguration` will also auto-configure the `EventStore`:
+- `PostgresqlEventStore` using `PostgresqlEventStreamGapHandler` (using default configuration)
+  - You can configure `NoEventStreamGapHandler` using Spring properties:
+  - `essentials.eventstore.use-event-stream-gap-handler=false`
+- `SeparateTablePerAggregateTypePersistenceStrategy` using `IdentifierColumnType.TEXT` for persisting `AggregateId`'s and `JSONColumnType.JSONB` for persisting Event and EventMetadata JSON payloads
+  - ColumnTypes can be overridden by using Spring properties:
+  - ```
+    essentials.eventstore.identifier-column-type=uuid
+    essentials.eventstore.json-column-type=jsonb
+    ```
+- `EventStoreUnitOfWorkFactory` in the form of `SpringTransactionAwareEventStoreUnitOfWorkFactory`
+- `EventStoreEventBus` with an internal `LocalEventBus<PersistedEvents>` with bus-name `EventStoreLocalBus`
+- `PersistableEventMapper` with basic setup. Override this bean if you need additional meta-data, such as event-id, event-type, event-order, event-timestamp, event-meta-data, correlation-id, tenant-id included
+- `EventStoreSubscriptionManager` with default `EventStoreSubscriptionManagerProperties` values
+  - The default `EventStoreSubscriptionManager` values can be overridden using Spring properties:
+  - ```
+    essentials.eventstore.subscription-manager.event-store-polling-batch-size=5
+    essentials.eventstore.subscription-manager.snapshot-resume-points-every=2s
+    essentials.eventstore.subscription-manager.event-store-polling-interval=200
+    ```
+See [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
+
 # Event Sourced Aggregates
 
 This library focuses on providing different flavours of Event Source Aggregates that are built to work with
