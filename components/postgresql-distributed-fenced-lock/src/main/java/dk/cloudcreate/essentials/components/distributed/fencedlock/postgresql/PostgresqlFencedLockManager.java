@@ -25,7 +25,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Postgresql version of the {@link FencedLockManager} interface
+ * Provides a {@link FencedLockManager} implementation using Postgresql to coordinate intra-service distributed locks
  */
 public class PostgresqlFencedLockManager extends DBFencedLockManager<HandleAwareUnitOfWork, DBFencedLock> {
     public static PostgresqlFencedLockManagerBuilder builder() {
