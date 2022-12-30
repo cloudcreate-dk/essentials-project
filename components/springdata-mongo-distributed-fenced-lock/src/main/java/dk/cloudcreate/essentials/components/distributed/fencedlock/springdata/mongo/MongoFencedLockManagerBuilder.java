@@ -19,7 +19,7 @@ package dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.m
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.mongo.ClientSessionAwareUnitOfWork;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
+import dk.cloudcreate.essentials.reactive.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.convert.MongoConverter;
 
@@ -33,8 +33,8 @@ public class MongoFencedLockManagerBuilder {
     private Optional<String>                                          lockManagerInstanceId     = Optional.empty();
     private Optional<String>                                          fencedLocksCollectionName = Optional.empty();
     private Duration                                                  lockTimeOut;
-    private Duration                                                  lockConfirmationInterval;
-    private Optional<LocalEventBus<Object>>                           eventBus                  = Optional.empty();
+    private Duration                   lockConfirmationInterval;
+    private Optional<EventBus<Object>> eventBus = Optional.empty();
 
     /**
      * @param mongoTemplate the mongoTemplate instance
@@ -121,7 +121,7 @@ public class MongoFencedLockManagerBuilder {
      * @param eventBus optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
      * @return this builder instance
      */
-    public MongoFencedLockManagerBuilder setEventBus(Optional<LocalEventBus<Object>> eventBus) {
+    public MongoFencedLockManagerBuilder setEventBus(Optional<EventBus<Object>> eventBus) {
         this.eventBus = eventBus;
         return this;
     }
@@ -130,7 +130,7 @@ public class MongoFencedLockManagerBuilder {
      * @param eventBus optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
      * @return this builder instance
      */
-    public MongoFencedLockManagerBuilder setEventBus(LocalEventBus<Object> eventBus) {
+    public MongoFencedLockManagerBuilder setEventBus(EventBus<Object> eventBus) {
         this.eventBus = Optional.ofNullable(eventBus);
         return this;
     }

@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.fencedlock;
 
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockEvents.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
+import dk.cloudcreate.essentials.reactive.*;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import dk.cloudcreate.essentials.shared.network.Network;
 import org.slf4j.*;
@@ -53,7 +53,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
     private final String                                      lockManagerInstanceId;
 
     protected final UnitOfWorkFactory<? extends UOW> unitOfWorkFactory;
-    private final   Optional<LocalEventBus<Object>>  eventBus;
+    private final   Optional<EventBus<Object>>       eventBus;
 
     private volatile boolean started;
     private volatile boolean stopping;
@@ -82,7 +82,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
                                   Optional<String> lockManagerInstanceId,
                                   Duration lockTimeOut,
                                   Duration lockConfirmationInterval,
-                                  Optional<LocalEventBus<Object>> eventBus) {
+                                  Optional<EventBus<Object>> eventBus) {
         requireNonNull(lockManagerInstanceId, "No lockManagerInstanceId option provided");
 
         this.lockStorage = requireNonNull(lockStorage, "No lockStorage provided");

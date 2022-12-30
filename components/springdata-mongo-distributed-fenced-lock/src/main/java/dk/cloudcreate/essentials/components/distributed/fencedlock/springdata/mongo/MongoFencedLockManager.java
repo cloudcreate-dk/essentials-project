@@ -19,7 +19,7 @@ package dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.m
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.mongo.ClientSessionAwareUnitOfWork;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
+import dk.cloudcreate.essentials.reactive.*;
 import org.slf4j.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.convert.MongoConverter;
@@ -85,7 +85,7 @@ public class MongoFencedLockManager extends DBFencedLockManager<ClientSessionAwa
                                   Optional<String> fencedLocksCollectionName,
                                   Duration lockTimeOut,
                                   Duration lockConfirmationInterval,
-                                  Optional<LocalEventBus<Object>> eventBus) {
+                                  Optional<EventBus<Object>> eventBus) {
         super(new MongoFencedLockStorage(mongoTemplate,
                                          mongoConverter,
                                          fencedLocksCollectionName),
@@ -114,7 +114,7 @@ public class MongoFencedLockManager extends DBFencedLockManager<ClientSessionAwa
                                   UnitOfWorkFactory<? extends ClientSessionAwareUnitOfWork> unitOfWorkFactory,
                                   Duration lockTimeOut,
                                   Duration lockConfirmationInterval,
-                                  Optional<LocalEventBus<Object>> eventBus) {
+                                  Optional<EventBus<Object>> eventBus) {
         this(mongoTemplate,
              mongoConverter,
              unitOfWorkFactory,

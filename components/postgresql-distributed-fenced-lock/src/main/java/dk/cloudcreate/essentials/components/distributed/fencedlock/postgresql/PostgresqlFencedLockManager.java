@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql;
 
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
+import dk.cloudcreate.essentials.reactive.*;
 import org.jdbi.v3.core.Jdbi;
 
 import java.time.Duration;
@@ -74,7 +74,7 @@ public class PostgresqlFencedLockManager extends DBFencedLockManager<HandleAware
                                        Optional<String> fencedLocksTableName,
                                        Duration lockTimeOut,
                                        Duration lockConfirmationInterval,
-                                       Optional<LocalEventBus<Object>> eventBus) {
+                                       Optional<EventBus<Object>> eventBus) {
         super(new PostgresqlFencedLockStorage(jdbi,
                                               fencedLocksTableName),
               unitOfWorkFactory,
@@ -98,7 +98,7 @@ public class PostgresqlFencedLockManager extends DBFencedLockManager<HandleAware
                                        HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
                                        Duration lockTimeOut,
                                        Duration lockConfirmationInterval,
-                                       Optional<LocalEventBus<Object>> eventBus) {
+                                       Optional<EventBus<Object>> eventBus) {
         this(jdbi,
              unitOfWorkFactory,
              Optional.empty(),
