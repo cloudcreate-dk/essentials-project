@@ -68,14 +68,14 @@ public interface Inboxes {
      *
      * @param <MESSAGE_TYPE> the type of message
      * @param inboxConfig    the inbox configuration
-     * @param forwardTo      forward messages to this command bus using {@link CommandBus#sendAndDontWait(Object)}
+     * @param forwardTo      forward messages to this command bus using {@link CommandBus#send(Object)}
      * @return the {@link Inbox}
      */
     default <MESSAGE_TYPE> Inbox<MESSAGE_TYPE> getOrCreateInbox(InboxConfig inboxConfig,
                                                                 CommandBus forwardTo) {
         requireNonNull(forwardTo, "No forwardTo command bus provided");
         return getOrCreateInbox(inboxConfig,
-                                forwardTo::sendAndDontWait);
+                                forwardTo::send);
     }
 
     /**
@@ -133,7 +133,7 @@ public interface Inboxes {
 
         public class DurableQueueBasedInbox<MESSAGE_TYPE> implements Inbox<MESSAGE_TYPE> {
 
-            private       Consumer<MESSAGE_TYPE> messageConsumer;
+            private      Consumer<MESSAGE_TYPE> messageConsumer;
             public final QueueName              inboxQueueName;
             public final InboxConfig            config;
             private      DurableQueueConsumer   durableQueueConsumer;
