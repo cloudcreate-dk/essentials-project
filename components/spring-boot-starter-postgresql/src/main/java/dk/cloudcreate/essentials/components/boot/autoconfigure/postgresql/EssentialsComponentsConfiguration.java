@@ -8,10 +8,9 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.command.UnitOfWorkControllingCommandBusInterceptor;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
 import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
@@ -32,6 +31,7 @@ import org.slf4j.*;
 import org.springframework.beans.BeansException;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.event.*;
@@ -39,13 +39,13 @@ import org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
-import java.time.Duration;
 import java.util.*;
 
 /**
  * Postgresql focused Essentials Components auto configuration
  */
 @AutoConfiguration
+@EnableConfigurationProperties(EssentialsComponentsProperties.class)
 public class EssentialsComponentsConfiguration implements ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
     public static final Logger log = LoggerFactory.getLogger(EssentialsComponentsConfiguration.class);
 
@@ -129,33 +129,43 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
      * The {@link PostgresqlFencedLockManager} that coordinates distributed locks
      *
      * @param jdbi              the jbdi instance
-     * @param unitOfWorkFactory the {@link UnitOfWorkFactory}
+     * @param unitOfWorkFactory the {@link UnitOfWorkFactory} for coordinating {@link UnitOfWork}/Transactions
+     * @param eventBus          the {@link EventBus} where {@link FencedLockEvents} are published
+     * @param properties        the auto configure properties
      * @return The {@link PostgresqlFencedLockManager}
      */
     @Bean
     @ConditionalOnMissingBean
     public FencedLockManager fencedLockManager(Jdbi jdbi,
-                                               HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory) {
+                                               HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
+                                               EventBus<Object> eventBus,
+                                               EssentialsComponentsProperties properties) {
         return PostgresqlFencedLockManager.builder()
                                           .setJdbi(jdbi)
                                           .setUnitOfWorkFactory(unitOfWorkFactory)
-                                          .setLockTimeOut(Duration.ofSeconds(3))
-                                          .setLockConfirmationInterval(Duration.ofSeconds(1))
+                                          .setLockTimeOut(properties.getFencedLockManager().getLockTimeOut())
+                                          .setLockConfirmationInterval(properties.getFencedLockManager().getLockConfirmationInterval())
+                                          .setFencedLocksTableName(properties.getFencedLockManager().getFencedLocksTableName())
+                                          .setEventBus(eventBus)
                                           .buildAndStart();
     }
 
     /**
      * The {@link PostgresqlDurableQueues} that handles messaging and supports the {@link Inboxes}/{@link Outboxes} implementations
      *
-     * @param unitOfWorkFactory the {@link UnitOfWorkFactory}
+     * @param unitOfWorkFactory               the {@link UnitOfWorkFactory}
+     * @param essentialComponentsObjectMapper the {@link ObjectMapper} responsible for serializing Messages
+     * @param properties                      the auto configure properties
      * @return the {@link PostgresqlDurableQueues}
      */
     @Bean
     @ConditionalOnMissingBean
     public DurableQueues durableQueues(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
-                                       ObjectMapper essentialComponentsObjectMapper) {
+                                       ObjectMapper essentialComponentsObjectMapper,
+                                       EssentialsComponentsProperties properties) {
         return new PostgresqlDurableQueues(unitOfWorkFactory,
-                                           essentialComponentsObjectMapper);
+                                           essentialComponentsObjectMapper,
+                                           properties.getDurableQueues().getSharedQueueTableName());
     }
 
     /**
@@ -208,8 +218,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
 
     @Bean
     @ConditionalOnMissingBean
-    public LocalEventBus<Object> eventBus() {
-        return new LocalEventBus<Object>("default");
+    public EventBus<Object> eventBus() {
+        return new LocalEventBus<>("default");
     }
 
     /**

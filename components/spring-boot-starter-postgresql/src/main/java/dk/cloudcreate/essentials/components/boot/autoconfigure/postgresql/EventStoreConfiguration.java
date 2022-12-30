@@ -45,7 +45,7 @@ import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postg
  */
 @AutoConfiguration
 @ConditionalOnClass(name = "dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore")
-@EnableConfigurationProperties(EventStoreProperties.class)
+@EnableConfigurationProperties(EssentialsComponentsProperties.class)
 public class EventStoreConfiguration {
 
     /**
@@ -102,14 +102,14 @@ public class EventStoreConfiguration {
     public EventStoreSubscriptionManager eventStoreSubscriptionManager(EventStore eventStore,
                                                                        FencedLockManager fencedLockManager,
                                                                        Jdbi jdbi,
-                                                                       EventStoreProperties eventStoreProperties) {
+                                                                       EssentialsComponentsProperties properties) {
         return EventStoreSubscriptionManager.builder()
                                             .setEventStore(eventStore)
-                                            .setEventStorePollingBatchSize(eventStoreProperties.getSubscriptionManager().getEventStorePollingBatchSize())
-                                            .setEventStorePollingInterval(eventStoreProperties.getSubscriptionManager().getEventStorePollingInterval())
                                             .setFencedLockManager(fencedLockManager)
-                                            .setSnapshotResumePointsEvery(eventStoreProperties.getSubscriptionManager().getSnapshotResumePointsEvery())
                                             .setDurableSubscriptionRepository(new PostgresqlDurableSubscriptionRepository(jdbi))
+                                            .setEventStorePollingBatchSize(properties.getEventStore().getSubscriptionManager().getEventStorePollingBatchSize())
+                                            .setEventStorePollingInterval(properties.getEventStore().getSubscriptionManager().getEventStorePollingInterval())
+                                            .setSnapshotResumePointsEvery(properties.getEventStore().getSubscriptionManager().getSnapshotResumePointsEvery())
                                             .build();
     }
 
@@ -128,13 +128,13 @@ public class EventStoreConfiguration {
                                                                                           EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
                                                                                           PersistableEventMapper persistableEventMapper,
                                                                                           ObjectMapper essentialComponentsObjectMapper,
-                                                                                          EventStoreProperties eventStoreProperties) {
+                                                                                          EssentialsComponentsProperties properties) {
         return new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                     unitOfWorkFactory,
                                                                     persistableEventMapper,
                                                                     standardSingleTenantConfigurationUsingJackson(essentialComponentsObjectMapper,
-                                                                                                                  eventStoreProperties.getIdentifierColumnType(),
-                                                                                                                  eventStoreProperties.getJsonColumnType()));
+                                                                                                                  properties.getEventStore().getIdentifierColumnType(),
+                                                                                                                  properties.getEventStore().getJsonColumnType()));
     }
 
     /**
@@ -150,11 +150,11 @@ public class EventStoreConfiguration {
     public ConfigurableEventStore<SeparateTablePerAggregateEventStreamConfiguration> eventStore(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
                                                                                                 SeparateTablePerAggregateTypePersistenceStrategy persistenceStrategy,
                                                                                                 EventStoreEventBus eventStoreLocalEventBus,
-                                                                                                EventStoreProperties eventStoreProperties) {
+                                                                                                EssentialsComponentsProperties essentialsComponentsProperties) {
         return new PostgresqlEventStore<>(eventStoreUnitOfWorkFactory,
                                           persistenceStrategy,
                                           Optional.of(eventStoreLocalEventBus),
-                                          eventStore -> eventStoreProperties.isUseEventStreamGapHandler() ?
+                                          eventStore -> essentialsComponentsProperties.getEventStore().isUseEventStreamGapHandler() ?
                                                         new PostgresqlEventStreamGapHandler<>(eventStore, eventStoreUnitOfWorkFactory) :
                                                         new NoEventStreamGapHandler<>());
     }

@@ -27,7 +27,7 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <description>
-        This library Spring Boot auto configuration for all Postgresql focused Essentials components
+        This library provides Spring Boot auto-configuration for all Postgresql focused Essentials components
     </description>
 
     <groupId>dk.cloudcreate.essentials.components</groupId>
