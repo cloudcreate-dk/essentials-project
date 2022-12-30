@@ -47,6 +47,8 @@ the same underlying durable Queue storage.
 In a service oriented architecture it's common for all deployed instances of a given service (e.g. a Sales service) to share the same underlying
 database(s). As long as the different deployed (Sales) services instances can share the same underlying database, then you use the `DurableQueues` concept for point-to-point messaging across all deployed (Sales service)
 instances in the cluster.  
+![Intra Service Durable Queues](images/intra-service-durable-queues.png)
+
 If you need cross-service point-to-point messaging support, e.g. across instances of different services (such as across Sales, Billing and Shipping services), then you need to use a dedicated distributed Queueing service such as RabbitMQ.
 
 This library focuses on providing a Durable Queue supporting message redelivery and Dead Letter Message functionality
@@ -307,6 +309,8 @@ The `SendAndDontWaitErrorHandler` allows custom error handling of `CommandHandle
 If the `SendAndDontWaitErrorHandler` provided doesn't rethrow the exception, then the underlying `DurableQueues` will not be able to retry the command.  
 Due to this the `DurableLocalCommandBus` defaults to using the `RethrowingSendAndDontWaitErrorHandler`
 
+![Handling a Kafka Message using the DurableLocalCommandBus](images/durable-local-command-bus.png)
+
 ### Simple configuration example using defaults:
 ```
 var commandBus = DurableLocalCommandBus.builder()
@@ -346,6 +350,8 @@ can and will receive Messages more than once and therefore its message handling 
 
 The `Inboxes` concept is supported by the `DurableQueues` concept and requires a concrete `DurableQueues` implementation, such as
 `PostgresqlDurableQueues` or `MongoDurableQueues` (see configuration example above).
+
+![Handling a Kafka Message using an Inbox](images/inbox.png)
 
 The `Inboxes` concept supports two different `MessageConsumptionMode`'s:
 
@@ -442,6 +448,8 @@ This means that the Message consumer, registered with the Outbox, can and will r
 The `Outboxes` concept is supported by the `DurableQueues` concept and requires a concrete `DurableQueues` implementation, such as
 `PostgresqlDurableQueues` or `MongoDurableQueues` (see configuration example above).
 
+![Sending a Kafka Message using an Outbox](images/outbox.png)
+
 The `Outboxes` concept supports two different `MessageConsumptionMode`'s:
 
 - `SingleGlobalConsumer`: Only a single consumer instance in a cluster will be allowed to consume messages at a time (supports failover if the given consumer is shutdown or crashes)
@@ -494,6 +502,8 @@ The implementation has been on supporting **intra-service** (i.e. across differe
 In a service oriented architecture it's common for all deployed instances of a given service (e.g. a Sales service) to share the same underlying
 database(s). As long as the different deployed (Sales) services instances can share the same underlying database, then you use the `FencedLockManager` concept for handling distributed locks across all deployed (Sales service) 
 instances in the cluster.  
+
+![Intra Service Fenced Locks](images/intra-service-fenced-locks.png)
 If you need cross-service lock support, e.g. across instances of different services (such as across Sales, Billing and Shipping services), then you need to use a dedicated distributed locking service such as Zookeeper.
 
 To coordinate this properly it's important that each `getLockManagerInstanceId()` is unique across the cluster.  
