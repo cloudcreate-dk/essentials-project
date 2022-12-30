@@ -129,7 +129,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
     }
 
     /**
-     * Create a {@link PostgresqlEventStore} with EventStreamGapHandler (specifically with {@link PostgresqlEventStreamGapHandler})<br>
+     * Create a {@link PostgresqlEventStore} with {@link EventStreamGapHandler} (specifically with {@link PostgresqlEventStreamGapHandler})<br>
      * Same as calling {@link #PostgresqlEventStore(EventStoreUnitOfWorkFactory, AggregateEventStreamPersistenceStrategy, Optional, Function)} with an empty {@link EventStoreEventBus} {@link Optional}
      *
      * @param unitOfWorkFactory                       the unit of work factory
