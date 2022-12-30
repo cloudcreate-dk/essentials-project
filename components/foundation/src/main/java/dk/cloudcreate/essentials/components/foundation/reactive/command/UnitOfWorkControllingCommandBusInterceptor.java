@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.command;
+package dk.cloudcreate.essentials.components.foundation.reactive.command;
 
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.command.interceptor.*;
