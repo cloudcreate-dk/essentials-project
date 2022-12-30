@@ -34,6 +34,17 @@ aggregate state).
 Check the `Order` and `FlexAggregateRepositoryIT` examples
 in `essentials-components/eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/flex`
 
+## Persisting an Aggregate
+Flow showing the internal processing for persisting a new Aggregate instance:
+```
+var unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
+var order = new Order(orderId, customerId, orderNumber);
+order.addProduct(productId, productQuantity);
+ordersRepository.save(order);
+unitOfWork.commit();
+```
+![Persisting an Aggregate](images/persist-aggregate.png)
+
 ### Modern stateful Order aggregate with a separate state object
 
 See `eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/modern/OrderAggregateRootRepositoryTest.java`
@@ -309,7 +320,6 @@ public class Order extends AggregateRoot<OrderId, OrderEvent, Order> {
     }
 }
 ```
-
 For other examples see:
 
 #### Modern `AggregateRoot`
