@@ -206,11 +206,14 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             this.durableSubscriptionRepository = requireNonNull(durableSubscriptionRepository, "No durableSubscriptionRepository provided");
             this.snapshotResumePointsEvery = requireNonNull(snapshotResumePointsEvery, "No snapshotResumePointsEvery provided");
 
-            log.info("[{}] Using {} with snapshotResumePointsEvery {} using {}",
+            log.info("[{}] Using {} using {} with snapshotResumePointsEvery: {}, eventStorePollingBatchSize: {}, eventStorePollingInterval: {}",
                      fencedLockManager.getLockManagerInstanceId(),
                      fencedLockManager,
+                     durableSubscriptionRepository.getClass().getSimpleName(),
                      snapshotResumePointsEvery,
-                     durableSubscriptionRepository);
+                     eventStorePollingBatchSize,
+                     eventStorePollingInterval
+                     );
         }
 
         @Override
