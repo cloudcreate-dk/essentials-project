@@ -25,6 +25,17 @@ import java.time.Duration;
 import java.util.*;
 
 /**
+ * The {@link DurableQueues} concept supports <b>intra-service</b> point-to-point messaging using durable Queues that guarantee At-Least-Once delivery of messages.<br>
+ * The only requirement is that message producers and message consumers can access the same underlying durable Queue storage.
+ * <p>
+ * In a service oriented architecture it's common for all deployed instances of a given service (e.g. a Sales service) to share the same underlying
+ * database(s). As long as the different deployed (Sales) services instances can share the same underlying database, then you use the {@link DurableQueues} concept for point to point messaging across all deployed (Sales service)
+ * instances in the cluster. <br>
+ * If you need cross-service point to point messaging support, e.g. across instances of different services (such as across Sales, Billing and Shipping services), then you need to use a dedicated distributed Queueing service such as RabbitMQ.
+ * <p>
+ * This library focuses on providing a Durable Queue supporting message redelivery and Dead Letter Message functionality
+ * and comes in two flavours <code>PostgresqlDurableQueues</code> and <code>MongoDurableQueues</code> which both implement the {@link DurableQueues} interface.
+ * <p>
  * Durable Queue concept that supports queuing a message on to a named Queue. Each message is associated with a unique {@link QueueEntryId}<br>
  * Each Queue is uniquely identified by its {@link QueueName}<br>
  * Queued messages can, per Queue, asynchronously be consumed by a {@link QueuedMessageHandler}, by registering it as a {@link DurableQueueConsumer} using
