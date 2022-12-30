@@ -14,14 +14,15 @@ need to add these third party dependencies (such as Spring, JDBI, Postgresql JDB
 
 Each module's README.md will provide information about which third party dependencies that are typically for the Essentials module to be functional.
 
+## Essentials modules
+![Essentials modules overview](images/all-essentials-modules.png)
+
 ## Advanced Components
 See: [Essentials Components](components/README.md) for information about **components** such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `DurableLocalCommandbus`, `Inbox` and `Outbox` 
 Also includes Spring Boot auto-configuration modules for Postgresql and MongoDB:
 - See [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
 - See [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
 
-## Essentials modules
-![Essentials modules overview](Essentials.jpg)
 
 **NOTE:**
 **The libraries are WORK-IN-PROGRESS**
@@ -61,6 +62,8 @@ This library contains the smallest set of supporting building blocks needed for 
 - High level **Reflection** API
     - E.g. `Reflector.reflectOn(someType).invokeStatic("of");`
 - `PatternMatchingMethodInvoker` which supports creating your own reflective pattern matching method invokers.
+
+![Essentials modules](images/essentials-modules.png)
 
 To use `Shared` just add the following Maven dependency:
 ```

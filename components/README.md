@@ -4,6 +4,8 @@ Essentials Components is a set of Java version 11 (and later) components that ar
 the [Essentials](../README.md) library while providing more complex features
 or Components such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `DurableLocalCommandbus`, `Inbox` and `Outbox`.
 
+![Essentials Components modules](../images/essentials-components-modules.png)
+
 **NOTE:**
 **The libraries are WORK-IN-PROGRESS**
 
