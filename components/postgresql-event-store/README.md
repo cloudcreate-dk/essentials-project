@@ -484,6 +484,44 @@ public class MyEventHandler extends PatternMatchingPersistedEventHandler {
 }
 ```
 
+#### Example Subscribing for Aggregate events and publishing an External Event to Kafka via an Outbox
+
+![Subscribe for Aggregate](images/event-subscription.png)
+
+```
+var kafkaOutbox = outboxes.getOrCreateOutbox(OutboxConfig.builder()
+                                                         .setOutboxName(OutboxName.of("ShippingOrder:KafkaShippingEvents"))
+                                                         .setRedeliveryPolicy(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(100), 10))
+                                                         .setMessageConsumptionMode(MessageConsumptionMode.SingleGlobalConsumer)
+                                                         .setNumberOfParallelMessageConsumers(1)
+                                                         .build(),
+                                             e -> {
+                                                 var producerRecord = new ProducerRecord<String, Object>(SHIPPING_EVENTS_TOPIC_NAME,
+                                                                                                         e.orderId.toString(),
+                                                                                                         e);
+                                                 kafkaTemplate.send(producerRecord);
+                                             });
+
+// Subscribe ShippingOrder events and add only OrderShipped event to the Outbox as an ExternalOrderShipped event
+eventStoreSubscriptionManager.subscribeToAggregateEventsAsynchronously(SubscriberId.of("ShippingEventKafkaPublisher-ShippingEvents"),
+                                                                       ShippingOrders.AGGREGATE_TYPE,
+                                                                       GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
+                                                                       Optional.empty(),
+                                                                       new PatternMatchingPersistedEventHandler() {
+                                                                           @Override
+                                                                           protected void handleUnmatchedEvent(PersistedEvent event) {
+                                                                               // Ignore any events not explicitly handled - the original logic throws an exception to notify subscribers of unhandled events
+                                                                           }
+
+                                                                           @SubscriptionEventHandler
+                                                                           void handle(OrderShipped e) {
+                                                                               unitOfWorkFactory.usingUnitOfWork(() -> kafkaOutbox.sendMessage(new ExternalOrderShipped(e.orderId)));
+                                                                           }
+                                                                       });
+```
+The internal flow is shown below:
+![Subscribe for Aggregate and publish to Kafka via Outbox flow](images/event-subscription-with-outbox-flow.png)
+
 ### Subscribe synchronously
 
 Synchronous subscription allows you to receive and react to Events published within the active Transaction/`UnitOfWork`
