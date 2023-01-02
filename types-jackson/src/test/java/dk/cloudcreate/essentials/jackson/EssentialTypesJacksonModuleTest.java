@@ -53,7 +53,13 @@ class EssentialTypesJacksonModuleTest {
                                                        Map.of(orderLineProductId, Quantity.of(10),
                                                               ProductId.random(), Quantity.of(5),
                                                               ProductId.random(), Quantity.of(1)),
-                                                       Money.of(amount.add(percentage.of(amount)), CurrencyCode.DKK));
+                                                       Money.of(amount.add(percentage.of(amount)), CurrencyCode.DKK),
+                                                       Created.now(),
+                                                       DueDate.now(),
+                                                       LastUpdated.now(),
+                                                       TimeOfDay.now(),
+                                                       TransactionTime.now(),
+                                                       TransferTime.now());
 
         var serialized = objectMapper.writeValueAsString(testSubject);
         System.out.println(serialized);
@@ -72,6 +78,13 @@ class EssentialTypesJacksonModuleTest {
         assertThat(deserializedSubject.getTotalPrice().getAmount()).isInstanceOf(Amount.class);
         assertThat((CharSequence) deserializedSubject.getTotalPrice().getCurrency()).isInstanceOf(CurrencyCode.class);
         assertThat(deserializedSubject.getOrderLines().get(orderLineProductId)).isEqualTo(testSubject.getOrderLines().get(orderLineProductId));
+
+        assertThat(deserializedSubject.getCreated()).isInstanceOf(Created.class);
+        assertThat(deserializedSubject.getDueDate()).isInstanceOf(DueDate.class);
+        assertThat(deserializedSubject.getLastUpdated()).isInstanceOf(LastUpdated.class);
+        assertThat(deserializedSubject.getTimeOfDay()).isInstanceOf(TimeOfDay.class);
+        assertThat(deserializedSubject.getTransactionTime()).isInstanceOf(TransactionTime.class);
+        assertThat(deserializedSubject.getTransferTime()).isInstanceOf(TransferTime.class);
 
         assertThat(deserializedSubject).isEqualTo(testSubject);
     }
