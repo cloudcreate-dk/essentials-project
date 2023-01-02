@@ -17,7 +17,6 @@
 package dk.cloudcreate.essentials.types;
 
 import java.time.*;
-import java.time.chrono.Chronology;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalField;
 import java.util.Objects;
@@ -45,7 +44,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <CONCRETE_TYPE> The concrete {@link OffsetDateTimeType} implementation
  */
-public abstract class OffsetDateTimeType<CONCRETE_TYPE extends OffsetDateTimeType<CONCRETE_TYPE>> implements SingleValueType<OffsetDateTime, CONCRETE_TYPE> {
+public abstract class OffsetDateTimeType<CONCRETE_TYPE extends OffsetDateTimeType<CONCRETE_TYPE>> implements JSR310SingleValueType<OffsetDateTime, CONCRETE_TYPE> {
     private final OffsetDateTime value;
 
     public OffsetDateTimeType(OffsetDateTime value) {

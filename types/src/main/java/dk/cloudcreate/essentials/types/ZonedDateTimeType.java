@@ -44,7 +44,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <CONCRETE_TYPE> The concrete {@link ZonedDateTimeType} implementation
  */
-public abstract class ZonedDateTimeType<CONCRETE_TYPE extends ZonedDateTimeType<CONCRETE_TYPE>> implements SingleValueType<ZonedDateTime, CONCRETE_TYPE> {
+public abstract class ZonedDateTimeType<CONCRETE_TYPE extends ZonedDateTimeType<CONCRETE_TYPE>> implements JSR310SingleValueType<ZonedDateTime, CONCRETE_TYPE> {
     private final ZonedDateTime value;
 
     public ZonedDateTimeType(ZonedDateTime value) {

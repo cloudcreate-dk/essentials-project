@@ -45,7 +45,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <CONCRETE_TYPE> The concrete {@link LocalDateTimeType} implementation
  */
-public abstract class LocalDateTimeType<CONCRETE_TYPE extends LocalDateTimeType<CONCRETE_TYPE>> implements SingleValueType<LocalDateTime, CONCRETE_TYPE> {
+public abstract class LocalDateTimeType<CONCRETE_TYPE extends LocalDateTimeType<CONCRETE_TYPE>> implements JSR310SingleValueType<LocalDateTime, CONCRETE_TYPE> {
     private final LocalDateTime value;
 
     public LocalDateTimeType(LocalDateTime value) {

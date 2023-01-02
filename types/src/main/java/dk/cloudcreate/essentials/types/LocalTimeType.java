@@ -17,7 +17,6 @@
 package dk.cloudcreate.essentials.types;
 
 import java.time.*;
-import java.time.chrono.Chronology;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalField;
 import java.util.Objects;
@@ -45,7 +44,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <CONCRETE_TYPE> The concrete {@link LocalTimeType} implementation
  */
-public abstract class LocalTimeType<CONCRETE_TYPE extends LocalTimeType<CONCRETE_TYPE>> implements SingleValueType<LocalTime, CONCRETE_TYPE> {
+public abstract class LocalTimeType<CONCRETE_TYPE extends LocalTimeType<CONCRETE_TYPE>> implements JSR310SingleValueType<LocalTime, CONCRETE_TYPE> {
     private final LocalTime value;
 
     public LocalTimeType(LocalTime value) {

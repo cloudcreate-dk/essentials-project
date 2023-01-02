@@ -43,7 +43,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <CONCRETE_TYPE> The concrete {@link InstantType} implementation
  */
-public abstract class InstantType<CONCRETE_TYPE extends InstantType<CONCRETE_TYPE>> implements SingleValueType<Instant, CONCRETE_TYPE> {
+public abstract class InstantType<CONCRETE_TYPE extends InstantType<CONCRETE_TYPE>> implements JSR310SingleValueType<Instant, CONCRETE_TYPE> {
     private final Instant value;
 
     public InstantType(Instant value) {
