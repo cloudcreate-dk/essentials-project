@@ -74,7 +74,7 @@ public class PostgresqlFencedLockManager extends DBFencedLockManager<HandleAware
                                        Optional<String> fencedLocksTableName,
                                        Duration lockTimeOut,
                                        Duration lockConfirmationInterval,
-                                       Optional<EventBus<Object>> eventBus) {
+                                       Optional<EventBus> eventBus) {
         super(new PostgresqlFencedLockStorage(jdbi,
                                               fencedLocksTableName),
               unitOfWorkFactory,
@@ -98,7 +98,7 @@ public class PostgresqlFencedLockManager extends DBFencedLockManager<HandleAware
                                        HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
                                        Duration lockTimeOut,
                                        Duration lockConfirmationInterval,
-                                       Optional<EventBus<Object>> eventBus) {
+                                       Optional<EventBus> eventBus) {
         this(jdbi,
              unitOfWorkFactory,
              Optional.empty(),

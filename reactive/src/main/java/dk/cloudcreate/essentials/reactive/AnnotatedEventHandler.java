@@ -26,7 +26,7 @@ import dk.cloudcreate.essentials.shared.types.GenericType;
  * The method accessibility can be any combination of private, protected, public, etc.<br>
  * Example:<br>
  * <pre>{@code
- * public class OrderEventsHandler extends AnnotatedEventHandler<OrderEvent> {
+ * public class OrderEventsHandler extends AnnotatedEventHandler {
  *
  *     @EventHandler
  *     void handle(OrderCreated event) {
@@ -39,14 +39,12 @@ import dk.cloudcreate.essentials.shared.types.GenericType;
  * <br>
  * Example of registering the {@link AnnotatedEventHandler} with the {@link LocalEventBus}:
  * <pre>{@code
- * LocalEventBus<OrderEvent> localEventBus    = new LocalEventBus<>("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
+ * LocalEventBus localEventBus    = new LocalEventBus("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
  * localEventBus.addAsyncSubscriber(new OrderEventsHandler(...));
  * localEventBus.addSyncSubscriber(new OrderEventsHandler(...));
  * }</pre>
- *
- * @param <EVENT_TYPE> the base type for the events being handled
  */
-public class AnnotatedEventHandler<EVENT_TYPE> implements EventHandler<EVENT_TYPE> {
+public class AnnotatedEventHandler implements EventHandler {
     private final PatternMatchingMethodInvoker<Object> invoker;
 
     public AnnotatedEventHandler() {
@@ -58,7 +56,7 @@ public class AnnotatedEventHandler<EVENT_TYPE> implements EventHandler<EVENT_TYP
     }
 
     @Override
-    public final void handle(EVENT_TYPE event) {
+    public final void handle(Object event) {
         invoker.invoke(event, argument -> {
             // Ignore if a given handler doesn't support this event type
         });

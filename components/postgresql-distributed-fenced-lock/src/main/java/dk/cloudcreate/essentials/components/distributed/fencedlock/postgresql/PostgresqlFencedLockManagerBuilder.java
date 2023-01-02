@@ -31,7 +31,7 @@ public class PostgresqlFencedLockManagerBuilder {
     private Optional<String>                                              fencedLocksTableName  = Optional.empty();
     private Duration                                                      lockTimeOut;
     private Duration                                                      lockConfirmationInterval;
-    private Optional<EventBus<Object>>                                    eventBus              = Optional.empty();
+    private Optional<EventBus>                                    eventBus              = Optional.empty();
 
     /**
      * @param jdbi the jdbi instance used
@@ -109,7 +109,7 @@ public class PostgresqlFencedLockManagerBuilder {
      * @param eventBus optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
      * @return this builder instance
      */
-    public PostgresqlFencedLockManagerBuilder setEventBus(Optional<EventBus<Object>> eventBus) {
+    public PostgresqlFencedLockManagerBuilder setEventBus(Optional<EventBus> eventBus) {
         this.eventBus = eventBus;
         return this;
     }
@@ -118,7 +118,7 @@ public class PostgresqlFencedLockManagerBuilder {
      * @param eventBus optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
      * @return this builder instance
      */
-    public PostgresqlFencedLockManagerBuilder setEventBus(EventBus<Object> eventBus) {
+    public PostgresqlFencedLockManagerBuilder setEventBus(EventBus eventBus) {
         this.eventBus = Optional.ofNullable(eventBus);
         return this;
     }

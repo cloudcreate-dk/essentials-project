@@ -16,7 +16,6 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.PersistedEvents;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.operations.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.AggregateEventStreamConfiguration;
@@ -66,7 +65,7 @@ public interface EventStore {
      *
      * @return the local event bus
      */
-    EventBus<PersistedEvents> localEventBus();
+    EventBus localEventBus();
 
     /**
      * Append the <code>eventsToAppend</code> to the {@link AggregateEventStream} related to the aggregate with id <code>aggregateId</code> and which

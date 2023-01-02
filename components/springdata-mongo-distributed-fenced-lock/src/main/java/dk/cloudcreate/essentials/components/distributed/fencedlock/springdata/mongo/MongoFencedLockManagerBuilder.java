@@ -34,7 +34,7 @@ public class MongoFencedLockManagerBuilder {
     private Optional<String>                                          fencedLocksCollectionName = Optional.empty();
     private Duration                                                  lockTimeOut;
     private Duration                   lockConfirmationInterval;
-    private Optional<EventBus<Object>> eventBus = Optional.empty();
+    private Optional<EventBus> eventBus = Optional.empty();
 
     /**
      * @param mongoTemplate the mongoTemplate instance
@@ -121,7 +121,7 @@ public class MongoFencedLockManagerBuilder {
      * @param eventBus optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
      * @return this builder instance
      */
-    public MongoFencedLockManagerBuilder setEventBus(Optional<EventBus<Object>> eventBus) {
+    public MongoFencedLockManagerBuilder setEventBus(Optional<EventBus> eventBus) {
         this.eventBus = eventBus;
         return this;
     }
@@ -130,7 +130,7 @@ public class MongoFencedLockManagerBuilder {
      * @param eventBus optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
      * @return this builder instance
      */
-    public MongoFencedLockManagerBuilder setEventBus(EventBus<Object> eventBus) {
+    public MongoFencedLockManagerBuilder setEventBus(EventBus eventBus) {
         this.eventBus = Optional.ofNullable(eventBus);
         return this;
     }

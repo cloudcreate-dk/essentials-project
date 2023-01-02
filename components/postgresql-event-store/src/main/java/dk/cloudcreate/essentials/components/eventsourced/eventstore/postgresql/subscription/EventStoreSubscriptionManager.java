@@ -213,7 +213,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                      snapshotResumePointsEvery,
                      eventStorePollingBatchSize,
                      eventStorePollingInterval
-                     );
+                    );
         }
 
         @Override
@@ -429,24 +429,25 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                 }
             }
 
-            private void onEvent(PersistedEvents persistedEvents) {
+            private void onEvent(Object e) {
+                var persistedEvents = (PersistedEvents) e;
                 if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
                     persistedEvents.events.stream()
                                           .filter(event -> event.aggregateType().equals(aggregateType))
-                                          .forEach(e -> {
+                                          .forEach(event -> {
                                               log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {}",
                                                         subscriberId,
                                                         aggregateType,
-                                                        e.globalEventOrder(),
-                                                        e.event().getEventTypeOrName().toString(),
-                                                        e.eventId(),
-                                                        e.aggregateId(),
-                                                        e.eventOrder()
+                                                        event.globalEventOrder(),
+                                                        event.event().getEventTypeOrName().toString(),
+                                                        event.eventId(),
+                                                        event.aggregateId(),
+                                                        event.eventOrder()
                                                        );
                                               try {
-                                                  eventHandler.handle(e, persistedEvents.unitOfWork);
+                                                  eventHandler.handle(event, persistedEvents.unitOfWork);
                                               } catch (Exception cause) {
-                                                  onErrorHandlingEvent(e, cause);
+                                                  onErrorHandlingEvent(event, cause);
                                               }
                                           });
                 }

@@ -148,7 +148,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     public FencedLockManager fencedLockManager(MongoTemplate mongoTemplate,
                                                MongoConverter mongoConverter,
                                                SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
-                                               EventBus<Object> eventBus,
+                                               EventBus eventBus,
                                                EssentialsComponentsProperties properties) {
         return MongoFencedLockManager.builder()
                                      .setMongoTemplate(mongoTemplate)
@@ -239,8 +239,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
 
     @Bean
     @ConditionalOnMissingBean
-    public EventBus<Object> eventBus() {
-        return new LocalEventBus<>("default");
+    public EventBus eventBus() {
+        return new LocalEventBus("default");
     }
 
     /**

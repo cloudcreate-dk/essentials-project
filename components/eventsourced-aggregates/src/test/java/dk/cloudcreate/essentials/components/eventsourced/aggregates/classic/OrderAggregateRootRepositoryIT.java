@@ -342,13 +342,14 @@ class OrderAggregateRootRepositoryIT {
         }
     }
 
-    private static class RecordingLocalEventBusConsumer implements EventHandler<PersistedEvents> {
+    private static class RecordingLocalEventBusConsumer implements EventHandler {
         private final List<PersistedEvent> beforeCommitPersistedEvents  = new ArrayList<>();
         private final List<PersistedEvent> afterCommitPersistedEvents   = new ArrayList<>();
         private final List<PersistedEvent> afterRollbackPersistedEvents = new ArrayList<>();
 
         @Override
-        public void handle(PersistedEvents persistedEvents) {
+        public void handle(Object event) {
+            var persistedEvents = (PersistedEvents)event;
             if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
                 beforeCommitPersistedEvents.addAll(persistedEvents.events);
             } else if (persistedEvents.commitStage == CommitStage.AfterCommit) {

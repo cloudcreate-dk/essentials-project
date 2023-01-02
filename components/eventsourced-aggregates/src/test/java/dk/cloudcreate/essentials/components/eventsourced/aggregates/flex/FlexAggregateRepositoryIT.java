@@ -53,9 +53,9 @@ public class FlexAggregateRepositoryIT {
     public static final EventMetaData META_DATA = EventMetaData.of("Key1", "Value1", "Key2", "Value2");
     public static final AggregateType ORDERS    = AggregateType.of("Orders");
 
-    private Jdbi                                                             jdbi;
-    private AggregateType                                                    aggregateType;
-    private EventStoreUnitOfWorkFactory<EventStoreUnitOfWork>                unitOfWorkFactory;
+    private Jdbi                                                                    jdbi;
+    private AggregateType                                                           aggregateType;
+    private EventStoreUnitOfWorkFactory<EventStoreUnitOfWork>                       unitOfWorkFactory;
     private TestPersistableEventMapper                                              eventMapper;
     private PostgresqlEventStore<SeparateTablePerAggregateEventStreamConfiguration> eventStore;
 
@@ -85,8 +85,8 @@ public class FlexAggregateRepositoryIT {
                                                                                                      unitOfWorkFactory,
                                                                                                      eventMapper,
                                                                                                      SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson(createObjectMapper(),
-                                                                                                                                                                                                                             IdentifierColumnType.UUID,
-                                                                                                                                                                                                                             JSONColumnType.JSONB)));
+                                                                                                                                                                                                                IdentifierColumnType.UUID,
+                                                                                                                                                                                                                JSONColumnType.JSONB)));
         recordingLocalEventBusConsumer = new RecordingLocalEventBusConsumer();
         eventStore.localEventBus().addSyncSubscriber(recordingLocalEventBusConsumer);
 
@@ -265,13 +265,14 @@ public class FlexAggregateRepositoryIT {
         }
     }
 
-    private static class RecordingLocalEventBusConsumer implements EventHandler<PersistedEvents> {
+    private static class RecordingLocalEventBusConsumer implements EventHandler {
         private final List<PersistedEvent> beforeCommitPersistedEvents  = new ArrayList<>();
         private final List<PersistedEvent> afterCommitPersistedEvents   = new ArrayList<>();
         private final List<PersistedEvent> afterRollbackPersistedEvents = new ArrayList<>();
 
         @Override
-        public void handle(PersistedEvents persistedEvents) {
+        public void handle(Object event) {
+            var persistedEvents = (PersistedEvents) event;
             if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
                 beforeCommitPersistedEvents.addAll(persistedEvents.events);
             } else if (persistedEvents.commitStage == CommitStage.AfterCommit) {

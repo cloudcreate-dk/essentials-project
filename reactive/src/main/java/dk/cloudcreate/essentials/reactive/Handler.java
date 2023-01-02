@@ -52,7 +52,7 @@ import java.lang.annotation.*;
  * The method argument type is matched against the concrete event type using {@link Class#isAssignableFrom(Class)}.<br>
  * The method MUST return void.
  * <pre>{@code
- * public class OrderEventsHandler extends AnnotatedEventHandler<OrderEvent> {
+ * public class OrderEventsHandler extends AnnotatedEventHandler {
  *
  *     @Handler
  *     void handle(OrderCreated event) {

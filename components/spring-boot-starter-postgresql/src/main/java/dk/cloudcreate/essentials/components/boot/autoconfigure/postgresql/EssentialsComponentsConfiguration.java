@@ -138,7 +138,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @ConditionalOnMissingBean
     public FencedLockManager fencedLockManager(Jdbi jdbi,
                                                HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
-                                               EventBus<Object> eventBus,
+                                               EventBus eventBus,
                                                EssentialsComponentsProperties properties) {
         return PostgresqlFencedLockManager.builder()
                                           .setJdbi(jdbi)
@@ -218,8 +218,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
 
     @Bean
     @ConditionalOnMissingBean
-    public EventBus<Object> eventBus() {
-        return new LocalEventBus<>("default");
+    public EventBus eventBus() {
+        return new LocalEventBus("default");
     }
 
     /**

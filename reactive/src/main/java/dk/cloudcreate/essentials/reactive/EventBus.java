@@ -5,7 +5,7 @@ package dk.cloudcreate.essentials.reactive;
  * <br>
  * Usage example:
  * <pre>{@code
- *  LocalEventBus<OrderEvent> localEventBus    = new LocalEventBus<>("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
+ *  LocalEventBus localEventBus    = new LocalEventBus("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
  *
  *   localEventBus.addAsyncSubscriber(orderEvent -> {
  *             ...
@@ -19,7 +19,7 @@ package dk.cloudcreate.essentials.reactive;
  * }</pre>
  * If you wish to colocate multiple related Event handling methods inside the same class and use it together with the {@link LocalEventBus} then you can extend the {@link AnnotatedEventHandler} class:<br>
  * <pre>{@code
- * public class OrderEventsHandler extends AnnotatedEventHandler<OrderEvent> {
+ * public class OrderEventsHandler extends AnnotatedEventHandler {
  *
  *     @Handler
  *     void handle(OrderCreated event) {
@@ -32,16 +32,15 @@ package dk.cloudcreate.essentials.reactive;
  * <br>
  * Example of registering the {@link AnnotatedEventHandler} with the {@link LocalEventBus}:
  * <pre>{@code
- * LocalEventBus<OrderEvent> localEventBus    = new LocalEventBus<>("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
+ * LocalEventBus localEventBus    = new LocalEventBus("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
  * localEventBus.addAsyncSubscriber(new OrderEventsHandler(...));
  * localEventBus.addSyncSubscriber(new OrderEventsHandler(...));
  * }</pre>
  *
- * @param <EVENT_TYPE> the event type being published by the event bus
  * @see LocalEventBus
  * @see AnnotatedEventHandler
  */
-public interface EventBus<EVENT_TYPE> {
+public interface EventBus {
     /**
      * Publish the event to all subscribers/consumer<br>
      * First we call all asynchronous subscribers, after which we will call all synchronous subscribers on the calling thread (i.e. on the same thread that the publish method is called on)
@@ -49,7 +48,7 @@ public interface EventBus<EVENT_TYPE> {
      * @param event the event to publish
      * @return this bus instance
      */
-    EventBus<EVENT_TYPE> publish(EVENT_TYPE event);
+    EventBus publish(Object event);
 
     /**
      * Add an asynchronous subscriber/consumer
@@ -57,7 +56,7 @@ public interface EventBus<EVENT_TYPE> {
      * @param subscriber the subscriber to add
      * @return this bus instance
      */
-    EventBus<EVENT_TYPE> addAsyncSubscriber(EventHandler<EVENT_TYPE> subscriber);
+    EventBus addAsyncSubscriber(EventHandler subscriber);
 
     /**
      * Remove an asynchronous subscriber/consumer
@@ -65,7 +64,7 @@ public interface EventBus<EVENT_TYPE> {
      * @param subscriber the subscriber to remove
      * @return this bus instance
      */
-    EventBus<EVENT_TYPE> removeAsyncSubscriber(EventHandler<EVENT_TYPE> subscriber);
+    EventBus removeAsyncSubscriber(EventHandler subscriber);
 
     /**
      * Add a synchronous subscriber/consumer
@@ -73,7 +72,7 @@ public interface EventBus<EVENT_TYPE> {
      * @param subscriber the subscriber to add
      * @return this bus instance
      */
-    EventBus<EVENT_TYPE> addSyncSubscriber(EventHandler<EVENT_TYPE> subscriber);
+    EventBus addSyncSubscriber(EventHandler subscriber);
 
     /**
      * Remove a synchronous subscriber/consumer
@@ -81,9 +80,9 @@ public interface EventBus<EVENT_TYPE> {
      * @param subscriber the subscriber to remove
      * @return this bus instance
      */
-    EventBus<EVENT_TYPE> removeSyncSubscriber(EventHandler<EVENT_TYPE> subscriber);
+    EventBus removeSyncSubscriber(EventHandler subscriber);
 
-    boolean hasSyncSubscriber(EventHandler<EVENT_TYPE> subscriber);
+    boolean hasSyncSubscriber(EventHandler subscriber);
 
-    boolean hasAsyncSubscriber(EventHandler<EVENT_TYPE> subscriber);
+    boolean hasAsyncSubscriber(EventHandler subscriber);
 }

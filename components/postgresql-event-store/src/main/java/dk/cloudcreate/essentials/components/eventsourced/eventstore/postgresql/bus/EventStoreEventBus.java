@@ -26,16 +26,15 @@ import org.slf4j.*;
 import java.util.List;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
-import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
  * Top level {@link EventStore} specific {@link EventBus}, which ensures that {@link PersistedEvents} will be published
  * at all {@link CommitStage}'s, as coordinated by the provided {@link EventStoreUnitOfWorkFactory}
  */
-public class EventStoreEventBus implements EventBus<PersistedEvents> {
+public class EventStoreEventBus implements EventBus {
     private static final Logger log = LoggerFactory.getLogger("EventStoreLocalEventBus");
 
-    private EventBus<PersistedEvents> eventBus;
+    private EventBus eventBus;
 
     /**
      * Wrap an existing {@link EventBus} and provide the proper {@link UnitOfWorkLifecycleCallback} to ensure that {@link PersistedEvents} will be published
@@ -44,7 +43,7 @@ public class EventStoreEventBus implements EventBus<PersistedEvents> {
      * @param eventBus          the {@link EventBus} that is being delegated to
      * @param unitOfWorkFactory the {@link EventStoreUnitOfWorkFactory} that's coordinating the {@link UnitOfWork} life cycle
      */
-    public EventStoreEventBus(EventBus<PersistedEvents> eventBus,
+    public EventStoreEventBus(EventBus eventBus,
                               EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory) {
         requireNonNull(unitOfWorkFactory, "No unitOfWorkFactory was supplied");
         this.eventBus = requireNonNull(eventBus, "No localEventBus was supplied");
@@ -59,8 +58,7 @@ public class EventStoreEventBus implements EventBus<PersistedEvents> {
      *                          at all {@link CommitStage}'s
      */
     public EventStoreEventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory) {
-        this(new LocalEventBus<>("EventStoreLocalBus",
-                                 EventStoreEventBus::onErrorHandler),
+        this(new LocalEventBus("EventStoreLocalBus"),
              unitOfWorkFactory);
 
     }
@@ -84,47 +82,43 @@ public class EventStoreEventBus implements EventBus<PersistedEvents> {
         });
     }
 
-    private static void onErrorHandler(EventHandler<PersistedEvents> persistedEventsConsumer, PersistedEvents persistedEvents, Exception e) {
-        log.error(msg("Failed to publish PersistedEvents to consumer {}", persistedEventsConsumer.getClass().getName()), e);
-    }
-
     @Override
-    public EventBus<PersistedEvents> publish(PersistedEvents event) {
+    public EventBus publish(Object event) {
         eventBus.publish(event);
         return this;
     }
 
     @Override
-    public EventBus<PersistedEvents> addAsyncSubscriber(EventHandler<PersistedEvents> subscriber) {
+    public EventBus addAsyncSubscriber(EventHandler subscriber) {
         eventBus.addAsyncSubscriber(subscriber);
         return this;
     }
 
     @Override
-    public EventBus<PersistedEvents> removeAsyncSubscriber(EventHandler<PersistedEvents> subscriber) {
+    public EventBus removeAsyncSubscriber(EventHandler subscriber) {
         eventBus.removeAsyncSubscriber(subscriber);
         return this;
     }
 
     @Override
-    public EventBus<PersistedEvents> addSyncSubscriber(EventHandler<PersistedEvents> subscriber) {
+    public EventBus addSyncSubscriber(EventHandler subscriber) {
         eventBus.addSyncSubscriber(subscriber);
         return this;
     }
 
     @Override
-    public EventBus<PersistedEvents> removeSyncSubscriber(EventHandler<PersistedEvents> subscriber) {
+    public EventBus removeSyncSubscriber(EventHandler subscriber) {
         eventBus.removeSyncSubscriber(subscriber);
         return this;
     }
 
     @Override
-    public boolean hasSyncSubscriber(EventHandler<PersistedEvents> subscriber) {
+    public boolean hasSyncSubscriber(EventHandler subscriber) {
         return eventBus.hasSyncSubscriber(subscriber);
     }
 
     @Override
-    public boolean hasAsyncSubscriber(EventHandler<PersistedEvents> subscriber) {
+    public boolean hasAsyncSubscriber(EventHandler subscriber) {
         return eventBus.hasAsyncSubscriber(subscriber);
     }
 

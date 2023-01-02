@@ -19,10 +19,9 @@ package dk.cloudcreate.essentials.reactive;
 /**
  * Error Handler interface for the {@link LocalEventBus}
  *
- * @param <EVENT_TYPE> the event type being published by the event bus
  */
 @FunctionalInterface
-public interface OnErrorHandler<EVENT_TYPE> {
+public interface OnErrorHandler {
     /**
      * Will be called if a given consumer/subscriber fails to handle a message
      *
@@ -30,5 +29,5 @@ public interface OnErrorHandler<EVENT_TYPE> {
      * @param event             the event the subscriber failed to handle
      * @param exception         the exception thrown by the <code>failingSubscriber</code>
      */
-    void handle(EventHandler<EVENT_TYPE> failingSubscriber, EVENT_TYPE event, Exception exception);
+    void handle(EventHandler failingSubscriber, Object event, Exception exception);
 }

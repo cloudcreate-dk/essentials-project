@@ -86,7 +86,7 @@ Per default only the `EssentialsComponentsConfiguration` is auto-configured:
     essentials.durable-queues.shared-queue-table-name=durable_queues
     ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `PostgresqlDurableQueues`
-- `LocalEventBus<Object>` with bus-name `default` and Bean name `eventBus`
+- `LocalEventBus` with bus-name `default` and Bean name `eventBus`
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
 
@@ -109,7 +109,7 @@ then the `EventStoreConfiguration` will also auto-configure the `EventStore`:
        essentials.event-store.json-column-type=jsonb
     ```
 - `EventStoreUnitOfWorkFactory` in the form of `SpringTransactionAwareEventStoreUnitOfWorkFactory`
-- `EventStoreEventBus` with an internal `LocalEventBus<PersistedEvents>` with bus-name `EventStoreLocalBus`
+- `EventStoreEventBus` with an internal `LocalEventBus` with bus-name `EventStoreLocalBus`
 - `PersistableEventMapper` with basic setup. Override this bean if you need additional meta-data, such as event-id, event-type, event-order, event-timestamp, event-meta-data, correlation-id, tenant-id included
 - `EventStoreSubscriptionManager` with default `EventStoreSubscriptionManagerProperties` values
   - The default `EventStoreSubscriptionManager` values can be overridden using Spring properties:
@@ -159,7 +159,7 @@ The `EssentialsComponentsConfiguration` auto-configures:
     # essentials.durable-queues.message-handling-timeout=5s
     ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `MongoDurableQueues`
-- `LocalEventBus<Object>` with bus-name `default` and Bean name `eventBus`
+- `LocalEventBus` with bus-name `default` and Bean name `eventBus`
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
 

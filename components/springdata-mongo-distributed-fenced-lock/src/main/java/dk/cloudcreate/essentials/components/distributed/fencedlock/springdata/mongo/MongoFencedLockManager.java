@@ -85,7 +85,7 @@ public class MongoFencedLockManager extends DBFencedLockManager<ClientSessionAwa
                                   Optional<String> fencedLocksCollectionName,
                                   Duration lockTimeOut,
                                   Duration lockConfirmationInterval,
-                                  Optional<EventBus<Object>> eventBus) {
+                                  Optional<EventBus> eventBus) {
         super(new MongoFencedLockStorage(mongoTemplate,
                                          mongoConverter,
                                          fencedLocksCollectionName),
@@ -114,7 +114,7 @@ public class MongoFencedLockManager extends DBFencedLockManager<ClientSessionAwa
                                   UnitOfWorkFactory<? extends ClientSessionAwareUnitOfWork> unitOfWorkFactory,
                                   Duration lockTimeOut,
                                   Duration lockConfirmationInterval,
-                                  Optional<EventBus<Object>> eventBus) {
+                                  Optional<EventBus> eventBus) {
         this(mongoTemplate,
              mongoConverter,
              unitOfWorkFactory,

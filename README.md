@@ -136,7 +136,7 @@ Simple event bus that supports both synchronous and asynchronous subscribers tha
 You can have multiple instances of the LocalEventBus deployed with the local JVM, but usually one event bus is sufficient.
 
 ```
-LocalEventBus<OrderEvent> localEventBus    = new LocalEventBus<>("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
+LocalEventBus localEventBus    = new LocalEventBus("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
                   
 localEventBus.addAsyncSubscriber(orderEvent -> {
            ...

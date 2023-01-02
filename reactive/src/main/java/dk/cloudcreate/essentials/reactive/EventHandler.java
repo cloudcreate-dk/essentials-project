@@ -23,6 +23,6 @@ package dk.cloudcreate.essentials.reactive;
  * @see AnnotatedEventHandler
  */
 @FunctionalInterface
-public interface EventHandler<EVENT_TYPE> {
-    void handle(EVENT_TYPE e);
+public interface EventHandler {
+    void handle(Object e);
 }

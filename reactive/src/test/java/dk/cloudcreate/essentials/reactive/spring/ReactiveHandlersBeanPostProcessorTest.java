@@ -36,9 +36,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(SpringExtension.class)
 class ReactiveHandlersBeanPostProcessorTest {
     @Autowired
-    private LocalEventBus<Object>                                   localEventBus;
+    private LocalEventBus                                        localEventBus;
     @Autowired
-    private LocalCommandBus                                       localCommandBus;
+    private LocalCommandBus                                      localCommandBus;
     @Autowired
     private ReactiveHandlersConfiguration.MyStringCommandHandler myStringCommandHandler;
     @Autowired
@@ -46,7 +46,7 @@ class ReactiveHandlersBeanPostProcessorTest {
     @Autowired
     private ReactiveHandlersConfiguration.MyEventHandler1        myEventHandler1;
     @Autowired
-    private ReactiveHandlersConfiguration.MyEventHandler2           myEventHandler2;
+    private ReactiveHandlersConfiguration.MyEventHandler2        myEventHandler2;
 
     @Test
     void verify_that_all_command_handlers_are_registered() {
@@ -80,7 +80,7 @@ class ReactiveHandlersBeanPostProcessorTest {
         localEventBus.publish(event);
         assertThat(myEventHandler1.eventsReceived).isEqualTo(List.of(event));
         Awaitility.waitAtMost(Duration.ofMillis(500))
-                .untilAsserted(() -> assertThat(myEventHandler2.eventsReceived).isEqualTo(List.of(event)));
+                  .untilAsserted(() -> assertThat(myEventHandler2.eventsReceived).isEqualTo(List.of(event)));
     }
 
 }

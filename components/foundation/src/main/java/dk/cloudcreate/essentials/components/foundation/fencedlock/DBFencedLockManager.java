@@ -53,7 +53,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
     private final String                                      lockManagerInstanceId;
 
     protected final UnitOfWorkFactory<? extends UOW> unitOfWorkFactory;
-    private final   Optional<EventBus<Object>>       eventBus;
+    private final   Optional<EventBus>               eventBus;
 
     private volatile boolean started;
     private volatile boolean stopping;
@@ -82,7 +82,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
                                   Optional<String> lockManagerInstanceId,
                                   Duration lockTimeOut,
                                   Duration lockConfirmationInterval,
-                                  Optional<EventBus<Object>> eventBus) {
+                                  Optional<EventBus> eventBus) {
         requireNonNull(lockManagerInstanceId, "No lockManagerInstanceId option provided");
 
         this.lockStorage = requireNonNull(lockStorage, "No lockStorage provided");

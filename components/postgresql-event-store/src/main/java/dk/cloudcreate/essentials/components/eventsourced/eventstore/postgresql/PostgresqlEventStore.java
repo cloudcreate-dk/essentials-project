@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.EventStoreEventBus;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
@@ -155,7 +155,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
     }
 
     @Override
-    public EventBus<PersistedEvents> localEventBus() {
+    public EventBus localEventBus() {
         return eventStoreEventBus;
     }
 

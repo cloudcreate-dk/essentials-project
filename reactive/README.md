@@ -43,7 +43,7 @@ Simple event bus that supports both synchronous and asynchronous subscribers tha
 You can have multiple instances of the `LocalEventBus` deployed with the local JVM, but usually one event bus is sufficient.
 
 ```
-LocalEventBus<OrderEvent> localEventBus    = new LocalEventBus<>("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
+LocalEventBus localEventBus    = new LocalEventBus("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
                   
 localEventBus.addAsyncSubscriber(orderEvent -> {
            ...
@@ -60,7 +60,7 @@ If you wish to colocate multiple related Event handling methods inside the same 
 `LocalEventBus` then you can extend the `AnnotatedEventHandler` class:  
 
 ```
-public class OrderEventsHandler extends AnnotatedEventHandler<OrderEvent> {
+public class OrderEventsHandler extends AnnotatedEventHandler {
 
     @Handler
     void handle(OrderCreated event) {
@@ -150,8 +150,8 @@ public class ReactiveHandlersConfiguration {
     }
     
     @Bean
-    public LocalEventBus<Object> localEventBus() {
-        return new LocalEventBus<>("Test", 3, (failingSubscriber, event, exception) -> log.error(msg("Error for '{}' handling {}", failingSubscriber, event), exception));
+    public LocalEventBus localEventBus() {
+        return new LocalEventBus("Test", 3, (failingSubscriber, event, exception) -> log.error(msg("Error for '{}' handling {}", failingSubscriber, event), exception));
     }
     
     @Bean
@@ -178,7 +178,7 @@ public static class MyCommandHandler implements CommandHandler {
 }
 
 @Component
-public static class MyEventHandler implements EventHandler<Object> {
+public static class MyEventHandler implements EventHandler {
     @Override
     public void handle(Object e) {
         ...
@@ -190,7 +190,7 @@ registered as an asynchronous subscriber:
 ```
 @Component
 @AsyncEventHandler
-public static class MyEventHandler implements EventHandler<Object> {
+public static class MyEventHandler implements EventHandler {
     @Override
     public void handle(Object e) {
         ...

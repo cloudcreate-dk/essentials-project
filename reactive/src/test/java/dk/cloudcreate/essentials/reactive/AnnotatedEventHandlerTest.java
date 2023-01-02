@@ -46,7 +46,7 @@ class AnnotatedEventHandlerTest {
         assertThat(eventHandler.longEventReceived).isEqualTo(10L);
     }
 
-    private static class TestAnnotatedEventHandler extends AnnotatedEventHandler<Object> {
+    private static class TestAnnotatedEventHandler extends AnnotatedEventHandler {
         private String stringEventReceived;
         private Long   longEventReceived;
 
