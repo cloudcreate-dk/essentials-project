@@ -559,6 +559,8 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                               aggregateType, aggregateId, aggregateImplementationType.getName(), aggregateSnapshot.get().eventOrderOfLastIncludedEvent);
                     return (AGGREGATE_IMPL_TYPE) snapshot.aggregateSnapshot;
                 });
+            } else if (aggregateSnapshot.isEmpty() && potentialPersistedEventStream.isEmpty()) {
+                return Optional.empty();
             } else {
                 var persistedEventsStream = potentialPersistedEventStream.get();
                 if (expectedLatestEventOrder.isPresent()) {
