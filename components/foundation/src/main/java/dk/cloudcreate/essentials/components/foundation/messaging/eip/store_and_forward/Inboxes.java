@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.reactive.command.LocalCommandBus;
+import dk.cloudcreate.essentials.reactive.command.CommandBus;
 
 import java.util.Collection;
 import java.util.concurrent.*;
@@ -68,14 +68,14 @@ public interface Inboxes {
      *
      * @param <MESSAGE_TYPE> the type of message
      * @param inboxConfig    the inbox configuration
-     * @param forwardTo      forward messages to this command bus using {@link LocalCommandBus#sendAndDontWait(Object)}
+     * @param forwardTo      forward messages to this command bus using {@link CommandBus#send(Object)}
      * @return the {@link Inbox}
      */
     default <MESSAGE_TYPE> Inbox<MESSAGE_TYPE> getOrCreateInbox(InboxConfig inboxConfig,
-                                                                LocalCommandBus forwardTo) {
+                                                                CommandBus forwardTo) {
         requireNonNull(forwardTo, "No forwardTo command bus provided");
         return getOrCreateInbox(inboxConfig,
-                                forwardTo::sendAndDontWait);
+                                forwardTo::send);
     }
 
     /**
@@ -133,7 +133,7 @@ public interface Inboxes {
 
         public class DurableQueueBasedInbox<MESSAGE_TYPE> implements Inbox<MESSAGE_TYPE> {
 
-            private       Consumer<MESSAGE_TYPE> messageConsumer;
+            private      Consumer<MESSAGE_TYPE> messageConsumer;
             public final QueueName              inboxQueueName;
             public final InboxConfig            config;
             private      DurableQueueConsumer   durableQueueConsumer;
@@ -163,7 +163,7 @@ public interface Inboxes {
                                                                        .onLockReleased(lock -> durableQueueConsumer.cancel())
                                                                        .build());
                         break;
-                    case CompetingConsumers:
+                    case GlobalCompetingConsumers:
                         durableQueueConsumer = consumeFromDurableQueue();
                         break;
                     default:
@@ -190,7 +190,7 @@ public interface Inboxes {
                     case SingleGlobalConsumer:
                         fencedLockManager.cancelAsyncLockAcquiring(config.inboxName.asLockName());
                         break;
-                    case CompetingConsumers:
+                    case GlobalCompetingConsumers:
                         if (durableQueueConsumer != null) {
                             durableQueueConsumer.cancel();
                             durableQueueConsumer = null;
@@ -209,8 +209,20 @@ public interface Inboxes {
 
             @Override
             public void addMessageReceived(MESSAGE_TYPE message) {
-                durableQueues.queueMessage(inboxQueueName,
-                                           message);
+                // An Inbox is usually used to bridge receiving messages from a Messaging system
+                // In these cases we rarely have other business logic that's already started a Transaction/UnitOfWork.
+                // So to simplify using the Inbox we allow adding a message to start a UnitOfWork if none exists
+
+                if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
+                    // Allow addMessageReceived to automatically start a new or join in an existing UnitOfWork
+                    durableQueues.getUnitOfWorkFactory().get().usingUnitOfWork(() -> {
+                        durableQueues.queueMessage(inboxQueueName,
+                                                   message);
+                    });
+                } else {
+                    durableQueues.queueMessage(inboxQueueName,
+                                               message);
+                }
             }
 
             private DurableQueueConsumer consumeFromDurableQueue() {

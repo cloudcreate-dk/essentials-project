@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -206,11 +206,14 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             this.durableSubscriptionRepository = requireNonNull(durableSubscriptionRepository, "No durableSubscriptionRepository provided");
             this.snapshotResumePointsEvery = requireNonNull(snapshotResumePointsEvery, "No snapshotResumePointsEvery provided");
 
-            log.info("[{}] Using {} with snapshotResumePointsEvery {} using {}",
+            log.info("[{}] Using {} using {} with snapshotResumePointsEvery: {}, eventStorePollingBatchSize: {}, eventStorePollingInterval: {}",
                      fencedLockManager.getLockManagerInstanceId(),
                      fencedLockManager,
+                     durableSubscriptionRepository.getClass().getSimpleName(),
                      snapshotResumePointsEvery,
-                     durableSubscriptionRepository);
+                     eventStorePollingBatchSize,
+                     eventStorePollingInterval
+                    );
         }
 
         @Override
@@ -426,24 +429,25 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                 }
             }
 
-            private void onEvent(PersistedEvents persistedEvents) {
+            private void onEvent(Object e) {
+                var persistedEvents = (PersistedEvents) e;
                 if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
                     persistedEvents.events.stream()
                                           .filter(event -> event.aggregateType().equals(aggregateType))
-                                          .forEach(e -> {
+                                          .forEach(event -> {
                                               log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {}",
                                                         subscriberId,
                                                         aggregateType,
-                                                        e.globalEventOrder(),
-                                                        e.event().getEventTypeOrName().toString(),
-                                                        e.eventId(),
-                                                        e.aggregateId(),
-                                                        e.eventOrder()
+                                                        event.globalEventOrder(),
+                                                        event.event().getEventTypeOrName().toString(),
+                                                        event.eventId(),
+                                                        event.aggregateId(),
+                                                        event.eventOrder()
                                                        );
                                               try {
-                                                  eventHandler.handle(e, persistedEvents.unitOfWork);
+                                                  eventHandler.handle(event, persistedEvents.unitOfWork);
                                               } catch (Exception cause) {
-                                                  onErrorHandlingEvent(e, cause);
+                                                  onErrorHandlingEvent(event, cause);
                                               }
                                           });
                 }

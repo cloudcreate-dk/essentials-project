@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,5 +44,33 @@ class ListsTest {
         assertThat(result.get(0)).isEqualTo(Tuple.of(0, "A"));
         assertThat(result.get(1)).isEqualTo(Tuple.of(1, "B"));
         assertThat(result.get(2)).isEqualTo(Tuple.of(2, "C"));
+    }
+
+    @Test
+    void test_lists_first_and_last_on_an_empty_list() {
+        var list = List.of();
+        assertThat(Lists.first(list)).isEmpty();
+        assertThat(Lists.last(list)).isEmpty();
+    }
+
+    @Test
+    void test_lists_first_and_last_on_a_list_with_one_element() {
+        var list = List.of(0);
+        assertThat(Lists.first(list)).get().isEqualTo(0);
+        assertThat(Lists.last(list)).get().isEqualTo(0);
+    }
+
+    @Test
+    void test_lists_first_and_last_on_a_list_with_two_elements() {
+        var list = List.of(0, 1);
+        assertThat(Lists.first(list)).get().isEqualTo(0);
+        assertThat(Lists.last(list)).get().isEqualTo(1);
+    }
+
+    @Test
+    void test_lists_first_and_last_on_a_list_with_multiple_elements() {
+        var list = List.of(0, 1, 2, 3, 5);
+        assertThat(Lists.first(list)).get().isEqualTo(0);
+        assertThat(Lists.last(list)).get().isEqualTo(5);
     }
 }

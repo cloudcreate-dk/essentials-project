@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.modern;
 
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.*;
+import dk.cloudcreate.essentials.components.eventsourced.aggregates.snapshot.AggregateSnapshot;
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.*;
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.classic.Event;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
@@ -115,18 +116,26 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * @param <AGGREGATE_TYPE> the aggregate type
  */
 public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE>> implements StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_TYPE> {
-    private PatternMatchingMethodInvoker<Object>           invoker;
-    private ID                                             aggregateId;
-    private EventOrder                                     eventOrderOfLastAppliedEvent = EventOrder.NO_EVENTS_PERSISTED;
-    private List<EVENT_TYPE>                               uncommittedEvents;
-    private EventOrder                                     eventOrderOfLastRehydratedEvent;
-    private boolean                                        hasBeenRehydrated;
-    private boolean                                        isRehydrating;
-    private AggregateState<ID, EVENT_TYPE, AGGREGATE_TYPE> state;
+    private transient PatternMatchingMethodInvoker<Object>           invoker;
+    private           ID                                             aggregateId;
+    private           EventOrder                                     eventOrderOfLastAppliedEvent = EventOrder.NO_EVENTS_PERSISTED;
+    private           List<EVENT_TYPE>                               uncommittedEvents;
+    private           EventOrder                                     eventOrderOfLastRehydratedEvent;
+    private           boolean                                        hasBeenRehydrated;
+    private           boolean                                        isRehydrating;
+    private           AggregateState<ID, EVENT_TYPE, AGGREGATE_TYPE> state;
+
+    /**
+     * Used for {@link AggregateSnapshot} deserialization
+     */
+    protected AggregateRoot() {
+        initialize();
+    }
 
     /**
      * Used for rehydration
-     * @param aggregateId  the id of the aggregate being initialized during the rehydration flow
+     *
+     * @param aggregateId the id of the aggregate being initialized during the rehydration flow
      */
     public AggregateRoot(ID aggregateId) {
         this.aggregateId = aggregateId;
@@ -285,7 +294,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends Aggre
         isRehydrating = true;
         persistedEvents.forEach(event -> {
             applyEventToTheAggregateState(event);
-            eventOrderOfLastAppliedEvent = eventOrderOfLastAppliedEvent().increaseAndGet();
+            eventOrderOfLastAppliedEvent = eventOrderOfLastAppliedEvent().increment();
         });
         eventOrderOfLastRehydratedEvent = eventOrderOfLastAppliedEvent;
         isRehydrating = false;
@@ -303,7 +312,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends Aggre
      */
     protected void apply(Function<EventOrder, EVENT_TYPE> eventSupplier) {
         requireNonNull(eventSupplier, "No eventSupplier provided");
-        var event = eventSupplier.apply(eventOrderOfLastAppliedEvent().increaseAndGet());
+        var event = eventSupplier.apply(eventOrderOfLastAppliedEvent().increment());
         requireNonNull(event, "No event was returned from the eventSupplier");
         apply(event);
     }
@@ -327,7 +336,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends Aggre
         requireNonNull(event, "You must supply an event");
         applyEventToTheAggregateState(event);
         uncommittedEvents.add(event);
-        eventOrderOfLastAppliedEvent = eventOrderOfLastAppliedEvent().increaseAndGet();
+        eventOrderOfLastAppliedEvent = eventOrderOfLastAppliedEvent().increment();
     }
 
     /**

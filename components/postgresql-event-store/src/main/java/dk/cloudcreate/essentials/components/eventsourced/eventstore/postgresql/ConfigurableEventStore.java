@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -97,6 +97,14 @@ public interface ConfigurableEventStore<CONFIG extends AggregateEventStreamConfi
     ConfigurableEventStore<CONFIG> addGenericInMemoryProjector(InMemoryProjector inMemoryProjector);
 
     /**
+     * Remove a generic {@link InMemoryProjector
+     *
+     * @param inMemoryProjector the in memory projector
+     * @return this event store instance
+     */
+    ConfigurableEventStore<CONFIG> removeGenericInMemoryProjector(InMemoryProjector inMemoryProjector);
+
+    /**
      * Add a projection-type specific {@link InMemoryProjector}. When {@link #inMemoryProjection(AggregateType, Object, Class)} is called
      * it will first check for any {@link InMemoryProjector}'s registered using {@link #addSpecificInMemoryProjector(Class, InMemoryProjector)}<br>
      * After that it will try and find the first {@link InMemoryProjector#supports(Class)}, registered using {@link #addGenericInMemoryProjector(InMemoryProjector)}, which reports true for the given projection type
@@ -108,12 +116,28 @@ public interface ConfigurableEventStore<CONFIG extends AggregateEventStreamConfi
     ConfigurableEventStore<CONFIG> addSpecificInMemoryProjector(Class<?> projectionType, InMemoryProjector inMemoryProjector);
 
     /**
+     * Remove a projection-type specific {@link InMemoryProjector}.
+     *
+     * @param projectionType the projection type
+     * @return this event store instance
+     */
+    ConfigurableEventStore<CONFIG> removeSpecificInMemoryProjector(Class<?> projectionType);
+
+    /**
      * Add an {@link EventStoreInterceptor} to the {@link ConfigurableEventStore}
      *
      * @param eventStoreInterceptor the interceptor to add
      * @return this event store instance
      */
     ConfigurableEventStore<CONFIG> addEventStoreInterceptor(EventStoreInterceptor eventStoreInterceptor);
+
+    /**
+     * Remove an {@link EventStoreInterceptor} from the {@link ConfigurableEventStore}
+     *
+     * @param eventStoreInterceptor the interceptor to add
+     * @return this event store instance
+     */
+    ConfigurableEventStore<CONFIG> removeEventStoreInterceptor(EventStoreInterceptor eventStoreInterceptor);
 
 
 }

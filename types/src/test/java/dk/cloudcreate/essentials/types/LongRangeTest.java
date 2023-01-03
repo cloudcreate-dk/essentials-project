@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,16 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class LongRangeTest {
+
+    @Test
+    void test_empty_range() {
+        var range = LongRange.EMPTY_RANGE;
+        assertThat(range.isClosedRange()).isTrue();
+        assertThat(range.isOpenRange()).isFalse();
+        assertThat(range.covers(-1)).isFalse();
+        assertThat(range.covers(0)).isTrue();
+        assertThat(range.covers(1)).isFalse();
+    }
     @Test
     void test_between() {
         var range = LongRange.between(-10, 10);

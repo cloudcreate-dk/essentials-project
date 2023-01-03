@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,16 +23,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class WebFluxControllerIT {
@@ -41,6 +36,34 @@ public class WebFluxControllerIT {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Test
+    public void test_LocalDateType_DueDate_request_param() throws Exception {
+        var dueDate = DueDate.now();
+        var result = testClient.get()
+                               .uri("/reactive-orders?dueDate={dueDate}", dueDate)
+                               .exchange()
+                               .expectStatus()
+                               .isOk()
+                               .expectBody(DueDate.class)
+                               .returnResult();
+
+        assertThat(result.getResponseBody()).isEqualTo(dueDate);
+    }
+
+    @Test
+    public void test_LocalDateType_DueDate_path_variable() throws Exception {
+        var dueDate = DueDate.now();
+        var result = testClient.get()
+                               .uri("/reactive-orders/by-due-date/{dueDate}", dueDate)
+                               .exchange()
+                               .expectStatus()
+                               .isOk()
+                               .expectBody(DueDate.class)
+                               .returnResult();
+
+        assertThat(result.getResponseBody()).isEqualTo(dueDate);
+    }
 
     @Test
     public void getOrderForCustomer() throws Exception {
@@ -100,7 +123,13 @@ public class WebFluxControllerIT {
                               CurrencyCode.of("DKK"),
                               CountryCode.of("DK"),
                               EmailAddress.of("john@nonexistingdomain.com"),
-                              Money.of("102.75", CurrencyCode.EUR));
+                              Money.of("102.75", CurrencyCode.EUR),
+                              Created.now(),
+                              DueDate.now(),
+                              LastUpdated.now(),
+                              TimeOfDay.now(),
+                              TransactionTime.now(),
+                              TransferTime.now());
         var result = testClient.put()
                                .uri("/reactive-order")
                                .contentType(MediaType.APPLICATION_JSON)

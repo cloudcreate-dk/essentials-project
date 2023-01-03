@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import org.apache.avro.*;
  * <b>NOTICE:</b> This Conversion requires that AVRO field/property must be use the AVRO primitive type: <b><code>int</code></b><br>
  * <br>
  * Each concrete {@link IntegerType} that must be support Avro serialization and deserialization must have a dedicated
- * {@link Conversion}, {@link LogicalType} and {@link LogicalTypes.LogicalTypeFactory} pair registered with the <b><code>avro-maven-plugin</code></b>.<br>
+ * {@link Conversion} and {@link LogicalTypes.LogicalTypeFactory} pair registered with the <b><code>avro-maven-plugin</code></b>.<br>
  * <br>
  * <b>Important:</b> The AVRO field/property must be use the AVRO primitive type: <b><code>int</code></b><br>
  * <pre>{@code
@@ -43,7 +43,7 @@ import org.apache.avro.*;
  * package com.myproject.types.avro;
  *
  * public class QuantityLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
- *     public static final LogicalType QUANTITY = new QuantityLogicalType("Quantity");
+ *     public static final LogicalType QUANTITY = new IntegerTypeLogicalType("Quantity");
  *
  *     @Override
  *     public LogicalType fromSchema(Schema schema) {
@@ -53,20 +53,6 @@ import org.apache.avro.*;
  *     @Override
  *     public String getTypeName() {
  *         return QUANTITY.getName();
- *     }
- *
- *     public static class QuantityLogicalType extends LogicalType {
- *         public QuantityLogicalType(String logicalTypeName) {
- *             super(logicalTypeName);
- *         }
- *
- *         @Override
- *         public void validate(Schema schema) {
- *             super.validate(schema);
- *             if (schema.getType() != Schema.Type.INT) {
- *                 throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.INT.getName() + "'. Invalid schema: " + schema.toString(true));
- *             }
- *         }
  *     }
  * }
  * }</pre>
@@ -136,6 +122,7 @@ import org.apache.avro.*;
  * }</pre>
  *
  * @param <T> the concrete {@link IntegerType} sub-type
+ * @see IntegerTypeLogicalType
  */
 public abstract class BaseIntegerTypeConversion<T extends IntegerType<T>> extends Conversion<T> {
     protected abstract LogicalType getLogicalType();
@@ -152,11 +139,15 @@ public abstract class BaseIntegerTypeConversion<T extends IntegerType<T>> extend
 
     @Override
     public T fromInt(Integer value, Schema schema, LogicalType type) {
-        return SingleValueType.from(value, getConvertedType());
+        return value == null ?
+               null :
+               SingleValueType.from(value, getConvertedType());
     }
 
     @Override
     public Integer toInt(T value, Schema schema, LogicalType type) {
-        return value.intValue();
+        return value == null ?
+               null :
+               value.intValue();
     }
 }

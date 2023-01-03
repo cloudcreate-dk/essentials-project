@@ -14,7 +14,7 @@ To use `Reactive` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>reactive</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
 
@@ -43,7 +43,7 @@ Simple event bus that supports both synchronous and asynchronous subscribers tha
 You can have multiple instances of the `LocalEventBus` deployed with the local JVM, but usually one event bus is sufficient.
 
 ```
-LocalEventBus<OrderEvent> localEventBus    = new LocalEventBus<>("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
+LocalEventBus localEventBus    = new LocalEventBus("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
                   
 localEventBus.addAsyncSubscriber(orderEvent -> {
            ...
@@ -60,7 +60,7 @@ If you wish to colocate multiple related Event handling methods inside the same 
 `LocalEventBus` then you can extend the `AnnotatedEventHandler` class:  
 
 ```
-public class OrderEventsHandler extends AnnotatedEventHandler<OrderEvent> {
+public class OrderEventsHandler extends AnnotatedEventHandler {
 
     @Handler
     void handle(OrderCreated event) {
@@ -72,9 +72,10 @@ public class OrderEventsHandler extends AnnotatedEventHandler<OrderEvent> {
 }
 ```
 
-### LocalCommandBus
-The `LocalCommandBus` provides an indirection between a command and the `CommandHandler` that's capable of handling the command.  
-The CommandBus pattern provides location transparency, the sender of the command doesn't need to know which `CommandHandler` supports
+### CommandBus/LocalCommandBus
+The `LocalCommandBus` provides the default implementation for the `CommandBus` concepts, which provides an indirection between a command and the `CommandHandler` 
+that's capable of handling the command.  
+The `CommandBus` pattern provides location transparency, the sender of the command doesn't need to know which `CommandHandler` supports
 the given command.   
 
 There MUST always be one and only one `CommandHandler` capable of handling a given Command.  
@@ -86,7 +87,8 @@ a `CommandHandler` to return a value if needed (e.g. such as a server generated 
 Commands can be:
 - Sent synchronously using `#send(Object)`  
 - Sent asynchronously using `#sendAsync(Object)` which returns a `Mono` that will contain the result of the command handling
-- Send asynchronously without waiting for the result of processing the Command using `#sendAndDontWait(Object)`
+- Send asynchronously without waiting for the result of processing the Command using `#sendAndDontWait(Object)`/`#sendAndDontWait(Object, Duration)`
+  - If you need durability for the Commands sent using `sendAndDontWait` please use `DurableLocalCommandBus` from `essentials-components`'s `foundation` instead.
 
 ```
 var commandBus = new LocalCommandBus();
@@ -119,7 +121,7 @@ public class OrdersCommandHandler extends AnnotatedCommandHandler {
 ```
 
 ## Command Interceptors
-You can register `CommandBusInterceptor`'s (such as the `dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.command.UnitOfWorkControllingCommandBusInterceptor`
+You can register `CommandBusInterceptor`'s (such as the `dk.cloudcreate.essentials.components.foundation.reactive.command.UnitOfWorkControllingCommandBusInterceptor`
 from the PostgresqlEventStore module from [Essentials Components](https://github.com/cloudcreate-dk/essentials-components)), which allows you to 
 intercept Commands before and after they're being handled by the `LocalCommandBus`
 
@@ -148,8 +150,8 @@ public class ReactiveHandlersConfiguration {
     }
     
     @Bean
-    public LocalEventBus<Object> localEventBus() {
-        return new LocalEventBus<>("Test", 3, (failingSubscriber, event, exception) -> log.error(msg("Error for '{}' handling {}", failingSubscriber, event), exception));
+    public LocalEventBus localEventBus() {
+        return new LocalEventBus("Test", 3, (failingSubscriber, event, exception) -> log.error(msg("Error for '{}' handling {}", failingSubscriber, event), exception));
     }
     
     @Bean
@@ -176,7 +178,7 @@ public static class MyCommandHandler implements CommandHandler {
 }
 
 @Component
-public static class MyEventHandler implements EventHandler<Object> {
+public static class MyEventHandler implements EventHandler {
     @Override
     public void handle(Object e) {
         ...
@@ -188,7 +190,7 @@ registered as an asynchronous subscriber:
 ```
 @Component
 @AsyncEventHandler
-public static class MyEventHandler implements EventHandler<Object> {
+public static class MyEventHandler implements EventHandler {
     @Override
     public void handle(Object e) {
         ...

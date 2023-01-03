@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -177,8 +177,8 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  */
 @SuppressWarnings("unchecked")
 public abstract class FlexAggregate<ID, AGGREGATE_TYPE extends FlexAggregate<ID, AGGREGATE_TYPE>> implements Aggregate<ID, AGGREGATE_TYPE> {
-    private PatternMatchingMethodInvoker<Object> invoker;
-    private ID                                   aggregateId;
+    private transient PatternMatchingMethodInvoker<Object> invoker;
+    private           ID                                   aggregateId;
 
     /**
      * Zero based event order
@@ -285,7 +285,7 @@ public abstract class FlexAggregate<ID, AGGREGATE_TYPE extends FlexAggregate<ID,
         requireNonNull(event, "You must supply an event");
         applyRehydratedEventToTheAggregate(event);
         hasBeenRehydrated = true;
-        eventOrderOfLastRehydratedEvent = eventOrderOfLastRehydratedEvent.increaseAndGet();
+        eventOrderOfLastRehydratedEvent = eventOrderOfLastRehydratedEvent.increment();
     }
 
     /**

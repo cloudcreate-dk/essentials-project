@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,17 @@ public class JacksonJSONSerializer implements JSONSerializer {
 
     public JacksonJSONSerializer(ObjectMapper objectMapper) {
         this.objectMapper = requireNonNull(objectMapper, "No object mapper instance provided");
+    }
+
+    @Override
+    public String serialize(Object obj) {
+        requireNonNull(obj, "you must provide a non-null object");
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            throw new JSONSerializationException(msg("Failed to serialize {} to JSON", obj.getClass().getName()),
+                                                 e);
+        }
     }
 
     @SuppressWarnings("unchecked")

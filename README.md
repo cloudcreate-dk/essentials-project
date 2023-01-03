@@ -14,13 +14,18 @@ need to add these third party dependencies (such as Spring, JDBI, Postgresql JDB
 
 Each module's README.md will provide information about which third party dependencies that are typically for the Essentials module to be functional.
 
-For more advanced **components** such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `Inbox` and `Outbox` see: [Essentials Components](components/README.md)
+## Essentials modules
+![Essentials modules overview](images/all-essentials-modules.png)
 
-![Essentials modules overview](Essentials.jpg)
+## Advanced Components
+See: [Essentials Components](components/README.md) for information about **components** such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `DurableLocalCommandbus`, `Inbox` and `Outbox` 
+Also includes Spring Boot auto-configuration modules for Postgresql and MongoDB:
+- See [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
+- See [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
+
 
 **NOTE:**
 **The libraries are WORK-IN-PROGRESS**
-
 
 ## Shared
 
@@ -58,14 +63,18 @@ This library contains the smallest set of supporting building blocks needed for 
     - E.g. `Reflector.reflectOn(someType).invokeStatic("of");`
 - `PatternMatchingMethodInvoker` which supports creating your own reflective pattern matching method invokers.
 
+![Essentials modules](images/essentials-modules.png)
+
 To use `Shared` just add the following Maven dependency:
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>shared</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
+
+See [shared](shared/README.md) for more information
 
 ## Types
 
@@ -101,9 +110,11 @@ To use `Types` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
+
+See [types](types/README.md) for more information
 
 ## Reactive
 
@@ -114,16 +125,18 @@ To use `Reactive` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>reactive</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
+
+See [reactive](reactive/README.md) for more information
 
 ### LocalEventBus
 Simple event bus that supports both synchronous and asynchronous subscribers that are registered and listening for events published within the local the JVM  
 You can have multiple instances of the LocalEventBus deployed with the local JVM, but usually one event bus is sufficient.
 
 ```
-LocalEventBus<OrderEvent> localEventBus    = new LocalEventBus<>("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
+LocalEventBus localEventBus    = new LocalEventBus("TestBus", 3, (failingSubscriber, event, exception) -> log.error("...."));
                   
 localEventBus.addAsyncSubscriber(orderEvent -> {
            ...
@@ -190,10 +203,11 @@ To use `Immutable` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
 
+See [immutable](immutable/README.md) for more information
 
 ## Immutable Jackson
 This library focuses purely on providing [Jackson (FasterXML)](https://github.com/FasterXML/jackson) deserialization support for immutable classes or other classes that don't have a suitable creator
@@ -237,10 +251,11 @@ To use `Immutable-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable-jackson</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
 
+See [immutable-jackson](immutable-jackson/README.md) for more information
 
 ## Types Jackson
 
@@ -258,10 +273,11 @@ To use `Types-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jackson</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
 
+See [types-jackson](types-jackson/README.md) for more information
 
 ## Types Spring Data Mongo
 
@@ -302,9 +318,11 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-mongo</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
+
+See [types-springdata-mongo](types-springdata-mongo/README.md) for more information
 
 ## Types Spring Data JPA
 
@@ -334,9 +352,11 @@ To use `Types-SpringData-JPA` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-jpa</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
+
+See [types-springdata-jpa](types-springdata-jpa/README.md) for more information
 
 ## Types Spring Web
 
@@ -349,7 +369,7 @@ To use `Types-Spring-Web` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-spring-web</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
 
@@ -369,6 +389,8 @@ public Mono<Order> updatePrice(@PathVariable CustomerId customerId,
     ...
 }
 ```
+
+See [types-spring-web](types-spring-web/README.md) for more information
 
 ## Types JDBI (v3)
 
@@ -419,9 +441,11 @@ To use `Types-JDBI` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jdbi</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
+
+See [types-jdbi](types-jdbi/README.md) for more information
 
 ## Types Avro
 This library focuses purely on providing [AVRO](https://avro.apache.org) serialization and deserialization support for the **types** defined in the Essentials `types` library.
@@ -431,9 +455,11 @@ To use `Types-Avro` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-avro</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
+
+See [types-avro](types-avro/README.md) for more information
 
 Some concrete `Types` such as `Amount`, `Percentage` and `CurrencyCode` come with supported our of the box.  
 This allows you to define Avro schema/IDL protocol and directly refer these logical-types in your Avro Schema/IDL protocol. 

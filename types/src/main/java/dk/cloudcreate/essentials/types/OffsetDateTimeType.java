@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package dk.cloudcreate.essentials.types;
 
 import java.time.*;
-import java.time.chrono.Chronology;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalField;
 import java.util.Objects;
@@ -45,7 +44,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <CONCRETE_TYPE> The concrete {@link OffsetDateTimeType} implementation
  */
-public abstract class OffsetDateTimeType<CONCRETE_TYPE extends OffsetDateTimeType<CONCRETE_TYPE>> implements SingleValueType<OffsetDateTime, CONCRETE_TYPE> {
+public abstract class OffsetDateTimeType<CONCRETE_TYPE extends OffsetDateTimeType<CONCRETE_TYPE>> implements JSR310SingleValueType<OffsetDateTime, CONCRETE_TYPE> {
     private final OffsetDateTime value;
 
     public OffsetDateTimeType(OffsetDateTime value) {

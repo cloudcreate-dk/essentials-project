@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@ public class ReactiveHandlersConfiguration {
     private static final Logger log = LoggerFactory.getLogger(ReactiveHandlersConfiguration.class);
 
     @Bean
-    public LocalEventBus<Object> localEventBus() {
-        return new LocalEventBus<>("Test", 3, (failingSubscriber, event, exception) -> log.error(msg("Error for {} handling {}", failingSubscriber, event), exception));
+    public LocalEventBus localEventBus() {
+        return new LocalEventBus("Test", 3, (failingSubscriber, event, exception) -> log.error(msg("Error for {} handling {}", failingSubscriber, event), exception));
     }
 
     @Bean
@@ -73,7 +73,7 @@ public class ReactiveHandlersConfiguration {
     }
 
     @Component
-    public static class MyEventHandler1 implements EventHandler<Object> {
+    public static class MyEventHandler1 implements EventHandler {
         List<Object> eventsReceived = new ArrayList<>();
 
         @Override
@@ -84,7 +84,7 @@ public class ReactiveHandlersConfiguration {
 
     @Component
     @AsyncEventHandler
-    public static class MyEventHandler2 implements EventHandler<Object> {
+    public static class MyEventHandler2 implements EventHandler {
         List<Object> eventsReceived = new ArrayList<>();
 
         @Override

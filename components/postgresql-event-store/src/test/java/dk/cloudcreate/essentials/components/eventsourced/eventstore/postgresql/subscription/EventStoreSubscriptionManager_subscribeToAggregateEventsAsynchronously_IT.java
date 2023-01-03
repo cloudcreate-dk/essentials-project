@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.test_data.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
+import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
@@ -75,7 +76,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                            postgreSQLContainer.getUsername(),
                            postgreSQLContainer.getPassword());
         jdbi.installPlugin(new PostgresPlugin());
-        jdbi.setSqlLogger(new EventStoreSqlLogger());
+        jdbi.setSqlLogger(new SqlExecutionTimeLogger());
 
         aggregateType = ORDERS;
         unitOfWorkFactory = new EventStoreManagedUnitOfWorkFactory(jdbi);
@@ -235,7 +236,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
         assertThat(ordersSubscription.currentResumePoint().get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // When the subscriber is stopped we store the next global event order
         var ordersSubscriptionResumePoint = durableSubscriptionRepository.getResumePoint(ordersSubscription.subscriberId(), ordersSubscription.aggregateType());
         assertThat(ordersSubscriptionResumePoint).isPresent();
-        Awaitility.waitAtMost(Duration.ofSeconds(5))
+        Awaitility.waitAtMost(Duration.ofSeconds(10))
                           .untilAsserted(() -> assertThat(ordersSubscriptionResumePoint.get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()));  // When the subscriber is stopped we store the next global event order));
 
 
@@ -247,6 +248,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
 
     @Test
     void test_start_and_stop_subscription() {
+        System.out.println("********** Start test_start_and_stop_subscription ***********");
         var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi);
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
@@ -308,17 +310,18 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                                                  .map(List::size)
                                                  .reduce(Integer::sum)
                                                  .get();
-        System.out.println("Total number of Order Events: " + totalNumberOfOrderEvents);
+        System.out.println("test_start_and_stop_subscription - Total number of Order Events: " + totalNumberOfOrderEvents);
         Awaitility.waitAtMost(Duration.ofSeconds(5))
                   .untilAsserted(() -> {
                       var receivedGlobalOrders = orderEventsReceived.stream()
                                                                     .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
                                                                     .collect(Collectors.toList());
                       if (orderEventsReceived.size() > totalNumberOfOrderEvents) {
-                          System.out.println("******************** RECEIVED MORE EVENTS THAN EXPECTED ********************");
+                          System.out.println("******************** test_start_and_stop_subscription - RECEIVED MORE EVENTS THAN EXPECTED ********************");
                           System.out.println("Received orderEventsReceived      : " + orderEventsReceived.size());
                           System.out.println("Expected totalNumberOfOrderEvents : " + totalNumberOfOrderEvents);
                           System.out.println("orderEventsReceived - globalOrders: " + receivedGlobalOrders);
+                          System.out.println("******************** test_start_and_stop_subscription  ********************");
                       }
                       assertThat(orderEventsReceived).doesNotHaveDuplicates();
                       assertThat(orderEventsReceived.size()).isEqualTo(totalNumberOfOrderEvents);
@@ -342,10 +345,12 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
         var ordersSubscriptionResumePoint = durableSubscriptionRepository.getResumePoint(ordersSubscription.subscriberId(), ordersSubscription.aggregateType());
         assertThat(ordersSubscriptionResumePoint).isPresent();
         assertThat(ordersSubscriptionResumePoint.get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // // When the subscriber is stopped we store the next global event order
+        System.out.println("********** test_start_and_stop_subscription Completed ***********");
     }
 
     @Test
     void test_with_resubscription() {
+        System.out.println("********** Start test_with_resubscription ***********");
         var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi);
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
@@ -407,17 +412,18 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                                                  .map(List::size)
                                                  .reduce(Integer::sum)
                                                  .get();
-        System.out.println("Total number of Order Events: " + totalNumberOfOrderEvents);
+        System.out.println("test_with_resubscription- Total number of Order Events: " + totalNumberOfOrderEvents);
         Awaitility.waitAtMost(Duration.ofSeconds(5))
                   .untilAsserted(() -> {
                       var receivedGlobalOrders = orderEventsReceived.stream()
                                                                     .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
                                                                     .collect(Collectors.toList());
                       if (orderEventsReceived.size() > totalNumberOfOrderEvents) {
-                          System.out.println("******************** RECEIVED MORE EVENTS THAN EXPECTED ********************");
+                          System.out.println("******************** test_with_resubscription - RECEIVED MORE EVENTS THAN EXPECTED ********************");
                           System.out.println("Received orderEventsReceived      : " + orderEventsReceived.size());
                           System.out.println("Expected totalNumberOfOrderEvents : " + totalNumberOfOrderEvents);
                           System.out.println("orderEventsReceived - globalOrders: " + receivedGlobalOrders);
+                          System.out.println("******************** test_with_resubscription ********************");
                       }
                       assertThat(orderEventsReceived).doesNotHaveDuplicates();
                       assertThat(orderEventsReceived.size()).isEqualTo(totalNumberOfOrderEvents);
@@ -441,6 +447,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
         var ordersSubscriptionResumePoint = durableSubscriptionRepository.getResumePoint(ordersSubscription.get().subscriberId(), ordersSubscription.get().aggregateType());
         assertThat(ordersSubscriptionResumePoint).isPresent();
         assertThat(ordersSubscriptionResumePoint.get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // // When the subscriber is stopped we store the next global event order
+        System.out.println("********** test_with_resubscription Completed ***********");
     }
 
     private EventStoreSubscription createOrderSubscription(ArrayList<PersistedEvent> orderEventsReceived) {

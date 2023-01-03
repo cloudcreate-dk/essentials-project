@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <CONCRETE_TYPE> The concrete {@link ZonedDateTimeType} implementation
  */
-public abstract class ZonedDateTimeType<CONCRETE_TYPE extends ZonedDateTimeType<CONCRETE_TYPE>> implements SingleValueType<ZonedDateTime, CONCRETE_TYPE> {
+public abstract class ZonedDateTimeType<CONCRETE_TYPE extends ZonedDateTimeType<CONCRETE_TYPE>> implements JSR310SingleValueType<ZonedDateTime, CONCRETE_TYPE> {
     private final ZonedDateTime value;
 
     public ZonedDateTimeType(ZonedDateTime value) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,7 +50,10 @@ public abstract class BigDecimalTypeColumnMapper<T extends BigDecimalType<T>> im
 
     @Override
     public T map(ResultSet r, int columnNumber, StatementContext ctx) throws SQLException {
-        return SingleValueType.from(r.getBigDecimal(columnNumber),
+        var value = r.getBigDecimal(columnNumber);
+        return value == null ?
+               null :
+               SingleValueType.from(value,
                                     concreteType);
     }
 }

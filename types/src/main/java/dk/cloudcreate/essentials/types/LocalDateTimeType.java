@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <CONCRETE_TYPE> The concrete {@link LocalDateTimeType} implementation
  */
-public abstract class LocalDateTimeType<CONCRETE_TYPE extends LocalDateTimeType<CONCRETE_TYPE>> implements SingleValueType<LocalDateTime, CONCRETE_TYPE> {
+public abstract class LocalDateTimeType<CONCRETE_TYPE extends LocalDateTimeType<CONCRETE_TYPE>> implements JSR310SingleValueType<LocalDateTime, CONCRETE_TYPE> {
     private final LocalDateTime value;
 
     public LocalDateTimeType(LocalDateTime value) {

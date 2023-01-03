@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,12 +22,20 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Is responsible for obtaining {@link FencedLock}'s, which are named exclusive locks<br>
+ * This library provides a Distributed Locking Manager based of the Fenced Locking concept
+ * described <a href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">here</a><br>
+ * <br>
+ * The {@link FencedLockManager} is responsible for obtaining and managing distributed {@link FencedLock}'s, which are named exclusive locks.<br>
  * Only one {@link FencedLockManager} instance can acquire a {@link FencedLock} at a time.<br>
+ * The implementation has been on supporting <b>intra-service</b> (i.e. across different deployed instances of the <b>same</b> service) Lock support through database based implementations (<code>MongoFencedLockManager</code> and <code>PostgresqlFencedLockManager</code>).<br>
+ * In a service oriented architecture it's common for all deployed instances of a given service (e.g. a Sales service) to share the same underlying
+ * database(s). As long as the different deployed (Sales) services instances can share the same underlying database, then you use the {@link FencedLockManager} concept for handling distributed locks across all deployed (Sales service)
+ * instances in the cluster.<br>
+ * If you need cross-service lock support, e.g. across instances of different services (such as across Sales, Billing and Shipping services), then you need to use a dedicated distributed locking service such as Zookeeper.<br>
+ * <br>
  * To coordinate this properly it's important that each {@link FencedLockManager#getLockManagerInstanceId()}
  * is unique across the cluster.<br>
- * <br>
- * This is a variant of the concept described here https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html
+ * Per default, it uses the local machine hostname as {@link FencedLockManager#getLockManagerInstanceId()} value.
  */
 public interface FencedLockManager extends Lifecycle {
     /**

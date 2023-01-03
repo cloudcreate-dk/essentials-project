@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,10 @@ public class GlobalEventOrder extends LongType<GlobalEventOrder> {
      * Special value that contains the {@link GlobalEventOrder} of the FIRST Event persisted in context of a given {@link AggregateType}
      */
     public static final GlobalEventOrder FIRST_GLOBAL_EVENT_ORDER = GlobalEventOrder.of(1);
+    /**
+     * Special value that contains the maximum allowed {@link GlobalEventOrder} value
+     */
+    public static final GlobalEventOrder MAX_GLOBAL_EVENT_ORDER = GlobalEventOrder.of(Long.MAX_VALUE);
 
     public GlobalEventOrder(Long value) {
         super(value);

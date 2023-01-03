@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright 2021-2022 the original author or authors.
+  ~ Copyright 2021-2023 the original author or authors.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -67,15 +67,14 @@
         <objenesis.version>3.3</objenesis.version>
         <postgresql.version>42.5.1</postgresql.version>
         <slf4j.version>1.7.36</slf4j.version>
-        <spring-boot.version>2.7.6</spring-boot.version>
+        <spring-boot.version>2.7.7</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
         <spring-data-mongodb.version>3.4.6</spring-data-mongodb.version>
         <spring-data-jpa.version>2.7.6</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
         <assertj.version>3.23.1</assertj.version>
         <spring-data-mongodb.version>3.4.6</spring-data-mongodb.version>
-        <mongodb-driver-sync.version>4.8.0</mongodb-driver-sync.version>
-        <spring-boot.version>2.7.6</spring-boot.version>
+        <mongodb-driver-sync.version>4.8.1</mongodb-driver-sync.version>
         <log4j-to-slf4j.version>2.19.0</log4j-to-slf4j.version>
     </properties>
 
@@ -94,6 +93,8 @@
         <module>components/foundation</module>
         <module>components/foundation-test</module>
         <module>components/eventsourced-aggregates</module>
+        <module>components/spring-boot-starter-postgresql</module>
+        <module>components/spring-boot-starter-mongodb</module>
         <module>components/postgresql-distributed-fenced-lock</module>
         <module>components/postgresql-event-store</module>
         <module>components/postgresql-queue</module>
@@ -122,7 +123,7 @@
             <dependency>
                 <groupId>org.jdbi</groupId>
                 <artifactId>jdbi3-bom</artifactId>
-                <version>3.35.0</version>
+                <version>3.36.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -136,7 +137,7 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-bom</artifactId>
-                <version>2020.0.25</version>
+                <version>2020.0.26</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -150,7 +151,7 @@
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-bom</artifactId>
-                <version>4.9.0</version>
+                <version>4.11.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -183,7 +184,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.23.1</version>
+            <version>${assertj.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -213,7 +214,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.4.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -280,7 +281,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>versions-maven-plugin</artifactId>
-                    <version>2.13.0</version>
+                    <version>2.14.2</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -340,7 +341,7 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>7.3.2</version>
+                <version>7.4.3</version>
                 <configuration>
                     <skipTestScope>false</skipTestScope>
                     <failBuildOnAnyVulnerability>true</failBuildOnAnyVulnerability>

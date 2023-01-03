@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ import org.apache.avro.*;
  * package com.myproject.types.avro;
  *
  * public class TaxLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
- *     public static final LogicalType TAX = new TaxLogicalType("Tax");
+ *     public static final LogicalType TAX = new FloatTypeLogicalType("Tax");
  *
  *     @Override
  *     public LogicalType fromSchema(Schema schema) {
@@ -53,20 +53,6 @@ import org.apache.avro.*;
  *     @Override
  *     public String getTypeName() {
  *         return TAX.getName();
- *     }
- *
- *     public static class TaxLogicalType extends LogicalType {
- *         public TaxLogicalType(String logicalTypeName) {
- *             super(logicalTypeName);
- *         }
- *
- *         @Override
- *         public void validate(Schema schema) {
- *             super.validate(schema);
- *             if (schema.getType() != Schema.Type.FLOAT) {
- *                 throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.FLOAT.getName() + "'. Invalid schema: " + schema.toString(true));
- *             }
- *         }
  *     }
  * }
  * }</pre>
@@ -152,11 +138,15 @@ public abstract class BaseFloatTypeConversion<T extends FloatType<T>> extends Co
 
     @Override
     public T fromFloat(Float value, Schema schema, LogicalType type) {
-        return SingleValueType.from(value, getConvertedType());
+        return value == null ?
+               null :
+               SingleValueType.from(value, getConvertedType());
     }
 
     @Override
     public Float toFloat(T value, Schema schema, LogicalType type) {
-        return value.floatValue();
+        return value == null ?
+               null :
+               value.floatValue();
     }
 }

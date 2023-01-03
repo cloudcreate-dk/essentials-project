@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,13 @@ import java.util.stream.LongStream;
  * Represents a Range which uses Long's to define from and to (both inclusive) in the Range.
  */
 public final class LongRange {
-    public final long fromInclusive;
-    public final Long toInclusive;
+    /**
+     * An empty range (that only covers from 0 to 0)
+     */
+    public static final LongRange EMPTY_RANGE = new LongRange(0, 0);
+
+    public final        long      fromInclusive;
+    public final        Long      toInclusive;
 
     private LongRange(long fromInclusive, long toInclusive) {
         this.fromInclusive = fromInclusive;
@@ -67,6 +72,15 @@ public final class LongRange {
     }
 
     /**
+     * Create an empty range (that only covers from 0 to 0)
+     *
+     * @return an empty range
+     */
+    public static LongRange empty() {
+        return EMPTY_RANGE;
+    }
+
+    /**
      * Create a <b>closed</b> range that covers all values from and including the <code>fromInclusive</code> and all numbers
      * larger than <code>fromInclusive</code> and until and inclusive <code>fromInclusive+rangeLength</code>
      *
@@ -80,6 +94,7 @@ public final class LongRange {
 
     /**
      * Create a {@link LongStream} based on the {@link LongRange}
+     *
      * @return a closed range {@link LongStream} if {@link #isClosedRange()} is true or an infinite stream if {@link #isOpenRange()} is true
      */
     public LongStream stream() {

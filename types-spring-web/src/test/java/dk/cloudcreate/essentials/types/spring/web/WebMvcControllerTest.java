@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,11 +25,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
@@ -57,8 +58,78 @@ public class WebMvcControllerTest {
                                                                      CurrencyCode.of("DKK"),
                                                                      CountryCode.of("DK"),
                                                                      EmailAddress.of("john@nonexistingdomain.com"),
-                                                                     Money.of(Amount.of("55.5"), CurrencyCode.EUR))));
+                                                                     Money.of(Amount.of("55.5"), CurrencyCode.EUR),
+                                                                     Created.now(),
+                                                                     DueDate.now(),
+                                                                     LastUpdated.now(),
+                                                                     TimeOfDay.now(),
+                                                                     TransactionTime.now(),
+                                                                     TransferTime.now())));
     }
+
+    @Test
+    void test_LocalDateType_DueDate_request_param() throws Exception {
+        var dueDate = DueDate.now();
+        mockMvc.perform(MockMvcRequestBuilders.get("/orders?dueDate={dueDate}", dueDate))
+               .andExpect(MockMvcResultMatchers.status().isOk())
+               .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
+               .andExpect(MockMvcResultMatchers.content().json(objectMapper.writeValueAsString(dueDate)));
+    }
+
+    @Test
+    void test_LocalDateType_DueDate_path_variable() throws Exception {
+        var dueDate = DueDate.now();
+        mockMvc.perform(MockMvcRequestBuilders.get("/orders/by-due-date/{dueDate}", dueDate))
+               .andExpect(MockMvcResultMatchers.status().isOk())
+               .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
+               .andExpect(MockMvcResultMatchers.content().json(objectMapper.writeValueAsString(dueDate)));
+    }
+
+    @Test
+    void test_LocalDateTimeType_Created_path_variable() throws Exception {
+        var created = Created.now();
+        mockMvc.perform(MockMvcRequestBuilders.get("/orders/by-created/{created}", created))
+               .andExpect(MockMvcResultMatchers.status().isOk())
+               .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
+               .andExpect(MockMvcResultMatchers.content().json(objectMapper.writeValueAsString(created)));
+    }
+
+    @Test
+    void test_InstantType_LastUpdated_path_variable() throws Exception {
+        var lastUpdated = LastUpdated.now();
+        mockMvc.perform(MockMvcRequestBuilders.get("/orders/by-last-updated/{lastUpdated}", lastUpdated))
+               .andExpect(MockMvcResultMatchers.status().isOk())
+               .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
+               .andExpect(MockMvcResultMatchers.content().json(objectMapper.writeValueAsString(lastUpdated)));
+    }
+
+    @Test
+    void test_LocalTimeType_TimeOfDay_path_variable() throws Exception {
+        var timeOfDay = TimeOfDay.now();
+        mockMvc.perform(MockMvcRequestBuilders.get("/orders/by-time-of-day/{timeOfDay}", timeOfDay))
+               .andExpect(MockMvcResultMatchers.status().isOk())
+               .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
+               .andExpect(MockMvcResultMatchers.content().json(objectMapper.writeValueAsString(timeOfDay)));
+    }
+
+    @Test
+    void test_OffsetDateTimeType_TransferTime_path_variable() throws Exception {
+        var transferTime = TransferTime.now();
+        mockMvc.perform(MockMvcRequestBuilders.get("/orders/by-transfer-time/{transferTime}", transferTime))
+               .andExpect(MockMvcResultMatchers.status().isOk())
+               .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
+               .andExpect(MockMvcResultMatchers.content().json(objectMapper.writeValueAsString(transferTime)));
+    }
+
+    @Test
+    void test_ZonedDateTimeType_TransactionTime_path_variable() throws Exception {
+        var transactionTime = TransactionTime.now();
+        mockMvc.perform(MockMvcRequestBuilders.get("/orders/by-transaction-time/{transactionTime}", URLEncoder.encode(transactionTime.toString(), StandardCharsets.UTF_8)))
+               .andExpect(MockMvcResultMatchers.status().isOk())
+               .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
+               .andExpect(MockMvcResultMatchers.content().json(objectMapper.writeValueAsString(transactionTime)));
+    }
+
 
     @Test
     public void getOrderForCustomer() throws Exception {
@@ -103,7 +174,13 @@ public class WebMvcControllerTest {
                               CurrencyCode.of("DKK"),
                               CountryCode.of("DK"),
                               EmailAddress.of("john@nonexistingdomain.com"),
-                              Money.of("102.75", CurrencyCode.EUR));
+                              Money.of("102.75", CurrencyCode.EUR),
+                              Created.now(),
+                              DueDate.now(),
+                              LastUpdated.now(),
+                              TimeOfDay.now(),
+                              TransactionTime.now(),
+                              TransferTime.now());
         mockMvc.perform(MockMvcRequestBuilders.put("/order")
                                               .contentType("application/json")
                                               .content(objectMapper.writeValueAsString(order)))

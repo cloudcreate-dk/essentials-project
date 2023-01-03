@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * The {@link Outbox} supports the transactional Store and Forward pattern from Enterprise Integration Patterns supporting At-Least-Once delivery guarantee.<br>
  * The {@link Outbox} pattern is used to handle outgoing messages, that are created as a side effect of adding/updating an entity in a database, but where the message infrastructure
- * (such as a Queue, Kafka, EventBus, etc) that doesn't share the same underlying transactional resource as the database.<br>
+ * (such as a Queue, Kafka, EventBus, etc.) that doesn't share the same underlying transactional resource as the database.<br>
  * Instead, you need to use an {@link Outbox} that can join in the same {@link UnitOfWork}/transactional-resource
  * that the database is using.<br>
  * The message is added to the {@link Outbox} in a transaction/{@link UnitOfWork} and afterwards the {@link UnitOfWork} is committed.<br>
@@ -74,7 +74,7 @@ public interface Outboxes {
      * @return the {@link Outbox}
      */
     default <MESSAGE_TYPE> Outbox<MESSAGE_TYPE> getOrCreateForwardingOutbox(OutboxConfig outboxConfig,
-                                                                            EventHandler<MESSAGE_TYPE> eventHandler) {
+                                                                            EventHandler eventHandler) {
         requireNonNull(eventHandler, "No eventHandler provided");
         return getOrCreateOutbox(outboxConfig,
                                  eventHandler::handle);
@@ -161,7 +161,7 @@ public interface Outboxes {
                                                                        .onLockReleased(lock -> durableQueueConsumer.cancel())
                                                                        .build());
                         break;
-                    case CompetingConsumers:
+                    case GlobalCompetingConsumers:
                         durableQueueConsumer = consumeFromDurableQueue();
                         break;
                     default:
@@ -188,7 +188,7 @@ public interface Outboxes {
                     case SingleGlobalConsumer:
                         fencedLockManager.cancelAsyncLockAcquiring(config.outboxName.asLockName());
                         break;
-                    case CompetingConsumers:
+                    case GlobalCompetingConsumers:
                         if (durableQueueConsumer != null) {
                             durableQueueConsumer.cancel();
                             durableQueueConsumer = null;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,16 +51,16 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * @see AggregateRootWithState
  */
 public abstract class AggregateRoot<ID, EVENT_TYPE extends Event<ID>, AGGREGATE_TYPE extends AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE>> implements StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_TYPE> {
-    private PatternMatchingMethodInvoker<Event<ID>> invoker;
-    private ID                                      aggregateId;
-    private List<EVENT_TYPE>                        uncommittedChanges;
+    private transient PatternMatchingMethodInvoker<Event<ID>> invoker;
+    private           ID                                      aggregateId;
+    private           List<EVENT_TYPE>                        uncommittedChanges;
     /**
      * Zero based event order
      */
-    private EventOrder                              eventOrderOfLastAppliedEvent;
-    private boolean                                 hasBeenRehydrated;
-    private boolean                                 isRehydrating;
-    private EventOrder                              eventOrderOfLastRehydratedEvent;
+    private           EventOrder                              eventOrderOfLastAppliedEvent;
+    private           boolean                                 hasBeenRehydrated;
+    private           boolean                                 isRehydrating;
+    private           EventOrder                              eventOrderOfLastRehydratedEvent;
 
     public AggregateRoot() {
         initialize();
@@ -152,7 +152,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE extends Event<ID>, AGGREGATE_
                                                                                 this.getClass().getName(),
                                                                                 this.aggregateId));
         }
-        var nextEventOrderToBeApplied = eventOrderOfLastAppliedEvent().increaseAndGet();
+        var nextEventOrderToBeApplied = eventOrderOfLastAppliedEvent().increment();
         event.eventOrder(nextEventOrderToBeApplied);
         applyEventToTheAggregateState(event);
         eventOrderOfLastAppliedEvent = nextEventOrderToBeApplied;

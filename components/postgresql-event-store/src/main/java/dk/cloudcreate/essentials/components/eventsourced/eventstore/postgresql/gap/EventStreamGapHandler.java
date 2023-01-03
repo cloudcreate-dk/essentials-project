@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.AggregateEventStreamConfiguration;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
@@ -27,19 +27,22 @@ import java.util.*;
 import java.util.stream.Stream;
 
 /**
- * Handles maintaining transient and permanent {@link AggregateType} specific event-stream gaps related to a specific {@link SubscriberId}<br>
+ * The {@link PostgresqlEventStore} can be configured with an {@link EventStreamGapHandler}, which keeps track of
+ * transient and permanent {@link AggregateType} event-stream gaps, related to a specific {@link SubscriberId}.
  * The {@link EventStore#pollEvents(AggregateType, long, Optional, Optional, Optional, Optional)} will keep track of event stream gaps if you specify
  * a {@link SubscriberId}<br>
  * <br>
  * A transient event stream gap is defined as a gap in an event stream, where a {@link PersistedEvent#globalEventOrder()}
  * is missing in the list of {@link PersistedEvent}'s returned from {@link EventStore#loadEventsByGlobalOrder(AggregateType, LongRange, List, Tenant)}<br>
- * A gap will be transient until the {@link EventStreamGapHandler} determines that the gap meets a permanent gap criteria (e.g. if the gap has existed for more than
- * the current transaction timeout) after which the gap is promoted to permanent gap status<br>
+ * A gap will remain transient until the {@link EventStreamGapHandler} determines that the gap has met the permanent gap criteria (e.g. if the gap has existed for more than
+ * the current database transaction timeout) after which the gap is promoted to permanent gap status<br>
  * After this the gap will be marked as permanent and won't be included in future calls to {@link EventStore#loadEventsByGlobalOrder(AggregateType, LongRange, List, Tenant)}<br>
  * Permanent gaps are maintained across all Subscriber's at the {@link AggregateType} level and can be reset using {@link #resetPermanentGapsFor(AggregateType)}/{@link #resetPermanentGapsFor(AggregateType, LongRange)}
  * and {@link #resetPermanentGapsFor(AggregateType, List)}
  *
  * @param <CONFIG> the {@link AggregateType} configuration type
+ * @see NoEventStreamGapHandler
+ * @see PostgresqlEventStreamGapHandler
  */
 public interface EventStreamGapHandler<CONFIG extends AggregateEventStreamConfiguration> {
     /**

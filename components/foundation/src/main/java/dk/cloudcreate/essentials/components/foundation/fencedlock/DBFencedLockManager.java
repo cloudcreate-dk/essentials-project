@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 package dk.cloudcreate.essentials.components.foundation.fencedlock;
 
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockEvents.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.reactive.*;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import dk.cloudcreate.essentials.shared.network.Network;
 import org.slf4j.*;
@@ -51,6 +53,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
     private final String                                      lockManagerInstanceId;
 
     protected final UnitOfWorkFactory<? extends UOW> unitOfWorkFactory;
+    private final   Optional<EventBus>               eventBus;
 
     private volatile boolean started;
     private volatile boolean stopping;
@@ -59,8 +62,12 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
      */
     private volatile boolean paused;
 
-    private ScheduledExecutorService lockConfirmationExecutor;
-    private ScheduledExecutorService asyncLockAcquiringExecutor;
+    private   ScheduledExecutorService lockConfirmationExecutor;
+    private   ScheduledExecutorService asyncLockAcquiringExecutor;
+    /**
+     * {@link #tryAcquireLock(LockName)}/{@link #tryAcquireLock(LockName, Duration)} and {@link #acquireLock(LockName)} pause interval between retries
+     */
+    protected int                      syncAcquireLockPauseIntervalMs = 100;
 
     /**
      * @param lockStorage              the lock storage used for the lock manager
@@ -68,12 +75,14 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
      * @param lockManagerInstanceId    The unique name for this lock manager instance. If left {@link Optional#empty()} then the machines hostname is used
      * @param lockTimeOut              the period between {@link FencedLock#getLockLastConfirmedTimestamp()} and the current time before the lock is marked as timed out
      * @param lockConfirmationInterval how often should the locks be confirmed. MUST is less than the <code>lockTimeOut</code>
+     * @param eventBus                 optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
      */
     protected DBFencedLockManager(FencedLockStorage<UOW, LOCK> lockStorage,
                                   UnitOfWorkFactory<? extends UOW> unitOfWorkFactory,
                                   Optional<String> lockManagerInstanceId,
                                   Duration lockTimeOut,
-                                  Duration lockConfirmationInterval) {
+                                  Duration lockConfirmationInterval,
+                                  Optional<EventBus> eventBus) {
         requireNonNull(lockManagerInstanceId, "No lockManagerInstanceId option provided");
 
         this.lockStorage = requireNonNull(lockStorage, "No lockStorage provided");
@@ -86,6 +95,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
                                                    lockConfirmationInterval,
                                                    lockTimeOut));
         }
+        this.eventBus = requireNonNull(eventBus, "No eventBus option provided");
 
         locksAcquiredByThisLockManager = new ConcurrentHashMap<>();
         asyncLockAcquirings = new ConcurrentHashMap<>();
@@ -125,9 +135,14 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
 
             started = true;
             log.info("[{}] Started lock manager", lockManagerInstanceId);
+            notify(new FencedLockManagerStopped(this));
         } else {
             log.debug("[{}] Lock Manager was already started", lockManagerInstanceId);
         }
+    }
+
+    protected void notify(FencedLockEvents event) {
+        eventBus.ifPresent(localEventBus -> localEventBus.publish(event));
     }
 
     public void pause() {
@@ -173,6 +188,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
                 if (confirmedWithSuccess) {
                     fencedLock.markAsConfirmed(confirmedTimestamp);
                     log.debug("[{}] Confirmed lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
+                    notify(new LockAcquired(fencedLock, this));
                 } else {
                     // We failed to confirm this lock, someone must have taken over the lock in the meantime
                     log.info("[{}] Failed to confirm lock '{}', someone has taken over the lock: {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
@@ -203,6 +219,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
         var releaseWithSuccess = unitOfWorkFactory.withUnitOfWork(uow -> lockStorage.releaseLockInDB(this, uow, lock));
         lock.markAsReleased();
         locksAcquiredByThisLockManager.remove(lock.getName());
+        notify(new LockReleased(lock, this));
 
         if (releaseWithSuccess) {
             log.debug("[{}] Released Lock '{}': {}", lockManagerInstanceId, lock.getName(), lock);
@@ -249,6 +266,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
             started = false;
             stopping = false;
             log.debug("[{}] Stopped lock manager", lockManagerInstanceId);
+            notify(new FencedLockManagerStopped(this));
         } else {
             log.debug("[{}] Lock Manager was already stopped", lockManagerInstanceId);
         }
@@ -271,6 +289,11 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
         requireNonNull(timeout, "No timeout value provided");
         return Optional.ofNullable(_tryAcquireLock(lockName)
                                            .repeatWhenEmpty(longFlux -> longFlux.doOnNext(aLong -> {
+                                               try {
+                                                   Thread.sleep(syncAcquireLockPauseIntervalMs);
+                                               } catch (InterruptedException e) {
+                                                   // Ignore
+                                               }
                                            }))
                                            .block(timeout));
     }
@@ -353,6 +376,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
             initialLock.markAsLocked(now, lockManagerInstanceId, lockStorage.getInitialTokenValue());
             log.debug("[{}] Acquired lock '{}' for the first time (insert): {}", lockManagerInstanceId, initialLock.getName(), initialLock);
             locksAcquiredByThisLockManager.put(initialLock.getName(), initialLock);
+            notify(new LockAcquired(initialLock, this));
             return Mono.just(initialLock);
         } else {
             // We didn't acquire the lock after all
@@ -375,6 +399,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
             newLockReadyToBeAcquiredLocally.markAsLocked(newLockReadyToBeAcquiredLocally.getLockAcquiredTimestamp(),
                                                          newLockReadyToBeAcquiredLocally.getLockedByLockManagerInstanceId(),
                                                          newLockReadyToBeAcquiredLocally.getCurrentToken());
+            notify(new LockAcquired(newLockReadyToBeAcquiredLocally, this));
             return Mono.just(newLockReadyToBeAcquiredLocally);
         } else {
             // We didn't acquire the lock after all
@@ -396,6 +421,11 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
     public FencedLock acquireLock(LockName lockName) {
         return _tryAcquireLock(lockName)
                 .repeatWhenEmpty(longFlux -> longFlux.doOnNext(aLong -> {
+                    try {
+                        Thread.sleep(syncAcquireLockPauseIntervalMs);
+                    } catch (InterruptedException e) {
+                        // Ignore
+                    }
                 }))
                 .block();
     }

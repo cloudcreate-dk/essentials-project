@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.jackson.types;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.introspect.VisibilityChecker;
@@ -42,7 +43,15 @@ public final class EssentialTypesJacksonModule extends SimpleModule {
         addSerializer(CharSequenceType.class, new CharSequenceTypeJsonSerializer());
         addSerializer(NumberType.class, new NumberTypeJsonSerializer());
         addDeserializer(Money.class, new MoneyDeserializer());
+        setMixInAnnotation(JSR310SingleValueType.class,
+                           JSR310SingleValueTypeMixIn.class);
+
         super.setupModule(context);
+    }
+
+    private interface JSR310SingleValueTypeMixIn<VALUE_TYPE> {
+        @JsonValue
+        VALUE_TYPE value();
     }
 
     /**

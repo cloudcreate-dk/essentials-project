@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ class LocalEventBusTest {
     @Test
     void test_with_both_sync_and_async_subscribers() {
         var onErrorHandler   = new TestOnErrorHandler();
-        var localEventBus    = new LocalEventBus<>("Test", 3, onErrorHandler);
+        var localEventBus    = new LocalEventBus("Test", 3, onErrorHandler);
         var asyncSubscriber1 = new RecordingEventHandler();
         var asyncSubscriber2 = new RecordingEventHandler();
         var syncSubscriber1  = new RecordingEventHandler();
@@ -58,7 +58,7 @@ class LocalEventBusTest {
     @Test
     void test_multi_threaded_publishing_with_async_subscribers() {
         var onErrorHandler   = new TestOnErrorHandler();
-        var localEventBus    = new LocalEventBus<>("Test", 3, onErrorHandler);
+        var localEventBus    = new LocalEventBus("Test", 3, onErrorHandler);
         var asyncSubscriber1 = new RecordingEventHandler();
         var asyncSubscriber2 = new RecordingEventHandler();
 
@@ -79,11 +79,11 @@ class LocalEventBusTest {
     @Test
     void test_with_async_subscriber_throwing_an_exception() {
         var onErrorHandler = new TestOnErrorHandler();
-        var localEventBus  = new LocalEventBus<>("Test", 3, onErrorHandler);
+        var localEventBus  = new LocalEventBus("Test", 3, onErrorHandler);
         var syncSubscriber = new RecordingEventHandler();
         localEventBus.addSyncSubscriber(syncSubscriber);
 
-        EventHandler<OrderEvent> asyncSubscriber = orderEvent -> {
+        EventHandler asyncSubscriber = orderEvent -> {
             throw new RuntimeException("On purpose");
         };
         localEventBus.addAsyncSubscriber(asyncSubscriber);
@@ -103,11 +103,11 @@ class LocalEventBusTest {
     @Test
     void test_with_sync_subscriber_throwing_an_exception() {
         var onErrorHandler  = new TestOnErrorHandler();
-        var localEventBus   = new LocalEventBus<>("Test", 3, onErrorHandler);
+        var localEventBus   = new LocalEventBus("Test", 3, onErrorHandler);
         var asyncSubscriber = new RecordingEventHandler();
         localEventBus.addAsyncSubscriber(asyncSubscriber);
 
-        EventHandler<OrderEvent> syncSubscriber = orderEvent -> {
+        EventHandler syncSubscriber = orderEvent -> {
             throw new RuntimeException("On purpose");
         };
         localEventBus.addSyncSubscriber(syncSubscriber);
@@ -138,21 +138,21 @@ class LocalEventBusTest {
     private static class OrderCancelledEvent extends OrderEvent {
     }
 
-    private static class RecordingEventHandler implements EventHandler<OrderEvent> {
+    private static class RecordingEventHandler implements EventHandler {
         final List<OrderEvent> eventsReceived = new ArrayList<>();
 
         @Override
-        public void handle(OrderEvent orderEvent) {
-            eventsReceived.add(orderEvent);
+        public void handle(Object orderEvent) {
+            eventsReceived.add((OrderEvent) orderEvent);
         }
     }
 
-    private static class TestOnErrorHandler implements OnErrorHandler<OrderEvent> {
-        final List<Triple<EventHandler<OrderEvent>, OrderEvent, Exception>> errorsHandled = new ArrayList<>();
+    private static class TestOnErrorHandler implements OnErrorHandler {
+        final List<Triple<EventHandler, OrderEvent, Exception>> errorsHandled = new ArrayList<>();
 
         @Override
-        public void handle(EventHandler<OrderEvent> failingSubscriber, OrderEvent event, Exception error) {
-            errorsHandled.add(Tuple.of(failingSubscriber, event, error));
+        public void handle(EventHandler failingSubscriber, Object event, Exception error) {
+            errorsHandled.add(Tuple.of(failingSubscriber, (OrderEvent)event, error));
         }
 
     }

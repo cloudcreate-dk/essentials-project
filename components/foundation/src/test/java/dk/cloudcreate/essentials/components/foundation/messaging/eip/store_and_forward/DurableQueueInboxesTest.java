@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ class DurableQueueInboxesTest {
                 InboxConfig.builder()
                            .inboxName(inboxName)
                            .redeliveryPolicy(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(10), 1))
-                           .messageConsumptionMode(MessageConsumptionMode.CompetingConsumers).
+                           .messageConsumptionMode(MessageConsumptionMode.GlobalCompetingConsumers).
                            numberOfParallelMessageConsumers(2).build(),
                 o -> {
                 });
@@ -86,7 +86,7 @@ class DurableQueueInboxesTest {
                 InboxConfig.builder()
                            .inboxName(inboxName)
                            .redeliveryPolicy(redeliveryPolicy)
-                           .messageConsumptionMode(MessageConsumptionMode.CompetingConsumers)
+                           .messageConsumptionMode(MessageConsumptionMode.GlobalCompetingConsumers)
                            .build(),
                 o -> {
                 });
@@ -180,7 +180,7 @@ class DurableQueueInboxesTest {
                 InboxConfig.builder()
                            .inboxName(inboxName)
                            .redeliveryPolicy(redeliveryPolicy)
-                           .messageConsumptionMode(MessageConsumptionMode.CompetingConsumers)
+                           .messageConsumptionMode(MessageConsumptionMode.GlobalCompetingConsumers)
                            .build(),
                 o -> {
                 });

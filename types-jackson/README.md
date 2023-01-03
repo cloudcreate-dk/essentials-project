@@ -13,15 +13,17 @@ This library focuses purely on providing [Jackson (FasterXML)](https://github.co
 for the **types** defined in the Essentials `types` library.
 
 To use `Types-Jackson` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jackson</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
 
 `Types-Jackson` usually needs additional third party dependencies to work, such as:
+
 ```
 <dependency>
     <groupId>org.slf4j</groupId>
@@ -65,10 +67,43 @@ It also supports registering additional Jackson modules:
 ObjectMapper objectMapper = EssentialTypesJacksonModule.createObjectMapper(new EssentialsImmutableJacksonModule(), new Jdk8Module(), new JavaTimeModule());
 ```
 
+### JSR 310 Semantic Types
+
+This library also supports `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+| `JSR310SingleValueType` specialization | Value Type |
+|----------------------------------|-------------------------|
+| `InstantType`                    | `Instant`               |
+| `LocalDateTimeType`              | `LocalDateTime`         |
+| `LocalDateType`                  | `LocalDate`             |
+| `LocalTimeType`                  | `LocalTime`             |
+| `OffsetDateTimeType`             | `OffsetDateTime`        |
+| `ZonedDateTimeType`              | `ZonedDateTime`         |
+
+Each concrete `JSR310SingleValueType` **MUST** specify a `@JsonCreator` constructor.  
+Example: `TransactionTime` which is a concrete `ZonedDateTimeType`:
+```
+public class TransactionTime extends ZonedDateTimeType<TransactionTime> {
+    @JsonCreator
+    public TransactionTime(ZonedDateTime value) {
+        super(value);
+    }
+
+    public static TransactionTime of(ZonedDateTime value) {
+        return new TransactionTime(value);
+    }
+
+    public static TransactionTime now() {
+        return new TransactionTime(ZonedDateTime.now(ZoneId.of("UTC")));
+    }
+}
+```
+
 ### Jackson Map key deserialization
+
 Serialization of `SingleValueType`'s works automatically for `Map` key's and value's, but to deserialize a `Map` that has a Key of type `SingleValueType`, then you need to specify a `KeyDeserializer`.
 
 Luckily these are easy to create:
+
 ```
 public class ProductIdKeyDeserializer extends KeyDeserializer {
     @Override
@@ -79,6 +114,7 @@ public class ProductIdKeyDeserializer extends KeyDeserializer {
 ```
 
 with the `ProductIdKeyDeserializer` we can now serialize `Map`'s that specify `ProductId` as keys:
+
 ```
 public class Order {
     public OrderId                  id;

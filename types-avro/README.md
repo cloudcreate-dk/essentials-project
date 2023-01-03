@@ -14,7 +14,7 @@ To use `Types-Avro` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-avro</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
 
@@ -127,7 +127,59 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
 }
 ```
 
-### Write your own  `Conversion`, `LogicalType` and `LogicalTypeFactory`
+### JSR 310 Semantic Types
+
+This library also supports Logical-Types for all `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+| `JSR310SingleValueType` specialization | Value Type |
+|----------------------------------|-------------------------|
+| `InstantType`                    | `Instant`               |
+| `LocalDateTimeType`              | `LocalDateTime`         |
+| `LocalDateType`                  | `LocalDate`             |
+| `LocalTimeType`                  | `LocalTime`             |
+| `OffsetDateTimeType`             | `OffsetDateTime`        |
+| `ZonedDateTimeType`              | `ZonedDateTime`         |
+
+Caveats:
+- The `JSR310SingleValueType` LogicalType converters provided by this library defaults to using ZoneId `UTC`,
+  hence it's recommended to use `ZoneId.of("UTC")` or `Clock.systemUTC()` when creating the underlying JSR-310 instances.
+- The `LocalDateTimeType`, `OffsetDateTimeType` and `ZonedDateTimeType` LogicalTypes 's `only provide millisecond time precision, hence it's recommended to use `.with(ChronoField.NANO_OF_SECOND, 0)`
+  or `.withNano(0)` 
+
+Example `InstantType`:
+```
+public class LastUpdated extends InstantType<LastUpdated> {
+    public LastUpdated(Instant value) {
+        super(value);
+    }
+
+    public static LastUpdated of(Instant value) {
+        return new LastUpdated(value);
+    }
+
+    public static LastUpdated now() {
+        return new LastUpdated(Instant.now(Clock.systemUTC()).with(ChronoField.NANO_OF_SECOND, 0));
+    }
+}
+```
+
+Example `LocalDateTimeType`:
+```
+public class Created extends LocalDateTimeType<Created> {
+    public Created(LocalDateTime value) {
+        super(value);
+    }
+
+    public static Created of(LocalDateTime value) {
+        return new Created(value);
+    }
+
+    public static Created now() {
+        return new Created(LocalDateTime.now(Clock.systemUTC()).withNano(0));
+    }
+}
+```
+
+### Write your own  `Conversion` and `LogicalTypeFactory`
 
 Let's say you want to introduce your own `OrderId` type:
 
@@ -169,13 +221,13 @@ protocol Test {
 
 then you will need to define the following classes:
 
-#### 1. Create the `OrderIdLogicalType` and `OrderIdLogicalTypeFactory`
+#### 1. Create the `OrderIdLogicalTypeFactory`
 
 ```
 package com.myproject.types.avro;
 
 public class OrderIdLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
-    public static final LogicalType ORDER_ID = new CurrencyCodeLogicalType("OrderId");
+    public static final LogicalType ORDER_ID = new CharSequenceTypeLogicalType("OrderId");
 
     @Override
     public LogicalType fromSchema(Schema schema) {
@@ -185,20 +237,6 @@ public class OrderIdLogicalTypeFactory implements LogicalTypes.LogicalTypeFactor
     @Override
     public String getTypeName() {
         return ORDER_ID.getName();
-    }
-
-    public static class OrderIdLogicalType extends LogicalType {
-        public OrderIdLogicalType(String logicalTypeName) {
-            super(logicalTypeName);
-        }
-
-        @Override
-        public void validate(Schema schema) {
-            super.validate(schema);
-            if (schema.getType() != Schema.Type.STRING) {
-                throw new IllegalArgumentException("OrderId can only be used with an underlying String type");
-            }
-        }
     }
 }
 ```

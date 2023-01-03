@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -152,11 +152,15 @@ public abstract class BaseLongTypeConversion<T extends LongType<T>> extends Conv
 
     @Override
     public T fromLong(Long value, Schema schema, LogicalType type) {
-        return SingleValueType.from(value, getConvertedType());
+        return value == null ?
+               null :
+               SingleValueType.from(value, getConvertedType());
     }
 
     @Override
     public Long toLong(T value, Schema schema, LogicalType type) {
-        return value.longValue();
+        return value == null ?
+               null :
+               value.longValue();
     }
 }

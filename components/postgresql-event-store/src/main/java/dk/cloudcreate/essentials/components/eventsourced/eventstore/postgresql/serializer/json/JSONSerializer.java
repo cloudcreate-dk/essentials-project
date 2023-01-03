@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,15 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.p
  * JSON serializer and deserializer
  */
 public interface JSONSerializer {
+    /**
+     * Serialize the object to JSON
+     *
+     * @param obj the object to serialize
+     * @return the serialized json payload as a String
+     * @throws JSONSerializationException in case the json couldn't be deserialized to the specified java type
+     */
+    String serialize(Object obj);
+
     /**
      * Deserialize the payload in the <code>json</code> parameter into the Java type specified by the Fully Qualified Class Name contained
      * in the <code>javaType</code> parameter

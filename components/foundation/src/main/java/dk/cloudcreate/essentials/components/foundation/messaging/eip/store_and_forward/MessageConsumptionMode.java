@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_
  */
 public enum MessageConsumptionMode {
     /**
-     * Only a single consumer instance in a cluster will be allowed to handle messages
+     * Only a single consumer instance in a cluster will be allowed to consume messages at a time (supports failover if the given consumer is shutdown or crashes)
      */
     SingleGlobalConsumer,
     /**
      * Multiple consumers in a cluster can compete to handle messages, but a message will only be handled a single consumer
      */
-    CompetingConsumers
+    GlobalCompetingConsumers
 }

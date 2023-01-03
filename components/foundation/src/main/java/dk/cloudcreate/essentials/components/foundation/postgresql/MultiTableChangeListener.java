@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ public class MultiTableChangeListener<T extends TableChangeNotification> impleme
     private final        Jdbi                                      jdbi;
     private final        Duration                                  pollingInterval;
     private final        ObjectMapper                              objectMapper;
-    private final        LocalEventBus<T>                          localEventBus;
+    private final        LocalEventBus                             localEventBus;
     /**
      * Key: The table name<br>
      * Value: The {@link TableChangeNotification} subclass that the notification string payload should be mapped to using the {@link #objectMapper}
@@ -58,7 +58,7 @@ public class MultiTableChangeListener<T extends TableChangeNotification> impleme
     public MultiTableChangeListener(Jdbi jdbi,
                                     Duration pollingInterval,
                                     ObjectMapper objectMapper,
-                                    LocalEventBus<T> localEventBus) {
+                                    LocalEventBus localEventBus) {
         this.jdbi = requireNonNull(jdbi, "No jdbi provided");
         this.pollingInterval = requireNonNull(pollingInterval, "No pollingInterval provided");
         this.objectMapper = requireNonNull(objectMapper, "No objectMapper provided");
@@ -173,7 +173,7 @@ public class MultiTableChangeListener<T extends TableChangeNotification> impleme
                           }
                       })
                       .filter(Objects::nonNull)
-                      .forEach(event -> localEventBus.publish(event));
+                      .forEach(localEventBus::publish);
             } else {
                 log.trace("Didn't receive any Notifications");
             }

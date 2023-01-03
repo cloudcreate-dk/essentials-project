@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,15 @@
 
 package dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo;
 
-import com.mongodb.ClientSessionOptions;
 import dk.cloudcreate.essentials.components.foundation.transaction.mongo.ClientSessionAwareUnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.*;
 import org.springframework.data.mongodb.*;
 import org.springframework.transaction.TransactionStatus;
 
-import java.util.Optional;
-
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 public class SpringMongoTransactionAwareUnitOfWorkFactory extends SpringTransactionAwareUnitOfWorkFactory<MongoTransactionManager, SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork> {
-    private static ClientSessionOptions CLIENT_SESSION_OPTIONS = ClientSessionOptions.builder()
-                                                                                     .causallyConsistent(true)
-                                                                                     .build();
-    private        MongoDatabaseFactory dbFactory;
+    private MongoDatabaseFactory dbFactory;
 
     public SpringMongoTransactionAwareUnitOfWorkFactory(MongoTransactionManager transactionManager,
                                                         MongoDatabaseFactory dbFactory) {
@@ -41,11 +35,6 @@ public class SpringMongoTransactionAwareUnitOfWorkFactory extends SpringTransact
     @Override
     protected Class<?> resolveUnitOfWorkType() {
         return SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork.class;
-    }
-
-    @Override
-    public Optional<SpringMongoTransactionAwareUnitOfWork> getCurrentUnitOfWork() {
-        return Optional.empty();
     }
 
     @Override

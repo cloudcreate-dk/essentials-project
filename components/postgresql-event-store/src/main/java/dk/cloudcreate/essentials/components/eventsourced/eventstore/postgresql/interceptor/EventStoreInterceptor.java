@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,10 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.foundation.types.*;
-import dk.cloudcreate.essentials.types.LongRange;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.operations.*;
 
-import java.util.*;
+import java.util.Optional;
 import java.util.stream.Stream;
-
-import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * An {@link EventStoreInterceptor} allows you to modify events prior to being persisted to the {@link EventStore} or after they're loaded/fetched from the {@link EventStore}<br>
@@ -89,174 +86,6 @@ public interface EventStoreInterceptor {
      */
     default Stream<PersistedEvent> intercept(LoadEventsByGlobalOrder operation, EventStoreInterceptorChain<LoadEventsByGlobalOrder, Stream<PersistedEvent>> eventStoreInterceptorChain) {
         return eventStoreInterceptorChain.proceed();
-    }
-
-    /**
-     * Operation matching the {@link EventStore#appendToStream(AggregateType, Object, Optional, List)} method call
-     *
-     * @param <ID> the id type for the aggregate
-     */
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    class AppendToStream<ID> {
-        private final AggregateType  aggregateType;
-        private final ID             aggregateId;
-        private       Optional<Long> appendEventsAfterEventOrder;
-        private       List<?>        eventsToAppend;
-
-        public AppendToStream(AggregateType aggregateType, ID aggregateId, Optional<Long> appendEventsAfterEventOrder, List<?> eventsToAppend) {
-            this.aggregateType = requireNonNull(aggregateType, "No aggregateType provided");
-            this.aggregateId = requireNonNull(aggregateId, "No aggregateId provided");
-            this.appendEventsAfterEventOrder = requireNonNull(appendEventsAfterEventOrder, "No appendEventsAfterEventOrder provided");
-            this.eventsToAppend = requireNonNull(eventsToAppend, "No eventsToAppend provided");
-        }
-
-        public void setAppendEventsAfterEventOrder(Optional<Long> appendEventsAfterEventOrder) {
-            this.appendEventsAfterEventOrder = requireNonNull(appendEventsAfterEventOrder, "No appendEventsAfterEventOrder provided");
-        }
-
-        public void setEventsToAppend(List<?> eventsToAppend) {
-            this.eventsToAppend = requireNonNull(eventsToAppend, "No eventsToAppend provided");
-        }
-
-        public AggregateType getAggregateType() {
-            return aggregateType;
-        }
-
-        public ID getAggregateId() {
-            return aggregateId;
-        }
-
-        public Optional<Long> getAppendEventsAfterEventOrder() {
-            return appendEventsAfterEventOrder;
-        }
-
-        public List<?> getEventsToAppend() {
-            return eventsToAppend;
-        }
-    }
-
-    /**
-     * Operation matching the {@link EventStore#loadLastPersistedEventRelatedTo(AggregateType, Object)}
-     *
-     * @param <ID> the id type for the aggregate
-     */
-    class LoadLastPersistedEventRelatedTo<ID> {
-        private final AggregateType aggregateType;
-        private final ID            aggregateId;
-
-        public LoadLastPersistedEventRelatedTo(AggregateType aggregateType, ID aggregateId) {
-            this.aggregateType = requireNonNull(aggregateType, "No aggregateType provided");
-            this.aggregateId = requireNonNull(aggregateId, "No aggregateId provided");
-        }
-
-        public AggregateType getAggregateType() {
-            return aggregateType;
-        }
-
-        public ID getAggregateId() {
-            return aggregateId;
-        }
-    }
-
-    /**
-     * Operation matching the {@link EventStore#loadEvent(AggregateType, EventId)}
-     */
-    class LoadEvent {
-        private final AggregateType aggregateType;
-        private final EventId       eventId;
-
-        public LoadEvent(AggregateType aggregateType, EventId aggregateId) {
-            this.aggregateType = requireNonNull(aggregateType, "No aggregateType provided");
-            this.eventId = requireNonNull(aggregateId, "No eventId provided");
-        }
-
-        public AggregateType getAggregateType() {
-            return aggregateType;
-        }
-
-        public EventId getEventId() {
-            return eventId;
-        }
-    }
-
-    /**
-     * Operation matching the {@link EventStore#fetchStream(AggregateType, Object, LongRange, Optional)} method call
-     *
-     * @param <ID> the id type for the aggregate
-     */
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    class FetchStream<ID> {
-        private final AggregateType    aggregateType;
-        private final ID               aggregateId;
-        private       LongRange        eventOrderRange;
-        private       Optional<Tenant> tenant;
-
-        public FetchStream(AggregateType aggregateType, ID aggregateId, LongRange eventOrderRange, Optional<Tenant> tenant) {
-            this.aggregateType = requireNonNull(aggregateType, "No aggregateType provided");
-            this.aggregateId = requireNonNull(aggregateId, "No aggregateId provided");
-            this.eventOrderRange = requireNonNull(eventOrderRange, "No eventOrderRange provided");
-            this.tenant = requireNonNull(tenant, "No tenant provided");
-        }
-
-        public AggregateType getAggregateType() {
-            return aggregateType;
-        }
-
-        public ID getAggregateId() {
-            return aggregateId;
-        }
-
-        public LongRange getEventOrderRange() {
-            return eventOrderRange;
-        }
-
-        public Optional<Tenant> getTenant() {
-            return tenant;
-        }
-
-        public void setEventOrderRange(LongRange eventOrderRange) {
-            this.eventOrderRange = requireNonNull(eventOrderRange, "No eventOrderRange provided");
-        }
-
-        public void setTenant(Optional<Tenant> tenant) {
-            this.tenant = requireNonNull(tenant, "No tenant provided");
-        }
-    }
-
-    /**
-     * Operation matching the {@link EventStore#loadEventsByGlobalOrder(AggregateType, LongRange, List, Optional)}  method call
-     */
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    class LoadEventsByGlobalOrder {
-        private final AggregateType    aggregateType;
-        private       LongRange        globalOrderRange;
-        private       Optional<Tenant> onlyIncludeEventIfItBelongsToTenant;
-
-        public LoadEventsByGlobalOrder(AggregateType aggregateType, LongRange globalOrderRange, Optional<Tenant> onlyIncludeEventIfItBelongsToTenant) {
-            this.aggregateType = requireNonNull(aggregateType, "No aggregateType provided");
-            this.globalOrderRange = requireNonNull(globalOrderRange, "No globalOrderRange provided");
-            this.onlyIncludeEventIfItBelongsToTenant = requireNonNull(onlyIncludeEventIfItBelongsToTenant, "No onlyIncludeEventIfItBelongsToTenant option provided");
-        }
-
-        public AggregateType getAggregateType() {
-            return aggregateType;
-        }
-
-        public LongRange getGlobalOrderRange() {
-            return globalOrderRange;
-        }
-
-        public Optional<Tenant> getOnlyIncludeEventIfItBelongsToTenant() {
-            return onlyIncludeEventIfItBelongsToTenant;
-        }
-
-        public void setGlobalOrderRange(LongRange globalOrderRange) {
-            this.globalOrderRange = requireNonNull(globalOrderRange, "No globalOrderRange provided");
-        }
-
-        public void setOnlyIncludeEventIfItBelongsToTenant(Optional<Tenant> onlyIncludeEventIfItBelongsToTenant) {
-            this.onlyIncludeEventIfItBelongsToTenant = requireNonNull(onlyIncludeEventIfItBelongsToTenant, "No onlyIncludeEventIfItBelongsToTenant option provided");
-        }
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful;
 
 
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.*;
+import dk.cloudcreate.essentials.components.eventsourced.aggregates.snapshot.*;
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.classic.Event;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
@@ -57,21 +58,62 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
      * @param eventStore                   the {@link EventStore} instance to use
      * @param eventStreamConfiguration     the configuration for the event stream that will contain all the events related to the aggregate type
      * @param aggregateRootInstanceFactory the factory responsible for instantiating your {@link StatefulAggregate}'s when loading them from the {@link EventStore}
-     * @param aggregateImplementationType  the concrete aggregate type (MUST be a subtype of {@link StatefulAggregate}). It will try to resolve the Aggregate Id type from
-     *                                     the aggregateImplementationType type parameters
+     * @param aggregateImplementationType  the concrete aggregate implementation type (MUST be a subtype of {@link StatefulAggregate}).<br>
+     *                                     It will try to resolve the Aggregate Id type from the aggregateImplementationType type parameters
      * @return a repository instance that can be used load, add and query aggregates of type <code>aggregateType</code>
      */
     @SuppressWarnings("unchecked")
-    static <CONFIG extends AggregateEventStreamConfiguration, ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE extends StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE>> StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE> from(ConfigurableEventStore<CONFIG> eventStore,
-                                                                                                                                                                                                                                        CONFIG eventStreamConfiguration,
-                                                                                                                                                                                                                                        StatefulAggregateInstanceFactory aggregateRootInstanceFactory,
-                                                                                                                                                                                                                                        Class<AGGREGATE_IMPL_TYPE> aggregateImplementationType) {
+    static <CONFIG extends AggregateEventStreamConfiguration,
+            ID,
+            EVENT_TYPE,
+            AGGREGATE_IMPL_TYPE extends StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE>>
+    StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE> from(ConfigurableEventStore<CONFIG> eventStore,
+                                                                          CONFIG eventStreamConfiguration,
+                                                                          StatefulAggregateInstanceFactory aggregateRootInstanceFactory,
+                                                                          Class<AGGREGATE_IMPL_TYPE> aggregateImplementationType) {
         requireNonNull(aggregateImplementationType, "No aggregateImplementationType provided");
         return new DefaultStatefulAggregateRepository<>(eventStore,
                                                         eventStreamConfiguration,
                                                         aggregateRootInstanceFactory,
                                                         (Class<ID>) GenericType.resolveGenericTypeOnSuperClass(aggregateImplementationType, 0),
-                                                        aggregateImplementationType);
+                                                        aggregateImplementationType,
+                                                        null);
+    }
+
+    /**
+     * Create an {@link StatefulAggregateRepository} instance that supports loading and persisting the given Aggregate type - the {@link EventStore} will be configured with the supplied <code>eventStreamConfiguration</code>.<br>
+     * This factory method will try to resolve the Aggregate Id type from the aggregateImplementationType type parameters<br>
+     * If that fails please use {@link #from(ConfigurableEventStore, AggregateEventStreamConfiguration, StatefulAggregateInstanceFactory, Class, Class)}
+     *
+     * @param <CONFIG>                     the aggregate type configuration
+     * @param <ID>                         the aggregate ID type
+     * @param <EVENT_TYPE>                 the type of event
+     * @param <AGGREGATE_IMPL_TYPE>        the concrete aggregate type  (MUST be a subtype of {@link StatefulAggregate})
+     * @param eventStore                   the {@link EventStore} instance to use
+     * @param eventStreamConfiguration     the configuration for the event stream that will contain all the events related to the aggregate type
+     * @param aggregateRootInstanceFactory the factory responsible for instantiating your {@link StatefulAggregate}'s when loading them from the {@link EventStore}
+     * @param aggregateImplementationType  the concrete aggregate implementation type (MUST be a subtype of {@link StatefulAggregate}).<br>
+     *                                     It will try to resolve the Aggregate Id type from the aggregateImplementationType type parameters
+     * @param aggregateSnapshotRepository  optional (may be null) {@link AggregateSnapshotRepository}
+     * @return a repository instance that can be used load, add and query aggregates of type <code>aggregateType</code>
+     */
+    @SuppressWarnings("unchecked")
+    static <CONFIG extends AggregateEventStreamConfiguration,
+            ID,
+            EVENT_TYPE,
+            AGGREGATE_IMPL_TYPE extends StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE>>
+    StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE> from(ConfigurableEventStore<CONFIG> eventStore,
+                                                                          CONFIG eventStreamConfiguration,
+                                                                          StatefulAggregateInstanceFactory aggregateRootInstanceFactory,
+                                                                          Class<AGGREGATE_IMPL_TYPE> aggregateImplementationType,
+                                                                          AggregateSnapshotRepository aggregateSnapshotRepository) {
+        requireNonNull(aggregateImplementationType, "No aggregateImplementationType provided");
+        return new DefaultStatefulAggregateRepository<>(eventStore,
+                                                        eventStreamConfiguration,
+                                                        aggregateRootInstanceFactory,
+                                                        (Class<ID>) GenericType.resolveGenericTypeOnSuperClass(aggregateImplementationType, 0),
+                                                        aggregateImplementationType,
+                                                        aggregateSnapshotRepository);
     }
 
     /**
@@ -88,8 +130,8 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
      * @param eventStore                   the {@link EventStore} instance to use
      * @param aggregateType                the aggregate type being handled by this repository
      * @param aggregateRootInstanceFactory the factory responsible for instantiating your {@link StatefulAggregate}'s when loading them from the {@link EventStore}
-     * @param aggregateImplementationType  the concrete aggregate type (MUST be a subtype of {@link StatefulAggregate}). It will try to resolve the Aggregate Id type from
-     *                                     the aggregateImplementationType type parameters
+     * @param aggregateImplementationType  the concrete aggregate implementation type (MUST be a subtype of {@link StatefulAggregate}).<br>
+     *                                     It will try to resolve the Aggregate Id type from the aggregateImplementationType type parameters
      * @return a repository instance that can be used load, add and query aggregates of type <code>aggregateType</code>
      */
     @SuppressWarnings("unchecked")
@@ -102,7 +144,46 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                                                         aggregateType,
                                                         aggregateRootInstanceFactory,
                                                         (Class<ID>) GenericType.resolveGenericTypeOnSuperClass(aggregateImplementationType, 0),
-                                                        aggregateImplementationType);
+                                                        aggregateImplementationType,
+                                                        null);
+    }
+
+    /**
+     * Create an {@link StatefulAggregateRepository} instance that supports loading and persisting the given Aggregate type - if missing, the {@link EventStore} will be configured with the
+     * default {@link AggregateEventStreamConfiguration} based on the {@link AggregateEventStreamConfigurationFactory} that the {@link EventStore}'s {@link AggregateEventStreamPersistenceStrategy}
+     * is configured with<br>
+     * This factory method will try to resolve the Aggregate Id type from the aggregateImplementationType type parameters<br>
+     * If that fails please use {@link #from(ConfigurableEventStore, AggregateEventStreamConfiguration, StatefulAggregateInstanceFactory, Class, Class)}
+     *
+     * @param <CONFIG>                     the aggregate type configuration
+     * @param <ID>                         the aggregate ID type
+     * @param <EVENT_TYPE>                 the type of event
+     * @param <AGGREGATE_IMPL_TYPE>        the concrete aggregate type  (MUST be a subtype of {@link StatefulAggregate})
+     * @param eventStore                   the {@link EventStore} instance to use
+     * @param aggregateType                the aggregate type being handled by this repository
+     * @param aggregateRootInstanceFactory the factory responsible for instantiating your {@link StatefulAggregate}'s when loading them from the {@link EventStore}
+     * @param aggregateImplementationType  the concrete aggregate implementation type (MUST be a subtype of {@link StatefulAggregate}).<br>
+     *                                     It will try to resolve the Aggregate Id type from the aggregateImplementationType type parameters
+     * @param aggregateSnapshotRepository  optional (may be null) {@link AggregateSnapshotRepository}
+     * @return a repository instance that can be used load, add and query aggregates of type <code>aggregateType</code>
+     */
+    @SuppressWarnings("unchecked")
+    static <CONFIG extends AggregateEventStreamConfiguration,
+            ID,
+            EVENT_TYPE,
+            AGGREGATE_IMPL_TYPE extends StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE>>
+    StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE> from(ConfigurableEventStore<CONFIG> eventStore,
+                                                                          AggregateType aggregateType,
+                                                                          StatefulAggregateInstanceFactory aggregateRootInstanceFactory,
+                                                                          Class<AGGREGATE_IMPL_TYPE> aggregateImplementationType,
+                                                                          AggregateSnapshotRepository aggregateSnapshotRepository) {
+        requireNonNull(aggregateImplementationType, "No aggregateImplementationType provided");
+        return new DefaultStatefulAggregateRepository<>(eventStore,
+                                                        aggregateType,
+                                                        aggregateRootInstanceFactory,
+                                                        (Class<ID>) GenericType.resolveGenericTypeOnSuperClass(aggregateImplementationType, 0),
+                                                        aggregateImplementationType,
+                                                        aggregateSnapshotRepository);
     }
 
     /**
@@ -128,7 +209,41 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                                                         eventStreamConfiguration,
                                                         aggregateRootInstanceFactory,
                                                         aggregateIdType,
-                                                        aggregateImplementationType);
+                                                        aggregateImplementationType,
+                                                        null);
+    }
+
+    /**
+     * Create an {@link StatefulAggregateRepository} instance that supports loading and persisting the given Aggregate type - the {@link EventStore} will be configured with the supplied <code>eventStreamConfiguration</code><br>
+     *
+     * @param <CONFIG>                     the aggregate type configuration
+     * @param <ID>                         the aggregate ID type
+     * @param <EVENT_TYPE>                 the type of event
+     * @param <AGGREGATE_IMPL_TYPE>        the concrete aggregate type  (MUST be a subtype of {@link StatefulAggregate})
+     * @param eventStore                   the {@link EventStore} instance to use
+     * @param eventStreamConfiguration     the configuration for the event stream that will contain all the events related to the aggregate type
+     * @param aggregateRootInstanceFactory the factory responsible for instantiating your {@link StatefulAggregate}'s when loading them from the {@link EventStore}
+     * @param aggregateIdType              the concrete aggregate ID type
+     * @param aggregateImplementationType  the concrete aggregate type (MUST be a subtype of {@link StatefulAggregate})
+     * @param aggregateSnapshotRepository  optional (may be null) {@link AggregateSnapshotRepository}
+     * @return a repository instance that can be used load, add and query aggregates of type <code>aggregateType</code>
+     */
+    static <CONFIG extends AggregateEventStreamConfiguration,
+            ID,
+            EVENT_TYPE,
+            AGGREGATE_IMPL_TYPE extends StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE>>
+    StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE> from(ConfigurableEventStore<CONFIG> eventStore,
+                                                                          CONFIG eventStreamConfiguration,
+                                                                          StatefulAggregateInstanceFactory aggregateRootInstanceFactory,
+                                                                          Class<ID> aggregateIdType,
+                                                                          Class<AGGREGATE_IMPL_TYPE> aggregateImplementationType,
+                                                                          AggregateSnapshotRepository aggregateSnapshotRepository) {
+        return new DefaultStatefulAggregateRepository<>(eventStore,
+                                                        eventStreamConfiguration,
+                                                        aggregateRootInstanceFactory,
+                                                        aggregateIdType,
+                                                        aggregateImplementationType,
+                                                        aggregateSnapshotRepository);
     }
 
     /**
@@ -156,7 +271,43 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                                                         aggregateType,
                                                         aggregateRootInstanceFactory,
                                                         aggregateIdType,
-                                                        aggregateImplementationType);
+                                                        aggregateImplementationType,
+                                                        null);
+    }
+
+    /**
+     * Create an {@link StatefulAggregateRepository} instance that supports loading and persisting the given Aggregate type - if missing, the {@link EventStore} will be configured with the
+     * default {@link AggregateEventStreamConfiguration} based on the {@link AggregateEventStreamConfigurationFactory} that the {@link EventStore}'s {@link AggregateEventStreamPersistenceStrategy}
+     * is configured with<br>
+     *
+     * @param <CONFIG>                     the aggregate type configuration
+     * @param <ID>                         the aggregate ID type
+     * @param <EVENT_TYPE>                 the type of event
+     * @param <AGGREGATE_IMPL_TYPE>        the concrete aggregate type  (MUST be a subtype of {@link StatefulAggregate})
+     * @param eventStore                   the {@link EventStore} instance to use
+     * @param aggregateType                the aggregate type being handled by this repository
+     * @param aggregateRootInstanceFactory the factory responsible for instantiating your {@link StatefulAggregate}'s when loading them from the {@link EventStore}
+     * @param aggregateIdType              the concrete aggregate ID type
+     * @param aggregateImplementationType  the concrete aggregate type (MUST be a subtype of {@link StatefulAggregate})
+     * @param aggregateSnapshotRepository  optional (may be null) {@link AggregateSnapshotRepository}
+     * @return a repository instance that can be used load, add and query aggregates of type <code>aggregateType</code>
+     */
+    static <CONFIG extends AggregateEventStreamConfiguration,
+            ID,
+            EVENT_TYPE,
+            AGGREGATE_IMPL_TYPE extends StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE>>
+    StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE> from(ConfigurableEventStore<CONFIG> eventStore,
+                                                                          AggregateType aggregateType,
+                                                                          StatefulAggregateInstanceFactory aggregateRootInstanceFactory,
+                                                                          Class<ID> aggregateIdType,
+                                                                          Class<AGGREGATE_IMPL_TYPE> aggregateImplementationType,
+                                                                          AggregateSnapshotRepository aggregateSnapshotRepository) {
+        return new DefaultStatefulAggregateRepository<>(eventStore,
+                                                        aggregateType,
+                                                        aggregateRootInstanceFactory,
+                                                        aggregateIdType,
+                                                        aggregateImplementationType,
+                                                        aggregateSnapshotRepository);
     }
 
     // -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -282,7 +433,7 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
      * Default {@link StatefulAggregateRepository} implementation. You can extend this class directly if you need to expand the supported method or
      * use {@link StatefulAggregateRepository#from(ConfigurableEventStore, AggregateEventStreamConfiguration, StatefulAggregateInstanceFactory, Class, Class)} to create a default instance
      *
-     * @param <ID>             the aggregate ID type
+     * @param <ID>                  the aggregate ID type
      * @param <AGGREGATE_IMPL_TYPE> the concrete aggregate type  (MUST be a subtype of {@link StatefulAggregate})
      */
     class DefaultStatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE extends StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE>> implements StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE> {
@@ -294,7 +445,7 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
         private final StatefulAggregateRepositoryUnitOfWorkLifecycleCallback unitOfWorkCallback;
         private final StatefulAggregateInstanceFactory                       aggregateRootInstanceFactory;
         private final AggregateType                                          aggregateType;
-
+        private final Optional<AggregateSnapshotRepository>                  aggregateSnapshotRepository;
 
         /**
          * Create an {@link StatefulAggregateRepository} - the {@link EventStore} will be configured with the supplied <code>eventStreamConfiguration</code>.<br>
@@ -304,17 +455,20 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
          * @param statefulAggregateInstanceFactory  the factory responsible for instantiating your {@link StatefulAggregate}'s when loading them from the {@link EventStore}
          * @param aggregateIdType                   the concrete aggregate ID type
          * @param aggregateImplementationType       the concrete aggregate type (MUST be a subtype of {@link StatefulAggregate})
+         * @param aggregateSnapshotRepository       optional (may be null) {@link AggregateSnapshotRepository}
          */
         private <CONFIG extends AggregateEventStreamConfiguration> DefaultStatefulAggregateRepository(ConfigurableEventStore<CONFIG> eventStore,
                                                                                                       CONFIG aggregateEventStreamConfiguration,
                                                                                                       StatefulAggregateInstanceFactory statefulAggregateInstanceFactory,
                                                                                                       Class<ID> aggregateIdType,
-                                                                                                      Class<AGGREGATE_IMPL_TYPE> aggregateImplementationType) {
+                                                                                                      Class<AGGREGATE_IMPL_TYPE> aggregateImplementationType,
+                                                                                                      AggregateSnapshotRepository aggregateSnapshotRepository) {
             this.eventStore = requireNonNull(eventStore, "You must supply an EventStore instance");
             this.aggregateType = requireNonNull(aggregateEventStreamConfiguration, "You must supply an aggregateType").aggregateType;
             this.aggregateRootInstanceFactory = requireNonNull(statefulAggregateInstanceFactory, "You must supply a AggregateRootFactory instance");
             this.aggregateImplementationType = requireNonNull(aggregateImplementationType, "You must supply an aggregateImplementationType");
             this.aggregateIdType = requireNonNull(aggregateIdType, "You must supply an aggregateIdType");
+            this.aggregateSnapshotRepository = Optional.ofNullable(aggregateSnapshotRepository);
             unitOfWorkCallback = new StatefulAggregateRepositoryUnitOfWorkLifecycleCallback();
             eventStore.addAggregateEventStreamConfiguration(aggregateEventStreamConfiguration);
             eventStore.addSpecificInMemoryProjector(aggregateImplementationType, new StatefulAggregateInMemoryProjector(statefulAggregateInstanceFactory));
@@ -330,17 +484,20 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
          * @param statefulAggregateInstanceFactory the factory responsible for instantiating your {@link StatefulAggregate}'s when loading them from the {@link EventStore}
          * @param aggregateIdType                  the concrete aggregate ID type
          * @param aggregateImplementationType      the concrete aggregate type (MUST be a subtype of {@link StatefulAggregate})
+         * @param aggregateSnapshotRepository      optional (may be null) {@link AggregateSnapshotRepository}
          */
         private <CONFIG extends AggregateEventStreamConfiguration> DefaultStatefulAggregateRepository(ConfigurableEventStore<CONFIG> eventStore,
                                                                                                       AggregateType aggregateType,
                                                                                                       StatefulAggregateInstanceFactory statefulAggregateInstanceFactory,
                                                                                                       Class<ID> aggregateIdType,
-                                                                                                      Class<AGGREGATE_IMPL_TYPE> aggregateImplementationType) {
+                                                                                                      Class<AGGREGATE_IMPL_TYPE> aggregateImplementationType,
+                                                                                                      AggregateSnapshotRepository aggregateSnapshotRepository) {
             this.eventStore = requireNonNull(eventStore, "You must supply an EventStore instance");
             this.aggregateType = requireNonNull(aggregateType, "You must supply an aggregateType");
             this.aggregateRootInstanceFactory = requireNonNull(statefulAggregateInstanceFactory, "You must supply a AggregateRootFactory instance");
             this.aggregateImplementationType = requireNonNull(aggregateImplementationType, "You must supply an aggregateImplementationType");
             this.aggregateIdType = requireNonNull(aggregateIdType, "You must supply an aggregateIdType");
+            this.aggregateSnapshotRepository = Optional.ofNullable(aggregateSnapshotRepository);
             unitOfWorkCallback = new StatefulAggregateRepositoryUnitOfWorkLifecycleCallback();
             if (eventStore.findAggregateEventStreamConfiguration(aggregateType).isEmpty()) {
                 eventStore.addAggregateEventStreamConfiguration(aggregateType,
@@ -365,15 +522,44 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                     '}';
         }
 
+        @SuppressWarnings("unchecked")
         @Override
         public Optional<AGGREGATE_IMPL_TYPE> tryLoad(ID aggregateId, Optional<EventOrder> expectedLatestEventOrder) {
             log.trace("Trying to load {} with id '{}' and expectedLatestEventOrder {}", aggregateImplementationType.getName(), aggregateId, expectedLatestEventOrder);
             var unitOfWork = eventStore.getUnitOfWorkFactory().getRequiredUnitOfWork();
+
+            Optional<AggregateSnapshot> aggregateSnapshot = aggregateSnapshotRepository.flatMap(repository -> repository.loadSnapshot(aggregateType,
+                                                                                                                                      aggregateId,
+                                                                                                                                      aggregateRootImplementationType()));
+            if (aggregateSnapshot.isPresent() && aggregateSnapshot.get().aggregateSnapshot instanceof BrokenSnapshot) {
+                log.debug("[{}:{}] Broken '{}' SNAPSHOT with eventOrderOfLastIncludedEvent: {}",
+                          aggregateType, aggregateId, aggregateImplementationType.getName(), aggregateSnapshot.get().eventOrderOfLastIncludedEvent);
+                aggregateSnapshotRepository.get().deleteSnapshots(aggregateType,
+                                                                  aggregateId,
+                                                                  aggregateImplementationType,
+                                                                  List.of(aggregateSnapshot.get().eventOrderOfLastIncludedEvent));
+            }
+            long loadMoreEventsWithEventOrderFromAndIncluding = aggregateSnapshot.map(snapshot -> {
+                                                                                     var nextEventOrder = snapshot.eventOrderOfLastIncludedEvent.increment();
+                                                                                     log.debug("[{}:{}] Using '{}' SNAPSHOT (globalEventOrderOfLastIncludedEvent + 1) as loadFromEventOrder: {}",
+                                                                                               aggregateType, aggregateId, aggregateImplementationType.getName(), nextEventOrder);
+                                                                                     return nextEventOrder.longValue();
+                                                                                 })
+                                                                                 .orElse(EventOrder.FIRST_EVENT_ORDER.longValue());
+            log.debug("Loading [{}:{}] of aggregate-implementation-type '{}' using loadMoreEventsWithEventOrderFromAndIncluding: {}",
+                      aggregateType, aggregateId, aggregateImplementationType.getName(), loadMoreEventsWithEventOrderFromAndIncluding);
             var potentialPersistedEventStream = eventStore.fetchStream(aggregateType,
                                                                        aggregateId,
-                                                                       LongRange.from(EventOrder.FIRST_EVENT_ORDER.longValue())); // TODO: Support for looking up a snapshot version of the aggregate, where we only need to load events not included in the snapshot
-            if (potentialPersistedEventStream.isEmpty()) {
-                log.trace("Didn't find a {} with id '{}'", aggregateImplementationType.getName(), aggregateId);
+                                                                       LongRange.from(loadMoreEventsWithEventOrderFromAndIncluding));
+            if (aggregateSnapshot.isPresent() && potentialPersistedEventStream.isEmpty()) {
+                log.trace("[{}:{}] Didn't find a any {} events persisted after eventOrder: {}. Has SNAPSHOT: {}",
+                          aggregateType, aggregateId, aggregateImplementationType.getName(), loadMoreEventsWithEventOrderFromAndIncluding, aggregateSnapshot.isPresent());
+                return aggregateSnapshot.map(snapshot -> {
+                    log.trace("[{}:{}] Returning '{}' SNAPSHOT as it's up-to-date as of eventOrderOfLastIncludedEvent: {}",
+                              aggregateType, aggregateId, aggregateImplementationType.getName(), aggregateSnapshot.get().eventOrderOfLastIncludedEvent);
+                    return (AGGREGATE_IMPL_TYPE) snapshot.aggregateSnapshot;
+                });
+            } else if (aggregateSnapshot.isEmpty() && potentialPersistedEventStream.isEmpty()) {
                 return Optional.empty();
             } else {
                 var persistedEventsStream = potentialPersistedEventStream.get();
@@ -391,8 +577,10 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                                                                    lastEventPersisted.eventOrder());
                     }
                 }
-                log.debug("Found {} with id '{}' and expectedLatestEventOrder {}", aggregateImplementationType.getName(), aggregateId, expectedLatestEventOrder);
-                AGGREGATE_IMPL_TYPE aggregate = aggregateRootInstanceFactory.create(aggregateId, aggregateImplementationType);
+                log.debug("[{}:{}] Found '{}' with expectedLatestEventOrder: {}. Has SNAPSHOT: {}",
+                          aggregateIdType, aggregateId, aggregateImplementationType.getName(), expectedLatestEventOrder, aggregateSnapshot.isPresent());
+                AGGREGATE_IMPL_TYPE aggregate = aggregateSnapshot.map(snapshot -> (AGGREGATE_IMPL_TYPE) snapshot.aggregateSnapshot)
+                                                                 .orElseGet(() -> aggregateRootInstanceFactory.create(aggregateId, aggregateImplementationType));
                 return Optional.of(unitOfWork.registerLifecycleCallbackForResource(aggregate.rehydrate(persistedEventsStream),
                                                                                    unitOfWorkCallback));
             }
@@ -451,11 +639,12 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                                       aggregateImplementationType.getName(),
                                       aggregate.aggregateId());
                         }
-                        eventStore.appendToStream(aggregateType,
-                                                  eventsToPersist.aggregateId,
-                                                  eventsToPersist.eventOrderOfLastRehydratedEvent,
-                                                  eventsToPersist.events);
+                        var persistedEvents = eventStore.appendToStream(aggregateType,
+                                                                        eventsToPersist.aggregateId,
+                                                                        eventsToPersist.eventOrderOfLastRehydratedEvent,
+                                                                        eventsToPersist.events);
                         aggregate.markChangesAsCommitted();
+                        aggregateSnapshotRepository.ifPresent(repository -> repository.aggregateUpdated(aggregate, persistedEvents));
                     }
                 });
             }

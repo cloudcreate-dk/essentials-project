@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,12 @@
 package dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful;
 
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.Aggregate;
+import dk.cloudcreate.essentials.components.eventsourced.aggregates.snapshot.AggregateSnapshotRepository;
 import dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.classic.AggregateRoot;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.types.LongRange;
 
 import java.util.Optional;
 
@@ -30,13 +32,25 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 /**
  * {@link Aggregate} specific {@link InMemoryProjector}<br>
  * Note: An in memory projection is never associated with a {@link UnitOfWork} and any changes to the aggregate
- * won't automatically be persisted. Use the {@link StatefulAggregateRepository} for transactional cases.
+ * won't automatically be persisted. Use the {@link StatefulAggregateRepository} for transactional usage.
  */
 public class StatefulAggregateInMemoryProjector implements InMemoryProjector {
-    private final StatefulAggregateInstanceFactory aggregateRootInstanceFactory;
+    private final StatefulAggregateInstanceFactory      aggregateRootInstanceFactory;
+    private final Optional<AggregateSnapshotRepository> aggregateSnapshotRepository;
 
     public StatefulAggregateInMemoryProjector(StatefulAggregateInstanceFactory aggregateRootInstanceFactory) {
+        this(aggregateRootInstanceFactory,
+             null);
+    }
+
+    /**
+     * @param aggregateRootInstanceFactory factory for creating aggregate root instances
+     * @param aggregateSnapshotRepository  optional (may be null) {@link AggregateSnapshotRepository}
+     */
+    public StatefulAggregateInMemoryProjector(StatefulAggregateInstanceFactory aggregateRootInstanceFactory,
+                                              AggregateSnapshotRepository aggregateSnapshotRepository) {
         this.aggregateRootInstanceFactory = requireNonNull(aggregateRootInstanceFactory, "No aggregateRootFactory instance provided");
+        this.aggregateSnapshotRepository = Optional.ofNullable(aggregateSnapshotRepository);
     }
 
     @Override
@@ -54,12 +68,23 @@ public class StatefulAggregateInMemoryProjector implements InMemoryProjector {
         if (!supports(projectionType)) {
             throw new IllegalArgumentException(msg("The provided aggregateType '{}' isn't supported", projectionType.getName()));
         }
-        // TODO: Add support for Aggregate snapshot's
 
-        var aggregate = (StatefulAggregate<ID, ?, ?>) aggregateRootInstanceFactory.create(aggregateId, projectionType);
-        var possibleEventStream = eventStore.fetchStream(aggregateType,
-                                                         aggregateId);
+        // Check for aggregate snapshot
+        var aggregateSnapshot = aggregateSnapshotRepository.flatMap(repository -> repository.loadSnapshot(aggregateType,
+                                                                                                          aggregateId,
+                                                                                                          projectionType));
+        return aggregateSnapshot.map(snapshot -> {
+            var possibleEventStream = eventStore.fetchStream(aggregateType,
+                                                             aggregateId,
+                                                             LongRange.from(snapshot.eventOrderOfLastIncludedEvent.increment().longValue()));
+            possibleEventStream.ifPresent(eventStream -> ((AggregateRoot<ID, ?, ?>)snapshot.aggregateSnapshot).rehydrate(eventStream));
+            return Optional.of(snapshot.aggregateSnapshot);
+        }).orElseGet(() -> {
+            var aggregate = (StatefulAggregate<ID, ?, ?>) aggregateRootInstanceFactory.create(aggregateId, projectionType);
+            var possibleEventStream = eventStore.fetchStream(aggregateType,
+                                                             aggregateId);
 
-        return (Optional<PROJECTION>) possibleEventStream.map(aggregate::rehydrate);
+            return (Optional<PROJECTION>) possibleEventStream.map(aggregate::rehydrate);
+        });
     }
 }

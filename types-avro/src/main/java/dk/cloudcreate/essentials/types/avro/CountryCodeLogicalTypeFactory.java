@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ import org.apache.avro.*;
  * }</pre>
  */
 public class CountryCodeLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
-    public static final LogicalType COUNTRY_CODE = new CountryCodeLogicalType("CountryCode");
+    public static final LogicalType COUNTRY_CODE = new CharSequenceTypeLogicalType("CountryCode");
 
     @Override
     public LogicalType fromSchema(Schema schema) {
@@ -94,19 +94,5 @@ public class CountryCodeLogicalTypeFactory implements LogicalTypes.LogicalTypeFa
     @Override
     public String getTypeName() {
         return COUNTRY_CODE.getName();
-    }
-
-    public static class CountryCodeLogicalType extends LogicalType {
-        public CountryCodeLogicalType(String logicalTypeName) {
-            super(logicalTypeName);
-        }
-
-        @Override
-        public void validate(Schema schema) {
-            super.validate(schema);
-            if (schema.getType() != Schema.Type.STRING) {
-                throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.STRING.getName() + "'. Invalid schema: " + schema.toString(true));
-            }
-        }
     }
 }

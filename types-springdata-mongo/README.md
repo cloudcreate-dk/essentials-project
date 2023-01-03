@@ -17,7 +17,7 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-mongo</artifactId>
-    <version>0.8.2</version>
+    <version>0.8.3</version>
 </dependency>
 ```
 
@@ -91,5 +91,72 @@ Then you additionally need to explicit define that `ProductId` must be convertab
 public MongoCustomConversions mongoCustomConversions() {
     return new MongoCustomConversions(List.of(
             new SingleValueTypeConverter(ProductId.class)));
+}
+```
+
+### JSR 310 Semantic Types
+
+This library also supports for the following `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+| `JSR310SingleValueType` specialization | Value Type |
+|----------------------------------|-------------------------|
+| `InstantType`                    | `Instant`               |
+| `LocalDateTimeType`              | `LocalDateTime`         |
+| `LocalDateType`                  | `LocalDate`             |
+| `LocalTimeType`                  | `LocalTime`             |
+
+Note: `OffsetDateTimeType` and `ZonedDateTimeType` are not supported as the Spring Data Mongo doesn't support converting
+`OffsetDateTime` and `ZonedDateTime`  
+
+This implementation is compatible with both the NativeDriver JavaTime Codec and SpringData JavaTime Codes:
+```
+    @Bean
+    public MongoCustomConversions mongoCustomConversions() {
+        return MongoCustomConversions.create(mongoConverterConfigurationAdapter -> {
+            mongoConverterConfigurationAdapter.useNativeDriverJavaTimeCodecs();
+            // Default if nothing is specified ---> mongoConverterConfigurationAdapter.useSpringDataJavaTimeCodecs();
+            mongoConverterConfigurationAdapter.registerConverters(List.of(
+                    new SingleValueTypeConverter(ProductId.class)));
+        });
+    }
+```
+
+
+Caveats: 
+- The `JSR310SingleValueType` converters provided by this library defaults to using ZoneId `UTC` (as MongoDB's `ISODate` is UTC based),
+hence it's recommended to use `ZoneId.of("UTC")` or `Clock.systemUTC()` when creating the underlying JSR-310 instances.
+- MongoDB's `ISODate` doesn't provide nano time precision, hence it's recommended to use `.with(ChronoField.NANO_OF_SECOND, 0)`
+or `.withNano(0)` (depending on what the underlying JSR-310 type supports)
+
+Example `InstantType`:
+```
+public class LastUpdated extends InstantType<LastUpdated> {
+    public LastUpdated(Instant value) {
+        super(value);
+    }
+
+    public static LastUpdated of(Instant value) {
+        return new LastUpdated(value);
+    }
+
+    public static LastUpdated now() {
+        return new LastUpdated(Instant.now(Clock.systemUTC()).with(ChronoField.NANO_OF_SECOND, 0));
+    }
+}
+```
+
+Example `LocalDateTimeType`:
+```
+public class Created extends LocalDateTimeType<Created> {
+    public Created(LocalDateTime value) {
+        super(value);
+    }
+
+    public static Created of(LocalDateTime value) {
+        return new Created(value);
+    }
+
+    public static Created now() {
+        return new Created(LocalDateTime.now(Clock.systemUTC()).withNano(0));
+    }
 }
 ```

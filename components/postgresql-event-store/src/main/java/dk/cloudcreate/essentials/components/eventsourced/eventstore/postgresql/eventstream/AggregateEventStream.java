@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,15 +50,27 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * <b>Note: The aggregate type is only a name and shouldn't be confused with the Fully Qualified Class Name of an Aggregate implementation class. At the {@link EventStore}
  * this is supported as an <b>In Memory Projection</b> - see {@link InMemoryProjector}</b><br>
  */
-public interface AggregateEventStream<STREAM_ID> {
-    static <STREAM_ID> AggregateEventStream<STREAM_ID> of(AggregateEventStreamConfiguration configuration,
-                                                          STREAM_ID aggregateId,
-                                                          LongRange eventOrderRangeIncluded,
-                                                          Stream<PersistedEvent> stream) {
+public interface AggregateEventStream<AGGREGATE_ID> {
+
+    /**
+     * Create a new  {@link AggregateEventStream} that wraps/contains a {@link Stream} of {@link PersistedEvent}'s related to a specific aggregate instance of a given
+     * {@link AggregateType}
+     *
+     * @param configuration           the {@link AggregateType} stream's configuration
+     * @param aggregateId             the id of the aggregate instance this stream relates to
+     * @param eventOrderRangeIncluded Contains the Range of {@link EventOrder}'s included in this event stream
+     * @param persistedEventsStream   the stream of {@link PersistedEvent}'s
+     * @param <AGGREGATE_ID>          the type of Aggregate identifier
+     * @return A new {@link AggregateEventStream} containing the <code>persistedEventsStream</code>
+     */
+    static <AGGREGATE_ID> AggregateEventStream<AGGREGATE_ID> of(AggregateEventStreamConfiguration configuration,
+                                                                AGGREGATE_ID aggregateId,
+                                                                LongRange eventOrderRangeIncluded,
+                                                                Stream<PersistedEvent> persistedEventsStream) {
         return new DefaultAggregateEventStream<>(configuration,
                                                  aggregateId,
                                                  eventOrderRangeIncluded,
-                                                 stream);
+                                                 persistedEventsStream);
     }
 
     /**
@@ -89,7 +101,7 @@ public interface AggregateEventStream<STREAM_ID> {
      *
      * @return the shared aggregate identifier that all event in the stream is related to
      */
-    STREAM_ID aggregateId();
+    AGGREGATE_ID aggregateId();
 
     /**
      * Map the {@link PersistedEvent}'s in the {@link AggregateEventStream} to a different type
@@ -122,16 +134,16 @@ public interface AggregateEventStream<STREAM_ID> {
      */
     List<PersistedEvent> eventList();
 
-    class DefaultAggregateEventStream<STREAM_ID> implements AggregateEventStream<STREAM_ID> {
+    class DefaultAggregateEventStream<AGGREGATE_ID> implements AggregateEventStream<AGGREGATE_ID> {
 
         private final AggregateEventStreamConfiguration configuration;
-        private final STREAM_ID                         aggregateId;
+        private final AGGREGATE_ID                      aggregateId;
         private final LongRange                         eventOrderRangeIncluded;
 
         private Stream<PersistedEvent> stream;
         private List<PersistedEvent>   eventList;
 
-        public DefaultAggregateEventStream(AggregateEventStreamConfiguration configuration, STREAM_ID aggregateId, LongRange eventOrderRangeIncluded, Stream<PersistedEvent> stream) {
+        public DefaultAggregateEventStream(AggregateEventStreamConfiguration configuration, AGGREGATE_ID aggregateId, LongRange eventOrderRangeIncluded, Stream<PersistedEvent> stream) {
 
             this.configuration = requireNonNull(configuration, "No configuration provided");
             this.aggregateId = requireNonNull(aggregateId, "No aggregateId provided");
@@ -155,7 +167,7 @@ public interface AggregateEventStream<STREAM_ID> {
         }
 
         @Override
-        public STREAM_ID aggregateId() {
+        public AGGREGATE_ID aggregateId() {
             return aggregateId;
         }
 

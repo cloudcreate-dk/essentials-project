@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,12 @@
 package dk.cloudcreate.essentials.types.spring.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
 import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.http.codec.json.*;
-import org.springframework.web.reactive.config.*;
+import org.springframework.web.reactive.config.WebFluxConfigurer;
 
 @Configuration
 public class WebFluxConfig implements WebFluxConfigurer {

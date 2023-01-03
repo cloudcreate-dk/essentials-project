@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,24 @@
 
 package dk.cloudcreate.essentials.reactive.command;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.awaitility.Awaitility;
+import org.junit.jupiter.api.*;
+import org.slf4j.*;
 
 import java.time.Duration;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 
 class LocalCommandBusTest {
-    public static final String          ON_PURPOSE = "On purpose";
-    private             LocalCommandBus commandBus;
+    public static final String ON_PURPOSE = "On purpose";
+
+    private LocalCommandBus                 commandBus;
+    private TestSendAndDontWaitErrorHandler errorHandler;
 
     @BeforeEach
     void setup() {
-        commandBus = new LocalCommandBus();
+        errorHandler = new TestSendAndDontWaitErrorHandler();
+        commandBus = new LocalCommandBus(errorHandler);
     }
 
     @Test
@@ -74,6 +75,78 @@ class LocalCommandBusTest {
         // Then
         assertThat(result).isEqualTo(TestCommandHandler.TEST);
         assertThat(cmdHandler.receivedCommand).isEqualTo("Hello World");
+    }
+
+    @Test
+    void test_sendAndDontWait() {
+        // Given
+        var cmdHandler = new TestCommandHandler(String.class);
+        commandBus.addCommandHandler(cmdHandler);
+
+        // When
+        commandBus.sendAndDontWait("Hello World");
+
+        // Then
+        Awaitility.waitAtMost(Duration.ofMillis(500))
+                  .untilAsserted(() -> assertThat(cmdHandler.receivedCommand).isEqualTo("Hello World"));
+    }
+
+    @Test
+    void test_sendAndDontWait_with_error() {
+        // Given
+        var cmdHandler = new ExceptionThrowingCommandHandler();
+        commandBus.addCommandHandler(cmdHandler);
+
+        // When
+        commandBus.sendAndDontWait("Hello World");
+
+        // Then
+        Awaitility.waitAtMost(Duration.ofMillis(500))
+                  .untilAsserted(() -> assertThat(errorHandler.exception).isNotNull());
+        assertThat(errorHandler.exception).isInstanceOf(RuntimeException.class);
+        assertThat(errorHandler.exception).hasMessage(ON_PURPOSE);
+        assertThat(errorHandler.command).isEqualTo("Hello World");
+        assertThat(errorHandler.commandHandler).isEqualTo(cmdHandler);
+    }
+
+    @Test
+    void test_sendAndDontWait_with_delay() {
+        // Given
+        var cmdHandler = new TestCommandHandler(String.class);
+        commandBus.addCommandHandler(cmdHandler);
+
+        // When
+        commandBus.sendAndDontWait("Hello World",
+                                   Duration.ofMillis(1000));
+
+        // Then
+        Awaitility.await()
+                  .atLeast(Duration.ofMillis(500))
+                  .untilAsserted(() -> assertThat(cmdHandler.receivedCommand).isNotNull());
+        Awaitility.waitAtMost(Duration.ofMillis(600))
+                  .untilAsserted(() -> assertThat(cmdHandler.receivedCommand).isEqualTo("Hello World"));
+    }
+
+    @Test
+    void test_sendAndDontWait_with_delay_and_error() {
+        // Given
+        var cmdHandler = new ExceptionThrowingCommandHandler();
+        commandBus.addCommandHandler(cmdHandler);
+
+        // When
+        commandBus.sendAndDontWait("Hello World",
+                                   Duration.ofMillis(1000));
+
+        // Then
+        Awaitility.await()
+                  .atLeast(Duration.ofMillis(500))
+                  .untilAsserted(() -> assertThat(errorHandler.exception).isNotNull());
+        Awaitility.waitAtMost(Duration.ofMillis(600))
+                  .untilAsserted(() -> assertThat(errorHandler.exception).isNotNull());
+        assertThat(errorHandler.exception).isInstanceOf(RuntimeException.class);
+        assertThat(errorHandler.exception).hasMessage(ON_PURPOSE);
+        assertThat(errorHandler.command).isEqualTo("Hello World");
+        assertThat(errorHandler.commandHandler).isEqualTo(cmdHandler);
     }
 
     @Test
@@ -145,6 +218,19 @@ class LocalCommandBusTest {
         public Object handle(Object command) {
             log.info("Received command '{}', will now throw a RuntimeException", command);
             throw new RuntimeException(ON_PURPOSE);
+        }
+    }
+
+    private static class TestSendAndDontWaitErrorHandler implements SendAndDontWaitErrorHandler {
+        private Exception      exception;
+        private Object         command;
+        private CommandHandler commandHandler;
+
+        @Override
+        public void handleError(Exception exception, Object command, CommandHandler commandHandler) {
+            this.exception = exception;
+            this.command = command;
+            this.commandHandler = commandHandler;
         }
     }
 

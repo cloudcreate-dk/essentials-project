@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 the original author or authors.
+ * Copyright 2021-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,7 +116,7 @@ public abstract class AggregateState<ID, EVENT_TYPE extends Event<ID>> {
                                                                                 this.getClass().getName(),
                                                                                 this.aggregateId));
         }
-        var nextEventOrderToBeApplied = eventOrderOfLastAppliedEvent().increaseAndGet();
+        var nextEventOrderToBeApplied = eventOrderOfLastAppliedEvent().increment();
         event.eventOrder(nextEventOrderToBeApplied);
         applyEventToTheAggregate(event);
         eventOrderOfLastAppliedEvent = nextEventOrderToBeApplied;
