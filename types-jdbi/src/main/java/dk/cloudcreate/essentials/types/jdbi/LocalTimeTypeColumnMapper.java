@@ -26,29 +26,34 @@ import java.sql.*;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * Generic {@link ColumnMapper} for {@link CharSequenceType}'s
+ * Generic {@link ColumnMapper} for {@link LocalTimeType}'s<br>
+ * <br>
+ * Example of a concrete mapper:
+ * <pre>{@code
+ * public class TimeOfDayColumnMapper extends LocalTimeTypeColumnMapper<TimeOfDay> {
+ * }}</pre>
  *
- * @param <T> the concrete {@link CharSequenceType} this instance is mapping
+ * @param <T> the concrete {@link LocalTimeType} this instance is mapping
  */
-public abstract class CharSequenceTypeColumnMapper<T extends CharSequenceType<T>> implements ColumnMapper<T> {
+public abstract class LocalTimeTypeColumnMapper<T extends LocalTimeType<T>> implements ColumnMapper<T> {
     private final Class<T> concreteType;
 
     @SuppressWarnings("unchecked")
-    public CharSequenceTypeColumnMapper() {
+    public LocalTimeTypeColumnMapper() {
         concreteType = (Class<T>) GenericType.resolveGenericTypeOnSuperClass(this.getClass(),
                                                                              0);
     }
 
-    public CharSequenceTypeColumnMapper(Class<T> concreteType) {
+    public LocalTimeTypeColumnMapper(Class<T> concreteType) {
         this.concreteType = requireNonNull(concreteType, "No concreteType provided");
     }
 
     @Override
     public T map(ResultSet r, int columnNumber, StatementContext ctx) throws SQLException {
-        var value = r.getString(columnNumber);
+        var value = r.getTime(columnNumber);
         return value == null ?
                null :
-               SingleValueType.from(value,
+               SingleValueType.from(value.toLocalTime(),
                                     concreteType);
     }
 }

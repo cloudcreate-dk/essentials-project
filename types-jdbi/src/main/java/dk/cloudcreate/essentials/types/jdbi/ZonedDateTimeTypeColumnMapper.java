@@ -22,33 +22,39 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 import org.jdbi.v3.core.statement.StatementContext;
 
 import java.sql.*;
+import java.time.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * Generic {@link ColumnMapper} for {@link CharSequenceType}'s
+ * Generic {@link ColumnMapper} for {@link ZonedDateTimeType}'s<br>
+ * <br>
+ * Example of a concrete mapper:
+ * <pre>{@code
+ * public class TransactionTimeColumnMapper extends ZonedDateTimeTypeColumnMapper<TransactionTime> {
+ * }}</pre>
  *
- * @param <T> the concrete {@link CharSequenceType} this instance is mapping
+ * @param <T> the concrete {@link ZonedDateTimeType} this instance is mapping
  */
-public abstract class CharSequenceTypeColumnMapper<T extends CharSequenceType<T>> implements ColumnMapper<T> {
+public abstract class ZonedDateTimeTypeColumnMapper<T extends ZonedDateTimeType<T>> implements ColumnMapper<T> {
     private final Class<T> concreteType;
 
     @SuppressWarnings("unchecked")
-    public CharSequenceTypeColumnMapper() {
+    public ZonedDateTimeTypeColumnMapper() {
         concreteType = (Class<T>) GenericType.resolveGenericTypeOnSuperClass(this.getClass(),
                                                                              0);
     }
 
-    public CharSequenceTypeColumnMapper(Class<T> concreteType) {
+    public ZonedDateTimeTypeColumnMapper(Class<T> concreteType) {
         this.concreteType = requireNonNull(concreteType, "No concreteType provided");
     }
 
     @Override
     public T map(ResultSet r, int columnNumber, StatementContext ctx) throws SQLException {
-        var value = r.getString(columnNumber);
+        var value = r.getTimestamp(columnNumber);
         return value == null ?
                null :
-               SingleValueType.from(value,
+               SingleValueType.from(ZonedDateTime.ofInstant(value.toInstant(), ZoneId.systemDefault()),
                                     concreteType);
     }
 }

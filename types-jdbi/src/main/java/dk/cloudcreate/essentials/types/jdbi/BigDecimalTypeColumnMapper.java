@@ -50,7 +50,10 @@ public abstract class BigDecimalTypeColumnMapper<T extends BigDecimalType<T>> im
 
     @Override
     public T map(ResultSet r, int columnNumber, StatementContext ctx) throws SQLException {
-        return SingleValueType.from(r.getBigDecimal(columnNumber),
+        var value = r.getBigDecimal(columnNumber);
+        return value == null ?
+               null :
+               SingleValueType.from(value,
                                     concreteType);
     }
 }

@@ -51,7 +51,10 @@ public abstract class BigIntegerTypeColumnMapper<T extends BigIntegerType<T>> im
 
     @Override
     public T map(ResultSet r, int columnNumber, StatementContext ctx) throws SQLException {
-        return SingleValueType.from(new BigInteger(r.getBytes(columnNumber)),
+        var value = r.getBytes(columnNumber);
+        return value == null ?
+               null :
+               SingleValueType.from(new BigInteger(value),
                                     concreteType);
     }
 }

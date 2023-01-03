@@ -16,10 +16,14 @@
 
 package dk.cloudcreate.essentials.types.jdbi;
 
+import dk.cloudcreate.essentials.shared.functional.tuple.Tuple;
 import dk.cloudcreate.essentials.types.*;
 import dk.cloudcreate.essentials.types.jdbi.model.*;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.Test;
+
+import java.sql.*;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,17 +31,36 @@ class SingleValueTypeArgumentsTest {
     @Test
     void test_jdbi_argument_factories() {
         Jdbi jdbi = Jdbi.create("jdbc:h2:mem:test");
+        jdbi.registerArgument(new AccountIdArgumentFactory());
+        jdbi.registerColumnMapper(new AccountIdColumnMapper());
         jdbi.registerArgument(new AmountArgumentFactory());
         jdbi.registerColumnMapper(new AmountColumnMapper());
         jdbi.registerArgument(new CountryCodeArgumentFactory());
+        jdbi.registerColumnMapper(new CountryCodeColumnMapper());
         jdbi.registerArgument(new CurrencyCodeArgumentFactory());
+        jdbi.registerColumnMapper(new CurrencyCodeColumnMapper());
         jdbi.registerArgument(new EmailAddressArgumentFactory());
+        jdbi.registerColumnMapper(new EmailAddressColumnMapper());
         jdbi.registerArgument(new PercentageArgumentFactory());
-
+        jdbi.registerColumnMapper(new PercentageColumnMapper());
         jdbi.registerArgument(new OrderIdArgumentFactory());
+        jdbi.registerColumnMapper(new OrderIdColumnMapper());
         jdbi.registerArgument(new CustomerIdArgumentFactory());
+        jdbi.registerColumnMapper(new CustomerIdColumnMapper());
         jdbi.registerArgument(new ProductIdArgumentFactory());
-        jdbi.registerArgument(new AccountIdArgumentFactory());
+        jdbi.registerColumnMapper(new ProductIdColumnMapper());
+        jdbi.registerArgument(new CreatedArgumentFactory());
+        jdbi.registerColumnMapper(new CreatedColumnMapper());
+        jdbi.registerArgument(new DueDateArgumentFactory());
+        jdbi.registerColumnMapper(new DueDateColumnMapper());
+        jdbi.registerArgument(new LastUpdatedArgumentFactory());
+        jdbi.registerColumnMapper(new LastUpdatedColumnMapper());
+        jdbi.registerArgument(new TimeOfDayArgumentFactory());
+        jdbi.registerColumnMapper(new TimeOfDayColumnMapper());
+        jdbi.registerArgument(new TransactionTimeArgumentFactory());
+        jdbi.registerColumnMapper(new TransactionTimeColumnMapper());
+        jdbi.registerArgument(new TransferTimeArgumentFactory());
+        jdbi.registerColumnMapper(new TransferTimeColumnMapper());
 
         jdbi.useHandle(handle -> {
             handle.execute("CREATE TABLE orders (" +
@@ -49,30 +72,51 @@ class SingleValueTypeArgumentsTest {
                                    "country VARCHAR," +
                                    "currency VARCHAR," +
                                    "email VARCHAR," +
-                                   "percentage NUMERIC(20, 2)" +
+                                   "percentage NUMERIC(20, 2)," +
+                                   "created TIMESTAMP," +
+                                   "due_date DATE," +
+                                   "last_updated TIMESTAMP," +
+                                   "time_of_day TIME," +
+                                   "transaction_time TIMESTAMP," +
+                                   "transfer_time TIMESTAMP" +
                                    ")");
 
-            var orderId    = OrderId.random();
-            var customerId = CustomerId.random();
-            var productId  = ProductId.random();
-            var accountId  = AccountId.random();
-            var amount     = Amount.of("123.456");
-            var country    = CountryCode.of("DK");
-            var currency   = CurrencyCode.of("DKK");
-            var email      = EmailAddress.of("john@nonexistingdomain.com");
-            var percentage = Percentage.from("40.5%");
+            var orderId         = OrderId.random();
+            var customerId      = CustomerId.random();
+            var productId       = ProductId.random();
+            var accountId       = AccountId.random();
+            var amount          = Amount.of("123.456");
+            var country         = CountryCode.of("DK");
+            var currency        = CurrencyCode.of("DKK");
+            var email           = EmailAddress.of("john@nonexistingdomain.com");
+            var percentage      = Percentage.from("40.5%");
+            var created         = Created.now();
+            var dueDate         = DueDate.now();
+            var lastUpdated     = LastUpdated.now();
+            var timeOfDay       = TimeOfDay.now();
+            var transactionTime = TransactionTime.now();
+            var transferTime    = TransferTime.now();
 
-            handle.inTransaction(_handle -> handle.createUpdate("INSERT INTO orders(id, customer_id, product_id, account_id, amount, country, currency, email, percentage) " +
-                                                                        "VALUES (:id, :customerId, :productId, :accountId, :amount, :country, :currency, :email, :percentage)")
+
+            handle.inTransaction(_handle -> handle.createUpdate("INSERT INTO orders(id, customer_id, product_id, account_id, amount, country, currency, email, percentage," +
+                                                                        "created, due_date, last_updated, time_of_day, transaction_time, transfer_time) " +
+                                                                        "VALUES (:id, :customer_id, :product_id, :account_id, :amount, :country, :currency, :email, :percentage," +
+                                                                        ":created, :due_date, :last_updated, :time_of_day, :transaction_time, :transfer_time)")
                                                   .bind("id", orderId)
-                                                  .bind("customerId", customerId)
-                                                  .bind("productId", productId)
-                                                  .bind("accountId", accountId)
+                                                  .bind("customer_id", customerId)
+                                                  .bind("product_id", productId)
+                                                  .bind("account_id", accountId)
                                                   .bind("amount", amount)
                                                   .bind("country", country)
                                                   .bind("currency", currency)
                                                   .bind("email", email)
                                                   .bind("percentage", percentage)
+                                                  .bind("created", created)
+                                                  .bind("due_date", dueDate)
+                                                  .bind("last_updated", lastUpdated)
+                                                  .bind("time_of_day", timeOfDay)
+                                                  .bind("transaction_time", transactionTime)
+                                                  .bind("transfer_time", transferTime)
                                                   .execute());
             var results = handle.inTransaction(_handle -> handle.createQuery("SELECT * from orders WHERE id = :id")
                                                                 .bind("id", orderId)
@@ -90,14 +134,49 @@ class SingleValueTypeArgumentsTest {
             assertThat(result.get("currency")).isEqualTo(currency.value());
             assertThat(result.get("email")).isEqualTo(email.value());
             assertThat(result.get("percentage")).isEqualTo(percentage.value());
+            assertThat(((Timestamp) result.get("created")).toLocalDateTime()).isEqualTo(created.value());
+            assertThat(((Date) result.get("due_date")).toLocalDate()).isEqualTo(dueDate.value());
+            assertThat(((Timestamp) result.get("last_updated")).toInstant()).isEqualTo(lastUpdated.value());
+            assertThat(((Time) result.get("time_of_day"))).isEqualTo(Time.valueOf(timeOfDay.value()));
+            assertThat(((Timestamp) result.get("transaction_time")).toInstant()).isEqualTo(transactionTime.value().toInstant());
+            assertThat(((Timestamp) result.get("transfer_time")).toInstant()).isEqualTo(transferTime.value().toInstant());
 
 
-            var amountResult = handle.inTransaction(_handle -> handle.createQuery("SELECT amount from orders WHERE id = :id")
-                                                               .bind("id", orderId)
-                                                               .mapTo(Amount.class))
-                               .one();
-            assertThat(amountResult).isInstanceOf(Amount.class);
-            assertThat(amountResult).isEqualTo(amount);
+            var columns = List.of(Tuple.of("id", orderId),
+                                  Tuple.of("customer_id", customerId),
+                                  Tuple.of("product_id", productId),
+                                  Tuple.of("account_id", accountId),
+                                  Tuple.of("amount", amount),
+                                  Tuple.of("country", country),
+                                  Tuple.of("currency", currency),
+                                  Tuple.of("email", email),
+                                  Tuple.of("percentage", percentage),
+                                  Tuple.of("created", created),
+                                  Tuple.of("due_date", dueDate),
+                                  Tuple.of("last_updated", lastUpdated),
+                                  Tuple.of("time_of_day", timeOfDay),
+                                  Tuple.of("transaction_time", transactionTime),
+                                  Tuple.of("transfer_time", transferTime));
+
+            columns.forEach(column -> {
+                var columnValue = handle.inTransaction(_handle -> handle.createQuery("SELECT " + column._1 + " from orders WHERE id = :id")
+                                                                        .bind("id", orderId)
+                                                                        .mapTo(column._2.getClass()))
+                                        .one();
+                assertThat(columnValue.getClass().equals(column._2.getClass()))
+                        .describedAs("Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
+                                     column._1, column._2.getClass(), column._2, columnValue, columnValue.getClass())
+                        .isTrue();
+                Object compareWithValue = column._2;
+                if (column._1.equals("time_of_day")) {
+                    // Time looses precision
+                    compareWithValue = TimeOfDay.of(Time.valueOf(((TimeOfDay)compareWithValue).value()).toLocalTime());
+                }
+                assertThat(columnValue.equals(compareWithValue))
+                        .describedAs("Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
+                                     column._1, column._2.getClass(), compareWithValue, columnValue, columnValue.getClass())
+                        .isTrue();
+            });
         });
 
     }
