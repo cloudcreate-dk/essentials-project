@@ -38,6 +38,14 @@
     </suppress>
     <suppress>
         <notes><![CDATA[
+   spring-postgresql-event-store is mismatched, but only when running on GitHub
+   ]]></notes>
+        <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/spring-postgresql-event-store*.*$</packageUrl>
+        <cpe>cpe:/a:postgresql:postgresql</cpe>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[
    file name: jopt-simple-5.0.4.jar
    ]]></notes>
         <packageUrl regex="true">^pkg:maven/net\.sf\.jopt\-simple/jopt\-simple@.*$</packageUrl>
