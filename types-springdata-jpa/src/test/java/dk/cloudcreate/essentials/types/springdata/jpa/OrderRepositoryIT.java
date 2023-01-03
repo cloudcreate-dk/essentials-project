@@ -76,7 +76,13 @@ class OrderRepositoryIT {
                                                          currencyCode,
                                                          CountryCode.of("DK"),
                                                          EmailAddress.of("john@nonexistingdomain.com"),
-                                                         new Money(amount.add(percentage.of(amount)), currencyCode)));
+                                                         new Money(amount.add(percentage.of(amount)), currencyCode),
+                                                         Created.now(),
+                                                         DueDate.now(),
+                                                         LastUpdated.now(),
+                                                         TimeOfDay.now(),
+                                                         TransactionTime.now(),
+                                                         TransferTime.now()));
 
         assertThat(storedOrder.getId()).isNotNull();
 
