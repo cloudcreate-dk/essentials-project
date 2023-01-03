@@ -111,3 +111,44 @@ return jdbi.useHandle(handle -> handle.createQuery("SELECT MAX(discount) FROM OR
                                       .mapTo(Percentage.class)
                                       .findOne();
 ```
+
+### JSR 310 Semantic Types
+
+This library also supports `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+| `JSR310SingleValueType` specialization | Value Type |
+|----------------------------------|-------------------------|
+| `InstantType`                    | `Instant`               |
+| `LocalDateTimeType`              | `LocalDateTime`         |
+| `LocalDateType`                  | `LocalDate`             |
+| `LocalTimeType`                  | `LocalTime`             |
+| `OffsetDateTimeType`             | `OffsetDateTime`        |
+| `ZonedDateTimeType`              | `ZonedDateTime`         |
+
+Example `TransactionTime`:
+```
+public class TransactionTime extends ZonedDateTimeType<TransactionTime> {
+    public TransactionTime(ZonedDateTime value) {
+        super(value);
+    }
+
+    public static TransactionTime of(ZonedDateTime value) {
+        return new TransactionTime(value);
+    }
+
+    public static TransactionTime now() {
+        return new TransactionTime(ZonedDateTime.now());
+    }
+}
+```
+
+Example: `ArgumentFactory` for `TransactionTime`:
+```
+public class TransactionTimeArgumentFactory extends ZonedDateTimeTypeArgumentFactory<TransactionTime> {
+}
+```
+
+Example: `ColumnMapper` for `TransactionTime`:
+```
+public class TransactionTimeColumnMapper extends ZonedDateTimeTypeColumnMapper<TransactionTime> {
+}
+```
