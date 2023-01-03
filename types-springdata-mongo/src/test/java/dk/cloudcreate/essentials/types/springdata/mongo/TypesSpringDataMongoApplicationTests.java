@@ -33,7 +33,11 @@ class TypesSpringDataMongoApplicationTests {
 
     @Bean
     public MongoCustomConversions mongoCustomConversions() {
-        return new MongoCustomConversions(List.of(
-                new SingleValueTypeConverter(ProductId.class)));
+        return MongoCustomConversions.create(mongoConverterConfigurationAdapter -> {
+//            mongoConverterConfigurationAdapter.useNativeDriverJavaTimeCodecs();
+            mongoConverterConfigurationAdapter.useSpringDataJavaTimeCodecs();
+            mongoConverterConfigurationAdapter.registerConverters(List.of(
+                    new SingleValueTypeConverter(ProductId.class)));
+        });
     }
 }

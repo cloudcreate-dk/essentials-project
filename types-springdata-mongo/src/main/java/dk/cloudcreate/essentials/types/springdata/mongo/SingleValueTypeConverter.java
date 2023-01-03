@@ -21,6 +21,7 @@ import org.bson.types.*;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.GenericConverter;
 
+import java.time.*;
 import java.util.*;
 import java.util.stream.*;
 
@@ -116,11 +117,14 @@ public class SingleValueTypeConverter implements GenericConverter {
                                                                          .collect(Collectors.toList()));
 
         allConverters.addAll(Set.of(
-                new ConvertiblePair(CharSequenceType.class, String.class),
                 new ConvertiblePair(SingleValueType.class, Object.class), // Needed for Map Key conversions
                 new ConvertiblePair(String.class, CharSequenceType.class),
-                new ConvertiblePair(NumberType.class, Number.class),
-                new ConvertiblePair(Number.class, NumberType.class)));
+                new ConvertiblePair(Number.class, NumberType.class),
+                new ConvertiblePair(Date.class, LocalDateTimeType.class),
+                new ConvertiblePair(Date.class, LocalDateType.class),
+                new ConvertiblePair(Date.class, InstantType.class),
+                new ConvertiblePair(Date.class, LocalTimeType.class)
+                                   ));
 
         return allConverters;
     }
@@ -130,6 +134,14 @@ public class SingleValueTypeConverter implements GenericConverter {
     public Object convert(Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
         if (source instanceof CharSequenceType && ObjectId.class.isAssignableFrom(targetType.getType()) && ObjectId.isValid(source.toString())) {
             return new ObjectId(source.toString());
+        } else if (LocalDateTimeType.class.isAssignableFrom(targetType.getType())) {
+            return LocalDateTime.ofInstant(((Date) source).toInstant(), ZoneId.of("UTC"));
+        } else if (LocalDateType.class.isAssignableFrom(targetType.getType())) {
+            return LocalDate.ofInstant(((Date) source).toInstant(), ZoneId.of("UTC"));
+        } else if (InstantType.class.isAssignableFrom(targetType.getType())) {
+            return ((Date) source).toInstant();
+        } else if (LocalTimeType.class.isAssignableFrom(targetType.getType())) {
+            return LocalTime.ofInstant(((Date) source).toInstant(), ZoneId.of("UTC"));
         } else if (source instanceof SingleValueType) {
             return ((SingleValueType<?, ?>) source).value();
         } else if (source instanceof ObjectId) {

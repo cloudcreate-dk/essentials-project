@@ -23,6 +23,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
 import org.testcontainers.containers.MongoDBContainer;
@@ -55,6 +56,8 @@ class OrderRepositoryIT {
 
     @Test
     void test_we_can_store_an_order_and_load_it_again() {
+        new MongoCustomConversions.MongoConverterConfigurationAdapter()
+                .useNativeDriverJavaTimeCodecs();
         var currencyCode = CurrencyCode.of("DKK");
         var amount       = Amount.of("123.456");
         var percentage   = Percentage.from("40.5%");
@@ -69,7 +72,11 @@ class OrderRepositoryIT {
                                     currencyCode,
                                     CountryCode.of("DK"),
                                     EmailAddress.of("john@nonexistingdomain.com"),
-                                    new Money(amount.add(percentage.of(amount)), currencyCode)
+                                    new Money(amount.add(percentage.of(amount)), currencyCode),
+                                    Created.now(),
+                                    DueDate.now(),
+                                    LastUpdated.now(),
+                                    TimeOfDay.now()
         );
         orderRepository.save(storedOrder);
 
@@ -95,7 +102,11 @@ class OrderRepositoryIT {
                                                          currencyCode,
                                                          CountryCode.of("DK"),
                                                          EmailAddress.of("john@nonexistingdomain.com"),
-                                                         new Money(amount.add(percentage.of(amount)), currencyCode)));
+                                                         new Money(amount.add(percentage.of(amount)), currencyCode),
+                                                         Created.now(),
+                                                         DueDate.now(),
+                                                         LastUpdated.now(),
+                                                         TimeOfDay.now()));
 
         assertThat(storedOrder.getId()).isNotNull();
 
