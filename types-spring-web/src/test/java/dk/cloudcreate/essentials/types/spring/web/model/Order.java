@@ -37,19 +37,19 @@ public class Order {
 
     private Money totalPrice;
 
+    // Dates
+    private Created created;
+    private DueDate dueDate;
+    private LastUpdated lastUpdated;
+    private TimeOfDay timeOfDay;
+    private TransactionTime transactionTime;
+    private TransferTime transferTime;
+
     public Order() {
     }
 
-    public Order(OrderId id,
-                 CustomerId customerId,
-                 AccountId accountId,
-                 Map<ProductId, Quantity> orderLines,
-                 Amount amount,
-                 Percentage percentage,
-                 CurrencyCode currency,
-                 CountryCode country,
-                 EmailAddress email,
-                 Money totalPrice) {
+    public Order(OrderId id, CustomerId customerId, AccountId accountId, Map<ProductId, Quantity> orderLines, Amount amount, Percentage percentage, CurrencyCode currency, CountryCode country, EmailAddress email, Money totalPrice, Created created, DueDate dueDate,
+                 LastUpdated lastUpdated, TimeOfDay timeOfDay, TransactionTime transactionTime, TransferTime transferTime) {
         this.id = id;
         this.customerId = customerId;
         this.accountId = accountId;
@@ -60,17 +60,16 @@ public class Order {
         this.country = country;
         this.email = email;
         this.totalPrice = totalPrice;
+        this.created = created;
+        this.dueDate = dueDate;
+        this.lastUpdated = lastUpdated;
+        this.timeOfDay = timeOfDay;
+        this.transactionTime = transactionTime;
+        this.transferTime = transferTime;
     }
 
-    public Order(CustomerId customerId,
-                 AccountId accountId,
-                 Map<ProductId, Quantity> orderLines,
-                 Amount amount,
-                 Percentage percentage,
-                 CurrencyCode currency,
-                 CountryCode country,
-                 EmailAddress email,
-                 Money totalPrice) {
+    public Order(CustomerId customerId, AccountId accountId, Map<ProductId, Quantity> orderLines, Amount amount, Percentage percentage, CurrencyCode currency, CountryCode country, EmailAddress email, Money totalPrice, Created created, DueDate dueDate, LastUpdated lastUpdated,
+                 TimeOfDay timeOfDay, TransactionTime transactionTime, TransferTime transferTime) {
         this.customerId = customerId;
         this.accountId = accountId;
         this.orderLines = orderLines;
@@ -80,6 +79,12 @@ public class Order {
         this.country = country;
         this.email = email;
         this.totalPrice = totalPrice;
+        this.created = created;
+        this.dueDate = dueDate;
+        this.lastUpdated = lastUpdated;
+        this.timeOfDay = timeOfDay;
+        this.transactionTime = transactionTime;
+        this.transferTime = transferTime;
     }
 
     public OrderId getId() {
@@ -158,6 +163,54 @@ public class Order {
         this.totalPrice = totalPrice;
     }
 
+    public Created getCreated() {
+        return created;
+    }
+
+    public void setCreated(Created created) {
+        this.created = created;
+    }
+
+    public DueDate getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(DueDate dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    public LastUpdated getLastUpdated() {
+        return lastUpdated;
+    }
+
+    public void setLastUpdated(LastUpdated lastUpdated) {
+        this.lastUpdated = lastUpdated;
+    }
+
+    public TimeOfDay getTimeOfDay() {
+        return timeOfDay;
+    }
+
+    public void setTimeOfDay(TimeOfDay timeOfDay) {
+        this.timeOfDay = timeOfDay;
+    }
+
+    public TransactionTime getTransactionTime() {
+        return transactionTime;
+    }
+
+    public void setTransactionTime(TransactionTime transactionTime) {
+        this.transactionTime = transactionTime;
+    }
+
+    public TransferTime getTransferTime() {
+        return transferTime;
+    }
+
+    public void setTransferTime(TransferTime transferTime) {
+        this.transferTime = transferTime;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -165,11 +218,36 @@ public class Order {
         Order order = (Order) o;
         return Objects.equals(id, order.id) && Objects.equals(customerId, order.customerId) && Objects.equals(accountId, order.accountId) &&
                 Objects.equals(orderLines, order.orderLines) && Objects.equals(amount, order.amount) && Objects.equals(percentage, order.percentage) &&
-                Objects.equals(currency, order.currency) && Objects.equals(country, order.country) && Objects.equals(email, order.email) && Objects.equals(totalPrice, order.totalPrice);
+                Objects.equals(currency, order.currency) && Objects.equals(country, order.country) && Objects.equals(email, order.email) &&
+                Objects.equals(totalPrice, order.totalPrice) && Objects.equals(created, order.created) && Objects.equals(dueDate, order.dueDate) &&
+                Objects.equals(lastUpdated, order.lastUpdated) && Objects.equals(timeOfDay, order.timeOfDay) && Objects.equals(transactionTime, order.transactionTime) &&
+                Objects.equals(transferTime, order.transferTime);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, customerId, accountId, orderLines, amount, percentage, currency, country, email, totalPrice);
+        return Objects.hash(id, customerId, accountId, orderLines, amount, percentage, currency, country, email, totalPrice, created, dueDate, lastUpdated, timeOfDay, transactionTime, transferTime);
+    }
+
+    @Override
+    public String toString() {
+        return "Order{" +
+                "id=" + id +
+                ", customerId=" + customerId +
+                ", accountId=" + accountId +
+                ", orderLines=" + orderLines +
+                ", amount=" + amount +
+                ", percentage=" + percentage +
+                ", currency=" + currency +
+                ", country=" + country +
+                ", email=" + email +
+                ", totalPrice=" + totalPrice +
+                ", created=" + created +
+                ", dueDate=" + dueDate +
+                ", lastUpdated=" + lastUpdated +
+                ", timeOfDay=" + timeOfDay +
+                ", transactionTime=" + transactionTime +
+                ", transferTime=" + transferTime +
+                '}';
     }
 }

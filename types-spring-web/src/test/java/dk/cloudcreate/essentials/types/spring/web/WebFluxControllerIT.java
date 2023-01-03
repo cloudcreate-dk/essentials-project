@@ -38,6 +38,34 @@ public class WebFluxControllerIT {
     private ObjectMapper objectMapper;
 
     @Test
+    public void test_LocalDateType_DueDate_request_param() throws Exception {
+        var dueDate = DueDate.now();
+        var result = testClient.get()
+                               .uri("/reactive-orders?dueDate={dueDate}", dueDate)
+                               .exchange()
+                               .expectStatus()
+                               .isOk()
+                               .expectBody(DueDate.class)
+                               .returnResult();
+
+        assertThat(result.getResponseBody()).isEqualTo(dueDate);
+    }
+
+    @Test
+    public void test_LocalDateType_DueDate_path_variable() throws Exception {
+        var dueDate = DueDate.now();
+        var result = testClient.get()
+                               .uri("/reactive-orders/by-due-date/{dueDate}", dueDate)
+                               .exchange()
+                               .expectStatus()
+                               .isOk()
+                               .expectBody(DueDate.class)
+                               .returnResult();
+
+        assertThat(result.getResponseBody()).isEqualTo(dueDate);
+    }
+
+    @Test
     public void getOrderForCustomer() throws Exception {
         var customerId = CustomerId.random();
         var result = testClient.get()
@@ -95,7 +123,13 @@ public class WebFluxControllerIT {
                               CurrencyCode.of("DKK"),
                               CountryCode.of("DK"),
                               EmailAddress.of("john@nonexistingdomain.com"),
-                              Money.of("102.75", CurrencyCode.EUR));
+                              Money.of("102.75", CurrencyCode.EUR),
+                              Created.now(),
+                              DueDate.now(),
+                              LastUpdated.now(),
+                              TimeOfDay.now(),
+                              TransactionTime.now(),
+                              TransferTime.now());
         var result = testClient.put()
                                .uri("/reactive-order")
                                .contentType(MediaType.APPLICATION_JSON)

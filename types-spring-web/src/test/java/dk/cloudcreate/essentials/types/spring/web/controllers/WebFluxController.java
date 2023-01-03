@@ -26,6 +26,15 @@ import java.util.Map;
 @RestController
 public class WebFluxController {
 
+    @GetMapping("/reactive-orders/by-due-date/{dueDate}")
+    public Mono<DueDate> getOrdersWithParam(@PathVariable DueDate dueDate) {
+        return Mono.just(dueDate);
+    }
+
+    @GetMapping("/reactive-orders")
+    public Mono<DueDate> getOrders(@RequestParam("dueDate") DueDate dueDate) {
+        return Mono.just(dueDate);
+    }
 
     @GetMapping("/reactive-order/for-customer/{customerId}")
     public Mono<Order> getOrderForCustomer(@PathVariable CustomerId customerId) {
@@ -43,7 +52,13 @@ public class WebFluxController {
                                    currencyCode,
                                    CountryCode.of("DK"),
                                    EmailAddress.of("john@nonexistingdomain.com"),
-                                   new Money(amount.add(percentage.of(amount)), currencyCode)));
+                                   new Money(amount.add(percentage.of(amount)), currencyCode),
+                                   Created.now(),
+                                   DueDate.now(),
+                                   LastUpdated.now(),
+                                   TimeOfDay.now(),
+                                   TransactionTime.now(),
+                                   TransferTime.now()));
     }
 
     @GetMapping("/reactive-order/{id}")
@@ -62,7 +77,13 @@ public class WebFluxController {
                                    currencyCode,
                                    CountryCode.of("DK"),
                                    EmailAddress.of("john@nonexistingdomain.com"),
-                                   new Money(amount.add(percentage.of(amount)), currencyCode)));
+                                   new Money(amount.add(percentage.of(amount)), currencyCode),
+                                   Created.now(),
+                                   DueDate.now(),
+                                   LastUpdated.now(),
+                                   TimeOfDay.now(),
+                                   TransactionTime.now(),
+                                   TransferTime.now()));
     }
 
     @PostMapping("/reactive-order/for-customer/{customerId}/update/total-price")
@@ -79,7 +100,13 @@ public class WebFluxController {
                                    CurrencyCode.of("DKK"),
                                    CountryCode.of("DK"),
                                    EmailAddress.of("john@nonexistingdomain.com"),
-                                   Money.of(price, CurrencyCode.EUR)));
+                                   Money.of(price, CurrencyCode.EUR),
+                                   Created.now(),
+                                   DueDate.now(),
+                                   LastUpdated.now(),
+                                   TimeOfDay.now(),
+                                   TransactionTime.now(),
+                                   TransferTime.now()));
     }
 
     @PutMapping(value = "/reactive-order")

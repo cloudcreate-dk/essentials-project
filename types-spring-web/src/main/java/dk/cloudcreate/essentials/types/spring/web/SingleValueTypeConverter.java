@@ -21,6 +21,9 @@ import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.GenericConverter;
 import org.springframework.util.NumberUtils;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.time.*;
 import java.util.Set;
 
 /**
@@ -31,11 +34,10 @@ import java.util.Set;
 public class SingleValueTypeConverter implements GenericConverter {
     @Override
     public Set<ConvertiblePair> getConvertibleTypes() {
-        return Set.of(new ConvertiblePair(CharSequenceType.class, String.class),
-                      new ConvertiblePair(String.class, CharSequenceType.class),
-                      new ConvertiblePair(NumberType.class, Number.class),
+        return Set.of(new ConvertiblePair(String.class, CharSequenceType.class),
                       new ConvertiblePair(Number.class, NumberType.class),
-                      new ConvertiblePair(String.class, NumberType.class));
+                      new ConvertiblePair(String.class, NumberType.class),
+                      new ConvertiblePair(String.class, JSR310SingleValueType.class));
     }
 
     @SuppressWarnings("unchecked")
@@ -43,6 +45,18 @@ public class SingleValueTypeConverter implements GenericConverter {
     public Object convert(Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
         if (source instanceof SingleValueType) {
             return ((SingleValueType<?, ?>) source).value();
+        } else if (LocalDateTimeType.class.isAssignableFrom(targetType.getType())) {
+            return SingleValueType.fromObject(LocalDateTime.parse((String)source), (Class<SingleValueType<?, ?>>) targetType.getType());
+        } else if (LocalDateType.class.isAssignableFrom(targetType.getType())) {
+            return SingleValueType.fromObject(LocalDate.parse((String)source), (Class<SingleValueType<?, ?>>) targetType.getType());
+        } else if (InstantType.class.isAssignableFrom(targetType.getType())) {
+            return SingleValueType.fromObject(Instant.parse((String)source), (Class<SingleValueType<?, ?>>) targetType.getType());
+        } else if (LocalTimeType.class.isAssignableFrom(targetType.getType())) {
+            return SingleValueType.fromObject(LocalTime.parse((String)source), (Class<SingleValueType<?, ?>>) targetType.getType());
+        } else if (OffsetDateTimeType.class.isAssignableFrom(targetType.getType())) {
+            return SingleValueType.fromObject(OffsetDateTime.parse((String)source), (Class<SingleValueType<?, ?>>) targetType.getType());
+        } else if (ZonedDateTimeType.class.isAssignableFrom(targetType.getType())) {
+            return SingleValueType.fromObject(ZonedDateTime.parse(URLDecoder.decode((String)source, StandardCharsets.UTF_8)), (Class<SingleValueType<?, ?>>) targetType.getType());
         } else {
             if (source instanceof String && NumberType.class.isAssignableFrom(targetType.getType())) {
                 Class<? extends Number> numberTargetType = NumberType.resolveNumberClass(targetType.getType());

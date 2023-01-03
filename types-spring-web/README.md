@@ -126,3 +126,58 @@ public Mono<Order> updatePrice(@PathVariable CustomerId customerId,
     ...
 }
 ```
+
+### JSR 310 Semantic Types
+
+This library also supports `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+| `JSR310SingleValueType` specialization | Value Type |
+|----------------------------------|-------------------------|
+| `InstantType`                    | `Instant`               |
+| `LocalDateTimeType`              | `LocalDateTime`         |
+| `LocalDateType`                  | `LocalDate`             |
+| `LocalTimeType`                  | `LocalTime`             |
+| `OffsetDateTimeType`             | `OffsetDateTime`        |
+| `ZonedDateTimeType`              | `ZonedDateTime`         |
+
+#### JSR-310 Semantic Types - JSON payload 
+As described in [types-jackson](../types-jackson/README.md) then each JSON serializable concrete `JSR310SingleValueType` being transferred to/from the
+MVCController/WebFlux operations much  **MUST** specify a `@JsonCreator` constructor.  
+
+Example: `TransactionTime` which is a concrete `ZonedDateTimeType`:
+```
+public class TransactionTime extends ZonedDateTimeType<TransactionTime> {
+    @JsonCreator
+    public TransactionTime(ZonedDateTime value) {
+        super(value);
+    }
+
+    public static TransactionTime of(ZonedDateTime value) {
+        return new TransactionTime(value);
+    }
+
+    public static TransactionTime now() {
+        return new TransactionTime(ZonedDateTime.now(ZoneId.of("UTC")));
+    }
+}
+```
+
+#### JSR-310 Semantic Types - Path variables and Request Parameters
+
+This library also supports using all concrete `JSR310SingleValueType` as `@PathVariable` or `@RequestParam`'s.
+Only limitation is that any `ZonedDateTimeType`'s values must be `URLEncoded` to properly work such as `mockMvc.perform(MockMvcRequestBuilders.get("/orders/by-transaction-time/{transactionTime}", URLEncoder.encode(transactionTime.toString(), StandardCharsets.UTF_8)))`
+
+Example using a JSR-310 Semantic Type `@PathVariable` parameter:
+```
+@GetMapping("/orders")
+public DueDate getOrdersWithParam(@RequestParam("dueDate") DueDate dueDate) {
+    return dueDate;
+}
+```
+
+Example using a JSR-310 Semantic Type `@@RequestParam` parameter
+```
+@GetMapping("/orders/by-due-date/{dueDate}")
+public DueDate getOrders(@PathVariable DueDate dueDate) {
+    return dueDate;
+}
+```
