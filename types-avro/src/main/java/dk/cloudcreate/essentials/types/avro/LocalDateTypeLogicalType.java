@@ -16,30 +16,24 @@
 
 package dk.cloudcreate.essentials.types.avro;
 
-import dk.cloudcreate.essentials.types.*;
+import dk.cloudcreate.essentials.types.LocalDateType;
 import org.apache.avro.*;
 
-import java.time.LocalDate;
-
 /**
- * Base {@link Conversion} for all custom types of type {@link LocalDateType}<br>
+ * AVRO {@link LogicalType} for {@link LocalDateType}.<br>
  * The handling is similar to AVRO's <code>date</code> logical type:<br>
  * <blockquote>
- *   The {@link LocalDateType} logical type represents a calendar <b>date</b> without a time-zone.<br>
- *   The {@link LocalDateType} logical type annotates an Avro <b>int</b>.<br>
- *   The Avro int stores the number of days from the UNIX epoch - 1 January 1970 (ISO-8601 calendar system).
+ * The {@link LocalDateType} logical type represents an <b>instant</b>, i.e. of date with time, but without time-zone, and with a precision of 1 millisecond.<br>
+ * The {@link LocalDateType} logical type annotates an Avro <b>long</b>.<br>
+ * The Avro int stores the number of days from the UNIX epoch - 1 January 1970 (ISO-8601 calendar system).
  * </blockquote>
- * <br>
- * Each concrete {@link LocalDateType} that must be support Avro serialization and deserialization must have a dedicated
- * {@link Conversion}, {@link LogicalType} and {@link LogicalTypes.LogicalTypeFactory} pair registered with the <b><code>avro-maven-plugin</code></b>.<br>
- * <br>
- * <b>Important:</b> The AVRO field/property must be use the AVRO primitive type: <b><code>int</code></b><br>
+ * Example of how to use:
  * <pre>{@code
  * @namespace("dk.cloudcreate.essentials.types.avro.test")
  * protocol Test {
  *   record Order {
  *      @logicalType("DueDate")
-*       int dueDate;
+ *       int dueDate;
  *   }
  * }
  * }</pre>
@@ -105,56 +99,19 @@ import java.time.LocalDate;
  *     </executions>
  * </plugin>
  * }</pre>
- * <b><u>Create a Record the uses the "DueDate" logical type</u></b><br>
- * Example IDL <code>"order.avdl"</code>:<br>
- * <pre>{@code
- * @namespace("dk.cloudcreate.essentials.types.avro.test")
- * protocol Test {
- *   record Order {
- *       string           id;
- *       @logicalType("DueDate")
- *       int             dueDate;
- *   }
- * }
- * }</pre>
- * <br>
- * This will generate an Order class that looks like this:
- * <pre>{@code
- * public class Order extends SpecificRecordBase implements SpecificRecord {
- *   ...
- *   private java.lang.String id;
- *   private com.myproject.types.DueDate dueDate;
- *   ...
- * }
- * }</pre>
  *
- * @param <T> the concrete {@link LocalDateType} sub-type
- * @see LocalDateTypeLogicalType
+ * @see BaseLocalDateTypeConversion
  */
-public abstract class BaseLocalDateTypeConversion<T extends LocalDateType<T>> extends Conversion<T> {
-    protected abstract LogicalType getLogicalType();
-
-    @Override
-    public final Schema getRecommendedSchema() {
-        return getLogicalType().addToSchema(Schema.create(Schema.Type.INT));
+public class LocalDateTypeLogicalType extends LogicalType {
+    public LocalDateTypeLogicalType(String logicalTypeName) {
+        super(logicalTypeName);
     }
 
     @Override
-    public final String getLogicalTypeName() {
-        return getLogicalType().getName();
-    }
-
-    @Override
-    public T fromInt(Integer value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               SingleValueType.from(LocalDate.ofEpochDay(value), getConvertedType());
-    }
-
-    @Override
-    public Integer toInt(T value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               (int) value.value().toEpochDay();
+    public void validate(Schema schema) {
+        super.validate(schema);
+        if (schema.getType() != Schema.Type.INT) {
+            throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.INT.getName() + "'. Invalid schema: " + schema.toString(true));
+        }
     }
 }

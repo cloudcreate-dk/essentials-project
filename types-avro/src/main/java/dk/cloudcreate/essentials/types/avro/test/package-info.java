@@ -14,22 +14,10 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types.avro.dates;
-
-import dk.cloudcreate.essentials.types.OffsetDateTimeType;
-
-import java.time.OffsetDateTime;
-
-public class TransferTime extends OffsetDateTimeType<TransferTime> {
-    public TransferTime(OffsetDateTime value) {
-        super(value);
-    }
-
-    public static TransferTime of(OffsetDateTime value) {
-        return new TransferTime(value);
-    }
-
-    public static TransferTime now() {
-        return new TransferTime(OffsetDateTime.now());
-    }
-}
+/**
+ * Due to the <code>avro-maven-plugin</code> running during <code>generate-test-sources</code> phase, and the <code>order.avdl</code> includes {@link org.apache.avro.Conversions}/{@link org.apache.avro.LogicalTypes.LogicalTypeFactory}
+ * in the <code>test</code> package, as well as <b>types</b> defined in the <code>test/types</code> subpackage,
+ * we need to include these test-classes in the actual source directly.<br>
+ * To compensate for this the <code>maven-jar-plugin</code> <b>excludes</b> the <code>test</code> package and all its subpackages
+ */
+package dk.cloudcreate.essentials.types.avro.test;

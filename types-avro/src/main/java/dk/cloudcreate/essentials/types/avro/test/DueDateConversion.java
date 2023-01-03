@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types.avro.dates;
+package dk.cloudcreate.essentials.types.avro.test;
 
-import dk.cloudcreate.essentials.types.InstantType;
+import dk.cloudcreate.essentials.types.avro.BaseLocalDateTypeConversion;
+import dk.cloudcreate.essentials.types.avro.test.types.DueDate;
+import org.apache.avro.LogicalType;
 
-import java.time.Instant;
+import static dk.cloudcreate.essentials.types.avro.test.DueDateLogicalTypeFactory.DUE_DATE;
 
-public class LastUpdated extends InstantType<LastUpdated> {
-    public LastUpdated(Instant value) {
-        super(value);
+public class DueDateConversion extends BaseLocalDateTypeConversion<DueDate> {
+    @Override
+    public Class<DueDate> getConvertedType() {
+        return DueDate.class;
     }
 
-    public static LastUpdated of(Instant value) {
-        return new LastUpdated(value);
-    }
-
-    public static LastUpdated now() {
-        return new LastUpdated(Instant.now());
+    @Override
+    protected LogicalType getLogicalType() {
+        return DUE_DATE;
     }
 }

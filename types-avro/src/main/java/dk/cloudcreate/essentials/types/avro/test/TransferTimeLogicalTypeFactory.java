@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types.avro.dates;
+package dk.cloudcreate.essentials.types.avro.test;
 
-import dk.cloudcreate.essentials.types.LocalTimeType;
+import dk.cloudcreate.essentials.types.avro.OffsetDateTimeTypeLogicalType;
+import org.apache.avro.*;
 
-import java.time.LocalTime;
+public class TransferTimeLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
+    public static final LogicalType TRANSFER_TIME = new OffsetDateTimeTypeLogicalType("TransferTime");
 
-public class TimeOfDay extends LocalTimeType<TimeOfDay> {
-    public TimeOfDay(LocalTime value) {
-        super(value);
+    @Override
+    public LogicalType fromSchema(Schema schema) {
+        return TRANSFER_TIME;
     }
 
-    public static TimeOfDay of(LocalTime value) {
-        return new TimeOfDay(value);
-    }
-
-    public static TimeOfDay now() {
-        return new TimeOfDay(LocalTime.now());
+    @Override
+    public String getTypeName() {
+        return TRANSFER_TIME.getName();
     }
 }

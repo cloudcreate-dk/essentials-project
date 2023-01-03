@@ -84,7 +84,7 @@ import org.apache.avro.*;
  * }</pre>
  */
 public class PercentageLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
-    public static final LogicalType PERCENTAGE = new PercentageLogicalType("Percentage");
+    public static final LogicalType PERCENTAGE = new BigDecimalTypeLogicalType("Percentage");
 
     @Override
     public LogicalType fromSchema(Schema schema) {
@@ -94,19 +94,5 @@ public class PercentageLogicalTypeFactory implements LogicalTypes.LogicalTypeFac
     @Override
     public String getTypeName() {
         return PERCENTAGE.getName();
-    }
-
-    public static class PercentageLogicalType extends LogicalType {
-        public PercentageLogicalType(String logicalTypeName) {
-            super(logicalTypeName);
-        }
-
-        @Override
-        public void validate(Schema schema) {
-            super.validate(schema);
-            if (schema.getType() != Schema.Type.STRING) {
-                throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.STRING.getName() + "'. Invalid schema: " + schema.toString(true));
-            }
-        }
     }
 }

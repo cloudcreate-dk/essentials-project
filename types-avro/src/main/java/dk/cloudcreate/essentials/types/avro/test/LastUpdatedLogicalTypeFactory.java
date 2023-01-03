@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types.avro.dates;
+package dk.cloudcreate.essentials.types.avro.test;
 
-import dk.cloudcreate.essentials.types.LocalDateTimeType;
+import dk.cloudcreate.essentials.types.avro.InstantTypeLogicalType;
+import org.apache.avro.*;
 
-import java.time.LocalDateTime;
+public class LastUpdatedLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
+    public static final LogicalType LAST_UPDATED = new InstantTypeLogicalType("LastUpdated");
 
-public class Created extends LocalDateTimeType<Created> {
-    public Created(LocalDateTime value) {
-        super(value);
+    @Override
+    public LogicalType fromSchema(Schema schema) {
+        return LAST_UPDATED;
     }
 
-    public static Created of(LocalDateTime value) {
-        return new Created(value);
-    }
-
-    public static Created now() {
-        return new Created(LocalDateTime.now());
+    @Override
+    public String getTypeName() {
+        return LAST_UPDATED.getName();
     }
 }

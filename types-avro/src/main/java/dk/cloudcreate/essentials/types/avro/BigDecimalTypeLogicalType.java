@@ -20,11 +20,9 @@ import dk.cloudcreate.essentials.types.*;
 import org.apache.avro.*;
 
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 
 /**
- * Base {@link Conversion} for all custom types of type {@link BigDecimalType}.<br>
+ * Logical-Type for {@link dk.cloudcreate.essentials.types.BigDecimalType}<br>
  * <b>NOTICE:</b>
  * <blockquote>
  * This Conversion requires that AVRO field/property must be use the AVRO primitive type: <b><code>string</code></b> and NEITHER the <code>"double"</code> NOR the more sophisticated logical type <code>"decimal"</code>.<br>
@@ -106,100 +104,18 @@ import java.nio.charset.StandardCharsets;
  *     </executions>
  * </plugin>
  * }</pre>
- * <b><u>Create a Record the uses the "Amount" logical type</u></b><br>
- * Example IDL <code>"order.avdl"</code>:<br>
- * <pre>{@code
- * @namespace("dk.cloudcreate.essentials.types.avro.test")
- * protocol Test {
- *   record Order {
- *       string           id;
- *       @logicalType("Amount")
- *       string  totalAmountWithoutSalesTax;
- *   }
- * }
- * }</pre>
- * <br>
- * This will generate an Order class that looks like this:
- * <pre>{@code
- * public class Order extends SpecificRecordBase implements SpecificRecord {
- *   ...
- *   private java.lang.String id;
- *   private dk.cloudcreate.essentials.types.Amount totalAmountWithoutSalesTax;
- *   ...
- * }
- * }</pre>
- *
- * @param <T> the concrete {@link BigDecimalType} sub-type
- * @see BigDecimalTypeLogicalType
- * @see AmountConversion
- * @see AmountLogicalTypeFactory
- * @see PercentageConversion
- * @see PercentageLogicalTypeFactory
+ * @see BaseBigDecimalTypeConversion
  */
-public abstract class BaseBigDecimalTypeConversion<T extends BigDecimalType<T>> extends Conversion<T> {
-    protected abstract LogicalType getLogicalType();
-
-    @Override
-    public final Schema getRecommendedSchema() {
-        return getLogicalType().addToSchema(Schema.create(Schema.Type.STRING));
+public class BigDecimalTypeLogicalType extends LogicalType {
+    public BigDecimalTypeLogicalType(String logicalTypeName) {
+        super(logicalTypeName);
     }
 
     @Override
-    public final String getLogicalTypeName() {
-        return getLogicalType().getName();
+    public void validate(Schema schema) {
+        super.validate(schema);
+        if (schema.getType() != Schema.Type.STRING) {
+            throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.STRING.getName() + "'. Invalid schema: " + schema.toString(true));
+        }
     }
-
-    @Override
-    public T fromBytes(ByteBuffer value, Schema schema, LogicalType type) {
-        if (value == null) return null;
-        var stringValue = StandardCharsets.UTF_8.decode(value).toString();
-        return convertToBigDecimalType(stringValue);
-    }
-
-    @Override
-    public ByteBuffer toBytes(T value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               StandardCharsets.UTF_8.encode(convertFromBigDecimalType(value));
-    }
-
-    @Override
-    public T fromCharSequence(CharSequence value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               convertToBigDecimalType(value.toString());
-    }
-
-    @Override
-    public CharSequence toCharSequence(T value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               convertFromBigDecimalType(value);
-    }
-
-    /**
-     * Converts the stringValue to a {@link BigDecimalType}<br>
-     * Default conversion uses this logic: <code>SingleValueType.from(new BigDecimal(value), getConvertedType());</code>
-     * Override this method to provide a custom to {@link BigDecimalType} conversion
-     *
-     * @param stringValue the {@link BigDecimalType}øs value represented as a string
-     * @return the {@link BigDecimalType} instance corresponding to the <code>stringValue</code>
-     */
-    protected T convertToBigDecimalType(String stringValue) {
-        return SingleValueType.from(new BigDecimal(stringValue), getConvertedType());
-    }
-
-    /**
-     * Converts the internal {@link BigDecimal} (inside the {@link BigDecimalType}) to a stringValue<br>
-     * Default conversion is to use the internal {@link BigDecimalType}'s {@link BigDecimal} string representation<br>
-     * Override this method to provide a custom from {@link BigDecimal} conversion
-     *
-     * @param value the {@link BigDecimal} value
-     * @return the <code>stringValue</code> representation of the <code>value</code>>
-     */
-    protected String convertFromBigDecimalType(T value) {
-        return value.value().toString();
-    }
-
-
 }

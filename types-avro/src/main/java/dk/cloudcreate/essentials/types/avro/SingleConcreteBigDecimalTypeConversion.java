@@ -101,21 +101,29 @@ public abstract class SingleConcreteBigDecimalTypeConversion<T extends BigDecima
 
     @Override
     public T fromBytes(ByteBuffer value, Schema schema, LogicalType type) {
-        return SingleValueType.from(DECIMAL_CONVERSION.fromBytes(value, schema, type), getConvertedType());
+        return value == null ?
+               null :
+               SingleValueType.from(DECIMAL_CONVERSION.fromBytes(value, schema, type), getConvertedType());
     }
 
     @Override
     public ByteBuffer toBytes(T value, Schema schema, LogicalType type) {
-        return DECIMAL_CONVERSION.toBytes(value.value(), schema, type);
+        return value == null ?
+               null :
+               DECIMAL_CONVERSION.toBytes(value.value(), schema, type);
     }
 
     @Override
     public T fromFixed(GenericFixed value, Schema schema, LogicalType type) {
-        return SingleValueType.from(DECIMAL_CONVERSION.fromFixed(value, schema, type), getConvertedType());
+        return value == null ?
+               null :
+               SingleValueType.from(DECIMAL_CONVERSION.fromFixed(value, schema, type), getConvertedType());
     }
 
     @Override
     public GenericFixed toFixed(T value, Schema schema, LogicalType type) {
-        return DECIMAL_CONVERSION.toFixed(value.value(), schema, type);
+        return value == null ?
+               null :
+               DECIMAL_CONVERSION.toFixed(value.value(), schema, type);
     }
 }

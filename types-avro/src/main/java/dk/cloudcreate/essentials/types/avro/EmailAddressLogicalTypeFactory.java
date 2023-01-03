@@ -84,7 +84,7 @@ import org.apache.avro.*;
  * }</pre>
  */
 public class EmailAddressLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
-    public static final LogicalType EMAIL_ADDRESS = new EmailAddressLogicalType("EmailAddress");
+    public static final LogicalType EMAIL_ADDRESS = new CharSequenceTypeLogicalType("EmailAddress");
 
     @Override
     public LogicalType fromSchema(Schema schema) {
@@ -94,19 +94,5 @@ public class EmailAddressLogicalTypeFactory implements LogicalTypes.LogicalTypeF
     @Override
     public String getTypeName() {
         return EMAIL_ADDRESS.getName();
-    }
-
-    public static class EmailAddressLogicalType extends LogicalType {
-        public EmailAddressLogicalType(String logicalTypeName) {
-            super(logicalTypeName);
-        }
-
-        @Override
-        public void validate(Schema schema) {
-            super.validate(schema);
-            if (schema.getType() != Schema.Type.STRING) {
-                throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.STRING.getName() + "'. Invalid schema: " + schema.toString(true));
-            }
-        }
     }
 }

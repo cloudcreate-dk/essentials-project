@@ -16,11 +16,11 @@
 
 package dk.cloudcreate.essentials.types.avro;
 
-import dk.cloudcreate.essentials.types.*;
+import dk.cloudcreate.essentials.types.IntegerType;
 import org.apache.avro.*;
 
 /**
- * Base {@link Conversion} for all custom types of type {@link IntegerType}.<br>
+ * Logical-Type for {@link IntegerType}<br>
  * <b>NOTICE:</b> This Conversion requires that AVRO field/property must be use the AVRO primitive type: <b><code>int</code></b><br>
  * <br>
  * Each concrete {@link IntegerType} that must be support Avro serialization and deserialization must have a dedicated
@@ -98,56 +98,19 @@ import org.apache.avro.*;
  *     </executions>
  * </plugin>
  * }</pre>
- * <b><u>Create a Record the uses the "Quantity" logical type</u></b><br>
- * Example IDL <code>"order.avdl"</code>:<br>
- * <pre>{@code
- * @namespace("dk.cloudcreate.essentials.types.avro.test")
- * protocol Test {
- *   record Order {
- *       string           id;
- *       @logicalType("Quantity")
- *       int             quanity;
- *   }
- * }
- * }</pre>
- * <br>
- * This will generate an Order class that looks like this:
- * <pre>{@code
- * public class Order extends SpecificRecordBase implements SpecificRecord {
- *   ...
- *   private java.lang.String id;
- *   private com.myproject.types.Quantity quantity;
- *   ...
- * }
- * }</pre>
  *
- * @param <T> the concrete {@link IntegerType} sub-type
- * @see IntegerTypeLogicalType
+ * @see BaseIntegerTypeConversion
  */
-public abstract class BaseIntegerTypeConversion<T extends IntegerType<T>> extends Conversion<T> {
-    protected abstract LogicalType getLogicalType();
-
-    @Override
-    public final Schema getRecommendedSchema() {
-        return getLogicalType().addToSchema(Schema.create(Schema.Type.INT));
+public class IntegerTypeLogicalType extends LogicalType {
+    public IntegerTypeLogicalType(String logicalTypeName) {
+        super(logicalTypeName);
     }
 
     @Override
-    public final String getLogicalTypeName() {
-        return getLogicalType().getName();
-    }
-
-    @Override
-    public T fromInt(Integer value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               SingleValueType.from(value, getConvertedType());
-    }
-
-    @Override
-    public Integer toInt(T value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               value.intValue();
+    public void validate(Schema schema) {
+        super.validate(schema);
+        if (schema.getType() != Schema.Type.INT) {
+            throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.INT.getName() + "'. Invalid schema: " + schema.toString(true));
+        }
     }
 }

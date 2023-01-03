@@ -7,6 +7,7 @@ protocol Test {
     string           currency;
   }
   record Order {
+      @logicalType("OrderId")
       string           id;
       @logicalType("Amount")
       string  totalAmountWithoutSalesTax;
@@ -19,6 +20,18 @@ protocol Test {
       @logicalType("EmailAddress")
       string  email;
       Money totalPrice;
+      @logicalType("DueDate")
+      int dueDate;
+      @logicalType("TimeOfDay")
+      long timeOfDay;
+      @logicalType("Created")
+      long created;
+      @logicalType("LastUpdated")
+      long lastUpdated;
+      @logicalType("TransactionTime")
+      long transactionTime;
+      @logicalType("TransferTime")
+      long transferTime;
 
       array<@logicalType("CurrencyCode") string>  arrayOfCurrencies;
       map<@logicalType("CurrencyCode") string>  mapOfCurrencyValues;

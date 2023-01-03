@@ -19,6 +19,7 @@ package dk.cloudcreate.essentials.types.avro;
 import dk.cloudcreate.essentials.types.*;
 import dk.cloudcreate.essentials.types.avro.test.Money;
 import dk.cloudcreate.essentials.types.avro.test.*;
+import dk.cloudcreate.essentials.types.avro.test.types.*;
 import org.apache.avro.io.*;
 import org.apache.avro.specific.*;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,7 @@ public class CustomConversionsTest {
         var salesTax                   = Percentage.from("25");
         var totalPrice                 = totalAmountWithoutSalesTax.add(salesTax.of(totalAmountWithoutSalesTax));
         var order = Order.newBuilder()
-                         .setId("TestOrderId")
+                         .setId(OrderId.of("TestOrderId"))
                          .setTotalAmountWithoutSalesTax(totalAmountWithoutSalesTax)
                          .setCurrency(CurrencyCode.of("DKK"))
                          .setCountry(CountryCode.of("DK"))
@@ -58,6 +59,12 @@ public class CustomConversionsTest {
                                                         "EUR", CurrencyCode.of("EUR")
                                                        ))
                          .setOptionalCurrency(CurrencyCode.of("EUR"))
+                         .setDueDate(DueDate.now())
+                         .setTimeOfDay(TimeOfDay.now())
+                         .setCreated(Created.now())
+                         .setLastUpdated(LastUpdated.now())
+                         .setTransactionTime(TransactionTime.now())
+                         .setTransferTime(TransferTime.now())
                          .build();
 
         // When
@@ -66,7 +73,7 @@ public class CustomConversionsTest {
         var deserializedOrder = deserialize(serializedValue, Order.class);
 
         // Then
-        assertThat(deserializedOrder.getId()).isEqualTo(order.getId());
+        assertThat((CharSequence) deserializedOrder.getId()).isEqualTo(order.getId());
         assertThat(deserializedOrder.getTotalAmountWithoutSalesTax()).isEqualTo(order.getTotalAmountWithoutSalesTax());
         assertThat((CharSequence) deserializedOrder.getCurrency()).isEqualTo(order.getCurrency());
         assertThat((CharSequence) deserializedOrder.getCountry()).isEqualTo(order.getCountry());
@@ -78,6 +85,12 @@ public class CustomConversionsTest {
         assertThat(deserializedOrder.getArrayOfCurrencies()).isEqualTo(order.getArrayOfCurrencies());
         assertThat(deserializedOrder.getMapOfCurrencyValues()).isEqualTo(order.getMapOfCurrencyValues());
         assertThat((CharSequence) deserializedOrder.getOptionalCurrency()).isEqualTo(order.getOptionalCurrency());
+        assertThat(deserializedOrder.getDueDate()).isEqualTo(order.getDueDate());
+        assertThat(deserializedOrder.getTimeOfDay()).isEqualTo(order.getTimeOfDay());
+        assertThat(deserializedOrder.getCreated()).isEqualTo(order.getCreated());
+        assertThat(deserializedOrder.getLastUpdated()).isEqualTo(order.getLastUpdated());
+        assertThat(deserializedOrder.getTransactionTime()).isEqualTo(order.getTransactionTime());
+        assertThat(deserializedOrder.getTransferTime()).isEqualTo(order.getTransferTime());
         assertThat(deserializedOrder).isEqualTo(order);
     }
 

@@ -16,11 +16,11 @@
 
 package dk.cloudcreate.essentials.types.avro;
 
-import dk.cloudcreate.essentials.types.*;
+import dk.cloudcreate.essentials.types.DoubleType;
 import org.apache.avro.*;
 
 /**
- * Base {@link Conversion} for all custom types of type {@link DoubleType}.<br>
+ * Logical-Type for {@link dk.cloudcreate.essentials.types.DoubleType}<br>
  * <b>NOTICE:</b> This Conversion requires that AVRO field/property must be use the AVRO primitive type: <b><code>double</code></b><br>
  * <br>
  * Each concrete {@link DoubleType} that must be support Avro serialization and deserialization must have a dedicated
@@ -98,56 +98,19 @@ import org.apache.avro.*;
  *     </executions>
  * </plugin>
  * }</pre>
- * <b><u>Create a Record the uses the "Tax" logical type</u></b><br>
- * Example IDL <code>"order.avdl"</code>:<br>
- * <pre>{@code
- * @namespace("dk.cloudcreate.essentials.types.avro.test")
- * protocol Test {
- *   record Order {
- *       string           id;
- *       @logicalType("Tax")
- *       double          salesTax;
- *   }
- * }
- * }</pre>
- * <br>
- * This will generate an Order class that looks like this:
- * <pre>{@code
- * public class Order extends SpecificRecordBase implements SpecificRecord {
- *   ...
- *   private java.lang.String id;
- *   private com.myproject.types.Tax salesTax;
- *   ...
- * }
- * }</pre>
  *
- * @param <T> the concrete {@link DoubleType} sub-type
- * @see DoubleTypeLogicalType
+ * @see BaseDoubleTypeConversion
  */
-public abstract class BaseDoubleTypeConversion<T extends DoubleType<T>> extends Conversion<T> {
-    protected abstract LogicalType getLogicalType();
-
-    @Override
-    public final Schema getRecommendedSchema() {
-        return getLogicalType().addToSchema(Schema.create(Schema.Type.DOUBLE));
+public class DoubleTypeLogicalType extends LogicalType {
+    public DoubleTypeLogicalType(String logicalTypeName) {
+        super(logicalTypeName);
     }
 
     @Override
-    public final String getLogicalTypeName() {
-        return getLogicalType().getName();
-    }
-
-    @Override
-    public T fromDouble(Double value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               SingleValueType.from(value, getConvertedType());
-    }
-
-    @Override
-    public Double toDouble(T value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               value.doubleValue();
+    public void validate(Schema schema) {
+        super.validate(schema);
+        if (schema.getType() != Schema.Type.DOUBLE) {
+            throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.DOUBLE.getName() + "'. Invalid schema: " + schema.toString(true));
+        }
     }
 }

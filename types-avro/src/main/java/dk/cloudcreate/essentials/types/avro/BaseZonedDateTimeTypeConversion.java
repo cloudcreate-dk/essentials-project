@@ -19,11 +19,18 @@ package dk.cloudcreate.essentials.types.avro;
 import dk.cloudcreate.essentials.types.*;
 import org.apache.avro.*;
 
+import java.time.*;
+
 /**
- * Base {@link Conversion} for all custom types of type {@link LongType}.<br>
- * <b>NOTICE:</b> This Conversion requires that AVRO field/property must be use the AVRO primitive type: <b><code>long</code></b><br>
+ * Base {@link Conversion} for all custom types of type {@link ZonedDateTimeType}<br>
+ * The handling is similar to AVRO's <code>timestamp-millis</code> logical type:<br>
+ * <blockquote>
+ * The {@link ZonedDateTimeType} logical type represents an <b>instant</b>, i.e. of date with time, but without time-zone, and with a precision of 1 millisecond.<br>
+ * The {@link ZonedDateTimeType} logical type annotates an Avro <b>long</b>.<br>
+ * The Avro long stores the number of number of milliseconds since the UNIX epoch: 1 January 1970 00:00:00.000 UTC (ISO-8601 calendar system)
+ * </blockquote>
  * <br>
- * Each concrete {@link LongType} that must be support Avro serialization and deserialization must have a dedicated
+ * Each concrete {@link ZonedDateTimeType} that must be support Avro serialization and deserialization must have a dedicated
  * {@link Conversion}, {@link LogicalType} and {@link LogicalTypes.LogicalTypeFactory} pair registered with the <b><code>avro-maven-plugin</code></b>.<br>
  * <br>
  * <b>Important:</b> The AVRO field/property must be use the AVRO primitive type: <b><code>long</code></b><br>
@@ -31,62 +38,48 @@ import org.apache.avro.*;
  * @namespace("dk.cloudcreate.essentials.types.avro.test")
  * protocol Test {
  *   record Order {
- *       @logicalType("MyLogicalType")
- *       long  quantity;
+ *      @logicalType("TransactionTime")
+ *       long transactionTime;
  *   }
  * }
  * }</pre>
  * <br>
- * <b>Example:Support AVRO serialization and Deserialization for a given Quantity type:</b><br>
- * <b><u>1. Create the <code>QuantityLogicalType</code> and <code>QuantityLogicalTypeFactory</code></u></b>:<br>
+ * <b>Example:Support AVRO serialization and Deserialization for a given TransactionTime type:</b><br>
+ * <b><u>1. Create the <code>TransactionTimeLogicalType</code> and <code>TransactionTimeLogicalTypeFactory</code></u></b>:<br>
  * <pre>{@code
  * package com.myproject.types.avro;
  *
- * public class QuantityLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
- *     public static final LogicalType QUANTITY = new QuantityLogicalType("Quantity");
+ * public class TransactionTimeLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
+ *     public static final LogicalType TRANSACTION_TIME = new ZonedDateTimeTypeLogicalType("TransactionTime");
  *
  *     @Override
  *     public LogicalType fromSchema(Schema schema) {
- *         return QUANTITY;
+ *         return TRANSACTION_TIME;
  *     }
  *
  *     @Override
  *     public String getTypeName() {
- *         return QUANTITY.getName();
- *     }
- *
- *     public static class QuantityLogicalType extends LogicalType {
- *         public QuantityLogicalType(String logicalTypeName) {
- *             super(logicalTypeName);
- *         }
- *
- *         @Override
- *         public void validate(Schema schema) {
- *             super.validate(schema);
- *             if (schema.getType() != Schema.Type.LONG) {
- *                 throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.LONG.getName() + "'. Invalid schema: " + schema.toString(true));
- *             }
- *         }
+ *         return TRANSACTION_TIME.getName();
  *     }
  * }
  * }</pre>
- * <b><u>2. Create the <code>QuantityConversion</code></u></b>:<br>
+ * <b><u>2. Create the <code>TransactionTimeConversion</code></u></b>:<br>
  * <pre>{@code
  * package com.myproject.types.avro;
  *
- * public class QuantityConversion extends BaseLongTypeConversion<Quantity> {
+ * public class TransactionTimeConversion extends BaseZonedDateTimeTypeConversion<TransactionTime> {
  *     @Override
- *     public Class<Quantity> getConvertedType() {
- *         return Quantity.class;
+ *     public Class<TransactionTime> getConvertedType() {
+ *         return TransactionTime.class;
  *     }
  *
  *     @Override
  *     protected LogicalType getLogicalType() {
- *         return QuantityLogicalTypeFactory.QUANTITY;
+ *         return TRANSACTION_TIME;
  *     }
  * }
  * }</pre>
- * <b><u>3. Register the <code>QuantityConversion</code> and <code>QuantityLogicalTypeFactory</code> with the <code>avro-maven-plugin</code></u></b>:<br>
+ * <b><u>3. Register the <code>TransactionTimeConversion</code> and <code>TransactionTimeLogicalTypeFactory</code> with the <code>avro-maven-plugin</code></u></b>:<br>
  * <pre>{@code
  * <plugin>
  *     <groupId>org.apache.avro</groupId>
@@ -102,25 +95,25 @@ import org.apache.avro.*;
  *                 <stringType>String</stringType>
  *                 <enableDecimalLogicalType>false</enableDecimalLogicalType>
  *                 <customLogicalTypeFactories>
- *                     <logicalTypeFactory>com.myproject.types.avro.QuantityLogicalTypeFactory</logicalTypeFactory>
+ *                     <logicalTypeFactory>com.myproject.types.avro.TransactionTimeLogicalTypeFactory</logicalTypeFactory>
  *                 </customLogicalTypeFactories>
  *                 <customConversions>
- *                     <conversion>com.myproject.types.avro.QuantityConversion</conversion>
+ *                     <conversion>com.myproject.types.avro.TransactionTimeConversion</conversion>
  *                 </customConversions>
  *             </configuration>
  *         </execution>
  *     </executions>
  * </plugin>
  * }</pre>
- * <b><u>Create a Record the uses the "Quantity" logical type</u></b><br>
+ * <b><u>Create a Record the uses the "TransactionTime" logical type</u></b><br>
  * Example IDL <code>"order.avdl"</code>:<br>
  * <pre>{@code
  * @namespace("dk.cloudcreate.essentials.types.avro.test")
  * protocol Test {
  *   record Order {
  *       string           id;
- *       @logicalType("Quantity")
- *       long            quanity;
+ *       @logicalType("TransactionTime")
+ *       long            transactionTime;
  *   }
  * }
  * }</pre>
@@ -130,14 +123,15 @@ import org.apache.avro.*;
  * public class Order extends SpecificRecordBase implements SpecificRecord {
  *   ...
  *   private java.lang.String id;
- *   private com.myproject.types.Quantity quantity;
+ *   private com.myproject.types.TransactionTime transactionTime;
  *   ...
  * }
  * }</pre>
  *
- * @param <T> the concrete {@link LongType} sub-type
+ * @param <T> the concrete {@link ZonedDateTimeType} sub-type
+ * @see ZonedDateTimeTypeLogicalType
  */
-public abstract class BaseLongTypeConversion<T extends LongType<T>> extends Conversion<T> {
+public abstract class BaseZonedDateTimeTypeConversion<T extends ZonedDateTimeType<T>> extends Conversion<T> {
     protected abstract LogicalType getLogicalType();
 
     @Override
@@ -154,13 +148,14 @@ public abstract class BaseLongTypeConversion<T extends LongType<T>> extends Conv
     public T fromLong(Long value, Schema schema, LogicalType type) {
         return value == null ?
                null :
-               SingleValueType.from(value, getConvertedType());
+               SingleValueType.from(ZonedDateTime.ofInstant(Instant.ofEpochMilli(value), ZoneId.of("UTC")),
+                                    getConvertedType());
     }
 
     @Override
     public Long toLong(T value, Schema schema, LogicalType type) {
         return value == null ?
                null :
-               value.longValue();
+               value.value().toInstant().toEpochMilli();
     }
 }

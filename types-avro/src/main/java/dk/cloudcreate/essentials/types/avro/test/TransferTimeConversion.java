@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types.avro.dates;
+package dk.cloudcreate.essentials.types.avro.test;
 
-import dk.cloudcreate.essentials.types.ZonedDateTimeType;
+import dk.cloudcreate.essentials.types.avro.BaseOffsetDateTimeTypeConversion;
+import dk.cloudcreate.essentials.types.avro.test.types.TransferTime;
+import org.apache.avro.LogicalType;
 
-import java.time.ZonedDateTime;
+import static dk.cloudcreate.essentials.types.avro.test.TransferTimeLogicalTypeFactory.TRANSFER_TIME;
 
-public class TransactionTime extends ZonedDateTimeType<TransactionTime> {
-    public TransactionTime(ZonedDateTime value) {
-        super(value);
+public class TransferTimeConversion extends BaseOffsetDateTimeTypeConversion<TransferTime> {
+    @Override
+    public Class<TransferTime> getConvertedType() {
+        return TransferTime.class;
     }
 
-    public static TransactionTime of(ZonedDateTime value) {
-        return new TransactionTime(value);
-    }
-
-    public static TransactionTime now() {
-        return new TransactionTime(ZonedDateTime.now());
+    @Override
+    protected LogicalType getLogicalType() {
+        return TRANSFER_TIME;
     }
 }

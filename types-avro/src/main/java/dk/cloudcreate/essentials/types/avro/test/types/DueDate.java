@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types.avro.dates;
+package dk.cloudcreate.essentials.types.avro.test.types;
 
 import dk.cloudcreate.essentials.types.LocalDateType;
 
-import java.time.LocalDate;
+import java.time.*;
 
 public class DueDate extends LocalDateType<DueDate> {
     public DueDate(LocalDate value) {
@@ -30,6 +30,6 @@ public class DueDate extends LocalDateType<DueDate> {
     }
 
     public static DueDate now() {
-        return new DueDate(LocalDate.now());
+        return new DueDate(LocalDate.now(Clock.systemUTC()));
     }
 }

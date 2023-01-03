@@ -19,60 +19,67 @@ package dk.cloudcreate.essentials.types.avro;
 import dk.cloudcreate.essentials.types.*;
 import org.apache.avro.*;
 
+import java.time.LocalTime;
+
 /**
- * Base {@link Conversion} for all custom types of type {@link DoubleType}.<br>
- * <b>NOTICE:</b> This Conversion requires that AVRO field/property must be use the AVRO primitive type: <b><code>double</code></b><br>
+ * Base {@link Conversion} for all custom types of type {@link LocalTimeType}<br>
+ * The handling is similar to AVRO's <code>time-micros</code> logical type:
+ * <blockquote>
+ * The {@link LocalTimeType} logical type represents a <b>time</b> of day without a date or time-zone.<br>
+ * The {@link LocalTimeType} logical type annotates an Avro <b>long</b>.<br>
+ * The Avro long stores the number of microseconds after midnight: 00:00:00.000000 (ISO-8601 calendar system)
+ * </blockquote>
  * <br>
- * Each concrete {@link DoubleType} that must be support Avro serialization and deserialization must have a dedicated
- * {@link Conversion} and {@link LogicalTypes.LogicalTypeFactory} pair registered with the <b><code>avro-maven-plugin</code></b>.<br>
+ * Each concrete {@link LocalTimeType} that must be support Avro serialization and deserialization must have a dedicated
+ * {@link Conversion}, {@link LogicalType} and {@link LogicalTypes.LogicalTypeFactory} pair registered with the <b><code>avro-maven-plugin</code></b>.<br>
  * <br>
- * <b>Important:</b> The AVRO field/property must be use the AVRO primitive type: <b><code>double</code></b><br>
+ * <b>Important:</b> The AVRO field/property must be use the AVRO primitive type: <b><code>long</code></b><br>
  * <pre>{@code
  * @namespace("dk.cloudcreate.essentials.types.avro.test")
  * protocol Test {
  *   record Order {
- *       @logicalType("MyLogicalType")
- *       double  tax;
+ *      @logicalType("TimeOfDay")
+ *       long timeOfDay;
  *   }
  * }
  * }</pre>
  * <br>
- * <b>Example:Support AVRO serialization and Deserialization for a given Tax type:</b><br>
- * <b><u>1. Create the <code>TaxLogicalType</code> and <code>TaxLogicalTypeFactory</code></u></b>:<br>
+ * <b>Example:Support AVRO serialization and Deserialization for a given TimeOfDay type:</b><br>
+ * <b><u>1. Create the <code>TimeOfDayLogicalType</code> and <code>TimeOfDayLogicalTypeFactory</code></u></b>:<br>
  * <pre>{@code
  * package com.myproject.types.avro;
  *
- * public class TaxLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
- *     public static final LogicalType TAX = new DoubleTypeLogicalType("Tax");
+ * public class TimeOfDayLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
+ *     public static final LogicalType TIME_OF_DAY = new LocalTimeTypeLogicalType("TimeOfDay");
  *
  *     @Override
  *     public LogicalType fromSchema(Schema schema) {
- *         return TAX;
+ *         return TIME_OF_DAY;
  *     }
  *
  *     @Override
  *     public String getTypeName() {
- *         return TAX.getName();
+ *         return TIME_OF_DAY.getName();
  *     }
  * }
  * }</pre>
- * <b><u>2. Create the <code>TaxConversion</code></u></b>:<br>
+ * <b><u>2. Create the <code>TimeOfDayConversion</code></u></b>:<br>
  * <pre>{@code
  * package com.myproject.types.avro;
  *
- * public class TaxConversion extends BaseDoubleTypeConversion<Tax> {
+ * public class TimeOfDayConversion extends BaseLocalTimeTypeConversion<TimeOfDay> {
  *     @Override
- *     public Class<Tax> getConvertedType() {
- *         return Tax.class;
+ *     public Class<TimeOfDay> getConvertedType() {
+ *         return TimeOfDay.class;
  *     }
  *
  *     @Override
  *     protected LogicalType getLogicalType() {
- *         return TaxLogicalTypeFactory.TAX;
+ *         return TIME_OF_DAY;
  *     }
  * }
  * }</pre>
- * <b><u>3. Register the <code>TaxConversion</code> and <code>TaxLogicalTypeFactory</code> with the <code>avro-maven-plugin</code></u></b>:<br>
+ * <b><u>3. Register the <code>TimeOfDayConversion</code> and <code>TimeOfDayLogicalTypeFactory</code> with the <code>avro-maven-plugin</code></u></b>:<br>
  * <pre>{@code
  * <plugin>
  *     <groupId>org.apache.avro</groupId>
@@ -88,25 +95,25 @@ import org.apache.avro.*;
  *                 <stringType>String</stringType>
  *                 <enableDecimalLogicalType>false</enableDecimalLogicalType>
  *                 <customLogicalTypeFactories>
- *                     <logicalTypeFactory>com.myproject.types.avro.TaxLogicalTypeFactory</logicalTypeFactory>
+ *                     <logicalTypeFactory>com.myproject.types.avro.TimeOfDayLogicalTypeFactory</logicalTypeFactory>
  *                 </customLogicalTypeFactories>
  *                 <customConversions>
- *                     <conversion>com.myproject.types.avro.TaxConversion</conversion>
+ *                     <conversion>com.myproject.types.avro.TimeOfDayConversion</conversion>
  *                 </customConversions>
  *             </configuration>
  *         </execution>
  *     </executions>
  * </plugin>
  * }</pre>
- * <b><u>Create a Record the uses the "Tax" logical type</u></b><br>
+ * <b><u>Create a Record the uses the "TimeOfDay" logical type</u></b><br>
  * Example IDL <code>"order.avdl"</code>:<br>
  * <pre>{@code
  * @namespace("dk.cloudcreate.essentials.types.avro.test")
  * protocol Test {
  *   record Order {
  *       string           id;
- *       @logicalType("Tax")
- *       double          salesTax;
+ *       @logicalType("TimeOfDay")
+ *       long            timeOfDay;
  *   }
  * }
  * }</pre>
@@ -116,20 +123,20 @@ import org.apache.avro.*;
  * public class Order extends SpecificRecordBase implements SpecificRecord {
  *   ...
  *   private java.lang.String id;
- *   private com.myproject.types.Tax salesTax;
+ *   private com.myproject.types.TimeOfDay timeOfDay;
  *   ...
  * }
  * }</pre>
  *
- * @param <T> the concrete {@link DoubleType} sub-type
- * @see DoubleTypeLogicalType
+ * @param <T> the concrete {@link LocalTimeType} sub-type
+ * @see LocalTimeTypeLogicalType
  */
-public abstract class BaseDoubleTypeConversion<T extends DoubleType<T>> extends Conversion<T> {
+public abstract class BaseLocalTimeTypeConversion<T extends LocalTimeType<T>> extends Conversion<T> {
     protected abstract LogicalType getLogicalType();
 
     @Override
     public final Schema getRecommendedSchema() {
-        return getLogicalType().addToSchema(Schema.create(Schema.Type.DOUBLE));
+        return getLogicalType().addToSchema(Schema.create(Schema.Type.LONG));
     }
 
     @Override
@@ -138,16 +145,16 @@ public abstract class BaseDoubleTypeConversion<T extends DoubleType<T>> extends 
     }
 
     @Override
-    public T fromDouble(Double value, Schema schema, LogicalType type) {
+    public T fromLong(Long value, Schema schema, LogicalType type) {
         return value == null ?
                null :
-               SingleValueType.from(value, getConvertedType());
+               SingleValueType.from(LocalTime.ofNanoOfDay(value * 1000), getConvertedType());
     }
 
     @Override
-    public Double toDouble(T value, Schema schema, LogicalType type) {
+    public Long toLong(T value, Schema schema, LogicalType type) {
         return value == null ?
                null :
-               value.doubleValue();
+               value.value().toNanoOfDay() / 1000;
     }
 }

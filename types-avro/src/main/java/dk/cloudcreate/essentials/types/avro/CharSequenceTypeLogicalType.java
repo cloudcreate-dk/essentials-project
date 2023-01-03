@@ -19,11 +19,8 @@ package dk.cloudcreate.essentials.types.avro;
 import dk.cloudcreate.essentials.types.*;
 import org.apache.avro.*;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-
 /**
- * Base {@link Conversion} for all custom types of type {@link CharSequenceType}.<br>
+ * Logical-Type for {@link dk.cloudcreate.essentials.types.CharSequenceType}<br>
  * Each concrete {@link CharSequenceType} that must be support Avro serialization and deserialization must have a dedicated
  * {@link Conversion} and {@link org.apache.avro.LogicalTypes.LogicalTypeFactory} pair registered with the <b><code>avro-maven-plugin</code></b>.<br>
  * <br>
@@ -99,70 +96,17 @@ import java.nio.charset.StandardCharsets;
  *     </executions>
  * </plugin>
  * }</pre>
- * <b><u>Create a Record the uses the "CurrencyCode" logical type</u></b><br>
- * Example IDL <code>"order.avdl"</code>:<br>
- * <pre>{@code
- * @namespace("dk.cloudcreate.essentials.types.avro.test")
- * protocol Test {
- *   record Order {
- *       string           id;
- *       @logicalType("CurrencyCode")
- *       string           currency;
- *   }
- * }
- * }</pre>
- * <br>
- * This will generate an Order class that looks like this:
- * <pre>{@code
- * public class Order extends SpecificRecordBase implements SpecificRecord {
- *   ...
- *   private java.lang.String id;
- *   private dk.cloudcreate.essentials.types.CurrencyCode currency;
- *   ...
- * }
- * }</pre>
- *
- * @param <T> the concrete {@link CharSequenceType} sub-type
- * @see CharSequenceTypeLogicalType
  */
-public abstract class BaseCharSequenceConversion<T extends CharSequenceType<T>> extends Conversion<T> {
-    protected abstract LogicalType getLogicalType();
-
-    @Override
-    public final Schema getRecommendedSchema() {
-        return getLogicalType().addToSchema(Schema.create(Schema.Type.STRING));
+public class CharSequenceTypeLogicalType extends LogicalType {
+    public CharSequenceTypeLogicalType(String logicalTypeName) {
+        super(logicalTypeName);
     }
 
     @Override
-    public final String getLogicalTypeName() {
-        return getLogicalType().getName();
-    }
-
-    @Override
-    public T fromBytes(ByteBuffer value, Schema schema, LogicalType type) {
-        if (value == null) return null;
-        var stringValue = StandardCharsets.UTF_8.decode(value).toString();
-        return SingleValueType.from(stringValue, getConvertedType());
-    }
-
-    @Override
-    public ByteBuffer toBytes(T value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               StandardCharsets.UTF_8.encode(value.toString());
-    }
-
-    @Override
-    public T fromCharSequence(CharSequence value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               SingleValueType.from(value.toString(), getConvertedType());
-    }
-
-    @Override
-    public CharSequence toCharSequence(T value, Schema schema, LogicalType type) {
-        return value == null ?
-               null :
-               value.value();
+    public void validate(Schema schema) {
+        super.validate(schema);
+        if (schema.getType() != Schema.Type.STRING) {
+            throw new IllegalArgumentException("'" + getName() + "' can only be used with type '" + Schema.Type.STRING.getName() + "'. Invalid schema: " + schema.toString(true));
+        }
     }
 }
