@@ -31,6 +31,7 @@ public class LastUpdated extends InstantType<LastUpdated> {
     }
 
     public static LastUpdated now() {
+        // Using with(ChronoField.NANO_OF_SECOND, 0) since the MongoDB ISODate only has milliseconds resolution
         return new LastUpdated(Instant.now(Clock.systemUTC()).with(ChronoField.NANO_OF_SECOND, 0));
     }
 }

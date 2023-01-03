@@ -30,6 +30,7 @@ public class Created extends LocalDateTimeType<Created> {
     }
 
     public static Created now() {
+        // Using withNano(0) since the MongoDB ISODate only has milliseconds resolution
         return new Created(LocalDateTime.now(Clock.systemUTC()).withNano(0));
     }
 }
