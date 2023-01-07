@@ -20,6 +20,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolic
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.test_data.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.shared.time.*;
 import org.assertj.core.api.SoftAssertions;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
@@ -28,10 +29,11 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>> {
-    public static final int            NUMBER_OF_MESSAGES = 1000;
+    public static final int            NUMBER_OF_MESSAGES = 5000;
     public static final int            PARALLEL_CONSUMERS = 10;
     private             UOW_FACTORY    unitOfWorkFactory;
     private             DURABLE_QUEUES durableQueues;
@@ -57,12 +59,16 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
 
     protected abstract void resetQueueStorage(UOW_FACTORY unitOfWorkFactory);
 
-    protected void usingDurableQueue(Runnable action) {
+    protected Timing usingDurableQueue(String description, Runnable action) {
+        var stopWatch = StopWatch.start(description);
         if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
             unitOfWorkFactory.usingUnitOfWork(uow -> action.run());
         } else {
             action.run();
         }
+        var timing = stopWatch.stop();
+        System.out.println(timing);
+        return timing;
     }
 
     @Test
@@ -87,14 +93,15 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
             messages.add(message);
         }
 
-        usingDurableQueue(() -> {
-            durableQueues.queueMessages(queueName, messages);
-        });
+        var timings = new ArrayList<Timing>();
+        timings.add(usingDurableQueue(msg("Queuing {} messages", numberOfMessages),
+                                      () -> durableQueues.queueMessages(queueName, messages)));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(numberOfMessages);
         var recordingQueueMessageHandler = new RecordingQueuedMessageHandler();
 
         // When
+        var stopWatch = StopWatch.start(msg("Consuming {} messages using {} parallel consumers", numberOfMessages, PARALLEL_CONSUMERS));
         var consumer = durableQueues.consumeFromQueue(queueName,
                                                       RedeliveryPolicy.fixedBackoff(Duration.ofMillis(1), 5),
                                                       PARALLEL_CONSUMERS,
@@ -104,7 +111,9 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
         // Then
         Awaitility.waitAtMost(Duration.ofSeconds(30))
                   .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages.size()).isEqualTo(NUMBER_OF_MESSAGES));
-
+        var timing = stopWatch.stop();
+        timings.add(timing);
+        System.out.println(timing);
 
         var receivedMessages = new ArrayList<>(recordingQueueMessageHandler.messages);
         var softAssertions   = new SoftAssertions();
@@ -119,6 +128,8 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
                   .atMost(Duration.ofSeconds(2000))
                   .until(() -> recordingQueueMessageHandler.messages.size() == NUMBER_OF_MESSAGES);
         consumer.cancel();
+
+        System.out.println(timings);
     }
 
     private static class RecordingQueuedMessageHandler implements QueuedMessageHandler {
