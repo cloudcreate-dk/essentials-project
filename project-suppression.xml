@@ -43,7 +43,14 @@
         <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/spring-postgresql-event-store*.*$</packageUrl>
         <cpe>cpe:/a:postgresql:postgresql</cpe>
     </suppress>
-
+    <suppress>
+        <notes><![CDATA[
+        Snakeyaml wrongly matched as go-yaml
+   file name: snakeyaml-1.33.jar
+   ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.yaml/snakeyaml@.*$</packageUrl>
+        <cpe>cpe:/a:yaml_project:yaml</cpe>
+    </suppress>
     <suppress>
         <notes><![CDATA[
    file name: jopt-simple-5.0.4.jar
