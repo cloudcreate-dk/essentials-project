@@ -18,14 +18,20 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue.operatio
 
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
+
+import java.util.Optional;
+import java.util.concurrent.*;
 
 /**
  * Builder for {@link ConsumeFromQueue}
  */
 public class ConsumeFromQueueBuilder {
-    private QueueName            queueName;
-    private RedeliveryPolicy     redeliveryPolicy;
-    private int                  parallelConsumers;
+    private QueueName                          queueName;
+    private RedeliveryPolicy                   redeliveryPolicy;
+    private int                                parallelConsumers;
+    private Optional<ScheduledExecutorService> consumerExecutorService = Optional.empty();
+
     private QueuedMessageHandler queueMessageHandler;
 
     /**
@@ -48,11 +54,23 @@ public class ConsumeFromQueueBuilder {
     }
 
     /**
-     * @param parallelConsumers the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
+     * @param parallelConsumers the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)<br>
+     *                          Optional if you provide {@link #setConsumerExecutorService(ScheduledExecutorService)} instead
      * @return this builder instance
      */
     public ConsumeFromQueueBuilder setParallelConsumers(int parallelConsumers) {
         this.parallelConsumers = parallelConsumers;
+        return this;
+    }
+
+    /**
+     * @param consumerExecutorService the {@link ScheduledExecutorService} that's responsible for controlling the number of Message consumer instance. E.g. if you provide an {@link Executors#newSingleThreadExecutor()}
+     *                                then there will only be a single message handler instance running on the local node. Also see {@link ThreadFactoryBuilder}<br>
+     *                                Optional if you provide {@link #setParallelConsumers(int)} instead
+     * @return this builder instance
+     */
+    public ConsumeFromQueueBuilder setConsumerExecutorService(ScheduledExecutorService consumerExecutorService) {
+        this.consumerExecutorService = Optional.of(consumerExecutorService);
         return this;
     }
 
@@ -67,9 +85,10 @@ public class ConsumeFromQueueBuilder {
 
     /**
      * Builder an {@link ConsumeFromQueue} instance from the builder properties
+     *
      * @return the {@link ConsumeFromQueue} instance
      */
     public ConsumeFromQueue build() {
-        return new ConsumeFromQueue(queueName, redeliveryPolicy, parallelConsumers, queueMessageHandler);
+        return new ConsumeFromQueue(queueName, redeliveryPolicy, parallelConsumers, consumerExecutorService, queueMessageHandler);
     }
 }
