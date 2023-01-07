@@ -36,6 +36,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.UncategorizedMongoDbException;
 import org.springframework.data.mongodb.core.*;
+import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.*;
 
 import java.io.IOException;
@@ -72,7 +73,7 @@ public class MongoDurableQueues implements DurableQueues {
     private final List<DurableQueuesInterceptor>                      interceptors          = new ArrayList<>();
 
     private volatile boolean started;
-    private          int     messageHandlingTimeout;
+    private          int     messageHandlingTimeoutMs;
     private          Long    lastStuckMessageResetTs;
 
     /**
@@ -213,7 +214,7 @@ public class MongoDurableQueues implements DurableQueues {
                 this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "No unitOfWorkFactory instance provided");
                 break;
             case ManualAcknowledgement:
-                this.messageHandlingTimeout = (int) requireNonNull(messageHandlingTimeout, "No messageHandlingTimeout instance provided").toSeconds();
+                this.messageHandlingTimeoutMs = (int) requireNonNull(messageHandlingTimeout, "No messageHandlingTimeout instance provided").toMillis();
                 log.info("Using messageHandlingTimeout: {} seconds", messageHandlingTimeout);
                 break;
         }
@@ -232,6 +233,14 @@ public class MongoDurableQueues implements DurableQueues {
                 }
             }
         }
+        // Ensure indexes
+        mongoTemplate.indexOps(this.sharedQueueCollectionName)
+                     .ensureIndex(new Index().on("nextDeliveryTimestamp", Sort.Direction.ASC)
+                                             .on("isDeadLetterMessage", Sort.Direction.ASC)
+                                             .on("isBeingDelivered", Sort.Direction.ASC));
+        mongoTemplate.indexOps(this.sharedQueueCollectionName)
+                     .ensureIndex(new Index().on("deliveryTimestamp", Sort.Direction.ASC)
+                                             .on("isBeingDelivered", Sort.Direction.ASC));
     }
 
     @Override
@@ -647,10 +656,10 @@ public class MongoDurableQueues implements DurableQueues {
                                                    try {
                                                        // Reset stuck messages
                                                        if (transactionalMode == TransactionalMode.ManualAcknowledgement &&
-                                                               (lastStuckMessageResetTs == null || (System.currentTimeMillis() - lastStuckMessageResetTs > 1000))) {
+                                                               (lastStuckMessageResetTs == null || (System.currentTimeMillis() - lastStuckMessageResetTs > messageHandlingTimeoutMs))) {
                                                            var stuckMessagesQuery = query(where("queueName").is(queueName)
                                                                                                             .and("isBeingDelivered").is(true)
-                                                                                                            .and("deliveryTimestamp").lte(Instant.now().minusSeconds(messageHandlingTimeout)));
+                                                                                                            .and("deliveryTimestamp").lte(Instant.now().minusMillis(messageHandlingTimeoutMs)));
 
                                                            var update = new Update()
                                                                    .set("isBeingDelivered", false)
@@ -798,10 +807,7 @@ public class MongoDurableQueues implements DurableQueues {
             MongoDurableQueueConsumer consumer = (MongoDurableQueueConsumer) newInterceptorChainForOperation(operation,
                                                                                                              interceptors,
                                                                                                              (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
-                                                                                                             () -> (DurableQueueConsumer) new MongoDurableQueueConsumer(operation.queueName,
-                                                                                                                                                                        operation.queueMessageHandler,
-                                                                                                                                                                        operation.getRedeliveryPolicy(),
-                                                                                                                                                                        operation.parallelConsumers,
+                                                                                                             () -> (DurableQueueConsumer) new MongoDurableQueueConsumer(operation,
                                                                                                                                                                         unitOfWorkFactory,
                                                                                                                                                                         this,
                                                                                                                                                                         this::removeQueueConsumer)).proceed();

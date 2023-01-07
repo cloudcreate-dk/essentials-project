@@ -16,21 +16,18 @@
 
 package dk.cloudcreate.essentials.components.queue.springdata.mongodb;
 
-import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork;
 
 import java.util.function.Consumer;
 
 public class MongoDurableQueueConsumer extends DurableQueueConsumer.DefaultDurableQueueConsumer<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
-    public MongoDurableQueueConsumer(QueueName queueName,
-                                     QueuedMessageHandler queuedMessageHandler,
-                                     RedeliveryPolicy redeliveryPolicy,
-                                     int numberOfParallelMessageConsumers,
+    public MongoDurableQueueConsumer(ConsumeFromQueue consumeFromQueue,
                                      SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
                                      MongoDurableQueues durableQueues,
                                      Consumer<DurableQueueConsumer> removeDurableQueueConsumer) {
-        super(queueName, queuedMessageHandler, redeliveryPolicy, numberOfParallelMessageConsumers, unitOfWorkFactory, durableQueues, removeDurableQueueConsumer);
+        super(consumeFromQueue, unitOfWorkFactory, durableQueues, removeDurableQueueConsumer);
     }
 }
