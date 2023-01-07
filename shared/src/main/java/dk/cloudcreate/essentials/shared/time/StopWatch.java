@@ -25,6 +25,58 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Stop watch feature that allows you to time operations
  */
 public class StopWatch {
+    private final String description;
+    private final long   start;
+
+
+    /**
+     * Create a new {@link StopWatch}
+     *
+     * @param description Description of the timing - typically a description of what is being timed/measured
+     * @return the new {@link StopWatch}. Call {@link StopWatch#stop()} to end the timing
+     */
+    public static StopWatch start(String description) {
+        return new StopWatch(description);
+    }
+
+    /**
+     * Create a new {@link StopWatch}
+     *
+     * @return the new {@link StopWatch}. Call {@link StopWatch#stop()} to end the timing
+     */
+    public static StopWatch start() {
+        return new StopWatch();
+    }
+
+    /**
+     * Create a new {@link StopWatch}
+     *
+     * @return the new {@link StopWatch}. Call {@link StopWatch#stop()} to end the timing
+     */
+    public StopWatch() {
+        this(null);
+    }
+
+    /**
+     * Create a new {@link StopWatch}
+     *
+     * @param description Description of the timing - typically a description of what is being timed/measured
+     * @return the new {@link StopWatch}. Call {@link StopWatch#stop()} to end the timing
+     */
+    public StopWatch(String description) {
+        this.description = description;
+        this.start = System.nanoTime();
+    }
+
+    /**
+     * Call this method to end the timing operation
+     *
+     * @return the {@link Timing} result
+     */
+    public Timing stop() {
+        return Timing.of(description, Duration.ofNanos(System.nanoTime() - start));
+    }
+
     /**
      * Time how long it takes to perform an operation
      *
@@ -46,12 +98,13 @@ public class StopWatch {
      * @param <R>       The return type of the operation
      * @return the timing result (the result together with the time it took to perform the operation as a {@link Duration})
      */
-    public static <R> TimingResult<R> time(Supplier<R> operation) {
+    public static <R> TimingWithResult<R> time(Supplier<R> operation) {
         requireNonNull(operation, "You must supply an operation to time");
-        long start = System.nanoTime();
-        R result = operation.get();
+        long start  = System.nanoTime();
+        R    result = operation.get();
         long finish = System.nanoTime();
-        return TimingResult.of(result, Duration.ofNanos(finish - start));
+        return TimingWithResult.of(result, Duration.ofNanos(finish - start));
     }
+
 
 }
