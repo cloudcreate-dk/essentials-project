@@ -53,7 +53,8 @@ essentials.durable-queues.transactional-mode=fullytransactional
 
 essentials.fenced-lock-manager.fenced-locks-collection-name=fenced_locks
 essentials.fenced-lock-manager.lock-confirmation-interval=5s
-essentials.fenced-lock-manager.lock-time-out=12s```
+essentials.fenced-lock-manager.lock-time-out=12s
+```
 
 `pom.xml` dependencies:
 ```
