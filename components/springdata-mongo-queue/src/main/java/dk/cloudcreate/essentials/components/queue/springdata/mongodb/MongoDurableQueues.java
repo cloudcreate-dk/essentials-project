@@ -854,7 +854,10 @@ public class MongoDurableQueues implements DurableQueues {
             newInterceptorChainForOperation(operation,
                                             interceptors,
                                             (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
-                                            () -> (DurableQueueConsumer) durableQueueConsumers.remove(durableQueueConsumer.queueName()))
+                                            () -> {
+                                                lastResetStuckMessagesCheckTimestamps.remove(operation.durableQueueConsumer.queueName());
+                                                return (DurableQueueConsumer) durableQueueConsumers.remove(durableQueueConsumer.queueName());
+                                            })
                     .proceed();
         } catch (Exception e) {
             log.error(msg("Failed to perform {}", operation), e);
