@@ -8,7 +8,7 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-mongodb</artifactId>
-    <version>0.8.4</version>
+    <version>0.8.5</version>
 </dependency>
 ```
 
@@ -53,7 +53,8 @@ essentials.durable-queues.transactional-mode=fullytransactional
 
 essentials.fenced-lock-manager.fenced-locks-collection-name=fenced_locks
 essentials.fenced-lock-manager.lock-confirmation-interval=5s
-essentials.fenced-lock-manager.lock-time-out=12s```
+essentials.fenced-lock-manager.lock-time-out=12s
+```
 
 `pom.xml` dependencies:
 ```

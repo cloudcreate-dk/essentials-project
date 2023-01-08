@@ -189,10 +189,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
             PostgresqlDurableQueueConsumer consumer = (PostgresqlDurableQueueConsumer) newInterceptorChainForOperation(operation,
                                                                                                                        interceptors,
                                                                                                                        (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
-                                                                                                                       () -> (DurableQueueConsumer) new PostgresqlDurableQueueConsumer(operation.queueName,
-                                                                                                                                                                                       operation.queueMessageHandler,
-                                                                                                                                                                                       operation.getRedeliveryPolicy(),
-                                                                                                                                                                                       operation.parallelConsumers,
+                                                                                                                       () -> (DurableQueueConsumer) new PostgresqlDurableQueueConsumer(operation,
                                                                                                                                                                                        unitOfWorkFactory,
                                                                                                                                                                                        this,
                                                                                                                                                                                        this::removeQueueConsumer)).proceed();

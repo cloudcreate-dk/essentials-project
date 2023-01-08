@@ -17,7 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.slf4j.*;
@@ -25,7 +25,7 @@ import org.slf4j.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
-import static dk.cloudcreate.essentials.shared.FailFast.*;
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
@@ -42,39 +42,36 @@ public interface DurableQueueConsumer extends Lifecycle {
         private static final Logger log = LoggerFactory.getLogger(DefaultDurableQueueConsumer.class);
 
         public final     QueueName                      queueName;
+        private final    ConsumeFromQueue               consumeFromQueue;
         private volatile boolean                        started;
-        public final     RedeliveryPolicy               redeliveryPolicy;
-        public final     int                            numberOfParallelMessageConsumers;
-        public final     QueuedMessageHandler           queuedMessageHandler;
         private final    ScheduledExecutorService       scheduler;
         private final    DURABLE_QUEUES                 durableQueues;
         private          Consumer<DurableQueueConsumer> removeDurableQueueConsumer;
         private          UOW_FACTORY                    unitOfWorkFactory;
 
 
-        public DefaultDurableQueueConsumer(QueueName queueName,
-                                           QueuedMessageHandler queuedMessageHandler,
-                                           RedeliveryPolicy redeliveryPolicy,
-                                           int numberOfParallelMessageConsumers,
+        public DefaultDurableQueueConsumer(ConsumeFromQueue consumeFromQueue,
                                            UOW_FACTORY unitOfWorkFactory,
                                            DURABLE_QUEUES durableQueues,
                                            Consumer<DurableQueueConsumer> removeDurableQueueConsumer) {
-            this.queueName = requireNonNull(queueName, "queueName is missing");
-            this.queuedMessageHandler = requireNonNull(queuedMessageHandler, "You must specify a queuedMessageHandler");
-            this.redeliveryPolicy = requireNonNull(redeliveryPolicy, "You must specify a redelivery policy");
+            this.consumeFromQueue = requireNonNull(consumeFromQueue, "consumeFromQueue is missing");
+            consumeFromQueue.validate();
+
             this.durableQueues = requireNonNull(durableQueues, "durableQueues is missing");
             if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
                 this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "You must specify a unitOfWorkFactory");
             }
             this.removeDurableQueueConsumer = requireNonNull(removeDurableQueueConsumer, "removeDurableQueueConsumer is missing");
+            this.queueName = consumeFromQueue.queueName;
 
-            requireTrue(numberOfParallelMessageConsumers >= 1, "You must specify a number of parallelMessageConsumers >= 1");
-            this.numberOfParallelMessageConsumers = numberOfParallelMessageConsumers;
-            this.scheduler = Executors.newScheduledThreadPool(this.numberOfParallelMessageConsumers,
-                                                              new ThreadFactoryBuilder()
-                                                                      .nameFormat("Queue-" + queueName + "-Polling-%d")
-                                                                      .daemon(true)
-                                                                      .build());
+
+            this.scheduler = consumeFromQueue.getConsumerExecutorService()
+                                             .orElseGet(() -> Executors.newScheduledThreadPool(consumeFromQueue.getParallelConsumers(),
+                                                                                               new ThreadFactoryBuilder()
+                                                                                                       .nameFormat("Queue-" + queueName + "-Polling-%d")
+                                                                                                       .daemon(true)
+                                                                                                       .build()));
+
         }
 
         @Override
@@ -82,9 +79,9 @@ public interface DurableQueueConsumer extends Lifecycle {
             if (!started) {
                 log.info("[{}] Starting {} DurableQueueConsumer threads with polling interval {} (based on initialRedeliveryDelay)",
                          queueName,
-                         numberOfParallelMessageConsumers,
-                         redeliveryPolicy.initialRedeliveryDelay);
-                for (var i = 0; i < numberOfParallelMessageConsumers; i++) {
+                         consumeFromQueue.getParallelConsumers(),
+                         consumeFromQueue.getRedeliveryPolicy().initialRedeliveryDelay);
+                for (var i = 0; i < consumeFromQueue.getParallelConsumers(); i++) {
                     if (i > 0) {
                         try {
                             // As there are multiple parallel consumers, ensure they don't trigger at the exact same time
@@ -94,8 +91,8 @@ public interface DurableQueueConsumer extends Lifecycle {
                         }
                     }
                     scheduler.scheduleAtFixedRate(this::pollQueue,
-                                                  redeliveryPolicy.initialRedeliveryDelay.toMillis(),
-                                                  redeliveryPolicy.initialRedeliveryDelay.toMillis(),
+                                                  consumeFromQueue.getRedeliveryPolicy().initialRedeliveryDelay.toMillis(),
+                                                  consumeFromQueue.getRedeliveryPolicy().initialRedeliveryDelay.toMillis(),
                                                   TimeUnit.MILLISECONDS);
                 }
                 started = true;
@@ -164,7 +161,7 @@ public interface DurableQueueConsumer extends Lifecycle {
                                            queuedMessage.getTotalDeliveryAttempts(),
                                            queuedMessage.getRedeliveryAttempts());
                                  try {
-                                     queuedMessageHandler.handle(queuedMessage);
+                                     consumeFromQueue.queueMessageHandler.handle(queuedMessage);
                                      log.debug("[{}:{}] Message handled successfully. Deleting the message in the Queue Store message. Total attempts: {}, Redelivery Attempts: {}",
                                                queueName,
                                                queuedMessage.getId(),
@@ -176,8 +173,8 @@ public interface DurableQueueConsumer extends Lifecycle {
                                                    queueName,
                                                    queuedMessage.getId(),
                                                    queuedMessage), e);
-                                     var isPermanentError = redeliveryPolicy.isPermanentError(queuedMessage, e);
-                                     if (isPermanentError || queuedMessage.getTotalDeliveryAttempts() >= redeliveryPolicy.maximumNumberOfRedeliveries + 1) {
+                                     var isPermanentError = consumeFromQueue.getRedeliveryPolicy().isPermanentError(queuedMessage, e);
+                                     if (isPermanentError || queuedMessage.getTotalDeliveryAttempts() >= consumeFromQueue.getRedeliveryPolicy().maximumNumberOfRedeliveries + 1) {
                                          // Dead letter
                                          log.debug("[{}:{}] Marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
                                                    queueName,
@@ -187,7 +184,7 @@ public interface DurableQueueConsumer extends Lifecycle {
                                          return durableQueues.markAsDeadLetterMessage(queuedMessage.getId(), e);
                                      } else {
                                          // Redeliver later
-                                         var redeliveryDelay = redeliveryPolicy.calculateNextRedeliveryDelay(queuedMessage.getRedeliveryAttempts());
+                                         var redeliveryDelay = consumeFromQueue.getRedeliveryPolicy().calculateNextRedeliveryDelay(queuedMessage.getRedeliveryAttempts());
                                          log.debug(msg("[{}:{}] Using redeliveryDelay '{}' for QueueEntryId '{}' due to: {}",
                                                        queueName,
                                                        queuedMessage.getId(),
@@ -208,11 +205,8 @@ public interface DurableQueueConsumer extends Lifecycle {
         @Override
         public String toString() {
             return "DurableQueueConsumer{" +
-                    "queueName=" + queueName +
                     ", started=" + started +
-                    ", redeliveryPolicy=" + redeliveryPolicy +
-                    ", numberOfParallelMessageConsumers=" + numberOfParallelMessageConsumers +
-                    ", queuedMessageHandler=" + queuedMessageHandler +
+                    consumeFromQueue.toString() +
                     '}';
         }
     }

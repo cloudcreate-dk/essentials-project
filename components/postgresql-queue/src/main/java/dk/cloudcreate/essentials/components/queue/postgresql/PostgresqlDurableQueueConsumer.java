@@ -16,8 +16,8 @@
 
 package dk.cloudcreate.essentials.components.queue.postgresql;
 
-import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 
@@ -27,13 +27,7 @@ import java.util.function.Consumer;
 public class PostgresqlDurableQueueConsumer extends DurableQueueConsumer.DefaultDurableQueueConsumer<PostgresqlDurableQueues, HandleAwareUnitOfWork, UnitOfWorkFactory<HandleAwareUnitOfWork>> {
 
     @SuppressWarnings("rawtypes")
-    public PostgresqlDurableQueueConsumer(QueueName queueName,
-                                          QueuedMessageHandler queuedMessageHandler,
-                                          RedeliveryPolicy redeliveryPolicy,
-                                          int numberOfParallelMessageConsumers,
-                                          HandleAwareUnitOfWorkFactory unitOfWorkFactory,
-                                          PostgresqlDurableQueues durableQueues,
-                                          Consumer<DurableQueueConsumer> removeDurableQueueConsumer) {
-        super(queueName, queuedMessageHandler, redeliveryPolicy, numberOfParallelMessageConsumers, unitOfWorkFactory, durableQueues, removeDurableQueueConsumer);
+    public PostgresqlDurableQueueConsumer(ConsumeFromQueue consumeFromQueue, HandleAwareUnitOfWorkFactory unitOfWorkFactory, PostgresqlDurableQueues durableQueues, Consumer<DurableQueueConsumer> removeDurableQueueConsumer) {
+        super(consumeFromQueue, unitOfWorkFactory, durableQueues, removeDurableQueueConsumer);
     }
 }

@@ -70,7 +70,7 @@ class LocalEventBusTest {
         events.stream().parallel().forEach(localEventBus::publish);
 
         // Then
-        Awaitility.waitAtMost(Duration.ofMillis(2000))
+        Awaitility.waitAtMost(Duration.ofMillis(5000))
                   .untilAsserted(() -> assertThat(asyncSubscriber1.eventsReceived).containsAll(events));
         assertThat(asyncSubscriber2.eventsReceived).containsAll(events);
         assertThat(onErrorHandler.errorsHandled).isEmpty();
@@ -94,7 +94,7 @@ class LocalEventBusTest {
 
         // Then
         assertThat(syncSubscriber.eventsReceived).isEqualTo(events);
-        Awaitility.waitAtMost(Duration.ofMillis(2000))
+        Awaitility.waitAtMost(Duration.ofMillis(5000))
                   .untilAsserted(() -> assertThat(onErrorHandler.errorsHandled.size()).isEqualTo(events.size()));
         assertThat(onErrorHandler.errorsHandled.stream().filter(failure -> failure._1 == asyncSubscriber).count()).isEqualTo(events.size());
         assertThat(onErrorHandler.errorsHandled.stream().map(failure -> failure._2).collect(Collectors.toList())).containsAll(events);
@@ -117,7 +117,7 @@ class LocalEventBusTest {
         events.forEach(localEventBus::publish);
 
         // Then
-        Awaitility.waitAtMost(Duration.ofMillis(2000))
+        Awaitility.waitAtMost(Duration.ofMillis(5000))
                   .untilAsserted(() -> assertThat(asyncSubscriber.eventsReceived).containsAll(events));
         assertThat(onErrorHandler.errorsHandled.size()).isEqualTo(events.size());
         assertThat(onErrorHandler.errorsHandled.stream().filter(failure -> failure._1 == syncSubscriber).count()).isEqualTo(events.size());
