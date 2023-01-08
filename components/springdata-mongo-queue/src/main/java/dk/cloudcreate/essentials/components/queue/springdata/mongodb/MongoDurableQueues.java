@@ -73,9 +73,12 @@ public class MongoDurableQueues implements DurableQueues {
     private final ConcurrentMap<QueueName, ReentrantLock>             localQueuePollLock    = new ConcurrentHashMap<>();
     private final List<DurableQueuesInterceptor>                      interceptors          = new ArrayList<>();
 
-    private volatile boolean started;
-    private          int     messageHandlingTimeoutMs;
-    private          Long    lastStuckMessageResetTs;
+    private volatile boolean                           started;
+    private          int                               messageHandlingTimeoutMs;
+    /**
+     * Contains the timestamp of the last performed {@link #resetMessagesStuckBeingDelivered(QueueName)} check
+     */
+    protected        ConcurrentMap<QueueName, Instant> lastResetStuckMessagesCheckTimestamps = new ConcurrentHashMap<>();
 
     /**
      * Create {@link DurableQueues} running in {@link TransactionalMode#ManualAcknowledgement} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}, default {@link ObjectMapper}
@@ -329,7 +332,7 @@ public class MongoDurableQueues implements DurableQueues {
         requireNonNull(causeOfEnqueuing, "You must provide a causeOfEnqueuing option");
         requireNonNull(deliveryDelay, "You must provide a deliveryDelay option");
 
-        var queueEntryId = QueueEntryId.random();
+        var queueEntryId          = QueueEntryId.random();
         var addedTimestamp        = Instant.now();
         var nextDeliveryTimestamp = isDeadLetterMessage ? null : addedTimestamp.plus(deliveryDelay.orElse(Duration.ZERO));
         log.debug("[{}] Queuing {}Message with entry-id {} and nextDeliveryTimestamp {}. TransactionalMode: {}",
@@ -655,25 +658,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                        return Optional.<QueuedMessage>empty();
                                                    }
                                                    try {
-                                                       // Reset stuck messages
-                                                       if (transactionalMode == TransactionalMode.ManualAcknowledgement &&
-                                                               (lastStuckMessageResetTs == null || (System.currentTimeMillis() - lastStuckMessageResetTs > messageHandlingTimeoutMs))) {
-                                                           var stuckMessagesQuery = query(where("queueName").is(queueName)
-                                                                                                            .and("isBeingDelivered").is(true)
-                                                                                                            .and("deliveryTimestamp").lte(Instant.now().minusMillis(messageHandlingTimeoutMs)));
-
-                                                           var update = new Update()
-                                                                   .set("isBeingDelivered", false)
-                                                                   .set("deliveryTimestamp", null);
-
-                                                           var updateResult = mongoTemplate.updateMulti(stuckMessagesQuery,
-                                                                                                        update,
-                                                                                                        sharedQueueCollectionName);
-                                                           if (updateResult.getModifiedCount() > 0) {
-                                                               log.debug("[{}] Reset {} messages stuck during delivery", queueName, updateResult.getModifiedCount());
-                                                           }
-                                                           lastStuckMessageResetTs = System.currentTimeMillis();
-                                                       }
+                                                       resetMessagesStuckBeingDelivered(queueName);
 
                                                        var nextMessageReadyForDeliveryQuery = query(where("queueName").is(queueName)
                                                                                                                       .and("nextDeliveryTimestamp").lte(Instant.now())
@@ -717,6 +702,45 @@ public class MongoDurableQueues implements DurableQueues {
                                                        lock.unlock();
                                                    }
                                                }).proceed();
+    }
+
+    /**
+     * This operation will scan for messages that has been marked as {@link DurableQueuedMessage#isBeingDelivered()} for longer
+     * than {@link #messageHandlingTimeoutMs}<br>
+     * All messages found will have {@link DurableQueuedMessage#isBeingDelivered()} and {@link DurableQueuedMessage#getDeliveryTimestamp()}
+     * reset<br>
+     * Only relevant for when using {@link TransactionalMode#ManualAcknowledgement}
+     *
+     * @param queueName the queue for which we're looking for messages stuck being marked as {@link DurableQueuedMessage#isBeingDelivered()}
+     */
+    protected void resetMessagesStuckBeingDelivered(QueueName queueName) {
+        // Reset stuck messages
+        if (transactionalMode == TransactionalMode.ManualAcknowledgement) {
+            var now                            = Instant.now();
+            var lastStuckMessageResetTimestamp = lastResetStuckMessagesCheckTimestamps.get(queueName);
+            if (lastStuckMessageResetTimestamp == null || Duration.between(now, lastStuckMessageResetTimestamp).abs().toMillis() > messageHandlingTimeoutMs) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Looking for messages stuck marked as isBeingDelivered. Last check was performed: {}", queueName, lastStuckMessageResetTimestamp);
+                }
+                var stuckMessagesQuery = query(where("queueName").is(queueName)
+                                                                 .and("isBeingDelivered").is(true)
+                                                                 .and("deliveryTimestamp").lte(now.minusMillis(messageHandlingTimeoutMs)));
+
+                var update = new Update()
+                        .set("isBeingDelivered", false)
+                        .set("deliveryTimestamp", null);
+
+                var updateResult = mongoTemplate.updateMulti(stuckMessagesQuery,
+                                                             update,
+                                                             sharedQueueCollectionName);
+                if (updateResult.getModifiedCount() > 0) {
+                    log.debug("[{}] Reset {} messages stuck marked as isBeingDelivered", queueName, updateResult.getModifiedCount());
+                } else {
+                    log.debug("[{}] Didn't find any messages being stuck marked as isBeingDelivered", queueName);
+                }
+                lastResetStuckMessagesCheckTimestamps.put(queueName, now);
+            }
+        }
     }
 
     @Override
@@ -830,7 +854,10 @@ public class MongoDurableQueues implements DurableQueues {
             newInterceptorChainForOperation(operation,
                                             interceptors,
                                             (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
-                                            () -> (DurableQueueConsumer) durableQueueConsumers.remove(durableQueueConsumer.queueName()))
+                                            () -> {
+                                                lastResetStuckMessagesCheckTimestamps.remove(operation.durableQueueConsumer.queueName());
+                                                return (DurableQueueConsumer) durableQueueConsumers.remove(durableQueueConsumer.queueName());
+                                            })
                     .proceed();
         } catch (Exception e) {
             log.error(msg("Failed to perform {}", operation), e);
