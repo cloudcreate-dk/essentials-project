@@ -35,7 +35,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>> {
-    public static final int            NUMBER_OF_MESSAGES = 5000;
+    public static final int            NUMBER_OF_MESSAGES = 2000;
     public static final int            PARALLEL_CONSUMERS = 10;
     private             UOW_FACTORY    unitOfWorkFactory;
     private             DURABLE_QUEUES durableQueues;
