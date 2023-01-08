@@ -18,8 +18,10 @@ package dk.cloudcreate.essentials.components.foundation.test.messaging.queue;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.test_data.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import dk.cloudcreate.essentials.shared.time.*;
 import org.assertj.core.api.SoftAssertions;
 import org.awaitility.Awaitility;
@@ -27,7 +29,7 @@ import org.junit.jupiter.api.*;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.*;
 
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,7 +74,7 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
     }
 
     @Test
-    void verify_queued_messages_are_dequeued_in_order() {
+    void verify_queued_messages_are_dequeued_in_order() throws InterruptedException {
         // Given
         var random    = new Random();
         var queueName = QueueName.of("TestQueue");
@@ -98,14 +100,21 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
                                       () -> durableQueues.queueMessages(queueName, messages)));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(numberOfMessages);
+
         var recordingQueueMessageHandler = new RecordingQueuedMessageHandler();
 
         // When
         var stopWatch = StopWatch.start(msg("Consuming {} messages using {} parallel consumers", numberOfMessages, PARALLEL_CONSUMERS));
-        var consumer = durableQueues.consumeFromQueue(queueName,
-                                                      RedeliveryPolicy.fixedBackoff(Duration.ofMillis(1), 5),
-                                                      PARALLEL_CONSUMERS,
-                                                      recordingQueueMessageHandler
+        var consumer = durableQueues.consumeFromQueue(ConsumeFromQueue.builder()
+                                                                      .setQueueName(queueName)
+                                                                      .setRedeliveryPolicy(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(1), 5))
+                                                                      .setQueueMessageHandler(recordingQueueMessageHandler)
+                                                                      .setParallelConsumers(PARALLEL_CONSUMERS)    // Required for polling DurableQueues implementations
+                                                                      .setConsumerExecutorService(Executors.newScheduledThreadPool(PARALLEL_CONSUMERS, ThreadFactoryBuilder.builder()
+                                                                                                                                                                           .daemon(true)
+                                                                                                                                                                           .nameFormat(queueName + "-Consume-Messages-%d")
+                                                                                                                                                                           .build()))
+                                                                      .build()
                                                      );
 
         // Then
