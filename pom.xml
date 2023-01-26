@@ -67,14 +67,13 @@
         <objenesis.version>3.3</objenesis.version>
         <postgresql.version>42.5.1</postgresql.version>
         <slf4j.version>1.7.36</slf4j.version>
-        <spring-boot.version>2.7.7</spring-boot.version>
+        <spring-boot.version>2.7.8</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <spring-data-mongodb.version>3.4.6</spring-data-mongodb.version>
-        <spring-data-jpa.version>2.7.6</spring-data-jpa.version>
+        <spring-data-mongodb.version>3.4.7</spring-data-mongodb.version>
+        <spring-data-jpa.version>2.7.7</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
-        <assertj.version>3.24.1</assertj.version>
-        <spring-data-mongodb.version>3.4.6</spring-data-mongodb.version>
-        <mongodb-driver-sync.version>4.8.1</mongodb-driver-sync.version>
+        <assertj.version>3.24.2</assertj.version>
+        <mongodb-driver-sync.version>4.8.2</mongodb-driver-sync.version>
         <log4j-to-slf4j.version>2.19.0</log4j-to-slf4j.version>
     </properties>
 
@@ -109,7 +108,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.9.1</version>
+                <version>5.9.2</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -137,21 +136,21 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-bom</artifactId>
-                <version>2020.0.26</version>
+                <version>2020.0.27</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>5.3.24</version>
+                <version>5.3.25</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-bom</artifactId>
-                <version>4.11.0</version>
+                <version>5.0.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -341,7 +340,7 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>7.4.4</version>
+                <version>8.0.1</version>
                 <configuration>
                     <skipTestScope>false</skipTestScope>
                     <failBuildOnAnyVulnerability>true</failBuildOnAnyVulnerability>
