@@ -61,17 +61,17 @@ import static org.springframework.data.mongodb.core.query.Query.query;
  */
 public class MongoDurableQueues implements DurableQueues {
 
-    private static final Logger log                                    = LoggerFactory.getLogger(MongoDurableQueues.class);
-    public static final  String DEFAULT_DURABLE_QUEUES_COLLECTION_NAME = "durable_queues";
+    protected static final Logger log                                    = LoggerFactory.getLogger(MongoDurableQueues.class);
+    public static final    String DEFAULT_DURABLE_QUEUES_COLLECTION_NAME = "durable_queues";
 
-    private       SpringMongoTransactionAwareUnitOfWorkFactory        unitOfWorkFactory;
-    private final MongoTemplate                                       mongoTemplate;
-    private final TransactionalMode                                   transactionalMode;
-    private final ObjectMapper                                        messagePayloadObjectMapper;
-    private final String                                              sharedQueueCollectionName;
-    private final ConcurrentMap<QueueName, MongoDurableQueueConsumer> durableQueueConsumers = new ConcurrentHashMap<>();
-    private final ConcurrentMap<QueueName, ReentrantLock>             localQueuePollLock    = new ConcurrentHashMap<>();
-    private final List<DurableQueuesInterceptor>                      interceptors          = new ArrayList<>();
+    protected       SpringMongoTransactionAwareUnitOfWorkFactory        unitOfWorkFactory;
+    protected final MongoTemplate                                       mongoTemplate;
+    private final   TransactionalMode                                   transactionalMode;
+    private final   ObjectMapper                                        messagePayloadObjectMapper;
+    protected final String                                              sharedQueueCollectionName;
+    private final   ConcurrentMap<QueueName, MongoDurableQueueConsumer> durableQueueConsumers = new ConcurrentHashMap<>();
+    private final   ConcurrentMap<QueueName, ReentrantLock>             localQueuePollLock    = new ConcurrentHashMap<>();
+    private final   List<DurableQueuesInterceptor>                      interceptors          = new ArrayList<>();
 
     private volatile boolean                           started;
     private          int                               messageHandlingTimeoutMs;
@@ -227,7 +227,10 @@ public class MongoDurableQueues implements DurableQueues {
         initializeQueueCollection();
     }
 
-    private void initializeQueueCollection() {
+    /**
+     * Override only if the default collection or index name approach doesn't work for you
+     */
+    protected void initializeQueueCollection() {
         if (!mongoTemplate.collectionExists(this.sharedQueueCollectionName)) {
             try {
                 mongoTemplate.createCollection(this.sharedQueueCollectionName);
@@ -238,13 +241,26 @@ public class MongoDurableQueues implements DurableQueues {
             }
         }
         // Ensure indexes
-        mongoTemplate.indexOps(this.sharedQueueCollectionName)
-                     .ensureIndex(new Index().on("nextDeliveryTimestamp", Sort.Direction.ASC)
-                                             .on("isDeadLetterMessage", Sort.Direction.ASC)
-                                             .on("isBeingDelivered", Sort.Direction.ASC));
-        mongoTemplate.indexOps(this.sharedQueueCollectionName)
-                     .ensureIndex(new Index().on("deliveryTimestamp", Sort.Direction.ASC)
-                                             .on("isBeingDelivered", Sort.Direction.ASC));
+        var indexes = List.of(new Index(sharedQueueCollectionName + "_next_msg", Sort.Direction.ASC)
+                                      .on("nextDeliveryTimestamp", Sort.Direction.ASC)
+                                      .on("isDeadLetterMessage", Sort.Direction.ASC)
+                                      .on("isBeingDelivered", Sort.Direction.ASC),
+                              new Index(this.sharedQueueCollectionName + "_stuck_msgs", Sort.Direction.ASC)
+                                      .on("deliveryTimestamp", Sort.Direction.ASC)
+                                      .on("isBeingDelivered", Sort.Direction.ASC),
+                              new Index(this.sharedQueueCollectionName + "_find_msg", Sort.Direction.ASC)
+                                      .on("id", Sort.Direction.ASC)
+                                      .on("isBeingDelivered", Sort.Direction.ASC),
+                              new Index(this.sharedQueueCollectionName + "_resurrect_msg", Sort.Direction.ASC)
+                                      .on("id", Sort.Direction.ASC)
+                                      .on("isDeadLetterMessage", Sort.Direction.ASC));
+        indexes.forEach(index -> {
+            log.debug("Ensuring Index on Collection '{}': {}",
+                      sharedQueueCollectionName,
+                      index);
+            mongoTemplate.indexOps(this.sharedQueueCollectionName)
+                         .ensureIndex(index);
+        });
     }
 
     @Override
