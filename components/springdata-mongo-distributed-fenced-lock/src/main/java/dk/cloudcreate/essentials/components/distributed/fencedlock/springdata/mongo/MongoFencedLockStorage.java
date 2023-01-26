@@ -22,8 +22,10 @@ import org.bson.Document;
 import org.slf4j.*;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.convert.*;
+import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.*;
 
 import java.time.*;
@@ -33,14 +35,14 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAwareUnitOfWork, DBFencedLock> {
-    private static final Logger log = LoggerFactory.getLogger(MongoFencedLockStorage.class);
-    public static final  long   FIRST_TOKEN              = 1L;
-    public static final  Long   UNINITIALIZED_LOCK_TOKEN = -1L;
-    public static final String DEFAULT_FENCED_LOCKS_COLLECTION_NAME = "fenced_locks";
+    protected static final Logger log                                  = LoggerFactory.getLogger(MongoFencedLockStorage.class);
+    public static final  long   FIRST_TOKEN                          = 1L;
+    public static final  Long   UNINITIALIZED_LOCK_TOKEN             = -1L;
+    public static final  String DEFAULT_FENCED_LOCKS_COLLECTION_NAME = "fenced_locks";
 
-    private final MongoTemplate  mongoTemplate;
-    private final MongoConverter mongoConverter;
-    private final String         fencedLocksCollectionName;
+    protected final MongoTemplate  mongoTemplate;
+    protected final MongoConverter mongoConverter;
+    protected final String         fencedLocksCollectionName;
 
     public MongoFencedLockStorage(MongoTemplate mongoTemplate,
                                   MongoConverter mongoConverter,
@@ -48,15 +50,39 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
         this.mongoTemplate = requireNonNull(mongoTemplate, "You must supply a mongoTemplate instance");
         this.mongoConverter = requireNonNull(mongoConverter, "You must supply a mongoConverter instance");
         this.fencedLocksCollectionName = fencedLocksCollectionName.orElse(DEFAULT_FENCED_LOCKS_COLLECTION_NAME);
+        initializeFencedLockCollection(mongoTemplate, fencedLocksCollectionName);
+    }
+
+    /**
+     * Override only if the default collection or index name approach doesn't work for you
+     */
+    protected void initializeFencedLockCollection(MongoTemplate mongoTemplate, Optional<String> fencedLocksCollectionName) {
         if (!mongoTemplate.collectionExists(this.fencedLocksCollectionName)) {
             try {
                 mongoTemplate.createCollection(this.fencedLocksCollectionName);
             } catch (Exception e) {
                 if (!mongoTemplate.collectionExists(this.fencedLocksCollectionName)) {
-                    throw new RuntimeException(msg("Failed to create collection '{}'", this.fencedLocksCollectionName), e);
+                    throw new RuntimeException(msg("Failed to create FencedLock collection '{}'", this.fencedLocksCollectionName), e);
                 }
             }
         }
+
+
+        // Ensure indexes
+        var indexes = List.of(new Index(fencedLocksCollectionName + "_find_lock", Sort.Direction.ASC)
+                                      .on("name", Sort.Direction.ASC)
+                                      .on("lastIssuedFencedToken", Sort.Direction.ASC),
+                              new Index(fencedLocksCollectionName + "_confirm_lock", Sort.Direction.ASC)
+                                      .on("name", Sort.Direction.ASC)
+                                      .on("lastIssuedFencedToken", Sort.Direction.ASC)
+                                      .on("lockedByLockManagerInstanceId", Sort.Direction.ASC));
+        indexes.forEach(index -> {
+            log.debug("Ensuring Index on Collection '{}': {}",
+                      fencedLocksCollectionName,
+                      index);
+            mongoTemplate.indexOps(this.fencedLocksCollectionName)
+                         .ensureIndex(index);
+        });
     }
 
     @Override
@@ -220,7 +246,7 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
                                ClientSessionAwareUnitOfWork unitOfWork,
                                LockName nameOfLockToDelete) {
         var result = mongoTemplate.remove(new Query()
-                                                  .addCriteria(Criteria.where("lockName").is(nameOfLockToDelete)),
+                                                  .addCriteria(Criteria.where("name").is(nameOfLockToDelete)),
                                           MongoFencedLock.class,
                                           fencedLocksCollectionName);
         if (result.getDeletedCount() == 1) {
