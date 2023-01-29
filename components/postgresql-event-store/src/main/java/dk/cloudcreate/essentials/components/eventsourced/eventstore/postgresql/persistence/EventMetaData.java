@@ -16,8 +16,6 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonTypeInfo.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
 
 import java.io.Serializable;
@@ -29,15 +27,11 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Base metadata implementation for {@link PersistableEvent} and {@link PersistedEvent}
  */
-public class EventMetaData implements Map<String, Object>, Serializable {
-    @JsonTypeInfo(
-            use = Id.CLASS,
-            include = As.PROPERTY,
-            property = "class")
-    private final Map<String, Object> metaData;
+public class EventMetaData implements Map<String, String>, Serializable {
+    private final Map<String, String> metaData;
 
-    public EventMetaData(Map<String, Object> metaData) {
-        this.metaData = requireNonNull(metaData, "You must provide a Map<String, Object> instance");
+    public EventMetaData(Map<String, String> metaData) {
+        this.metaData = requireNonNull(metaData, "You must provide a Map<String, String> instance");
     }
 
     public EventMetaData() {
@@ -65,22 +59,23 @@ public class EventMetaData implements Map<String, Object>, Serializable {
     }
 
     @Override
-    public Object get(Object key) {
+    public String get(Object key) {
         return metaData.get(key);
     }
 
+
     @Override
-    public Object put(String key, Object value) {
+    public String put(String key, String value) {
         return metaData.put(key, value);
     }
 
     @Override
-    public Object remove(Object key) {
+    public String remove(Object key) {
         return metaData.remove(key);
     }
 
     @Override
-    public void putAll(Map<? extends String, ?> m) {
+    public void putAll(Map<? extends String, ? extends String> m) {
         metaData.putAll(m);
     }
 
@@ -89,19 +84,132 @@ public class EventMetaData implements Map<String, Object>, Serializable {
         metaData.clear();
     }
 
+
     @Override
     public Set<String> keySet() {
         return metaData.keySet();
     }
 
+
     @Override
-    public Collection<Object> values() {
+    public Collection<String> values() {
         return metaData.values();
     }
 
+
     @Override
-    public Set<Entry<String, Object>> entrySet() {
+    public Set<Entry<String, String>> entrySet() {
         return metaData.entrySet();
+    }
+
+    @Override
+    public String getOrDefault(Object key, String defaultValue) {
+        return metaData.getOrDefault(key, defaultValue);
+    }
+
+    @Override
+    public void forEach(BiConsumer<? super String, ? super String> action) {
+        metaData.forEach(action);
+    }
+
+    @Override
+    public void replaceAll(BiFunction<? super String, ? super String, ? extends String> function) {
+        metaData.replaceAll(function);
+    }
+
+
+    @Override
+    public String putIfAbsent(String key, String value) {
+        return metaData.putIfAbsent(key, value);
+    }
+
+    @Override
+    public boolean remove(Object key, Object value) {
+        return metaData.remove(key, value);
+    }
+
+    @Override
+    public boolean replace(String key, String oldValue, String newValue) {
+        return metaData.replace(key, oldValue, newValue);
+    }
+
+
+    @Override
+    public String replace(String key, String value) {
+        return metaData.replace(key, value);
+    }
+
+    @Override
+    public String computeIfAbsent(String key, Function<? super String, ? extends String> mappingFunction) {
+        return metaData.computeIfAbsent(key, mappingFunction);
+    }
+
+    @Override
+    public String computeIfPresent(String key, BiFunction<? super String, ? super String, ? extends String> remappingFunction) {
+        return metaData.computeIfPresent(key, remappingFunction);
+    }
+
+    @Override
+    public String compute(String key, BiFunction<? super String, ? super String, ? extends String> remappingFunction) {
+        return metaData.compute(key, remappingFunction);
+    }
+
+    @Override
+    public String merge(String key, String value, BiFunction<? super String, ? super String, ? extends String> remappingFunction) {
+        return metaData.merge(key, value, remappingFunction);
+    }
+
+    public static EventMetaData empty() {
+        return new EventMetaData();
+    }
+
+    public static EventMetaData of() {
+        return new EventMetaData();
+    }
+
+    public static EventMetaData of(String k1, Object v1) {
+        return new EventMetaData(Map.of(k1, v1 == null ? null : v1.toString()));
+    }
+
+    public static EventMetaData of(String k1, Object v1, String k2, Object v2) {
+        return new EventMetaData(Map.of(k1, v1 == null ? null : v1.toString(), k2, v2 == null ? null : v2.toString()));
+    }
+
+    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3) {
+        return new EventMetaData(Map.of(k1, v1 == null ? null : v1.toString(), k2, v2 == null ? null : v2.toString(), k3, v3 == null ? null : v3.toString()));
+    }
+
+    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4) {
+        return new EventMetaData(Map.of(k1, v1 == null ? null : v1.toString(), k2, v2 == null ? null : v2.toString(), k3, v3 == null ? null : v3.toString(), k4, v4 == null ? null : v4.toString()));
+    }
+
+    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5) {
+        return new EventMetaData(Map.of(k1, v1 == null ? null : v1.toString(), k2, v2 == null ? null : v2.toString(), k3, v3 == null ? null : v3.toString(), k4, v4 == null ? null : v4.toString(), k5, v5 == null ? null : v5.toString()));
+    }
+
+    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5, String k6, Object v6) {
+        return new EventMetaData(Map.of(k1, v1 == null ? null : v1.toString(), k2, v2 == null ? null : v2.toString(), k3, v3 == null ? null : v3.toString(), k4, v4 == null ? null : v4.toString(), k5, v5 == null ? null : v5.toString(), k6, v6 == null ? null : v6.toString()));
+    }
+
+    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5, String k6, Object v6, String k7, Object v7) {
+        return new EventMetaData(Map.of(k1, v1 == null ? null : v1.toString(), k2, v2 == null ? null : v2.toString(), k3, v3 == null ? null : v3.toString(), k4, v4 == null ? null : v4.toString(), k5, v5 == null ? null : v5.toString(), k6, v6 == null ? null : v6.toString(), k7, v7 == null ? null : v7.toString()));
+    }
+
+    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5, String k6, Object v6, String k7, Object v7, String k8, Object v8) {
+        return new EventMetaData(Map.of(k1, v1 == null ? null : v1.toString(), k2, v2 == null ? null : v2.toString(), k3, v3 == null ? null : v3.toString(), k4, v4 == null ? null : v4.toString(), k5, v5 == null ? null : v5.toString(), k6, v6 == null ? null : v6.toString(), k7, v7 == null ? null : v7.toString(), k8, v8 == null ? null : v8.toString()));
+    }
+
+    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5, String k6, Object v6, String k7, Object v7, String k8, Object v8, String k9, Object v9) {
+        return new EventMetaData(Map.of(k1, v1 == null ? null : v1.toString(), k2, v2 == null ? null : v2.toString(), k3, v3 == null ? null : v3.toString(), k4, v4 == null ? null : v4.toString(), k5, v5 == null ? null : v5.toString(), k6, v6 == null ? null : v6.toString(), k7, v7 == null ? null : v7.toString(), k8, v8 == null ? null : v8.toString(), k9, v9 == null ? null : v9.toString()));
+    }
+
+    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5, String k6, Object v6, String k7, Object v7, String k8, Object v8, String k9, Object v9, String k10, Object v10) {
+        return new EventMetaData(Map.of(k1, v1 == null ? null : v1.toString(), k2, v2 == null ? null : v2.toString(), k3, v3 == null ? null : v3.toString(), k4, v4 == null ? null : v4.toString(), k5, v5 == null ? null : v5.toString(), k6, v6 == null ? null : v6.toString(), k7, v7 == null ? null : v7.toString(), k8, v8 == null ? null : v8.toString(), k9, v9 == null ? null : v9.toString(), k10, v10 == null ? null : v10.toString()));
+    }
+
+    @SafeVarargs
+    public static EventMetaData ofEntries(Entry<String, String>... entries) {
+        return new EventMetaData(Map.ofEntries(entries));
     }
 
     @Override
@@ -115,111 +223,10 @@ public class EventMetaData implements Map<String, Object>, Serializable {
     }
 
     @Override
-    public Object getOrDefault(Object key, Object defaultValue) {
-        return metaData.getOrDefault(key, defaultValue);
-    }
-
-    @Override
-    public void forEach(BiConsumer<? super String, ? super Object> action) {
-        metaData.forEach(action);
-    }
-
-    @Override
-    public void replaceAll(BiFunction<? super String, ? super Object, ?> function) {
-        metaData.replaceAll(function);
-    }
-
-    @Override
-    public Object putIfAbsent(String key, Object value) {
-        return metaData.putIfAbsent(key, value);
-    }
-
-    @Override
-    public boolean remove(Object key, Object value) {
-        return metaData.remove(key, value);
-    }
-
-    @Override
-    public boolean replace(String key, Object oldValue, Object newValue) {
-        return metaData.replace(key, oldValue, newValue);
-    }
-
-    @Override
-    public Object replace(String key, Object value) {
-        return metaData.replace(key, value);
-    }
-
-    @Override
-    public Object computeIfAbsent(String key, Function<? super String, ?> mappingFunction) {
-        return metaData.computeIfAbsent(key, mappingFunction);
-    }
-
-    @Override
-    public Object computeIfPresent(String key, BiFunction<? super String, ? super Object, ?> remappingFunction) {
-        return metaData.computeIfPresent(key, remappingFunction);
-    }
-
-    @Override
-    public Object compute(String key, BiFunction<? super String, ? super Object, ?> remappingFunction) {
-        return metaData.compute(key, remappingFunction);
-    }
-
-    @Override
-    public Object merge(String key, Object value, BiFunction<? super Object, ? super Object, ?> remappingFunction) {
-        return metaData.merge(key, value, remappingFunction);
-    }
-
-    public static EventMetaData empty() {
-        return new EventMetaData();
-    }
-
-    public static EventMetaData of() {
-        return new EventMetaData(Map.of());
-    }
-
-    public static EventMetaData of(String k1, Object v1) {
-        return new EventMetaData(Map.of(k1, v1));
-    }
-
-    public static EventMetaData of(String k1, Object v1, String k2, Object v2) {
-        return new EventMetaData(Map.of(k1, v1, k2, v2));
-    }
-
-    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3) {
-        return new EventMetaData(Map.of(k1, v1, k2, v2, k3, v3));
-    }
-
-    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4) {
-        return new EventMetaData(Map.of(k1, v1, k2, v2, k3, v3, k4, v4));
-    }
-
-    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5) {
-        return new EventMetaData(Map.of(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5));
-    }
-
-    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5, String k6, Object v6) {
-        return new EventMetaData(Map.of(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5, k6, v6));
-    }
-
-    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5, String k6, Object v6, String k7, Object v7) {
-        return new EventMetaData(Map.of(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5, k6, v6, k7, v7));
-    }
-
-    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5, String k6, Object v6, String k7, Object v7, String k8, Object v8) {
-        return new EventMetaData(Map.of(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5, k6, v6, k7, v7, k8, v8));
-    }
-
-    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5, String k6, Object v6, String k7, Object v7, String k8, Object v8, String k9, Object v9) {
-        return new EventMetaData(Map.of(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5, k6, v6, k7, v7, k8, v8, k9, v9));
-    }
-
-    public static EventMetaData of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5, String k6, Object v6, String k7, Object v7, String k8, Object v8, String k9, Object v9, String k10, Object v10) {
-        return new EventMetaData(Map.of(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5, k6, v6, k7, v7, k8, v8, k9, v9, k10, v10));
-    }
-
-    @SafeVarargs
-    public static EventMetaData ofEntries(Entry<String, ? extends Object>... entries) {
-        return new EventMetaData(Map.ofEntries(entries));
+    public String toString() {
+        return "EventMetaData{" +
+                metaData +
+                '}';
     }
 
     public static EventMetaData copyOf(EventMetaData map) {
