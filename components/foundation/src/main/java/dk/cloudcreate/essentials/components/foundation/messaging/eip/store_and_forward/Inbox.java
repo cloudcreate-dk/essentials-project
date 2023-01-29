@@ -16,19 +16,20 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
 import java.util.function.Consumer;
 
-public interface Inbox<MESSAGE_TYPE> {
+public interface Inbox {
     /**
      * Start consuming messages from the Outbox using the provided message consumer.<br>
      * Only needs to be called if the instance was created without a message consumer
      *
      * @param messageConsumer the message consumer
-     * @return
+     * @return this
      */
-    Inbox<MESSAGE_TYPE> consume(Consumer<MESSAGE_TYPE> messageConsumer);
+    Inbox consume(Consumer<Message> messageConsumer);
 
     /**
      * Stop consuming messages from the {@link Outbox}. Calling this method will remove the message consumer
@@ -57,14 +58,38 @@ public interface Inbox<MESSAGE_TYPE> {
      */
     InboxName name();
 
+
     /**
-     * Register or add a message that has been received.<br>
+     * Register or add a message (with meta-data) that has been received<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload the message payload
+     * @param metaData the message meta-data
+     */
+    default void addMessageReceived(Object payload, MessageMetaData metaData) {
+        addMessageReceived(new Message(payload, metaData));
+    }
+
+    /**
+     * Register or add a message (without meta-data) that has been received<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload the message payload
+     */
+    default void addMessageReceived(Object payload) {
+        addMessageReceived(new Message(payload));
+    }
+
+    /**
+     * Register or add a message that has been received<br>
      * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param message the message
      */
-    void addMessageReceived(MESSAGE_TYPE message);
+    void addMessageReceived(Message message);
 
     /**
      * Get the number of message received that haven't been processed yet (or successfully processed) by the message consumer

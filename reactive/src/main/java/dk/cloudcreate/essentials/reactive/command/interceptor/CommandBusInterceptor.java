@@ -48,11 +48,11 @@ public interface CommandBusInterceptor {
     /**
      * Intercept the {@link LocalCommandBus#sendAndDontWait(Object)} operation
      *
-     * @param command                    the command
+     * @param commandMessage             the command message (can be wrapped in an infrastructure wrapper, such as a Message/QueuedMessage, depending on which transport channel is used)
      * @param commandBusInterceptorChain the interceptor chain
      * @return the result of processing the command (default implementation just calls {@link CommandBusInterceptorChain#proceed()})
      */
-    default void interceptSendAndDontWait(Object command, CommandBusInterceptorChain commandBusInterceptorChain) {
+    default void interceptSendAndDontWait(Object commandMessage, CommandBusInterceptorChain commandBusInterceptorChain) {
         commandBusInterceptorChain.proceed();
     }
 }

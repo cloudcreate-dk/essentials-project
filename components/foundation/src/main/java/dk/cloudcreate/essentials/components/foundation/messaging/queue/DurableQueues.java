@@ -170,12 +170,12 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName the name of the Queue the message is added to
-     * @param payload   the message payload
+     * @param message   the message
      * @return the unique entry id for the message queued
      */
-    default QueueEntryId queueMessage(QueueName queueName, Object payload) {
+    default QueueEntryId queueMessage(QueueName queueName, Message message) {
         return queueMessage(queueName,
-                            payload,
+                            message,
                             Optional.empty(),
                             Optional.empty());
     }
@@ -196,13 +196,13 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the message is added to
-     * @param payload       the message payload
+     * @param message       the message
      * @param deliveryDelay Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
      * @return the unique entry id for the message queued
      */
-    default QueueEntryId queueMessage(QueueName queueName, Object payload, Optional<Duration> deliveryDelay) {
+    default QueueEntryId queueMessage(QueueName queueName, Message message, Optional<Duration> deliveryDelay) {
         return queueMessage(queueName,
-                            payload,
+                            message,
                             Optional.empty(),
                             deliveryDelay);
     }
@@ -213,13 +213,13 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the message is added to
-     * @param payload       the message payload
+     * @param message       the message
      * @param deliveryDelay Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
      * @return the unique entry id for the message queued
      */
-    default QueueEntryId queueMessage(QueueName queueName, Object payload, Duration deliveryDelay) {
+    default QueueEntryId queueMessage(QueueName queueName, Message message, Duration deliveryDelay) {
         return queueMessage(queueName,
-                            payload,
+                            message,
                             Optional.empty(),
                             Optional.ofNullable(deliveryDelay));
     }
@@ -230,14 +230,14 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName        the name of the Queue the message is added to
-     * @param payload          the message payload
+     * @param message          the message
      * @param causeOfEnqueuing the optional reason for the message being queued
      * @param deliveryDelay    Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
      * @return the unique entry id for the message queued
      */
-    default QueueEntryId queueMessage(QueueName queueName, Object payload, Optional<Exception> causeOfEnqueuing, Optional<Duration> deliveryDelay) {
+    default QueueEntryId queueMessage(QueueName queueName, Message message, Optional<Exception> causeOfEnqueuing, Optional<Duration> deliveryDelay) {
         return queueMessage(new QueueMessage(queueName,
-                                             payload,
+                                             message,
                                              causeOfEnqueuing,
                                              deliveryDelay));
     }
@@ -248,14 +248,14 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName        the name of the Queue the message is added to
-     * @param payload          the message payload
+     * @param message          the message payload
      * @param causeOfEnqueuing the optional reason for the message being queued
      * @param deliveryDelay    Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
      * @return the unique entry id for the message queued
      */
-    default QueueEntryId queueMessage(QueueName queueName, Object payload, Exception causeOfEnqueuing, Duration deliveryDelay) {
+    default QueueEntryId queueMessage(QueueName queueName, Message message, Exception causeOfEnqueuing, Duration deliveryDelay) {
         return queueMessage(queueName,
-                            payload,
+                            message,
                             Optional.ofNullable(causeOfEnqueuing),
                             Optional.ofNullable(deliveryDelay));
     }
@@ -265,13 +265,13 @@ public interface DurableQueues extends Lifecycle {
      * To deliver a Dead Letter Message you must first resurrect the message using {@link #resurrectDeadLetterMessage(QueueEntryId, Duration)}
      *
      * @param queueName    the name of the Queue the message is added to
-     * @param payload      the message payload
+     * @param message      the message
      * @param causeOfError the reason for the message being queued directly as a Dead Letter Message
      * @return the unique entry id for the message queued
      */
-    default QueueEntryId queueMessageAsDeadLetterMessage(QueueName queueName, Object payload, Exception causeOfError) {
+    default QueueEntryId queueMessageAsDeadLetterMessage(QueueName queueName, Message message, Exception causeOfError) {
         return queueMessageAsDeadLetterMessage(new QueueMessageAsDeadLetterMessage(queueName,
-                                                                                   payload,
+                                                                                   message,
                                                                                    causeOfError));
     }
 
@@ -290,13 +290,13 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the messages will be added to
-     * @param payloads      the message payloads
+     * @param messages      the message to enqueue
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      * @return the unique entry id's for the messages queued ordered in the same order as the payloads that were queued
      */
-    default List<QueueEntryId> queueMessages(QueueName queueName, List<?> payloads, Optional<Duration> deliveryDelay) {
+    default List<QueueEntryId> queueMessages(QueueName queueName, List<Message> messages, Optional<Duration> deliveryDelay) {
         return queueMessages(new QueueMessages(queueName,
-                                               payloads,
+                                               messages,
                                                deliveryDelay));
     }
 
@@ -306,13 +306,13 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the messages will be added to
-     * @param payloads      the message payloads
+     * @param messages      the messages to enqueue
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      * @return the unique entry id's for the messages queued ordered in the same order as the payloads that were queued
      */
-    default List<QueueEntryId> queueMessages(QueueName queueName, List<?> payloads, Duration deliveryDelay) {
+    default List<QueueEntryId> queueMessages(QueueName queueName, List<Message> messages, Duration deliveryDelay) {
         return queueMessages(queueName,
-                             payloads,
+                             messages,
                              Optional.ofNullable(deliveryDelay));
     }
 
@@ -323,11 +323,11 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName the name of the Queue the messages will be added to
-     * @param payloads  the message payloads
+     * @param messages  the message to enqueue
      * @return the unique entry id's for the messages queued, ordered in the same order as the payloads that were queued
      */
-    default List<QueueEntryId> queueMessages(QueueName queueName, List<?> payloads) {
-        return queueMessages(queueName, payloads, Optional.empty());
+    default List<QueueEntryId> queueMessages(QueueName queueName, List<Message> messages) {
+        return queueMessages(queueName, messages, Optional.empty());
     }
 
 

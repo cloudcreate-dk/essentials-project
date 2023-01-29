@@ -31,10 +31,10 @@ public interface SendAndDontWaitErrorHandler {
      * Handle an exception that occurred during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}
      *
      * @param exception      the exception that occurred during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}
-     * @param command        the command that caused the exception
+     * @param commandMessage the command message that caused the exception (can be wrapped in an infrastructure wrapper, such as a Message/QueuedMessage, depending on which transport channel is used)
      * @param commandHandler the command handler that can handle the command
      */
-    void handleError(Exception exception, Object command, CommandHandler commandHandler);
+    void handleError(Exception exception, Object commandMessage, CommandHandler commandHandler);
 
     /**
      * Fallback {@link SendAndDontWaitErrorHandler} that only error logs any issues.<br>

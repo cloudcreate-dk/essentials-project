@@ -21,17 +21,19 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import java.time.Duration;
 import java.util.Optional;
 
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
+
 /**
  * Builder for {@link QueueMessage}
  */
 public class QueueMessageBuilder {
-    private QueueName queueName;
-    private Object              payload;
-    private Optional<Exception> causeOfEnqueuing;
-    private Optional<Duration>  deliveryDelay;
+    private QueueName                 queueName;
+    private Object                    payload;
+    private Optional<Exception>       causeOfEnqueuing = Optional.empty();
+    private Optional<Duration>        deliveryDelay = Optional.empty();
+    private MessageMetaData metaData = new MessageMetaData();
 
     /**
-     *
      * @param queueName the name of the Queue the message is added to
      * @return this builder instance
      */
@@ -41,7 +43,6 @@ public class QueueMessageBuilder {
     }
 
     /**
-     *
      * @param payload the message payload
      * @return this builder instance
      */
@@ -50,28 +51,32 @@ public class QueueMessageBuilder {
         return this;
     }
 
+    public QueueMessageBuilder setMessage(Message message) {
+        requireNonNull(message, "No message supplied");
+        this.payload = message.getPayload();
+        this.metaData = message.getMetaData();
+        return this;
+    }
+
     /**
-     *
      * @param causeOfEnqueuing the optional reason for the message being queued
      * @return this builder instance
      */
     public QueueMessageBuilder setCauseOfEnqueuing(Optional<Exception> causeOfEnqueuing) {
-        this.causeOfEnqueuing = causeOfEnqueuing;
+        this.causeOfEnqueuing = requireNonNull(causeOfEnqueuing, "No causeOfEnqueuing provided");
         return this;
     }
 
     /**
-     *
      * @param deliveryDelay the Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
      * @return this builder instance
      */
     public QueueMessageBuilder setDeliveryDelay(Optional<Duration> deliveryDelay) {
-        this.deliveryDelay = deliveryDelay;
+        this.deliveryDelay = requireNonNull(deliveryDelay, "No deliveryDelay provided");
         return this;
     }
 
     /**
-     *
      * @param causeOfEnqueuing the optional reason for the message being queued
      * @return this builder instance
      */
@@ -81,7 +86,6 @@ public class QueueMessageBuilder {
     }
 
     /**
-     *
      * @param deliveryDelay the Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
      * @return this builder instance
      */
@@ -91,10 +95,23 @@ public class QueueMessageBuilder {
     }
 
     /**
+     * @param metaData metadata related to the message/payload
+     * @return this builder instance
+     */
+    public QueueMessageBuilder setMetaData(MessageMetaData metaData) {
+        this.metaData = requireNonNull(metaData, "No metaData provided");
+        return this;
+    }
+
+    /**
      * Builder an {@link QueueMessage} instance from the builder properties
+     *
      * @return the {@link QueueMessage} instance
      */
     public QueueMessage build() {
-        return new QueueMessage(queueName, payload, causeOfEnqueuing, deliveryDelay);
+        return new QueueMessage(queueName,
+                                new Message(payload, metaData),
+                                causeOfEnqueuing,
+                                deliveryDelay);
     }
 }

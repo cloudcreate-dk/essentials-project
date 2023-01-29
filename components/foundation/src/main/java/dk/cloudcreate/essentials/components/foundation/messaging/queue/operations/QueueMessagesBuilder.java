@@ -26,7 +26,7 @@ import java.util.*;
  */
 public class QueueMessagesBuilder {
     private QueueName          queueName;
-    private List<?>            payloads;
+    private List<Message>            messages;
     private Optional<Duration> deliveryDelay;
 
     /**
@@ -41,11 +41,11 @@ public class QueueMessagesBuilder {
 
     /**
      *
-     * @param payloads the message payloads
+     * @param messages the messages being enqueued
      * @return this builder instance
      */
-    public QueueMessagesBuilder setPayloads(List<?> payloads) {
-        this.payloads = payloads;
+    public QueueMessagesBuilder setMessages(List<Message> messages) {
+        this.messages = messages;
         return this;
     }
 
@@ -74,6 +74,6 @@ public class QueueMessagesBuilder {
      * @return the {@link QueueMessages} instance
      */
     public QueueMessages build() {
-        return new QueueMessages(queueName, payloads, deliveryDelay);
+        return new QueueMessages(queueName, messages, deliveryDelay);
     }
 }

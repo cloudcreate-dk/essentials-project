@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.test_data.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.components.foundation.types.CorrelationId;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import dk.cloudcreate.essentials.shared.time.*;
 import org.assertj.core.api.SoftAssertions;
@@ -81,16 +82,22 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
         durableQueues.purgeQueue(queueName);
 
         var numberOfMessages = NUMBER_OF_MESSAGES;
-        var messages         = new ArrayList<OrderEvent>(numberOfMessages);
+        var messages         = new ArrayList<Message>(numberOfMessages);
 
         for (var i = 0; i < numberOfMessages; i++) {
-            OrderEvent message;
+            Message message;
             if (i % 2 == 0) {
-                message = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), random.nextInt());
+                message = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), random.nextInt()),
+                                     MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                        "trace_id", UUID.randomUUID().toString()));
             } else if (i % 3 == 0) {
-                message = new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), random.nextInt());
+                message = Message.of(new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), random.nextInt()),
+                                     MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                        "trace_id", UUID.randomUUID().toString()));
             } else {
-                message = new OrderEvent.OrderAccepted(OrderId.random());
+                message = Message.of(new OrderEvent.OrderAccepted(OrderId.random()),
+                                     MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                        "trace_id", UUID.randomUUID().toString()));
             }
             messages.add(message);
         }
@@ -142,11 +149,11 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
     }
 
     private static class RecordingQueuedMessageHandler implements QueuedMessageHandler {
-        ConcurrentLinkedQueue<OrderEvent> messages = new ConcurrentLinkedQueue<>();
+        ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
 
         @Override
         public void handle(QueuedMessage message) {
-            messages.add((OrderEvent) message.getPayload());
+            messages.add(message.getMessage());
         }
     }
 }

@@ -16,27 +16,93 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
+
 import java.time.OffsetDateTime;
 
+/**
+ * Represents a {@link Message} that has been queued using {@link QueueMessage}/{@link QueueMessages}/{@link QueueMessageAsDeadLetterMessage}
+ */
 public interface QueuedMessage {
 
+    /**
+     * The unique queue entry id for this message
+     *
+     * @return
+     */
     QueueEntryId getId();
+
+    /**
+     * Name of the Queue that the message is enqueued on
+     *
+     * @return name of the Queue that the message is enqueued on
+     */
     QueueName getQueueName();
 
-    Object getPayload();
+    /**
+     * Get the {@link Message#getPayload()}
+     *
+     * @return the {@link Message#getPayload()}
+     */
+    default Object getPayload() {
+        return getMessage().getPayload();
+    }
 
+    /**
+     * When was this message first enqueued (or directly added as a Dead-letter-message)
+     *
+     * @return when was this message first enqueued
+     */
     OffsetDateTime getAddedTimestamp();
 
+    /**
+     * Timestamp for when the message should be delivered next time. Null if {@link #isDeadLetterMessage()} is true
+     *
+     * @return timestamp for when the message should be delivered next time. Null if {@link #isDeadLetterMessage()} is true
+     */
     OffsetDateTime getNextDeliveryTimestamp();
 
-
+    /**
+     * Get the error from the last delivery (null if no error is recorded)
+     *
+     * @return Get the error from the last delivery (null if no error is recorded)
+     */
     String getLastDeliveryError();
 
+    /**
+     * Is this a poison/dead-letter message that will not be delivered until {@link DurableQueues#resurrectDeadLetterMessage(ResurrectDeadLetterMessage)} is called
+     *
+     * @return Is this a poison/dead-letter message
+     */
     boolean isDeadLetterMessage();
 
 
+    /**
+     * Get the total number of delivery attempts for this message
+     *
+     * @return the total number of delivery attempts for this message
+     */
     int getTotalDeliveryAttempts();
 
 
+    /**
+     * How many times has we attempted to re-deliver this message (same as {@link #getTotalDeliveryAttempts()}-1)
+     *
+     * @return how many times has we attempted to re-deliver this message (same as {@link #getTotalDeliveryAttempts()}-1)
+     */
     int getRedeliveryAttempts();
+
+    /**
+     * Get the {@link Message#getMetaData()}
+     *
+     * @return the {@link Message#getMetaData()}
+     */
+    default MessageMetaData getMetaData() {
+        return getMessage().getMetaData();
+    }
+
+    /**
+     * Get the message queued
+     */
+    Message getMessage();
 }

@@ -16,11 +16,12 @@
 
 package dk.cloudcreate.essentials.components.queue.springdata.mongodb;
 
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.DurableQueuesIT;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.test_data.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.types.CorrelationId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration;
@@ -32,6 +33,7 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.*;
 
 import java.time.Duration;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -71,7 +73,9 @@ class ManualAckMongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, 
         // Given
         var queueName = QueueName.of("TestQueue");
 
-        var message1 = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234);
+        var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
         var addedMessageId = durableQueues.queueMessage(queueName, message1);
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
@@ -80,7 +84,7 @@ class ManualAckMongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, 
         var nextMessage = durableQueues.getNextMessageReadyForDelivery(queueName);
         assertThat(nextMessage).isPresent();
         assertThat((CharSequence) nextMessage.get().getId()).isEqualTo(addedMessageId);
-        assertThat(nextMessage.get().getPayload()).isEqualTo(message1);
+        assertThat(nextMessage.get().getMessage()).isEqualTo(message1);
 
         // Confirm the message is marked as being handled
         assertThat(durableQueues.getNextMessageReadyForDelivery(queueName)).isEmpty();
@@ -98,7 +102,9 @@ class ManualAckMongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, 
         // Given
         var queueName = QueueName.of("TestQueue");
 
-        var message1 = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234);
+        var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
         var addedMessageId = durableQueues.queueMessage(queueName, message1);
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
@@ -107,7 +113,7 @@ class ManualAckMongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, 
         var nextMessage = durableQueues.getNextMessageReadyForDelivery(queueName);
         assertThat(nextMessage).isPresent();
         assertThat((CharSequence) nextMessage.get().getId()).isEqualTo(addedMessageId);
-        assertThat(nextMessage.get().getPayload()).isEqualTo(message1);
+        assertThat(nextMessage.get().getMessage()).isEqualTo(message1);
         System.out.println("DeliveryTimestamp: " +((MongoDurableQueues.DurableQueuedMessage)nextMessage.get()).getDeliveryTimestamp());
 
         // Confirm the message is marked as being handled
@@ -119,7 +125,7 @@ class ManualAckMongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, 
         var redeliveredMessage = durableQueues.getNextMessageReadyForDelivery(queueName);
         assertThat(redeliveredMessage).isPresent();
         assertThat((CharSequence) redeliveredMessage.get().getId()).isEqualTo(addedMessageId);
-        assertThat(redeliveredMessage.get().getPayload()).isEqualTo(message1);
+        assertThat(redeliveredMessage.get().getMessage()).isEqualTo(message1);
 
         // And
         durableQueues.acknowledgeMessageAsHandled(nextMessage.get().getId());

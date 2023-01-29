@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.test_data.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.components.foundation.types.CorrelationId;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 
@@ -78,12 +79,18 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         var queueName = QueueName.of("TestQueue");
 
         // When
-        var message1 = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234);
-        var idMsg1   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
-        var message2 = new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), 2);
+        var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
+        var idMsg1 = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
+
+        var message2 = Message.of(new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), 2),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
 
         var idMsg2   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
-        var message3 = new OrderEvent.OrderAccepted(OrderId.random());
+
+        var message3 = Message.of(new OrderEvent.OrderAccepted(OrderId.random()));
         var idMsg3   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message3));
 
         // Then
@@ -92,7 +99,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(queuedMessages.size()).isEqualTo(3);
 
         assertThat(durableQueues.getQueuedMessage(idMsg1).get()).isEqualTo(queuedMessages.get(0));
-        assertThat(queuedMessages.get(0).getPayload()).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(queuedMessages.get(0).getMessage()).usingRecursiveComparison().isEqualTo(message1);
         assertThat((CharSequence) queuedMessages.get(0).getId()).isEqualTo(idMsg1);
         assertThat((CharSequence) queuedMessages.get(0).getQueueName()).isEqualTo(queueName);
         assertThat(queuedMessages.get(0).getAddedTimestamp()).isBefore(OffsetDateTime.now(Clock.systemUTC()));
@@ -103,7 +110,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(queuedMessages.get(0).getTotalDeliveryAttempts()).isEqualTo(0);
 
         assertThat(durableQueues.getQueuedMessage(idMsg2).get()).isEqualTo(queuedMessages.get(1));
-        assertThat(queuedMessages.get(1).getPayload()).usingRecursiveComparison().isEqualTo(message2);
+        assertThat(queuedMessages.get(1).getMessage()).usingRecursiveComparison().isEqualTo(message2);
         assertThat((CharSequence) queuedMessages.get(1).getId()).isEqualTo(idMsg2);
         assertThat((CharSequence) queuedMessages.get(1).getQueueName()).isEqualTo(queueName);
         assertThat(queuedMessages.get(1).getAddedTimestamp()).isBefore(OffsetDateTime.now(Clock.systemUTC()));
@@ -114,7 +121,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(queuedMessages.get(1).getTotalDeliveryAttempts()).isEqualTo(0);
 
         assertThat(durableQueues.getQueuedMessage(idMsg3).get()).isEqualTo(queuedMessages.get(2));
-        assertThat(queuedMessages.get(2).getPayload()).usingRecursiveComparison().isEqualTo(message3);
+        assertThat(queuedMessages.get(2).getMessage()).usingRecursiveComparison().isEqualTo(message3);
         assertThat((CharSequence) queuedMessages.get(2).getId()).isEqualTo(idMsg3);
         assertThat((CharSequence) queuedMessages.get(2).getQueueName()).isEqualTo(queueName);
         assertThat(queuedMessages.get(2).getAddedTimestamp()).isBefore(OffsetDateTime.now(Clock.systemUTC()));
@@ -138,12 +145,18 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         var queueName = QueueName.of("TestQueue");
         durableQueues.purgeQueue(queueName);
 
-        var message1 = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234);
-        var idMsg1   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
-        var message2 = new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), 2);
+        var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
+        var idMsg1 = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
+
+        var message2 = Message.of(new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), 2),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
 
         var idMsg2   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
-        var message3 = new OrderEvent.OrderAccepted(OrderId.random());
+
+        var message3 = Message.of(new OrderEvent.OrderAccepted(OrderId.random()));
         var idMsg3   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message3));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(3);
@@ -176,7 +189,9 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         // Given
         var queueName = QueueName.of("TestQueue");
 
-        var message1 = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234);
+        var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
         usingDurableQueue(() -> durableQueues.queueMessageAsDeadLetterMessage(queueName, message1, new RuntimeException("On purpose")));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
@@ -201,7 +216,9 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         // Given
         var queueName = QueueName.of("TestQueue");
 
-        var message1 = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 12345);
+        var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 12345),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
         usingDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
@@ -233,7 +250,9 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         // Given
         var queueName = QueueName.of("TestQueue");
 
-        var message1   = new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 123456);
+        var message1   = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 123456),
+                                    MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                       "trace_id", UUID.randomUUID().toString()));
         var message1Id = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
@@ -263,7 +282,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0); // Dead letter messages is not counted
         var deadLetterMessage = withDurableQueue(() -> durableQueues.getDeadLetterMessage(message1Id));
         assertThat(deadLetterMessage).isPresent();
-        assertThat(deadLetterMessage.get().getPayload()).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(deadLetterMessage.get().getMessage()).usingRecursiveComparison().isEqualTo(message1);
         var firstDeadLetterMessage = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20).get(0);
         assertThat(deadLetterMessage.get()).usingRecursiveComparison().isEqualTo(firstDeadLetterMessage);
 
@@ -300,9 +319,9 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
 
         @Override
         public void handle(QueuedMessage message) {
-            messages.add(message.getPayload());
+            messages.add(message.getMessage());
             if (functionLogic != null) {
-                functionLogic.accept(message.getPayload());
+                functionLogic.accept(message.getMessage());
             }
         }
     }

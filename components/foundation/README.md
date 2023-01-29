@@ -373,7 +373,7 @@ public Inboxes inboxes(DurableQueues durableQueues, FencedLockManager fencedLock
 ### Configuring a concrete `Inbox`:
 
 ```
-Inbox<ShipOrder> orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder()
+Inbox orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder()
                                                                .inboxName(InboxName.of("OrderService:OrderEvents"))
                                                                .redeliveryPolicy(RedeliveryPolicy.fixedBackoff()
                                                                                                  .setRedeliveryDelay(Duration.ofMillis(100))
@@ -382,7 +382,7 @@ Inbox<ShipOrder> orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder
                                                                .messageConsumptionMode(MessageConsumptionMode.SingleGlobalConsumer)
                                                                .numberOfParallelMessageConsumers(5)
                                                                .build(),
-                                                               (ShipOrder shipOrder) -> {
+                                                               (Message shipOrderMessage) -> {
                                                                    // Handle message
                                                                }); 
 ```
@@ -403,7 +403,7 @@ public void handle(OrderEvent event) {
 `Inboxes` also supports forwarding messages directly onto an instance of the `CommandBus` concept (such as `LocalCommandBus`)
 
 ```
-Inbox<ShipOrder> orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder()
+Inbox orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder()
                                                                .inboxName(InboxName.of("OrderService:OrderEvents"))
                                                                .redeliveryPolicy(RedeliveryPolicy.fixedBackoff()
                                                                                                  .setRedeliveryDelay(Duration.ofMillis(100))
@@ -470,16 +470,16 @@ public Outboxes outboxes(DurableQueues durableQueues, FencedLockManager fencedLo
 ### Configuring a concrete `Outbox`:
 
 ```
-Outbox<ExternalOrderShippingEvent> kafkaOutbox = outboxes.getOrCreateOutbox(OutboxConfig.builder()
+Outbox kafkaOutbox = outboxes.getOrCreateOutbox(OutboxConfig.builder()
                                                          .setOutboxName(OutboxName.of("ShippingOrder:KafkaShippingEvents"))
                                                          .setRedeliveryPolicy(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(100), 10))
                                                          .setMessageConsumptionMode(MessageConsumptionMode.SingleGlobalConsumer)
                                                          .setNumberOfParallelMessageConsumers(1)
                                                          .build(),
-                                                         e -> {
+                                                         (Message externalOrderShippingEventMessage) -> {
                                                              var producerRecord = new ProducerRecord<String, Object>(SHIPPING_EVENTS_TOPIC_NAME,
-                                                                                                                     e.orderId.toString(),
-                                                                                                                     e);
+                                                                                                                     e.getPayload().orderId.toString(),
+                                                                                                                     e.getPayload().);
                                                              kafkaTemplate.send(producerRecord);
                                                          });
 ```
