@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_
 
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -46,10 +46,10 @@ class DurableQueueOutboxesTest {
         // Then
         assertThat(outbox).isNotNull();
         assertThat(outbox).isInstanceOf(Outboxes.DurableQueueBasedOutboxes.DurableQueueBasedOutbox.class);
-        assertThat((CharSequence) ((Outboxes.DurableQueueBasedOutboxes.DurableQueueBasedOutbox<?>) outbox).outboxQueueName).isEqualTo(outboxName.asQueueName());
-        assertThat(((Outboxes.DurableQueueBasedOutboxes.DurableQueueBasedOutbox<?>) outbox).config.messageConsumptionMode).isEqualTo(MessageConsumptionMode.SingleGlobalConsumer);
-        assertThat(((Outboxes.DurableQueueBasedOutboxes.DurableQueueBasedOutbox<?>) outbox).config.redeliveryPolicy).isEqualTo(redeliveryPolicy);
-        assertThat(((Outboxes.DurableQueueBasedOutboxes.DurableQueueBasedOutbox<?>) outbox).config.numberOfParallelMessageConsumers).isEqualTo(1);
+        assertThat((CharSequence) ((Outboxes.DurableQueueBasedOutboxes.DurableQueueBasedOutbox) outbox).outboxQueueName).isEqualTo(outboxName.asQueueName());
+        assertThat(((Outboxes.DurableQueueBasedOutboxes.DurableQueueBasedOutbox) outbox).config.messageConsumptionMode).isEqualTo(MessageConsumptionMode.SingleGlobalConsumer);
+        assertThat(((Outboxes.DurableQueueBasedOutboxes.DurableQueueBasedOutbox) outbox).config.redeliveryPolicy).isEqualTo(redeliveryPolicy);
+        assertThat(((Outboxes.DurableQueueBasedOutboxes.DurableQueueBasedOutbox) outbox).config.numberOfParallelMessageConsumers).isEqualTo(1);
         assertThat(outboxes.getOutboxes().size()).isEqualTo(1);
         assertThat(outboxes.getOutboxes()).contains(outbox);
 
@@ -188,6 +188,6 @@ class DurableQueueOutboxesTest {
 
         // Then
         verify(durableQueues).queueMessage(eq(outboxName.asQueueName()),
-                                           eq("Test message"));
+                                           eq(Message.of("Test message")));
     }
 }

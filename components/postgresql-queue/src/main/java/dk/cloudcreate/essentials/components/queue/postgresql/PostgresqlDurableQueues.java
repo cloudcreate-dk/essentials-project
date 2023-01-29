@@ -112,30 +112,35 @@ public class PostgresqlDurableQueues implements DurableQueues {
             handleAwareUnitOfWork.handle().getJdbi().registerColumnMapper(new QueueNameColumnMapper());
             handleAwareUnitOfWork.handle().getJdbi().registerArgument(new QueueEntryIdArgumentFactory());
             handleAwareUnitOfWork.handle().getJdbi().registerColumnMapper(new QueueEntryIdColumnMapper());
-            var numberOfUpdates = handleAwareUnitOfWork.handle().execute(bind("CREATE TABLE IF NOT EXISTS {:tableName} (\n" +
-                                                                                      "  id                     TEXT PRIMARY KEY,\n" +
-                                                                                      "  queue_name             TEXT NOT NULL,\n" +
-                                                                                      "  message_payload        JSONB NOT NULL,\n" +
-                                                                                      "  message_payload_type   TEXT NOT NULL,\n" +
-                                                                                      "  added_ts               TIMESTAMPTZ NOT NULL,\n" +
-                                                                                      "  next_delivery_ts       TIMESTAMPTZ,\n" +
-                                                                                      "  total_attempts         INTEGER DEFAULT 0,\n" +
-                                                                                      "  redelivery_attempts    INTEGER DEFAULT 0,\n" +
-                                                                                      "  last_delivery_error    TEXT DEFAULT NULL,\n" +
-                                                                                      "  is_dead_letter_message BOOLEAN NOT NULL DEFAULT FALSE\n" +
-                                                                                      ")",
-                                                                              arg("tableName", sharedQueueTableName))
-                                                                        );
-            log.info("Durable Queues table '{}' {}", sharedQueueTableName, numberOfUpdates == 1 ? "created" : "already existed");
+            handleAwareUnitOfWork.handle().execute(bind("CREATE TABLE IF NOT EXISTS {:tableName} (\n" +
+                                                                "  id                     TEXT PRIMARY KEY,\n" +
+                                                                "  queue_name             TEXT NOT NULL,\n" +
+                                                                "  message_payload        JSONB NOT NULL,\n" +
+                                                                "  message_payload_type   TEXT NOT NULL,\n" +
+                                                                "  added_ts               TIMESTAMPTZ NOT NULL,\n" +
+                                                                "  next_delivery_ts       TIMESTAMPTZ,\n" +
+                                                                "  total_attempts         INTEGER DEFAULT 0,\n" +
+                                                                "  redelivery_attempts    INTEGER DEFAULT 0,\n" +
+                                                                "  last_delivery_error    TEXT DEFAULT NULL,\n" +
+                                                                "  is_dead_letter_message BOOLEAN NOT NULL DEFAULT FALSE\n," +
+                                                                "  meta_data JSONB DEFAULT NULL\n" +
+                                                                ")",
+                                                        arg("tableName", sharedQueueTableName))
+                                                  );
+            log.info("Ensured Durable Queues table '{}' exists", sharedQueueTableName);
+            handleAwareUnitOfWork.handle().execute(bind("ALTER TABLE {:tableName} ADD COLUMN IF NOT EXISTS meta_data JSONB DEFAULT NULL",
+                                                        arg("tableName", sharedQueueTableName))
+                                                  );
+            log.info("Ensured 'meta_data' column exists in Durable Queues table '{}'", sharedQueueTableName);
 
             var indexName = sharedQueueTableName + "queue_name__next_delivery__id__index";
-            numberOfUpdates = handleAwareUnitOfWork.handle().execute(bind("CREATE INDEX IF NOT EXISTS {:indexName} ON {:tableName} (\n" +
-                                                                                  "    queue_name, next_delivery_ts, id DESC\n" +
-                                                                                  ")",
-                                                                          arg("indexName", indexName),
-                                                                          arg("tableName", sharedQueueTableName))
-                                                                    );
-            log.info("Durable Queues index '{}' {}", indexName, numberOfUpdates == 1 ? "created" : "already existed");
+            handleAwareUnitOfWork.handle().execute(bind("CREATE INDEX IF NOT EXISTS {:indexName} ON {:tableName} (\n" +
+                                                                "    queue_name, next_delivery_ts, id DESC\n" +
+                                                                ")",
+                                                        arg("indexName", indexName),
+                                                        arg("tableName", sharedQueueTableName))
+                                                  );
+            log.info("Ensured Durable Queues index '{}' exists", indexName);
         });
     }
 
@@ -222,7 +227,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> queueMessage(operation.queueName,
-                                                                  operation.getPayload(),
+                                                                  operation.getMessage(),
                                                                   false,
                                                                   operation.getCauseOfEnqueuing(),
                                                                   operation.getDeliveryDelay()))
@@ -236,16 +241,16 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> queueMessage(operation.queueName,
-                                                                  operation.getPayload(),
+                                                                  operation.getMessage(),
                                                                   true,
                                                                   Optional.of(operation.getCauseOfError()),
                                                                   Optional.empty()))
                 .proceed();
     }
 
-    protected QueueEntryId queueMessage(QueueName queueName, Object payload, boolean isDeadLetterMessage, Optional<Exception> causeOfEnqueuing, Optional<Duration> deliveryDelay) {
+    protected QueueEntryId queueMessage(QueueName queueName, Message message, boolean isDeadLetterMessage, Optional<Exception> causeOfEnqueuing, Optional<Duration> deliveryDelay) {
         requireNonNull(queueName, "You must provide a queueName");
-        requireNonNull(payload, "You must provide a payload");
+        requireNonNull(message, "You must provide a message");
         requireNonNull(causeOfEnqueuing, "You must provide a causeOfEnqueuing option");
         requireNonNull(deliveryDelay, "You must provide a deliveryDelay option");
 
@@ -260,10 +265,11 @@ public class PostgresqlDurableQueues implements DurableQueues {
 
         String jsonPayload;
         try {
-            jsonPayload = messagePayloadObjectMapper.writeValueAsString(payload);
+            jsonPayload = messagePayloadObjectMapper.writeValueAsString(message.getPayload());
         } catch (JsonProcessingException e) {
-            throw new DurableQueueException(e, queueName);
+            throw new DurableQueueException(msg("Failed to serialize message payload of type", message.getPayload().getClass().getName()), e, queueName);
         }
+
         var update = unitOfWorkFactory.getRequiredUnitOfWork().handle().createUpdate(bind("INSERT INTO {:tableName} (\n" +
                                                                                                   "       id,\n" +
                                                                                                   "       queue_name,\n" +
@@ -272,7 +278,8 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                                   "       added_ts,\n" +
                                                                                                   "       next_delivery_ts,\n" +
                                                                                                   "       last_delivery_error,\n" +
-                                                                                                  "       is_dead_letter_message\n" +
+                                                                                                  "       is_dead_letter_message,\n" +
+                                                                                                  "       meta_data\n" +
                                                                                                   "   ) VALUES (\n" +
                                                                                                   "       :id,\n" +
                                                                                                   "       :queueName,\n" +
@@ -281,16 +288,24 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                                   "       :addedTimestamp,\n" +
                                                                                                   "       :nextDeliveryTimestamp,\n" +
                                                                                                   "       :lastDeliveryError,\n" +
-                                                                                                  "       :isDeadLetterMessage\n" +
+                                                                                                  "       :isDeadLetterMessage,\n" +
+                                                                                                  "       :metaData::jsonb\n" +
                                                                                                   "   )",
                                                                                           arg("tableName", sharedQueueTableName)))
                                       .bind("id", queueEntryId)
                                       .bind("queueName", queueName)
                                       .bind("message_payload", jsonPayload)
-                                      .bind("message_payload_type", payload.getClass().getName())
+                                      .bind("message_payload_type", message.getPayload().getClass().getName())
                                       .bind("addedTimestamp", addedTimestamp)
                                       .bind("nextDeliveryTimestamp", nextDeliveryTimestamp)
                                       .bind("isDeadLetterMessage", isDeadLetterMessage);
+
+        try {
+            var jsonMetaData = messagePayloadObjectMapper.writeValueAsString(message.getMetaData());
+            update.bind("metaData", jsonMetaData);
+        } catch (JsonProcessingException e) {
+            throw new DurableQueueException("Failed to serialize message meta-data", e, queueName);
+        }
 
         if (causeOfEnqueuing.isPresent()) {
             update.bind("lastDeliveryError", causeOfEnqueuing.map(Exceptions::getStackTrace).get());
@@ -321,7 +336,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                () -> {
                                                    var queueName             = operation.getQueueName();
                                                    var deliveryDelay         = operation.getDeliveryDelay();
-                                                   var payloads              = operation.getPayloads();
+                                                   var messages              = operation.getMessages();
                                                    var addedTimestamp        = OffsetDateTime.now(Clock.systemUTC());
                                                    var nextDeliveryTimestamp = addedTimestamp.plus(deliveryDelay.orElse(Duration.ZERO));
 
@@ -333,7 +348,8 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                                             "       added_ts,\n" +
                                                                                                                                             "       next_delivery_ts,\n" +
                                                                                                                                             "       last_delivery_error,\n" +
-                                                                                                                                            "       is_dead_letter_message\n" +
+                                                                                                                                            "       is_dead_letter_message,\n" +
+                                                                                                                                            "       meta_data\n" +
                                                                                                                                             "   ) VALUES (\n" +
                                                                                                                                             "       :id,\n" +
                                                                                                                                             "       :queueName,\n" +
@@ -342,39 +358,48 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                                             "       :addedTimestamp,\n" +
                                                                                                                                             "       :nextDeliveryTimestamp,\n" +
                                                                                                                                             "       :lastDeliveryError,\n" +
-                                                                                                                                            "       :isDeadLetterMessage\n" +
+                                                                                                                                            "       :isDeadLetterMessage,\n" +
+                                                                                                                                            "       :metaData::jsonb\n" +
                                                                                                                                             "   )",
                                                                                                                                     arg("tableName", sharedQueueTableName)));
-                                                   var queueEntryIds = payloads.stream().map(payload -> {
+                                                   var queueEntryIds = messages.stream().map(message -> {
                                                        String jsonPayload;
                                                        try {
-                                                           jsonPayload = messagePayloadObjectMapper.writeValueAsString(payload);
+                                                           jsonPayload = messagePayloadObjectMapper.writeValueAsString(message.getPayload());
                                                        } catch (JsonProcessingException e) {
-                                                           throw new DurableQueueException(e, queueName);
+                                                           throw new DurableQueueException(msg("Failed to serialize message payload of type", message.getPayload().getClass().getName()), e, queueName);
                                                        }
                                                        var queueEntryId = QueueEntryId.random();
                                                        batch.bind("id", queueEntryId)
                                                             .bind("queueName", queueName)
                                                             .bind("message_payload", jsonPayload)
-                                                            .bind("message_payload_type", payload.getClass().getName())
+                                                            .bind("message_payload_type", message.getPayload().getClass().getName())
                                                             .bind("addedTimestamp", addedTimestamp)
                                                             .bind("nextDeliveryTimestamp", nextDeliveryTimestamp)
                                                             .bind("isDeadLetterMessage", false)
                                                             .bindNull("lastDeliveryError", Types.VARCHAR);
+
+                                                       try {
+                                                           var jsonMetaData = messagePayloadObjectMapper.writeValueAsString(message.getMetaData());
+                                                           batch.bind("metaData", jsonMetaData);
+                                                       } catch (JsonProcessingException e) {
+                                                           throw new DurableQueueException("Failed to serialize message meta-data", e, queueName);
+                                                       }
+
                                                        batch.add();
                                                        return queueEntryId;
                                                    }).collect(Collectors.toList());
 
                                                    var numberOfRowsUpdated = Arrays.stream(batch.execute())
                                                                                    .reduce(Integer::sum).orElse(0);
-                                                   if (numberOfRowsUpdated != payloads.size()) {
-                                                       throw new DurableQueueException(msg("Attempted to queue {} messages but only inserted {} messages", payloads.size(), numberOfRowsUpdated),
+                                                   if (numberOfRowsUpdated != messages.size()) {
+                                                       throw new DurableQueueException(msg("Attempted to queue {} messages but only inserted {} messages", messages.size(), numberOfRowsUpdated),
                                                                                        queueName);
                                                    }
 
                                                    log.debug("[{}] Queued {} Messages with nextDeliveryTimestamp {} and entry-id's: {}",
                                                              queueName,
-                                                             payloads.size(),
+                                                             messages.size(),
                                                              nextDeliveryTimestamp,
                                                              queueEntryIds);
                                                    return queueEntryIds;
@@ -543,7 +568,8 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                                       "     queued_message.last_delivery_error,\n" +
                                                                                                                                       "     queued_message.total_attempts,\n" +
                                                                                                                                       "     queued_message.redelivery_attempts,\n" +
-                                                                                                                                      "     queued_message.is_dead_letter_message",
+                                                                                                                                      "     queued_message.is_dead_letter_message,\n" +
+                                                                                                                                      "     queued_message.meta_data",
                                                                                                                               arg("tableName", sharedQueueTableName)))
                                                                            .bind("queueName", operation.queueName)
                                                                            .bind("now", now)
@@ -691,7 +717,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                               .findOne());
     }
 
-    private Object deserializedMessagePayload(QueueName queueName, String messagePayload, String messagePayloadType) {
+    private Object deserializeMessagePayload(QueueName queueName, String messagePayload, String messagePayloadType) {
         requireNonNull(queueName, "No queueName provided");
         requireNonNull(messagePayload, "No messagePayload provided");
         requireNonNull(messagePayloadType, "No messagePayloadType provided");
@@ -699,6 +725,16 @@ public class PostgresqlDurableQueues implements DurableQueues {
             return messagePayloadObjectMapper.readValue(messagePayload, Classes.forName(messagePayloadType));
         } catch (JsonProcessingException e) {
             throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
+        }
+    }
+
+    private MessageMetaData deserializeMessageMetadata(QueueName queueName, String metaData) {
+        requireNonNull(queueName, "No queueName provided");
+        requireNonNull(metaData, "No messagePayload provided");
+        try {
+            return messagePayloadObjectMapper.readValue(metaData, MessageMetaData.class);
+        } catch (JsonProcessingException e) {
+            throw new DurableQueueException(msg("Failed to deserialize message meta-data"), e, queueName);
         }
     }
 
@@ -735,10 +771,20 @@ public class PostgresqlDurableQueues implements DurableQueues {
 
         @Override
         public QueuedMessage map(ResultSet rs, StatementContext ctx) throws SQLException {
-            var queueName = QueueName.of(rs.getString("queue_name"));
+            var queueName      = QueueName.of(rs.getString("queue_name"));
+            var messagePayload = PostgresqlDurableQueues.this.deserializeMessagePayload(queueName, rs.getString("message_payload"), rs.getString("message_payload_type"));
+
+            MessageMetaData messageMetaData     = null;
+            var             metaDataColumnValue = rs.getString("meta_data");
+            if (metaDataColumnValue != null) {
+                messageMetaData = PostgresqlDurableQueues.this.deserializeMessageMetadata(queueName, metaDataColumnValue);
+            } else {
+                messageMetaData = new MessageMetaData();
+            }
             return new DefaultQueuedMessage(QueueEntryId.of(rs.getString("id")),
                                             queueName,
-                                            PostgresqlDurableQueues.this.deserializedMessagePayload(queueName, rs.getString("message_payload"), rs.getString("message_payload_type")),
+                                            new Message(messagePayload,
+                                                        messageMetaData),
                                             rs.getObject("added_ts", OffsetDateTime.class),
                                             rs.getObject("next_delivery_ts", OffsetDateTime.class),
                                             rs.getString("last_delivery_error"),

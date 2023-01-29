@@ -386,18 +386,18 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
             // Allow sendAndDontWait to automatically start a new or join in an existing UnitOfWork
             durableQueues.getUnitOfWorkFactory().get().usingUnitOfWork(() -> {
                 durableQueues.queueMessage(durableQueueName,
-                                           command,
+                                           Message.of(command),
                                            messageDeliveryDelay);
             });
         } else {
             durableQueues.queueMessage(durableQueueName,
-                                       command,
+                                       Message.of(command),
                                        messageDeliveryDelay);
         }
     }
 
     private void processSendAndDontWaitMessage(QueuedMessage queuedMessage) {
-        var command        = queuedMessage.getPayload();
+        var command        = queuedMessage.getMessage().getPayload();
         var commandHandler = findCommandHandlerCapableOfHandling(command);
         log.debug("[{}] Handling Durable sendAndDontWait command of type '{}' to {} '{}'",
                   queuedMessage.getQueueName(),
@@ -405,19 +405,19 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
                   CommandHandler.class.getSimpleName(),
                   commandHandler.toString());
 
-        CommandBusInterceptorChain.newInterceptorChain(command,
+        CommandBusInterceptorChain.newInterceptorChain(queuedMessage,
                                                        commandHandler,
                                                        interceptors,
                                                        (interceptor, commandBusInterceptorChain) -> {
-                                                           interceptor.interceptSendAndDontWait(command, commandBusInterceptorChain);
+                                                           interceptor.interceptSendAndDontWait(queuedMessage, commandBusInterceptorChain);
                                                            return null;
                                                        },
-                                                       _cmd -> {
+                                                       msg -> {
                                                            try {
-                                                               return commandHandler.handle(_cmd);
+                                                               return commandHandler.handle(command);
                                                            } catch (Exception e) {
                                                                sendAndDontWaitErrorHandler.handleError(e,
-                                                                                                       _cmd,
+                                                                                                       queuedMessage,
                                                                                                        commandHandler);
                                                                return null;
                                                            }

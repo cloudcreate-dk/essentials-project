@@ -44,40 +44,37 @@ public interface Outboxes {
      * Get an existing {@link Outbox} instance or create a new instance. If an existing {@link Outbox} with a matching {@link OutboxName} is already
      * created then that instance is returned (irrespective of whether the redeliveryPolicy, etc. have the same values)
      *
-     * @param <MESSAGE_TYPE>  the type of message
      * @param outboxConfig    the outbox configuration
      * @param messageConsumer the asynchronous message consumer
      * @return the {@link Outbox}
      */
-    <MESSAGE_TYPE> Outbox<MESSAGE_TYPE> getOrCreateOutbox(OutboxConfig outboxConfig,
-                                                          Consumer<MESSAGE_TYPE> messageConsumer);
+    Outbox getOrCreateOutbox(OutboxConfig outboxConfig,
+                                      Consumer<Message> messageConsumer);
 
     /**
      * Get an existing {@link Outbox} instance or create a new instance. If an existing {@link Outbox} with a matching {@link OutboxName} is already
      * created then that instance is returned (irrespective of whether the redeliveryPolicy, etc. have the same values)<br>
      * Remember to call {@link Outbox#consume(Consumer)} to start consuming messages
      *
-     * @param <MESSAGE_TYPE> the type of message
-     * @param outboxConfig   the outbox configuration
+     * @param outboxConfig the outbox configuration
      * @return the {@link Outbox}
      */
-    <MESSAGE_TYPE> Outbox<MESSAGE_TYPE> getOrCreateOutbox(OutboxConfig outboxConfig);
+    Outbox getOrCreateOutbox(OutboxConfig outboxConfig);
 
     /**
      * Get an existing {@link Outbox} instance or create a new instance that forwards to an {@link EventHandler}.<br>
      * If an existing {@link Outbox} with a matching {@link OutboxName} is already
      * created then that instance is returned (irrespective of whether the redeliveryPolicy, etc. have the same values)
      *
-     * @param <MESSAGE_TYPE> the type of message
-     * @param outboxConfig   the outbox configuration
-     * @param eventHandler   the asynchronous event handler
+     * @param outboxConfig the outbox configuration
+     * @param eventHandler the asynchronous event handler
      * @return the {@link Outbox}
      */
-    default <MESSAGE_TYPE> Outbox<MESSAGE_TYPE> getOrCreateForwardingOutbox(OutboxConfig outboxConfig,
-                                                                            EventHandler eventHandler) {
+    default Outbox getOrCreateForwardingOutbox(OutboxConfig outboxConfig,
+                                                        EventHandler eventHandler) {
         requireNonNull(eventHandler, "No eventHandler provided");
         return getOrCreateOutbox(outboxConfig,
-                                 eventHandler::handle);
+                                 message -> eventHandler.handle(message.getPayload()));
     }
 
     /**
@@ -85,7 +82,7 @@ public interface Outboxes {
      *
      * @return all the {@link Outbox} instances managed by this {@link Outboxes} instance
      */
-    Collection<Outbox<?>> getOutboxes();
+    Collection<Outbox> getOutboxes();
 
     /**
      * Create an {@link Outboxes} instance that uses a {@link DurableQueues} as its storage and message delivery mechanism.
@@ -101,9 +98,9 @@ public interface Outboxes {
     }
 
     class DurableQueueBasedOutboxes implements Outboxes {
-        private final DurableQueues                        durableQueues;
-        private final FencedLockManager                    fencedLockManager;
-        private       ConcurrentMap<OutboxName, Outbox<?>> outboxes = new ConcurrentHashMap<>();
+        private final DurableQueues                              durableQueues;
+        private final FencedLockManager                          fencedLockManager;
+        private       ConcurrentMap<OutboxName, Outbox> outboxes = new ConcurrentHashMap<>();
 
         public DurableQueueBasedOutboxes(DurableQueues durableQueues, FencedLockManager fencedLockManager) {
             this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
@@ -112,32 +109,32 @@ public interface Outboxes {
 
         @SuppressWarnings("unchecked")
         @Override
-        public <MESSAGE_TYPE> Outbox<MESSAGE_TYPE> getOrCreateOutbox(OutboxConfig outboxConfig) {
+        public Outbox getOrCreateOutbox(OutboxConfig outboxConfig) {
             requireNonNull(outboxConfig.getOutboxName(), "No outboxName provided");
-            return (Outbox<MESSAGE_TYPE>) outboxes.computeIfAbsent(outboxConfig.getOutboxName(), outboxName_ -> new DurableQueueBasedOutbox<>(outboxConfig));
+            return outboxes.computeIfAbsent(outboxConfig.getOutboxName(), outboxName_ -> new DurableQueueBasedOutbox(outboxConfig));
         }
 
         @SuppressWarnings("unchecked")
         @Override
-        public <MESSAGE_TYPE> Outbox<MESSAGE_TYPE> getOrCreateOutbox(OutboxConfig outboxConfig, Consumer<MESSAGE_TYPE> messageConsumer) {
+        public Outbox getOrCreateOutbox(OutboxConfig outboxConfig, Consumer<Message> messageConsumer) {
             requireNonNull(outboxConfig.getOutboxName(), "No outboxName provided");
-            return (Outbox<MESSAGE_TYPE>) outboxes.computeIfAbsent(outboxConfig.getOutboxName(), outboxName_ -> new DurableQueueBasedOutbox<>(outboxConfig,
-                                                                                                                                              messageConsumer));
+            return outboxes.computeIfAbsent(outboxConfig.getOutboxName(), outboxName_ -> new DurableQueueBasedOutbox(outboxConfig,
+                                                                                                                     messageConsumer));
         }
 
         @Override
-        public Collection<Outbox<?>> getOutboxes() {
+        public Collection<Outbox> getOutboxes() {
             return outboxes.values();
         }
 
-        public class DurableQueueBasedOutbox<MESSAGE_TYPE> implements Outbox<MESSAGE_TYPE> {
-            private      Consumer<MESSAGE_TYPE> messageConsumer;
-            public final QueueName              outboxQueueName;
-            public final OutboxConfig           config;
-            private      DurableQueueConsumer   durableQueueConsumer;
+        public class DurableQueueBasedOutbox implements Outbox {
+            private      Consumer<Message>    messageConsumer;
+            public final QueueName            outboxQueueName;
+            public final OutboxConfig         config;
+            private      DurableQueueConsumer durableQueueConsumer;
 
             public DurableQueueBasedOutbox(OutboxConfig config,
-                                           Consumer<MESSAGE_TYPE> messageConsumer) {
+                                           Consumer<Message> messageConsumer) {
                 this(config);
                 consume(messageConsumer);
             }
@@ -148,7 +145,7 @@ public interface Outboxes {
             }
 
             @Override
-            public Outbox<MESSAGE_TYPE> consume(Consumer<MESSAGE_TYPE> messageConsumer) {
+            public Outbox consume(Consumer<Message> messageConsumer) {
                 if (this.messageConsumer != null) {
                     throw new IllegalStateException("Outbox already has a message consumer");
                 }
@@ -206,9 +203,9 @@ public interface Outboxes {
             }
 
             @Override
-            public void sendMessage(MESSAGE_TYPE message) {
+            public void sendMessage(Message payload) {
                 durableQueues.queueMessage(outboxQueueName,
-                                           message);
+                                           payload);
             }
 
             private DurableQueueConsumer consumeFromDurableQueue() {
@@ -220,7 +217,7 @@ public interface Outboxes {
 
             @SuppressWarnings("unchecked")
             private void handleMessage(QueuedMessage queuedMessage) {
-                messageConsumer.accept((MESSAGE_TYPE) queuedMessage.getPayload());
+                messageConsumer.accept(queuedMessage.getMessage());
             }
 
             @Override

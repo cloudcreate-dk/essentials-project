@@ -32,9 +32,9 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Operation also matches {@link DurableQueuesInterceptor#intercept(QueueMessages, InterceptorChain)}
  */
 public class QueueMessages {
-    public final QueueName queueName;
-    public final List<?>   payloads;
-    private Optional<Duration> deliveryDelay;
+    public final QueueName          queueName;
+    public       List<Message>      messages;
+    private      Optional<Duration> deliveryDelay;
 
     /**
      * Create a new builder that produces a new {@link QueueMessages} instance
@@ -51,12 +51,12 @@ public class QueueMessages {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the messages will be added to
-     * @param payloads      the message payloads
+     * @param messages      the message payloads
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      */
-    public QueueMessages(QueueName queueName, List<?> payloads, Optional<Duration> deliveryDelay) {
+    public QueueMessages(QueueName queueName, List<Message> messages, Optional<Duration> deliveryDelay) {
         this.queueName = requireNonNull(queueName, "No queueName provided");
-        this.payloads = requireNonNull(payloads, "No payloads provided");
+        this.messages = requireNonNull(messages, "No payloads provided");
         this.deliveryDelay = requireNonNull(deliveryDelay, "No deliveryDelay provided");
     }
 
@@ -66,17 +66,16 @@ public class QueueMessages {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the messages will be added to
-     * @param payloads      the message payloads
+     * @param messages      the message payloads
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      */
-    public QueueMessages(QueueName queueName, List<?> payloads, Duration deliveryDelay) {
+    public QueueMessages(QueueName queueName, List<Message> messages, Duration deliveryDelay) {
         this(queueName,
-             payloads,
+             messages,
              Optional.ofNullable(deliveryDelay));
     }
 
     /**
-     *
      * @return the name of the Queue the messages will be added to
      */
     public QueueName getQueueName() {
@@ -84,15 +83,13 @@ public class QueueMessages {
     }
 
     /**
-     *
      * @return the message payloads
      */
-    public List<?> getPayloads() {
-        return payloads;
+    public List<Message> getMessages() {
+        return messages;
     }
 
     /**
-     *
      * @return optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      */
     public Optional<Duration> getDeliveryDelay() {
@@ -100,7 +97,6 @@ public class QueueMessages {
     }
 
     /**
-     *
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      */
     public void setDeliveryDelay(Optional<Duration> deliveryDelay) {
@@ -108,24 +104,27 @@ public class QueueMessages {
     }
 
     /**
-     *
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      */
     public void setDeliveryDelay(Duration deliveryDelay) {
         this.deliveryDelay = Optional.ofNullable(deliveryDelay);
     }
 
+    public void setMessages(List<Message> messages) {
+        this.messages = requireNonNull(messages, "No payloads provided");
+    }
+
     @Override
     public String toString() {
         return "QueueMessages{" +
                 "queueName=" + queueName +
-                ", payloads=" + payloads +
+                ", messages=" + messages +
                 '}';
     }
 
     public void validate() {
         requireNonNull(queueName, "You must provide a queueName");
-        requireNonNull(payloads, "You must provide a payloads list");
+        requireNonNull(messages, "You must provide a messages list");
         requireNonNull(deliveryDelay, "You must provide a deliveryDelay option");
     }
 }

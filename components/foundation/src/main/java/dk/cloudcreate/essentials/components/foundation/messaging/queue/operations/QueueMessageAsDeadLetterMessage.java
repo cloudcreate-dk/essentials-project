@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  */
 public class QueueMessageAsDeadLetterMessage {
     public final QueueName queueName;
-    private      Object    payload;
+    private      Message   message;
     private      Exception causeOfError;
 
     /**
@@ -47,17 +47,16 @@ public class QueueMessageAsDeadLetterMessage {
      * To deliver a Dead Letter Message you must first resurrect the message using {@link DurableQueues#resurrectDeadLetterMessage(QueueEntryId, Duration)}
      *
      * @param queueName    the name of the Queue the message is added to
-     * @param payload      the message payload
+     * @param message      the message being enqueued directly as a Dead Letter Message
      * @param causeOfError the reason for the message being queued directly as a Dead Letter Message
      */
-    public QueueMessageAsDeadLetterMessage(QueueName queueName, Object payload, Exception causeOfError) {
+    public QueueMessageAsDeadLetterMessage(QueueName queueName, Message message, Exception causeOfError) {
         this.queueName = requireNonNull(queueName, "No queueName provided");
-        this.payload = requireNonNull(payload, "No payload provided");
+        this.message = requireNonNull(message, "No message provided");
         this.causeOfError = causeOfError;
     }
 
     /**
-     *
      * @return the name of the Queue the message is added to
      */
     public QueueName getQueueName() {
@@ -65,23 +64,26 @@ public class QueueMessageAsDeadLetterMessage {
     }
 
     /**
-     *
      * @return the message payload
      */
     public Object getPayload() {
-        return payload;
+        return getMessage().getPayload();
     }
 
     /**
+     * Get the dead letter message
      *
-     * @param payload the message payload
+     * @return the dead letter message
      */
-    public void setPayload(Object payload) {
-        this.payload = payload;
+    public Message getMessage() {
+        return message;
+    }
+
+    public void setMessage(Message message) {
+        this.message = requireNonNull(message, "No message provided");
     }
 
     /**
-     *
      * @return the reason for the message being queued directly as a Dead Letter Message
      */
     public Exception getCauseOfError() {
@@ -89,7 +91,13 @@ public class QueueMessageAsDeadLetterMessage {
     }
 
     /**
-     *
+     * @return metadata metadata related to the message/payload
+     */
+    public MessageMetaData getMetaData() {
+        return getMessage().getMetaData();
+    }
+
+    /**
      * @param causeOfError the reason for the message being queued directly as a Dead Letter Message
      */
     public void setCauseOfError(Exception causeOfError) {
@@ -100,7 +108,7 @@ public class QueueMessageAsDeadLetterMessage {
     public String toString() {
         return "QueueMessageAsDeadLetterMessage{" +
                 "queueName=" + queueName +
-                ", payload=" + payload +
+                ", message=" + message +
                 ", causeOfError=" + causeOfError +
                 '}';
     }

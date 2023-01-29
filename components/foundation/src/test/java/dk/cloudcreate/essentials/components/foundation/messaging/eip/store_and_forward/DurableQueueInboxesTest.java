@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_
 
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -50,10 +50,10 @@ class DurableQueueInboxesTest {
         // Then
         assertThat(inbox).isNotNull();
         assertThat(inbox).isInstanceOf(Inboxes.DurableQueueBasedInboxes.DurableQueueBasedInbox.class);
-        assertThat((CharSequence) ((Inboxes.DurableQueueBasedInboxes.DurableQueueBasedInbox<?>) inbox).inboxQueueName).isEqualTo(inboxName.asQueueName());
-        assertThat(((Inboxes.DurableQueueBasedInboxes.DurableQueueBasedInbox<?>) inbox).config.messageConsumptionMode).isEqualTo(MessageConsumptionMode.SingleGlobalConsumer);
-        assertThat(((Inboxes.DurableQueueBasedInboxes.DurableQueueBasedInbox<?>) inbox).config.redeliveryPolicy).isEqualTo(redeliveryPolicy);
-        assertThat(((Inboxes.DurableQueueBasedInboxes.DurableQueueBasedInbox<?>) inbox).config.numberOfParallelMessageConsumers).isEqualTo(1);
+        assertThat((CharSequence) ((Inboxes.DurableQueueBasedInboxes.DurableQueueBasedInbox) inbox).inboxQueueName).isEqualTo(inboxName.asQueueName());
+        assertThat(((Inboxes.DurableQueueBasedInboxes.DurableQueueBasedInbox) inbox).config.messageConsumptionMode).isEqualTo(MessageConsumptionMode.SingleGlobalConsumer);
+        assertThat(((Inboxes.DurableQueueBasedInboxes.DurableQueueBasedInbox) inbox).config.redeliveryPolicy).isEqualTo(redeliveryPolicy);
+        assertThat(((Inboxes.DurableQueueBasedInboxes.DurableQueueBasedInbox) inbox).config.numberOfParallelMessageConsumers).isEqualTo(1);
         assertThat(inboxes.getInboxes().size()).isEqualTo(1);
         assertThat(inboxes.getInboxes()).contains(inbox);
 
@@ -186,10 +186,11 @@ class DurableQueueInboxesTest {
                 });
 
         // When
-        inbox.addMessageReceived("Test message");
+        var testMessage = Message.of("Test message");
+        inbox.addMessageReceived(testMessage);
 
         // Then
         verify(durableQueues).queueMessage(eq(inboxName.asQueueName()),
-                                           eq("Test message"));
+                                           eq(testMessage));
     }
 }

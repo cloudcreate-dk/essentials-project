@@ -16,11 +16,12 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
 import java.util.function.Consumer;
 
-public interface Outbox<MESSAGE_TYPE> {
+public interface Outbox {
     /**
      * Start consuming messages from the Outbox using the provided message consumer.<br>
      * Only needs to be called if the instance was created without a message consumer
@@ -28,7 +29,7 @@ public interface Outbox<MESSAGE_TYPE> {
      * @param messageConsumer the message consumer
      * @return
      */
-    Outbox<MESSAGE_TYPE> consume(Consumer<MESSAGE_TYPE> messageConsumer);
+    Outbox consume(Consumer<Message> messageConsumer);
 
     /**
      * Stop consuming messages from the {@link Outbox}. Calling this method will remove the message consumer
@@ -58,13 +59,36 @@ public interface Outbox<MESSAGE_TYPE> {
     OutboxName name();
 
     /**
+     * Send a message (without meta-data) asynchronously.<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload the message payload
+     */
+    default void sendMessage(Object payload) {
+        sendMessage(new Message(payload));
+    }
+
+    /**
+     * Send a message (with meta-data) asynchronously.<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload  the message payload
+     * @param metaData the message meta-data
+     */
+    default void sendMessage(Object payload, MessageMetaData metaData) {
+        sendMessage(new Message(payload, metaData));
+    }
+
+    /**
      * Send a message asynchronously.<br>
      * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param message the message
      */
-    void sendMessage(MESSAGE_TYPE message);
+    void sendMessage(Message message);
 
     /**
      * Get the number of message in the outbox that haven't been sent yet

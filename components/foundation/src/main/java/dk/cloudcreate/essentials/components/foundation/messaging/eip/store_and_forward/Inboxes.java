@@ -44,38 +44,35 @@ public interface Inboxes {
      * created then that instance is returned (irrespective of whether the redeliveryPolicy, etc. have the same values)<br>
      * Remember to call {@link Outbox#consume(Consumer)} to start consuming messages
      *
-     * @param <MESSAGE_TYPE> the type of message
-     * @param inboxConfig    the inbox configuration
+     * @param inboxConfig the inbox configuration
      * @return the {@link Inbox}
      */
-    <MESSAGE_TYPE> Inbox<MESSAGE_TYPE> getOrCreateInbox(InboxConfig inboxConfig);
+    Inbox getOrCreateInbox(InboxConfig inboxConfig);
 
     /**
      * Get an existing {@link Inbox} instance or create a new instance. If an existing {@link Inbox} with a matching {@link InboxName} is already
      * created then that instance is returned (irrespective of whether the redeliveryPolicy, etc. have the same values)
      *
-     * @param <MESSAGE_TYPE>  the type of message
      * @param inboxConfig     the inbox configuration
      * @param messageConsumer the asynchronous message consumer
      * @return the {@link Inbox}
      */
-    <MESSAGE_TYPE> Inbox<MESSAGE_TYPE> getOrCreateInbox(InboxConfig inboxConfig,
-                                                        Consumer<MESSAGE_TYPE> messageConsumer);
+    Inbox getOrCreateInbox(InboxConfig inboxConfig,
+                           Consumer<Message> messageConsumer);
 
     /**
      * Get an existing {@link Inbox} instance or create a new instance. If an existing {@link Inbox} with a matching {@link InboxName} is already
      * created then that instance is returned (irrespective of whether the redeliveryPolicy, etc. have the same values)
      *
-     * @param <MESSAGE_TYPE> the type of message
-     * @param inboxConfig    the inbox configuration
-     * @param forwardTo      forward messages to this command bus using {@link CommandBus#send(Object)}
+     * @param inboxConfig the inbox configuration
+     * @param forwardTo   forward messages to this command bus using {@link CommandBus#send(Object)}
      * @return the {@link Inbox}
      */
-    default <MESSAGE_TYPE> Inbox<MESSAGE_TYPE> getOrCreateInbox(InboxConfig inboxConfig,
-                                                                CommandBus forwardTo) {
+    default Inbox getOrCreateInbox(InboxConfig inboxConfig,
+                                   CommandBus forwardTo) {
         requireNonNull(forwardTo, "No forwardTo command bus provided");
         return getOrCreateInbox(inboxConfig,
-                                forwardTo::send);
+                                message -> forwardTo.send(message.getPayload()));
     }
 
     /**
@@ -83,7 +80,7 @@ public interface Inboxes {
      *
      * @return all the {@link Inbox} instances managed by this {@link Inboxes} instance
      */
-    Collection<Inbox<?>> getInboxes();
+    Collection<Inbox> getInboxes();
 
     /**
      * Create an {@link Inboxes} instance that uses a {@link DurableQueues} as its storage and message delivery mechanism.
@@ -99,9 +96,9 @@ public interface Inboxes {
     }
 
     class DurableQueueBasedInboxes implements Inboxes {
-        private final DurableQueues                      durableQueues;
-        private final FencedLockManager                  fencedLockManager;
-        private       ConcurrentMap<InboxName, Inbox<?>> inboxes = new ConcurrentHashMap<>();
+        private final DurableQueues                   durableQueues;
+        private final FencedLockManager               fencedLockManager;
+        private       ConcurrentMap<InboxName, Inbox> inboxes = new ConcurrentHashMap<>();
 
         public DurableQueueBasedInboxes(DurableQueues durableQueues, FencedLockManager fencedLockManager) {
             this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
@@ -110,36 +107,36 @@ public interface Inboxes {
 
         @SuppressWarnings("unchecked")
         @Override
-        public <MESSAGE_TYPE> Inbox<MESSAGE_TYPE> getOrCreateInbox(InboxConfig inboxConfig,
-                                                                   Consumer<MESSAGE_TYPE> messageConsumer) {
+        public Inbox getOrCreateInbox(InboxConfig inboxConfig,
+                                      Consumer<Message> messageConsumer) {
             requireNonNull(inboxConfig, "No inboxConfig provided");
-            return (Inbox<MESSAGE_TYPE>) inboxes.computeIfAbsent(inboxConfig.getInboxName(),
-                                                                 inboxName_ -> new DurableQueueBasedInbox<>(inboxConfig,
-                                                                                                            messageConsumer));
+            return inboxes.computeIfAbsent(inboxConfig.getInboxName(),
+                                           inboxName_ -> new DurableQueueBasedInbox(inboxConfig,
+                                                                                    messageConsumer));
         }
 
         @SuppressWarnings("unchecked")
         @Override
-        public <MESSAGE_TYPE> Inbox<MESSAGE_TYPE> getOrCreateInbox(InboxConfig inboxConfig) {
+        public Inbox getOrCreateInbox(InboxConfig inboxConfig) {
             requireNonNull(inboxConfig, "No inboxConfig provided");
-            return (Inbox<MESSAGE_TYPE>) inboxes.computeIfAbsent(inboxConfig.getInboxName(),
-                                                                 inboxName_ -> new DurableQueueBasedInbox<>(inboxConfig));
+            return inboxes.computeIfAbsent(inboxConfig.getInboxName(),
+                                           inboxName_ -> new DurableQueueBasedInbox(inboxConfig));
         }
 
         @Override
-        public Collection<Inbox<?>> getInboxes() {
+        public Collection<Inbox> getInboxes() {
             return inboxes.values();
         }
 
-        public class DurableQueueBasedInbox<MESSAGE_TYPE> implements Inbox<MESSAGE_TYPE> {
+        public class DurableQueueBasedInbox implements Inbox {
 
-            private      Consumer<MESSAGE_TYPE> messageConsumer;
-            public final QueueName              inboxQueueName;
-            public final InboxConfig            config;
-            private      DurableQueueConsumer   durableQueueConsumer;
+            private      Consumer<Message>    messageConsumer;
+            public final QueueName            inboxQueueName;
+            public final InboxConfig          config;
+            private      DurableQueueConsumer durableQueueConsumer;
 
             public DurableQueueBasedInbox(InboxConfig config,
-                                          Consumer<MESSAGE_TYPE> messageConsumer) {
+                                          Consumer<Message> messageConsumer) {
                 this(config);
                 consume(messageConsumer);
             }
@@ -150,7 +147,7 @@ public interface Inboxes {
             }
 
             @Override
-            public Inbox<MESSAGE_TYPE> consume(Consumer<MESSAGE_TYPE> messageConsumer) {
+            public Inbox consume(Consumer<Message> messageConsumer) {
                 if (this.messageConsumer != null) {
                     throw new IllegalStateException("Outbox already has a message consumer");
                 }
@@ -208,7 +205,7 @@ public interface Inboxes {
             }
 
             @Override
-            public void addMessageReceived(MESSAGE_TYPE message) {
+            public void addMessageReceived(Message message) {
                 // An Inbox is usually used to bridge receiving messages from a Messaging system
                 // In these cases we rarely have other business logic that's already started a Transaction/UnitOfWork.
                 // So to simplify using the Inbox we allow adding a message to start a UnitOfWork if none exists
@@ -234,7 +231,7 @@ public interface Inboxes {
 
             @SuppressWarnings("unchecked")
             private void handleMessage(QueuedMessage queuedMessage) {
-                messageConsumer.accept((MESSAGE_TYPE) queuedMessage.getPayload());
+                messageConsumer.accept(queuedMessage.getMessage());
             }
 
             @Override

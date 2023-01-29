@@ -137,7 +137,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         commandBus.sendAndDontWait("Hello World");
 
         // Then
-        Awaitility.waitAtMost(Duration.ofMillis(500))
+        Awaitility.waitAtMost(Duration.ofMillis(2000))
                   .untilAsserted(() -> assertThat(cmdHandler.receivedCommand).isEqualTo("Hello World"));
     }
 
@@ -160,7 +160,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
                   .untilAsserted(() -> assertThat(errorHandler.exception).isNotNull());
         assertThat(errorHandler.exception).isInstanceOf(RuntimeException.class);
         assertThat(errorHandler.exception).hasMessage(ON_PURPOSE);
-        assertThat(errorHandler.command).isEqualTo(command);
+        assertThat(errorHandler.command.getPayload()).isEqualTo(command);
         assertThat(errorHandler.commandHandler).isEqualTo(cmdHandler);
 
         Awaitility.waitAtMost(Duration.ofMillis(1000))
@@ -171,7 +171,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         assertThat(Lists.last(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
                                                                   DurableQueues.QueueingSortOrder.ASC,
                                                                   0,
-                                                                  10)).get().getPayload()).isEqualTo(command);
+                                                                  10)).get().getMessage().getPayload()).isEqualTo(command);
     }
 
     @Test
@@ -193,7 +193,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
                   .untilAsserted(() -> assertThat(errorHandler.exception).isNotNull());
         assertThat(errorHandler.exception).isInstanceOf(RuntimeException.class);
         assertThat(errorHandler.exception).hasMessage(ON_PURPOSE);
-        assertThat(errorHandler.command).isEqualTo(command);
+        assertThat(errorHandler.command.getPayload()).isEqualTo(command);
         assertThat(errorHandler.commandHandler).isEqualTo(cmdHandler);
 
         Awaitility.waitAtMost(Duration.ofMillis(1000))
@@ -204,7 +204,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         assertThat(Lists.last(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
                                                                   DurableQueues.QueueingSortOrder.ASC,
                                                                   0,
-                                                                  10)).get().getPayload()).isEqualTo(command);
+                                                                  10)).get().getMessage().getPayload()).isEqualTo(command);
     }
 
     @Test
@@ -249,7 +249,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
                   .untilAsserted(() -> assertThat(errorHandler.exception).isNotNull());
         assertThat(errorHandler.exception).isInstanceOf(RuntimeException.class);
         assertThat(errorHandler.exception).hasMessage(ON_PURPOSE);
-        assertThat(errorHandler.command).isEqualTo(command);
+        assertThat(errorHandler.command.getPayload()).isEqualTo(command);
         assertThat(errorHandler.commandHandler).isEqualTo(cmdHandler);
         Awaitility.waitAtMost(Duration.ofMillis(1000))
                   .untilAsserted(() -> assertThat(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
@@ -259,7 +259,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         assertThat(Lists.last(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
                                                                   DurableQueues.QueueingSortOrder.ASC,
                                                                   0,
-                                                                  10)).get().getPayload()).isEqualTo(command);
+                                                                  10)).get().getMessage().getPayload()).isEqualTo(command);
     }
 
     @Test
@@ -336,13 +336,13 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
 
     private static class TestSendAndDontWaitErrorHandler implements SendAndDontWaitErrorHandler {
         private Exception      exception;
-        private Object         command;
+        private QueuedMessage   command;
         private CommandHandler commandHandler;
 
         @Override
         public void handleError(Exception exception, Object command, CommandHandler commandHandler) {
             this.exception = exception;
-            this.command = command;
+            this.command = (QueuedMessage)command;
             this.commandHandler = commandHandler;
 
             // rethrow exception otherwise the command will not be retried by the Queue

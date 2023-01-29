@@ -33,7 +33,7 @@ import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.functional.TripleFunction;
 import dk.cloudcreate.essentials.shared.reflection.Classes;
 import org.slf4j.*;
-import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.*;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.UncategorizedMongoDbException;
 import org.springframework.data.mongodb.core.*;
@@ -321,7 +321,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> queueMessage(operation.queueName,
-                                                                  operation.getPayload(),
+                                                                  operation.getMessage(),
                                                                   false,
                                                                   operation.getCauseOfEnqueuing(),
                                                                   operation.getDeliveryDelay()))
@@ -335,16 +335,16 @@ public class MongoDurableQueues implements DurableQueues {
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> queueMessage(operation.queueName,
-                                                                  operation.getPayload(),
+                                                                  operation.getMessage(),
                                                                   true,
                                                                   Optional.of(operation.getCauseOfError()),
                                                                   Optional.empty()))
                 .proceed();
     }
 
-    protected QueueEntryId queueMessage(QueueName queueName, Object payload, boolean isDeadLetterMessage, Optional<Exception> causeOfEnqueuing, Optional<Duration> deliveryDelay) {
+    protected QueueEntryId queueMessage(QueueName queueName, Message message, boolean isDeadLetterMessage, Optional<Exception> causeOfEnqueuing, Optional<Duration> deliveryDelay) {
         requireNonNull(queueName, "You must provide a queueName");
-        requireNonNull(payload, "You must provide a payload");
+        requireNonNull(message, "You must provide a message");
         requireNonNull(causeOfEnqueuing, "You must provide a causeOfEnqueuing option");
         requireNonNull(deliveryDelay, "You must provide a deliveryDelay option");
 
@@ -363,32 +363,33 @@ public class MongoDurableQueues implements DurableQueues {
 
         byte[] jsonPayload;
         try {
-            jsonPayload = messagePayloadObjectMapper.writeValueAsBytes(payload);
+            jsonPayload = messagePayloadObjectMapper.writeValueAsBytes(message.getPayload());
         } catch (JsonProcessingException e) {
-            throw new DurableQueueException(e, queueName);
+            throw new DurableQueueException(msg("Failed to serialize message payload of type", message.getPayload().getClass().getName()), e, queueName);
         }
 
-        var message = new DurableQueuedMessage(queueEntryId,
-                                               queueName,
-                                               false,
-                                               jsonPayload,
-                                               payload.getClass().getName(),
-                                               addedTimestamp,
-                                               nextDeliveryTimestamp,
-                                               null,
-                                               0,
-                                               0,
-                                               causeOfEnqueuing.map(Exceptions::getStackTrace).orElse(null),
-                                               isDeadLetterMessage);
+        var durableQueuedMessage = new DurableQueuedMessage(queueEntryId,
+                                                            queueName,
+                                                            false,
+                                                            jsonPayload,
+                                                            message.getPayload().getClass().getName(),
+                                                            addedTimestamp,
+                                                            nextDeliveryTimestamp,
+                                                            null,
+                                                            0,
+                                                            0,
+                                                            causeOfEnqueuing.map(Exceptions::getStackTrace).orElse(null),
+                                                            isDeadLetterMessage,
+                                                            message.getMetaData());
 
-        mongoTemplate.save(message, sharedQueueCollectionName);
+        mongoTemplate.save(durableQueuedMessage, sharedQueueCollectionName);
         log.debug("[{}] Queued {}Message with entry-id {} and nextDeliveryTimestamp {}. TransactionalMode: {}",
                   queueName,
                   isDeadLetterMessage ? "Dead Letter " : "",
-                  message.getId(),
+                  durableQueuedMessage.getId(),
                   nextDeliveryTimestamp,
                   transactionalMode);
-        return message.getId();
+        return durableQueuedMessage.getId();
     }
 
     @Override
@@ -443,30 +444,31 @@ public class MongoDurableQueues implements DurableQueues {
                                                () -> {
                                                    var queueName             = operation.getQueueName();
                                                    var deliveryDelay         = operation.getDeliveryDelay();
-                                                   var payloads              = operation.getPayloads();
+                                                   var payloads              = operation.getMessages();
                                                    var addedTimestamp        = Instant.now();
                                                    var nextDeliveryTimestamp = addedTimestamp.plus(deliveryDelay.orElse(Duration.ZERO));
 
 
-                                                   var messages = payloads.stream().map(payload -> {
+                                                   var messages = payloads.stream().map(message -> {
                                                        byte[] jsonPayload;
                                                        try {
-                                                           jsonPayload = messagePayloadObjectMapper.writeValueAsBytes(payload);
+                                                           jsonPayload = messagePayloadObjectMapper.writeValueAsBytes(message.getPayload());
                                                        } catch (JsonProcessingException e) {
-                                                           throw new DurableQueueException(e, queueName);
+                                                           throw new DurableQueueException(msg("Failed to serialize message payload of type", message.getPayload().getClass().getName()), e, queueName);
                                                        }
                                                        return new DurableQueuedMessage(QueueEntryId.random(),
                                                                                        queueName,
                                                                                        false,
                                                                                        jsonPayload,
-                                                                                       payload.getClass().getName(),
+                                                                                       message.getPayload().getClass().getName(),
                                                                                        addedTimestamp,
                                                                                        nextDeliveryTimestamp,
                                                                                        null,
                                                                                        0,
                                                                                        0,
                                                                                        null,
-                                                                                       false);
+                                                                                       false,
+                                                                                       message.getMetaData());
 
 
                                                    }).collect(Collectors.toList());
@@ -920,10 +922,13 @@ public class MongoDurableQueues implements DurableQueues {
         private int     totalDeliveryAttempts;
         private int     redeliveryAttempts;
 
-        private String  lastDeliveryError;
-        private boolean isDeadLetterMessage;
+        private String          lastDeliveryError;
+        private boolean         isDeadLetterMessage;
+        private MessageMetaData metaData;
 
-        private TripleFunction<QueueName, byte[], String, Object> deserializeMessagePayloadFunction;
+        private           TripleFunction<QueueName, byte[], String, Object> deserializeMessagePayloadFunction;
+        @Transient
+        private transient Message                                           message;
 
         public DurableQueuedMessage() {
         }
@@ -939,7 +944,8 @@ public class MongoDurableQueues implements DurableQueues {
                                     int totalDeliveryAttempts,
                                     int redeliveryAttempts,
                                     String lastDeliveryError,
-                                    boolean isDeadLetterMessage) {
+                                    boolean isDeadLetterMessage,
+                                    MessageMetaData metaData) {
             this.id = id;
             this.queueName = queueName;
             this.isBeingDelivered = isBeingDelivered;
@@ -952,6 +958,7 @@ public class MongoDurableQueues implements DurableQueues {
             this.redeliveryAttempts = redeliveryAttempts;
             this.lastDeliveryError = lastDeliveryError;
             this.isDeadLetterMessage = isDeadLetterMessage;
+            this.metaData = metaData;
         }
 
         @Override
@@ -1010,11 +1017,24 @@ public class MongoDurableQueues implements DurableQueues {
             return deliveryTimestamp;
         }
 
-        public Object getPayload() {
+        @Override
+        public Message getMessage() {
             requireNonNull(deserializeMessagePayloadFunction, "Internal Error: deserializeMessagePayloadFunction is null");
-            return deserializeMessagePayloadFunction.apply(queueName,
-                                                           messagePayload,
-                                                           messagePayloadType);
+            if (message == null) {
+                message = new Message(deserializeMessagePayloadFunction.apply(queueName,
+                                                                              messagePayload,
+                                                                              messagePayloadType),
+                                      getMetaData());
+            }
+            return message;
+        }
+
+        @Override
+        public MessageMetaData getMetaData() {
+            if (metaData == null) {
+                metaData = new MessageMetaData();
+            }
+            return metaData;
         }
 
         @Override
@@ -1044,6 +1064,7 @@ public class MongoDurableQueues implements DurableQueues {
                     ", redeliveryAttempts=" + redeliveryAttempts +
                     ", lastDeliveryError='" + lastDeliveryError + '\'' +
                     ", isDeadLetterMessage=" + isDeadLetterMessage +
+                    ", metaData=" + metaData +
                     '}';
         }
 

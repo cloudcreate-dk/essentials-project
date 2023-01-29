@@ -28,9 +28,9 @@ public class DefaultQueuedMessage implements QueuedMessage {
     public final QueueEntryId   id;
     public final QueueName      queueName;
     /**
-     * The deserialized payload
+     * The deserialized message payload
      */
-    public final Object         payload;
+    public final Message        message;
     public final OffsetDateTime addedTimestamp;
     public final OffsetDateTime nextDeliveryTimestamp;
     public final String         lastDeliveryError;
@@ -40,7 +40,7 @@ public class DefaultQueuedMessage implements QueuedMessage {
 
     public DefaultQueuedMessage(QueueEntryId id,
                                 QueueName queueName,
-                                Object payload,
+                                Message message,
                                 OffsetDateTime addedTimestamp,
                                 OffsetDateTime nextDeliveryTimestamp,
                                 String lastDeliveryError,
@@ -49,7 +49,7 @@ public class DefaultQueuedMessage implements QueuedMessage {
                                 boolean isDeadLetterMessage) {
         this.id = requireNonNull(id, "No queue entry id provided");
         this.queueName = requireNonNull(queueName, "No queueName provided");
-        this.payload = requireNonNull(payload, "No payload provided");
+        this.message = requireNonNull(message, "No message provided");
         this.addedTimestamp = requireNonNull(addedTimestamp, "No addedTimestamp provided");
         this.nextDeliveryTimestamp = nextDeliveryTimestamp;
         this.lastDeliveryError = lastDeliveryError;
@@ -69,8 +69,8 @@ public class DefaultQueuedMessage implements QueuedMessage {
     }
 
     @Override
-    public Object getPayload() {
-        return payload;
+    public Message getMessage() {
+        return message;
     }
 
     @Override
@@ -121,7 +121,7 @@ public class DefaultQueuedMessage implements QueuedMessage {
         return "QueuedMessage{" +
                 "id=" + id +
                 ", queueName=" + queueName +
-                ", payload-type=" + payload.getClass().getName() +
+                ", message=" + message +
                 ", addedTimestamp=" + addedTimestamp +
                 ", nextDeliveryTimestamp=" + nextDeliveryTimestamp +
                 ", totalDeliveryAttempts=" + totalDeliveryAttempts +
