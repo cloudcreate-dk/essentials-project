@@ -26,12 +26,14 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.reactive.EventBus;
+import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.types.LongRange;
 import org.jdbi.v3.core.ConnectionException;
 import org.slf4j.*;
 import reactor.core.publisher.*;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.EOFException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -65,9 +67,9 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
      */
     private final ConcurrentMap<Class<?>, InMemoryProjector> inMemoryProjectorPerProjectionType;
     private final HashSet<InMemoryProjector>                 inMemoryProjectors;
-    private final List<EventStoreInterceptor>   eventStoreInterceptors;
-    private final EventStoreEventBus            eventStoreEventBus;
-    private final EventStreamGapHandler<CONFIG> eventStreamGapHandler;
+    private final List<EventStoreInterceptor>                eventStoreInterceptors;
+    private final EventStoreEventBus                         eventStoreEventBus;
+    private final EventStreamGapHandler<CONFIG>              eventStreamGapHandler;
 
     /**
      * Create a {@link PostgresqlEventStore} without EventStreamGapHandler (specifically with {@link NoEventStreamGapHandler}) as a backwards compatible configuration
@@ -647,10 +649,16 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
             EventStoreUnitOfWork unitOfWork;
             try {
                 unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
-            } catch (ConnectionException e) {
-                eventStoreStreamLog.debug(msg("[{}] Polling worker - Experienced a Postgresql Connection issue, will return an empty Flux",
-                                              eventStreamLogName), e);
-                return 0;
+            } catch (Exception e) {
+                var rootCause = Exceptions.getRootCause(e);
+                if (e.getMessage().contains("has been closed") || rootCause instanceof EOFException || rootCause instanceof ConnectionException) {
+                    eventStoreStreamLog.debug(msg("[{}] Polling worker - Experienced a Postgresql Connection issue, will return an empty Flux",
+                                                  eventStreamLogName), e);
+                    return 0;
+                } else {
+                    throw new EventStoreException(msg("[{}] Polling worker - Experienced an issue",
+                                                      eventStreamLogName), e);
+                }
             }
 
             try {
@@ -734,7 +742,8 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                                               transientGapsToIncludeInQuery);
                     return 0;
                 }
-            } catch (RuntimeException e) {
+            } catch (
+                    RuntimeException e) {
                 log.error(msg("[{}] Polling worker - Polling failed", eventStreamLogName), e);
                 if (unitOfWork != null) {
                     try {
