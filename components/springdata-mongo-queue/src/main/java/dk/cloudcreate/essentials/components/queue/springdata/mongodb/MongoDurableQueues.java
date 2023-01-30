@@ -38,6 +38,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.UncategorizedMongoDbException;
 import org.springframework.data.mongodb.core.*;
 import org.springframework.data.mongodb.core.index.Index;
+import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.query.*;
 
 import java.io.IOException;
@@ -241,17 +242,21 @@ public class MongoDurableQueues implements DurableQueues {
             }
         }
         // Ensure indexes
-        var indexes = List.of(new Index(sharedQueueCollectionName + "_next_msg", Sort.Direction.ASC)
+        var indexes = List.of(new Index()
+                                      .named("next_msg")
                                       .on("nextDeliveryTimestamp", Sort.Direction.ASC)
                                       .on("isDeadLetterMessage", Sort.Direction.ASC)
                                       .on("isBeingDelivered", Sort.Direction.ASC),
-                              new Index(this.sharedQueueCollectionName + "_stuck_msgs", Sort.Direction.ASC)
+                              new Index( )
+                                      .named("stuck_msgs")
                                       .on("deliveryTimestamp", Sort.Direction.ASC)
                                       .on("isBeingDelivered", Sort.Direction.ASC),
-                              new Index(this.sharedQueueCollectionName + "_find_msg", Sort.Direction.ASC)
+                              new Index()
+                                      .named("find_msg")
                                       .on("id", Sort.Direction.ASC)
                                       .on("isBeingDelivered", Sort.Direction.ASC),
-                              new Index(this.sharedQueueCollectionName + "_resurrect_msg", Sort.Direction.ASC)
+                              new Index()
+                                      .named("resurrect_msg")
                                       .on("id", Sort.Direction.ASC)
                                       .on("isDeadLetterMessage", Sort.Direction.ASC));
         indexes.forEach(index -> {
@@ -908,6 +913,7 @@ public class MongoDurableQueues implements DurableQueues {
         return objectMapper;
     }
 
+    @Document
     public static class DurableQueuedMessage implements QueuedMessage {
         @Id
         private QueueEntryId id;

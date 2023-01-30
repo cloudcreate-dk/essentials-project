@@ -19,6 +19,7 @@ package dk.cloudcreate.essentials.components.queue.springdata.mongodb;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.DurableQueuesIT;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
@@ -28,6 +29,11 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.*;
+
+import java.util.List;
+import java.util.stream.*;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
 @DataMongoTest(excludeAutoConfiguration = EmbeddedMongoAutoConfiguration.class)
@@ -65,5 +71,15 @@ class MongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, SpringMon
     @Override
     protected void resetQueueStorage(SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory) {
         mongoTemplate.dropCollection(MongoDurableQueues.DEFAULT_DURABLE_QUEUES_COLLECTION_NAME);
+    }
+
+    @Test
+    void verify_indexes() {
+        var indexes = mongoTemplate.getCollection(MongoDurableQueues.DEFAULT_DURABLE_QUEUES_COLLECTION_NAME).listIndexes();
+        var indexNames      = StreamSupport.stream(indexes.spliterator(), false).map(document -> (String) document.get("name")).collect(Collectors.toList());
+
+        var allIndexes = List.of("_id_", "next_msg", "stuck_msgs", "find_msg", "resurrect_msg");
+        assertThat(indexNames).containsAll(allIndexes);
+        assertThat(allIndexes).containsAll(indexNames);
     }
 }

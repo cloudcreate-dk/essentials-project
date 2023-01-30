@@ -69,10 +69,12 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
 
 
         // Ensure indexes
-        var indexes = List.of(new Index(fencedLocksCollectionName + "_find_lock", Sort.Direction.ASC)
+        var indexes = List.of(new Index( )
+                                      .named("find_lock")
                                       .on("name", Sort.Direction.ASC)
                                       .on("lastIssuedFencedToken", Sort.Direction.ASC),
-                              new Index(fencedLocksCollectionName + "_confirm_lock", Sort.Direction.ASC)
+                              new Index()
+                                      .named("confirm_lock")
                                       .on("name", Sort.Direction.ASC)
                                       .on("lastIssuedFencedToken", Sort.Direction.ASC)
                                       .on("lockedByLockManagerInstanceId", Sort.Direction.ASC));

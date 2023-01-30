@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.m
 
 import dk.cloudcreate.essentials.components.foundation.test.fencedlock.DBFencedLockManagerIT;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
@@ -29,7 +30,10 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.*;
 
 import java.time.Duration;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.*;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
 @DataMongoTest(excludeAutoConfiguration = EmbeddedMongoAutoConfiguration.class)
@@ -76,5 +80,15 @@ class MongoFencedLockManagerIT extends DBFencedLockManagerIT<MongoFencedLockMana
                                           Optional.empty(),
                                           Duration.ofSeconds(3),
                                           Duration.ofSeconds(1));
+    }
+
+    @Test
+    void verify_indexes() {
+        var indexes = mongoTemplate.getCollection(MongoFencedLockStorage.DEFAULT_FENCED_LOCKS_COLLECTION_NAME).listIndexes();
+        var indexNames      = StreamSupport.stream(indexes.spliterator(), false).map(document -> (String) document.get("name")).collect(Collectors.toList());
+
+        var allIndexes = List.of("_id_", "find_lock", "confirm_lock");
+        assertThat(indexNames).containsAll(allIndexes);
+        assertThat(allIndexes).containsAll(indexNames);
     }
 }
