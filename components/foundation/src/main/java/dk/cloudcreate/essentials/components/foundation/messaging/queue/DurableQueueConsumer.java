@@ -19,6 +19,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.slf4j.*;
 
@@ -142,7 +143,14 @@ public interface DurableQueueConsumer extends Lifecycle {
                         throw new DurableQueueException(msg("Previous UnitOfWork isn't completed/removed: {}", unitOfWorkFactory.getCurrentUnitOfWork().get()), queueName);
                     }
 
-                    unitOfWorkFactory.usingUnitOfWork(handleAwareUnitOfWork -> processNextMessageReadyForDelivery());
+                    try {
+                        unitOfWorkFactory.usingUnitOfWork(handleAwareUnitOfWork -> processNextMessageReadyForDelivery());
+                    } catch (Exception e) {
+                        var rootCause = Exceptions.getRootCause(e);
+                        if (e.getMessage().contains("has been closed") || rootCause.getClass().getSimpleName().equals("EOFException") || rootCause.getClass().getSimpleName().equals("ConnectionException")) {
+                            log.trace(msg("[{}] Experienced a Connection issue, will retry later", queueName), e);
+                        }
+                    }
                 } else {
                     processNextMessageReadyForDelivery();
                 }
