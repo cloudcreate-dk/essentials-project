@@ -195,7 +195,7 @@ public interface DurableQueueConsumer extends Lifecycle {
                                          try {
                                              return durableQueues.markAsDeadLetterMessage(queuedMessage.getId(), e);
                                          } catch (Exception ex) {
-                                             log.error(msg("[{}:{}] Failed to mark the Message as a Dead Letter. Details: Is Permanent Error: {}. Message: {}",
+                                             log.error(msg("[{}:{}] Failed to mark the Message as a Dead Letter Message. Details: Is Permanent Error: {}. Message: {}",
                                                            queueName,
                                                            queuedMessage.getId(),
                                                            isPermanentError,
