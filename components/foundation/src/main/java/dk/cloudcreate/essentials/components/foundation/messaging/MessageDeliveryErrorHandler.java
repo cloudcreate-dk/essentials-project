@@ -73,13 +73,22 @@ public interface MessageDeliveryErrorHandler {
      * a concrete error which is a subtype of an {@link Exception} found in the <code>exceptions</code> will also match)
      *
      * @param exceptions the list of exceptions where message redelivery will be stopped and the Message will be
-     *                   instantly marked as an Poison-Message/Dead-Letter-Message or
+     *                   instantly marked as a Poison-Message/Dead-Letter-Message
      * @return a {@link MessageDeliveryErrorHandler} that stops message redelivery in case
      * message handling experiences an exception for in the list of <code>exceptions</code>
      */
     static MessageDeliveryErrorHandler stopRedeliveryOn(List<Class<? extends Exception>> exceptions) {
         requireNonNull(exceptions, "No exceptions list provided");
         return new StopRedeliveryOn(exceptions);
+    }
+
+    /**
+     * Create a new builder for a flexible {@link MessageDeliveryErrorHandler} which supports
+     * both alwaysRetryOnExceptions and stopRedeliveryOnExceptions
+     * @return the builder instance
+     */
+    static MessageDeliveryErrorHandlerBuilder builder() {
+        return new MessageDeliveryErrorHandlerBuilder();
     }
 
     class StopRedeliveryOn implements MessageDeliveryErrorHandler {
