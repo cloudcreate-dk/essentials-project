@@ -79,6 +79,12 @@ public class ClassesTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void test_doesClassExistOnClasspath() {
+        assertThat(Classes.doesClassExistOnClasspath("java.lang.String")).isTrue();
+        assertThat(Classes.doesClassExistOnClasspath("dk.cloudcreate.non.existing.Type")).isFalse();
+    }
+
 
     private static class LeftAndRightSide extends Pair<Class<?>, Class<?>> {
         /**

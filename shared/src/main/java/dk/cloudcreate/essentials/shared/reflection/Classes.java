@@ -111,4 +111,33 @@ public final class Classes {
         }
         return superClasses;
     }
+
+    /**
+     * Check if a class with the specified Fully Qualified Class Name (FQCN) exists on the classpath
+     * @param fullyQualifiedClassName the fully qualified name of the class
+     * @return true if a class with the given Fully Qualified Class Name (FQCN) exists on the classpath, otherwise false
+     */
+    public static boolean doesClassExistOnClasspath(String fullyQualifiedClassName) {
+        try {
+            Classes.forName(fullyQualifiedClassName);
+            return true;
+        } catch (LoadingClassFailedException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if a class with the specified Fully Qualified Class Name (FQCN) exists on the classpath
+     * @param fullyQualifiedClassName the fully qualified name of the class
+     * @param classLoader the classloader used to check if the class exist
+     * @return true if a class with the given Fully Qualified Class Name (FQCN) exists on the classpath, otherwise false
+     */
+    public static boolean doesClassExistOnClasspath(String fullyQualifiedClassName, ClassLoader classLoader) {
+        try {
+            Classes.forName(fullyQualifiedClassName, classLoader);
+            return true;
+        } catch (LoadingClassFailedException e) {
+            return false;
+        }
+    }
 }
