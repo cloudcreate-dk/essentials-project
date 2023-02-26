@@ -121,6 +121,14 @@ public final class LongRange {
         return toInclusive == null;
     }
 
+    public long getFromInclusive() {
+        return fromInclusive;
+    }
+
+    public Long getToInclusive() {
+        return toInclusive;
+    }
+
     /**
      * Does the range cover a given value
      *
