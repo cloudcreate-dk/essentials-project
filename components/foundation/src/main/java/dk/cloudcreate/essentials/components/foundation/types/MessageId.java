@@ -18,8 +18,6 @@ package dk.cloudcreate.essentials.components.foundation.types;
 
 import dk.cloudcreate.essentials.types.*;
 
-import java.util.UUID;
-
 /**
  * A message id provides a unique identifier for a Message in a distributed system
  */
@@ -33,6 +31,6 @@ public class MessageId extends CharSequenceType<MessageId> implements Identifier
     }
 
     public static MessageId random() {
-        return new MessageId(UUID.randomUUID().toString());
+        return new MessageId(RandomIdGenerator.generate());
     }
 }

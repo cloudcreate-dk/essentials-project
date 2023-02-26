@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.types;
 
 import dk.cloudcreate.essentials.types.*;
 
-import java.util.*;
+import java.util.Optional;
 
 /**
  * A correlation id is used to link multiple Messages or Events together in a distributed system
@@ -49,6 +49,6 @@ public class CorrelationId extends CharSequenceType<CorrelationId> implements Id
     }
 
     public static CorrelationId random() {
-        return new CorrelationId(UUID.randomUUID().toString());
+        return new CorrelationId(RandomIdGenerator.generate());
     }
 }
