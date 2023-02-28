@@ -20,7 +20,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
+import java.util.stream.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -508,5 +508,23 @@ public class Reflector {
                                                           matchingFields.size(),
                                                           type.getName(),
                                                           annotation.getName()));
+    }
+
+    /**
+     * Return a {@link Stream} of static {@link Field}'s
+     * @return Return a {@link Stream} of static {@link Field}'s
+     */
+    public Stream<Field> staticFields() {
+        return fields.stream()
+                     .filter(_field ->  Modifier.isStatic(_field.getModifiers()));
+    }
+
+    /**
+     * Return a {@link Stream} of instance (non-static) {@link Field}'s
+     * @return Return a {@link Stream} of instance (non-static) {@link Field}'s
+     */
+    public Stream<Field> instanceFields() {
+        return fields.stream()
+                     .filter(_field -> !Modifier.isStatic(_field.getModifiers()));
     }
 }
