@@ -23,7 +23,24 @@ import java.util.List;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * Instance of a {@link MessageTemplate}
+ * Instance of a {@link MessageTemplate}<br>
+ * Example creating a {@link Message} from a {@link MessageTemplate4}:
+ * <pre>{@code
+ * MessageTemplate4<String, BigDecimal, BigDecimal, LocalDate> ACCOUNT_OVERDRAWN = ROOT.key4("ACCOUNT_OVERDRAWN",
+ *                                                                                           "Account {0} is overdrawn by ${1}. A fee of ${2} will be debited on the {3}");
+ *
+ * String accountId = "Account1";
+ * BigDecimal overdrawnAmount = new BigDecimal("125");
+ * BigDecimal feeAmount = new BigDecimal("10");
+ * LocalDate  feeDebitDate =  LocalDate.of(2023, 2, 25);
+ * Message msg = ACCOUNT_OVERDRAWN.create(accountId,
+ *                                        overdrawnAmount,
+ *                                        feeAmount,
+ *                                        feeDebitDate);
+ *
+ * }</pre>
+ * will create a {@link Message} with {@link Message#getMessage()}:
+ * <code>"Account Account1 is overdrawn by $125. A fee of $10 will be debited on the 2023-2-25"</code> (date formatting is dependent on the {@link java.util.Locale})
  */
 public class Message implements Serializable {
     private MessageTemplate template;
@@ -72,7 +89,24 @@ public class Message implements Serializable {
 
     /**
      * The {@link MessageTemplate#getDefaultMessage()} with the {@link #getParameters()}
-     * applied using {@link MessageFormat#format(String, Object...)}
+     * applied using {@link MessageFormat#format(String, Object...)}<br>
+     * Example creating a {@link Message} from a {@link MessageTemplate4}:
+     * <pre>{@code
+     * MessageTemplate4<String, BigDecimal, BigDecimal, LocalDate> ACCOUNT_OVERDRAWN = ROOT.key4("ACCOUNT_OVERDRAWN",
+     *                                                                                           "Account {0} is overdrawn by ${1}. A fee of ${2} will be debited on the {3}");
+     *
+     * String accountId = "Account1";
+     * BigDecimal overdrawnAmount = new BigDecimal("125");
+     * BigDecimal feeAmount = new BigDecimal("10");
+     * LocalDate  feeDebitDate =  LocalDate.of(2023, 2, 25);
+     * Message msg = ACCOUNT_OVERDRAWN.create(accountId,
+     *                                        overdrawnAmount,
+     *                                        feeAmount,
+     *                                        feeDebitDate);
+     *
+     * }</pre>
+     * will create a {@link Message} with {@link Message#getMessage()}:
+     * <code>"Account Account1 is overdrawn by $125. A fee of $10 will be debited on the 2023-2-25"</code> (date formatting is dependent on the {@link java.util.Locale})
      *
      * @return The {@link MessageTemplate#getDefaultMessage()} with the {@link #getParameters()}
      * applied using {@link MessageFormat#format(String, Object...)}

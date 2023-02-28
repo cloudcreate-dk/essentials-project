@@ -42,6 +42,4 @@ public interface MessageTemplate {
      * @return the default message for the given message key
      */
     String getDefaultMessage();
-
-
 }

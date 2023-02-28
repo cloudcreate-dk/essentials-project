@@ -38,26 +38,55 @@ class MessageTemplatesTest {
     }
 
     @Test
-    void test() {
-        var rootKey = MessageTemplates.key("ESSENTIALS");
-        MessageTemplate1<Long> NUMBER_TOO_HIGH = rootKey.key1("NUMBER_TOO_HIGH",
-                                                              "The provided number {0} is too high");
-        MessageTemplate2<String, BigDecimal> ACCOUNT_BALANCE = rootKey.key2("ACCOUNT_BALANCE",
-                                                                            "Account {0} has balance {1}");
-
+    void test_MessageTemplate() {
+        var rootKey = MessageTemplates.root("ESSENTIALS");
         assertThat(rootKey.getKey()).isEqualTo("ESSENTIALS");
         assertThat(rootKey.getDefaultMessage()).isNull();
 
+        // Create MessageTemplate
+        MessageTemplate1<Long> NUMBER_TOO_HIGH = rootKey.key1("NUMBER_TOO_HIGH",
+                                                              "The provided number {0} is too high");
         assertThat(NUMBER_TOO_HIGH.getKey()).isEqualTo("ESSENTIALS.NUMBER_TOO_HIGH");
         assertThat(NUMBER_TOO_HIGH.getDefaultMessage()).isEqualTo("The provided number {0} is too high");
 
+
+        // Create MessageTemplate
+        MessageTemplate2<String, BigDecimal> ACCOUNT_BALANCE = rootKey.key2("ACCOUNT_BALANCE",
+                                                                            "Account {0} has balance {1}");
         assertThat(ACCOUNT_BALANCE.getKey()).isEqualTo("ESSENTIALS.ACCOUNT_BALANCE");
         assertThat(ACCOUNT_BALANCE.getDefaultMessage()).isEqualTo("Account {0} has balance {1}");
 
+        // Create a Message from a MessageTemplate
         var message = ACCOUNT_BALANCE.create("12345", new BigDecimal("1000.5"));
         assertThat(message.getTemplate()).isEqualTo(ACCOUNT_BALANCE);
         assertThat(message.getKey()).isEqualTo("ESSENTIALS.ACCOUNT_BALANCE");
         assertThat(message.getParameters()).isEqualTo(List.of("12345", new BigDecimal("1000.5")));
         assertThat(message.getMessage()).isEqualTo("Account 12345 has balance 1,000.5");
     }
+
+    @Test
+    void test_MessageTemplates_skipTemplateWithNoDefaultMessage() {
+        var messageTemplates = MessageTemplates.getMessageTemplates(MyMessageTemplates.class,
+                                                                    true);
+        assertThat(messageTemplates).hasSize(3);
+        assertThat(messageTemplates.stream()
+                           .map(MessageTemplate::getKey)).containsAll(List.of("ESSENTIALS.VALIDATION.AMOUNT_TOO_HIGH",
+                                                                              "ESSENTIALS.VALIDATION.AMOUNT_TOO_LOW",
+                                                                              "ESSENTIALS.BUSINESS_RULES.ACCOUNT_NOT_ACTIVATED"));
+    }
+
+    @Test
+    void test_MessageTemplates_includeTemplateWithNoDefaultMessage() {
+        var messageTemplates = MessageTemplates.getMessageTemplates(MyMessageTemplates.class,
+                                                                    false);
+        assertThat(messageTemplates).hasSize(6);
+        assertThat(messageTemplates.stream()
+                                   .map(MessageTemplate::getKey)).containsAll(List.of("ESSENTIALS",
+                                                                                      "ESSENTIALS.VALIDATION",
+                                                                                      "ESSENTIALS.BUSINESS_RULES",
+                                                                                      "ESSENTIALS.VALIDATION.AMOUNT_TOO_HIGH",
+                                                                                      "ESSENTIALS.VALIDATION.AMOUNT_TOO_LOW",
+                                                                                      "ESSENTIALS.BUSINESS_RULES.ACCOUNT_NOT_ACTIVATED"));
+    }
+
 }

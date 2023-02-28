@@ -17,7 +17,23 @@
 package dk.cloudcreate.essentials.shared.messages;
 
 /**
- * Represents a {@link MessageTemplate} accepting 1 parameter
+ * Represents a {@link MessageTemplate} accepting 1 parameter<br>
+ * Example defining a {@link MessageTemplate1}'s:
+ * <pre>{@code
+ * // Has key: "ESSENTIALS"
+ * MessageTemplate0 ROOT = MessageTemplates.root("ESSENTIALS");
+ *
+ * // Has key: "ESSENTIALS.ACCOUNT_NOT_FOUND"
+ * MessageTemplate1<String> ACCOUNT_NOT_FOUND = ROOT.key1("ACCOUNT_NOT_FOUND",
+ *                                                        "Account {0} not found");
+ * }</pre>
+ * <p>
+ * Example creating a {@link Message} from a {@link MessageTemplate1}:
+ * <pre>{@code
+ * MessageTemplate1<String> ACCOUNT_NOT_FOUND = ROOT.key1("ACCOUNT_NOT_FOUND",
+ *                                                        "Account {0} not found");
+ * Message msg = ACCOUNT_NOT_FOUND.create(accountId);
+ * }</pre>
  */
 public class MessageTemplate1<PARAM_1> extends MessageTemplate0 {
 
@@ -25,6 +41,18 @@ public class MessageTemplate1<PARAM_1> extends MessageTemplate0 {
         super(messageKey, defaultMessage);
     }
 
+    /**
+     * Create a {@link Message}, with the provided parameter, based on this {@link MessageTemplate}<br>
+     * Example creating a {@link Message} from a {@link MessageTemplate1}:
+     * <pre>{@code
+     * MessageTemplate1<String> ACCOUNT_NOT_FOUND = ROOT.key1("ACCOUNT_NOT_FOUND",
+     *                                                        "Account {0} not found");
+     * Message msg = ACCOUNT_NOT_FOUND.create(accountId);
+     * }</pre>
+     *
+     * @param param1 the parameter with index 0 in the generated {@link Message#getMessage()}
+     * @return the new {@link Message} with the parameter applied
+     */
     public Message create(PARAM_1 param1) {
         return new Message(this, param1);
     }
