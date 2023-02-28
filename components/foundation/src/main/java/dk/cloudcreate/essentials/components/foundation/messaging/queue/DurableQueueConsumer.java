@@ -23,6 +23,7 @@ import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.slf4j.*;
 
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
@@ -149,6 +150,8 @@ public interface DurableQueueConsumer extends Lifecycle {
                         var rootCause = Exceptions.getRootCause(e);
                         if (e.getMessage().contains("has been closed") || rootCause.getClass().getSimpleName().equals("EOFException") || rootCause.getClass().getSimpleName().equals("ConnectionException")) {
                             log.trace(msg("[{}] Experienced a Connection issue, will retry later", queueName), e);
+                        } else {
+                            log.error(msg("[{}] Experienced an error", queueName), e);
                         }
                     }
                 } else {
@@ -189,7 +192,16 @@ public interface DurableQueueConsumer extends Lifecycle {
                                                    queuedMessage.getId(),
                                                    isPermanentError,
                                                    queuedMessage);
-                                         return durableQueues.markAsDeadLetterMessage(queuedMessage.getId(), e);
+                                         try {
+                                             return durableQueues.markAsDeadLetterMessage(queuedMessage.getId(), e);
+                                         } catch (Exception ex) {
+                                             log.error(msg("[{}:{}] Failed to mark the Message as a Dead Letter Message. Details: Is Permanent Error: {}. Message: {}",
+                                                           queueName,
+                                                           queuedMessage.getId(),
+                                                           isPermanentError,
+                                                           queuedMessage), ex);
+                                             return Optional.empty();
+                                         }
                                      } else {
                                          // Redeliver later
                                          var redeliveryDelay = consumeFromQueue.getRedeliveryPolicy().calculateNextRedeliveryDelay(queuedMessage.getRedeliveryAttempts());
@@ -199,10 +211,18 @@ public interface DurableQueueConsumer extends Lifecycle {
                                                        redeliveryDelay,
                                                        queuedMessage.getId(),
                                                        e.getMessage()));
-                                         return durableQueues.retryMessage(queuedMessage.getId(),
-                                                                           e,
-                                                                           redeliveryDelay);
+                                         try {
+                                             return durableQueues.retryMessage(queuedMessage.getId(),
+                                                                               e,
+                                                                               redeliveryDelay);
+                                         } catch (Exception ex) {
+                                             log.error(msg("[{}:{}] Failed to register the message for retry.",
+                                                           queueName,
+                                                           queuedMessage.getId()), ex);
+                                             return Optional.empty();
+                                         }
                                      }
+
                                  }
                              });
             } catch (Exception e) {

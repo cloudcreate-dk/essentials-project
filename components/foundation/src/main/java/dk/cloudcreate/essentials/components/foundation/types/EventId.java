@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.types;
 
 import dk.cloudcreate.essentials.types.*;
 
-import java.util.*;
+import java.util.Optional;
 
 /**
  * An Event id provides a unique identifier for an Event
@@ -49,6 +49,6 @@ public class EventId extends CharSequenceType<EventId> implements Identifier {
     }
 
     public static EventId random() {
-        return new EventId(UUID.randomUUID().toString());
+        return new EventId(RandomIdGenerator.generate());
     }
 }

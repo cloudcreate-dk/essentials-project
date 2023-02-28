@@ -27,9 +27,9 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  */
 public final class Classes {
     /**
-     * Load a class based on a fully qualified class name
+     * Load a class based on a fully qualified class name (FQCN)
      *
-     * @param fullyQualifiedClassName the Fully Qualified Class Name as a
+     * @param fullyQualifiedClassName the Fully Qualified Class Name (FQCN)  as a
      * @return The class loaded
      * @throws ReflectionException in case loading the class failed
      */
@@ -43,9 +43,9 @@ public final class Classes {
     }
 
     /**
-     * Load a class based on a fully qualified class name and using a specific {@link ClassLoader}
+     * Load a class based on a fully qualified class name (FQCN) and using a specific {@link ClassLoader}
      *
-     * @param fullyQualifiedClassName the Fully Qualified Class Name as a string
+     * @param fullyQualifiedClassName the Fully Qualified Class Name (FQCN) as a string
      * @param classLoader             the class loader to use
      * @return The class loaded
      * @throws ReflectionException in case loading the class failed
@@ -110,5 +110,34 @@ public final class Classes {
             }
         }
         return superClasses;
+    }
+
+    /**
+     * Check if a class with the specified Fully Qualified Class Name (FQCN) exists on the classpath
+     * @param fullyQualifiedClassName the fully qualified name of the class
+     * @return true if a class with the given Fully Qualified Class Name (FQCN) exists on the classpath, otherwise false
+     */
+    public static boolean doesClassExistOnClasspath(String fullyQualifiedClassName) {
+        try {
+            Classes.forName(fullyQualifiedClassName);
+            return true;
+        } catch (LoadingClassFailedException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if a class with the specified Fully Qualified Class Name (FQCN) exists on the classpath
+     * @param fullyQualifiedClassName the fully qualified name of the class
+     * @param classLoader the classloader used to check if the class exist
+     * @return true if a class with the given Fully Qualified Class Name (FQCN) exists on the classpath, otherwise false
+     */
+    public static boolean doesClassExistOnClasspath(String fullyQualifiedClassName, ClassLoader classLoader) {
+        try {
+            Classes.forName(fullyQualifiedClassName, classLoader);
+            return true;
+        } catch (LoadingClassFailedException e) {
+            return false;
+        }
     }
 }

@@ -48,6 +48,7 @@ import java.time.*;
 import java.util.*;
 
 import static dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.StatefulAggregateInstanceFactory.reflectionBasedAggregateRootFactory;
+import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("Modern OrderAggregateRootRepositoryTest")
@@ -87,9 +88,9 @@ class OrderAggregateRootRepositoryIT {
                                                 new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                                                      unitOfWorkFactory,
                                                                                                      eventMapper,
-                                                                                                     SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson(createObjectMapper(),
-                                                                                                                                                                                                                IdentifierColumnType.UUID,
-                                                                                                                                                                                                                JSONColumnType.JSONB)));
+                                                                                                     standardSingleTenantConfigurationUsingJackson(createObjectMapper(),
+                                                                                                                                                   IdentifierColumnType.UUID,
+                                                                                                                                                   JSONColumnType.JSONB)));
         recordingLocalEventBusConsumer = new RecordingLocalEventBusConsumer();
         eventStore.localEventBus().addSyncSubscriber(recordingLocalEventBusConsumer);
 
@@ -351,7 +352,7 @@ class OrderAggregateRootRepositoryIT {
 
         @Override
         public void handle(Object event) {
-            var persistedEvents = (PersistedEvents)event;
+            var persistedEvents = (PersistedEvents) event;
             if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
                 beforeCommitPersistedEvents.addAll(persistedEvents.events);
             } else if (persistedEvents.commitStage == CommitStage.AfterCommit) {

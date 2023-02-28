@@ -178,21 +178,29 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
         var confirmedTimestamp = OffsetDateTime.now(Clock.systemUTC());
         unitOfWorkFactory.usingUnitOfWork(uow -> {
             locksAcquiredByThisLockManager.forEach((lockName, fencedLock) -> {
-                log.trace("[{}] Attempting to confirm lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
-                boolean confirmedWithSuccess = false;
                 try {
-                    confirmedWithSuccess = lockStorage.confirmLockInDB(this, uow, fencedLock, confirmedTimestamp);
+                    log.trace("[{}] Attempting to confirm lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
+                    boolean confirmedWithSuccess = false;
+                    try {
+                        confirmedWithSuccess = lockStorage.confirmLockInDB(this, uow, fencedLock, confirmedTimestamp);
+                    } catch (Exception e) {
+                        log.error(msg("[{}] Technical failure while attempting to perform confirmLockInDB for '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock), e);
+                    }
+                    if (confirmedWithSuccess) {
+                        fencedLock.markAsConfirmed(confirmedTimestamp);
+                        log.debug("[{}] Confirmed lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
+                        notify(new LockAcquired(fencedLock, this));
+                    } else {
+                        // We failed to confirm this lock, someone must have taken over the lock in the meantime
+                        log.info("[{}] Failed to confirm lock '{}', someone has taken over the lock: {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
+                        try {
+                            fencedLock.release();
+                        } catch (Exception e) {
+                            log.error(msg("[{}] Failed to release lock '{}'", lockManagerInstanceId, fencedLock.getName()), e);
+                        }
+                    }
                 } catch (Exception e) {
-                    log.error(msg("[{}] Attempting to confirm lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock), e);
-                }
-                if (confirmedWithSuccess) {
-                    fencedLock.markAsConfirmed(confirmedTimestamp);
-                    log.debug("[{}] Confirmed lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
-                    notify(new LockAcquired(fencedLock, this));
-                } else {
-                    // We failed to confirm this lock, someone must have taken over the lock in the meantime
-                    log.info("[{}] Failed to confirm lock '{}', someone has taken over the lock: {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
-                    fencedLock.release();
+                    log.error(msg("[{}] Technical failure while trying to confirm lock '{}'", lockManagerInstanceId, fencedLock.getName()), e);
                 }
             });
         });
@@ -262,7 +270,15 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
                 lockConfirmationExecutor.shutdownNow();
                 lockConfirmationExecutor = null;
             }
-            locksAcquiredByThisLockManager.values().forEach(DBFencedLock::release);
+            locksAcquiredByThisLockManager.values().forEach(lock -> {
+                try {
+                    lock.release();
+                } catch (Exception e) {
+                    log.warn(msg("[{}] Failed to release FencedLock with name '{}'",
+                                 lockManagerInstanceId,
+                                 lock.getName()), e);
+                }
+            });
             started = false;
             stopping = false;
             log.debug("[{}] Stopped lock manager", lockManagerInstanceId);
@@ -468,32 +484,41 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
         asyncLockAcquirings.computeIfAbsent(lockName, _lockName -> {
             log.debug("[{}] Starting async Lock acquiring for lock '{}'", lockManagerInstanceId, lockName);
             return asyncLockAcquiringExecutor.scheduleAtFixedRate(() -> {
-                                                                      var existingLock = locksAcquiredByThisLockManager.get(lockName);
-                                                                      if (existingLock == null) {
-                                                                          if (paused) {
-                                                                              log.info("[{}] Lock Manager is paused, skipping async acquiring for lock '{}'", lockManagerInstanceId, lockName);
-                                                                              return;
-                                                                          }
-
-                                                                          var lock = tryAcquireLock(lockName);
-                                                                          if (lock.isPresent()) {
-                                                                              log.debug("[{}] Async Acquired lock '{}'", lockManagerInstanceId, lockName);
-                                                                              var fencedLock = (LOCK) lock.get();
-                                                                              fencedLock.registerCallback(lockCallback);
-                                                                              locksAcquiredByThisLockManager.put(lockName, fencedLock);
-                                                                              lockCallback.lockAcquired(lock.get());
-                                                                          } else {
-                                                                              if (log.isTraceEnabled()) {
-                                                                                  log.trace("[{}] Couldn't async Acquire lock '{}' as it is acquired by another Lock Manager instance: {}",
-                                                                                            lockManagerInstanceId, lockName, lookupLock(lockName));
+                                                                      try {
+                                                                          var existingLock = locksAcquiredByThisLockManager.get(lockName);
+                                                                          if (existingLock == null) {
+                                                                              if (paused) {
+                                                                                  log.info("[{}] Lock Manager is paused, skipping async acquiring for lock '{}'", lockManagerInstanceId, lockName);
+                                                                                  return;
                                                                               }
+
+                                                                              Optional<FencedLock> lock = null;
+                                                                              try {
+                                                                                  lock = tryAcquireLock(lockName);
+                                                                              } catch (Exception e) {
+                                                                                  log.error(msg("[{}] Technical error while performing tryAcquireLock for lock '{}'", lockManagerInstanceId, lockName), e);
+                                                                              }
+                                                                              if (lock.isPresent()) {
+                                                                                  log.debug("[{}] Async Acquired lock '{}'", lockManagerInstanceId, lockName);
+                                                                                  var fencedLock = (LOCK) lock.get();
+                                                                                  fencedLock.registerCallback(lockCallback);
+                                                                                  locksAcquiredByThisLockManager.put(lockName, fencedLock);
+                                                                                  lockCallback.lockAcquired(lock.get());
+                                                                              } else {
+                                                                                  if (log.isTraceEnabled()) {
+                                                                                      log.trace("[{}] Couldn't async Acquire lock '{}' as it is acquired by another Lock Manager instance: {}",
+                                                                                                lockManagerInstanceId, lockName, lookupLock(lockName));
+                                                                                  }
+                                                                              }
+                                                                          } else if (!existingLock.isLockedByThisLockManagerInstance()) {
+                                                                              log.debug("[{}] Noticed that lock '{}' isn't locked by this Lock Manager instance anymore. Releasing the lock",
+                                                                                        lockManagerInstanceId,
+                                                                                        lockName);
+                                                                              locksAcquiredByThisLockManager.remove(lockName);
+                                                                              lockCallback.lockReleased(existingLock);
                                                                           }
-                                                                      } else if (!existingLock.isLockedByThisLockManagerInstance()) {
-                                                                          log.debug("[{}] Noticed that lock '{}' isn't locked by this Lock Manager instance anymore. Releasing the lock",
-                                                                                    lockManagerInstanceId,
-                                                                                    lockName);
-                                                                          locksAcquiredByThisLockManager.remove(lockName);
-                                                                          lockCallback.lockReleased(existingLock);
+                                                                      } catch (Exception e) {
+                                                                          log.error(msg("[{}] Technical error while trying to acquire lock '{}'", lockManagerInstanceId, lockName), e);
                                                                       }
                                                                   },
                                                                   0,
