@@ -23,7 +23,9 @@ import java.util.List;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * Instance of a {@link MessageTemplate}<br>
+ * A {@link Message} is an instance of a {@link MessageTemplate} with parameters bound to it<br>
+ * A {@link Message} instance is e.g. useful for error/validation reporting.<br>
+ * <br>
  * Example creating a {@link Message} from a {@link MessageTemplate4}:
  * <pre>{@code
  * MessageTemplate4<String, BigDecimal, BigDecimal, LocalDate> ACCOUNT_OVERDRAWN = ROOT.key4("ACCOUNT_OVERDRAWN",
@@ -41,6 +43,9 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * }</pre>
  * will create a {@link Message} with {@link Message#getMessage()}:
  * <code>"Account Account1 is overdrawn by $125. A fee of $10 will be debited on the 2023-2-25"</code> (date formatting is dependent on the {@link java.util.Locale})
+ *
+ * @see MessageTemplate
+ * @see MessageTemplates
  */
 public class Message implements Serializable {
     private MessageTemplate template;

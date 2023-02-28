@@ -314,3 +314,102 @@ public class OrderEventHandler {
     }
 }
 ```
+
+### MessageTemplate, MessageTemplates and Message
+
+#### MessageTemplate
+
+The `MessageTemplate` concept supports structured messages with typed parameters.
+Each `MessageTemplate` instance has a unique `key` that clearly identifies the `MessageTemplate`.  
+`MessageTemplate` keys can be nested, to support message hierarchies:
+```
+// Has key: "ESSENTIALS"
+MessageTemplate0 ROOT = MessageTemplates.root("ESSENTIALS");
+
+// Has key: "ESSENTIALS.VALIDATION"
+MessageTemplate0 VALIDATION = ROOT.subKey("VALIDATION");
+
+// Has key: "ESSENTIALS.VALIDATION.AMOUNT_TOO_HIGH"
+MessageTemplate2<BigDecimal, BigDecimal> AMOUNT_TOO_HIGH = VALIDATION.key2("AMOUNT_TOO_HIGH",
+                                                                         "Amount {0} is higher than {1}");
+
+// Has key: "ESSENTIALS.VALIDATION.AMOUNT_TOO_LOW"
+MessageTemplate2<BigDecimal, BigDecimal> AMOUNT_TOO_LOW = VALIDATION.key2("AMOUNT_TOO_LOW",
+                                                                        "Amount {0} is lower than {1}");
+```
+
+There are multiple `MessageTemplate` subclasses that support a different number of parameters:
+- `MessageTemplate0` which supports 0 parameters (mostly used for root or nested keys)
+- `MessageTemplate1` which supports 1 parameter
+- `MessageTemplate2` which supports 2 parameters
+- `MessageTemplate3` which supports 3 parameters
+- `MessageTemplate4` which supports 4 parameters
+
+Example defining a `MessageTemplate4`'s:
+```java
+// Has key: "ESSENTIALS"
+MessageTemplate0 ROOT = MessageTemplates.root("ESSENTIALS");
+
+// Has key: "ESSENTIALS.ACCOUNT_OVERDRAWN"
+MessageTemplate4<String, BigDecimal, BigDecimal, LocalDate> ACCOUNT_OVERDRAWN = ROOT.key4("ACCOUNT_OVERDRAWN",
+                                                                                          "Account {0} is overdrawn by ${1}. A fee of ${2} will be debited on the {3}");
+```
+
+#### Message
+From a `MessageTemplate` we can create `Message` instances, which are useful for e.g. error/validation reporting.  
+A `Message` is an instance of a `MessageTemplate` with parameters bound to it.
+
+Example:
+```java
+// Has key: "ESSENTIALS"
+MessageTemplate0 ROOT = MessageTemplates.root("ESSENTIALS");
+
+// Has key: "ESSENTIALS.ACCOUNT_OVERDRAWN"
+MessageTemplate4<String, BigDecimal, BigDecimal, LocalDate> ACCOUNT_OVERDRAWN = ROOT.key4("ACCOUNT_OVERDRAWN",
+                                                                                          "Account {0} is overdrawn by ${1}. A fee of ${2} will be debited on the {3}");
+
+String accountId = "Account1";
+BigDecimal overdrawnAmount = new BigDecimal("125");
+BigDecimal feeAmount = new BigDecimal("10");
+LocalDate  feeDebitDate =  LocalDate.of(2023, 2, 25);
+Message msg = ACCOUNT_OVERDRAWN.create(accountId,
+                                       overdrawnAmount,
+                                       feeAmount,
+                                       feeDebitDate);
+
+}
+```
+
+This will create a `Message` with `Message#getMessage()`:
+`"Account Account1 is overdrawn by $125. A fee of $10 will be debited on the 2023-2-25"` (date formatting is dependent on the {@link java.util.Locale})
+
+#### MessageTemplates
+`MessageTemplates` is a marker interface for classes or interfaces to contain {@link MessageTemplate} fields, which can be queried using 
+`MessageTemplates.getMessageTemplates(Class, boolean)`
+
+Example:
+```java
+public interface MyMessageTemplates extends MessageTemplates {
+    // Has key: "ESSENTIALS"
+    MessageTemplate0 ROOT = MessageTemplates.root("ESSENTIALS");
+
+    // Has key: "ESSENTIALS.VALIDATION"
+    MessageTemplate0 VALIDATION = ROOT.subKey("VALIDATION");
+
+    // Has key: "ESSENTIALS.VALIDATION.AMOUNT_TOO_HIGH"
+    MessageTemplate2<BigDecimal, BigDecimal> AMOUNT_TOO_HIGH = VALIDATION.key2("AMOUNT_TOO_HIGH",
+                                                                             "Amount {0} is higher than {1}");
+
+    // Has key: "ESSENTIALS.VALIDATION.AMOUNT_TOO_LOW"
+    MessageTemplate2<BigDecimal, BigDecimal> AMOUNT_TOO_LOW = VALIDATION.key2("AMOUNT_TOO_LOW",
+                                                                            "Amount {0} is lower than {1}");
+
+    // Has key: "ESSENTIALS.BUSINESS_RULES"
+    MessageTemplate0 BUSINESS_RULES = ROOT.subKey("BUSINESS_RULES");
+
+    // Has key: "ESSENTIALS.BUSINESS_RULES.ACCOUNT_NOT_ACTIVATED"
+    MessageTemplate1<String> ACCOUNT_NOT_ACTIVATED = BUSINESS_RULES.key1("ACCOUNT_NOT_ACTIVATED",
+                                                                         "Account {0} is not activated");
+}
+``` 
+

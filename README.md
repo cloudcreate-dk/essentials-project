@@ -62,6 +62,7 @@ This library contains the smallest set of supporting building blocks needed for 
 - High level **Reflection** API
     - E.g. `Reflector.reflectOn(someType).invokeStatic("of");`
 - `PatternMatchingMethodInvoker` which supports creating your own reflective pattern matching method invokers.
+- `MessageTemplates`, `MessageTemplate` and `Message` for structured Messages that support typed parameters.
 
 ![Essentials modules](images/essentials-modules.png)
 

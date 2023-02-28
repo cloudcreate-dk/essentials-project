@@ -24,8 +24,9 @@ import java.util.stream.Collectors;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * Marker interface for classes or interfaces that contain {@link MessageTemplate} fields.<br>
- * Example:
+ * Marker interface for classes or interfaces that contain {@link MessageTemplate} fields, which can be queried using
+ * {@link MessageTemplates#getMessageTemplates(Class, boolean)}<br>
+ * Example of a concrete {@link MessageTemplates} subclass:
  * <pre>{@code
  * public interface MyMessageTemplates extends MessageTemplates {
  *     // Has key: "ESSENTIALS"
@@ -50,6 +51,8 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *                                                                          "Account {0} is not activated");
  * }
  * }</pre>
+ * @see MessageTemplate
+ * @see Message
  */
 public interface MessageTemplates {
     /**
