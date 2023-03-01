@@ -39,7 +39,7 @@ package dk.cloudcreate.essentials.shared.messages;
  *                                      maximumAmountAllowed);
  * }</pre>
  */
-public class MessageTemplate2<PARAM_1, PARAM_2> extends MessageTemplate0 {
+public class MessageTemplate2<PARAM_1, PARAM_2> extends AbstractMessageTemplate {
     public MessageTemplate2(String messageKey, String defaultMessage) {
         super(messageKey, defaultMessage);
     }

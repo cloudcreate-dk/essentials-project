@@ -41,18 +41,22 @@ import org.slf4j.*;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.*;
 
-import java.time.Instant;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 
 import static dk.cloudcreate.essentials.components.eventsourced.aggregates.modern.bitemporal.ProductPrice.PRESENT;
 import static dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.StatefulAggregateInstanceFactory.reflectionBasedAggregateRootFactory;
 import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson;
+import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static dk.cloudcreate.essentials.shared.collections.Lists.toIndexedStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
 public class BiTemporalProductPriceIT {
     private static final Logger log = LoggerFactory.getLogger(BiTemporalProductPriceIT.class);
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("UTC"));
 
     public static final AggregateType PRODUCT_PRICE = AggregateType.of("ProductPrice");
 
@@ -83,8 +87,6 @@ public class BiTemporalProductPriceIT {
                                                                                        standardSingleTenantConfigurationUsingJackson(createObjectMapper(),
                                                                                                                                      IdentifierColumnType.UUID,
                                                                                                                                      JSONColumnType.JSONB));
-        persistenceStrategy.addAggregateEventStreamConfiguration(PRODUCT_PRICE,
-                                                                 ProductId.class);
 
         eventStore = new PostgresqlEventStore<>(unitOfWorkFactory,
                                                 persistenceStrategy);
@@ -104,14 +106,21 @@ public class BiTemporalProductPriceIT {
 
     // ----------------------------- Test methods --------------------------------
 
+    /**
+     * Will produce a price timeline similar to: <code>[2023-02-28 ----- 100 DKK ----- ∞[</code><br>
+     * and will persist 1 event:
+     * <pre>{@code
+     * -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 0
+     *     InitialPriceSet{price=100 DKK, forProduct=fe1835c0-3332-4ed7-b8db-eff2f8565f54, priceId=bc529063-2cd4-4bcd-95d4-22d297f38f70, priceValidityPeriod=TimeWindow{fromInclusive=2023-02-28T20:24:55.498397Z, toExclusive=null}}
+     * -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * }</pre>
+     * @throws Exception
+     */
     @Test
     void test_setting_an_initial_price() throws Exception {
-        var forProduct = ProductId.random();
-        var validFrom  = Instant.now().minusSeconds(100);
+        var validFrom  = Instant.now().minus(1, ChronoUnit.DAYS);
         var price      = Money.of("100", CurrencyCode.DKK);
-        var productPrice = new ProductPrice(forProduct,
-                                            price,
-                                            validFrom);
 
         CheckedConsumer<ProductPrice> productPriceValidator = (ProductPrice productPriceToBeValidated) -> {
             assertThat(productPriceToBeValidated.getPriceAt(validFrom))
@@ -127,6 +136,13 @@ public class BiTemporalProductPriceIT {
                     .hasValue(price);
         };
 
+        // Create a price that was valid since yesterday
+        var forProduct = ProductId.random();
+        var productPrice = new ProductPrice(forProduct,
+                                            price,
+                                            validFrom);
+
+
         // Check the non persisted aggregate answers correctly
         productPriceValidator.accept(productPrice);
 
@@ -138,15 +154,32 @@ public class BiTemporalProductPriceIT {
         productPriceValidator.accept(loadedProductPrice);
     }
 
+    /**
+     * Will produce a price timeline similar to: <code>[2023-02-15 ----- 120 DKK ----- 2023-03-01[ → [2023-03-01 ----- 100 DKK ----- ∞[</code><br>
+     * and will persist 2 events:
+     * <pre>{@code
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 0
+     *     InitialPriceSet{price=100 DKK, forProduct=a6726e53-1383-4031-b7b7-59d61d451387, priceId=947dfa76-3d31-4f80-a6f9-3feaf5cb0a08, priceValidityPeriod=TimeWindow{fromInclusive=2023-03-01T20:24:56.875559Z, toExclusive=null}}
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 1
+     *     PriceAdjusted{price=120 DKK, forProduct=a6726e53-1383-4031-b7b7-59d61d451387, priceId=a827c4b5-94b5-44d9-98da-fd7266412887, priceValidityPeriod=TimeWindow{fromInclusive=2023-02-15T20:24:56.875559Z, toExclusive=2023-03-01T20:24:56.875559Z}}
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * }</pre>
+     * @throws Exception
+     */
     @Test
     void set_a_price_prior_to_the_initial_price() throws Exception {
         var forProduct   = ProductId.random();
+
+        // Setup initial price that is valid from now
         var validFrom    = Instant.now();
         var initialPrice = Money.of("100", CurrencyCode.DKK);
         var productPrice = new ProductPrice(forProduct,
                                             initialPrice,
                                             validFrom);
 
+        // Adjust the price for this product and set it with start date of 14 days ago
         var adjustedInitialPrice          = Money.of("120", CurrencyCode.DKK);
         var adjustedInitialPriceValidFrom = validFrom.minus(14, ChronoUnit.DAYS);
         productPrice.adjustPrice(adjustedInitialPrice,
@@ -188,15 +221,35 @@ public class BiTemporalProductPriceIT {
     }
 
 
+    /**
+     * Will produce a price timeline similar to: <code>[2023-02-15 ----- 100 DKK ----- 2023-03-15[ → [2023-03-15 ----- 120 DKK ----- ∞[</code><br>
+     * and will persist 3 events:
+     * <pre>{@code
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 0
+     *     InitialPriceSet{price=100 DKK, forProduct=9c034dd1-913b-4d81-9503-2e9afe7fee24, priceId=0524e3b9-5239-4768-8bbc-43c6d55f3958, priceValidityPeriod=TimeWindow{fromInclusive=2023-02-15T20:24:53.582570Z, toExclusive=null}}
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 1
+     *     PriceValidityAdjusted{forProduct=9c034dd1-913b-4d81-9503-2e9afe7fee24, priceId=0524e3b9-5239-4768-8bbc-43c6d55f3958, priceValidityPeriod=TimeWindow{fromInclusive=2023-02-15T20:24:53.582570Z, toExclusive=2023-03-15T20:24:53.654086Z}}
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 2
+     *     PriceAdjusted{price=120 DKK, forProduct=9c034dd1-913b-4d81-9503-2e9afe7fee24, priceId=46c70769-e411-4129-ac9f-2ba70fbc82b0, priceValidityPeriod=TimeWindow{fromInclusive=2023-03-15T20:24:53.654086Z, toExclusive=null}}
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * }</pre>
+     * @throws Exception
+     */
     @Test
     void set_a_future_product_price() throws Exception {
         var forProduct            = ProductId.random();
+
+        // Set the initial which is valid as of 14 days ago
         var initialPriceValidFrom = Instant.now().minus(14, ChronoUnit.DAYS);
         var initialPrice          = Money.of("100", CurrencyCode.DKK);
         var productPrice = new ProductPrice(forProduct,
                                             initialPrice,
                                             initialPriceValidFrom);
 
+        // Set a future price, that will be valid in 14 days
         var futurePrice          = Money.of("120", CurrencyCode.DKK);
         var futurePriceValidFrom = Instant.now().plus(14, ChronoUnit.DAYS);
         productPrice.adjustPrice(futurePrice,
@@ -241,20 +294,47 @@ public class BiTemporalProductPriceIT {
         productPriceValidator.accept(loadedProductPrice);
     }
 
+    /**
+     * Will produce a price timeline similar to: <code>[2023-02-15 ----- 100 DKK ----- 2023-03-01[ → [2023-03-01 ----- 110 DKK ----- 2023-03-15[ → [2023-03-15 ----- 120 DKK ----- ∞[</code><br>
+     * and will persist 5 events:
+     * <pre>{@code
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 0
+     *     InitialPriceSet{price=100 DKK, forProduct=1fa246b1-8c8f-43fa-a9fd-6b002ffcfd6c, priceId=e9f7eefd-fa5c-4c12-ae39-4b47f001309f, priceValidityPeriod=TimeWindow{fromInclusive=2023-02-15T20:24:58.305118Z, toExclusive=null}}
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 1
+     *     PriceValidityAdjusted{forProduct=1fa246b1-8c8f-43fa-a9fd-6b002ffcfd6c, priceId=e9f7eefd-fa5c-4c12-ae39-4b47f001309f, priceValidityPeriod=TimeWindow{fromInclusive=2023-02-15T20:24:58.305118Z, toExclusive=2023-03-15T20:24:58.307168Z}}
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 2
+     *     PriceAdjusted{price=120 DKK, forProduct=1fa246b1-8c8f-43fa-a9fd-6b002ffcfd6c, priceId=4a69d73f-3451-42cf-a30b-5cc94922e69f, priceValidityPeriod=TimeWindow{fromInclusive=2023-03-15T20:24:58.307168Z, toExclusive=null}}
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 3
+     *     PriceValidityAdjusted{forProduct=1fa246b1-8c8f-43fa-a9fd-6b002ffcfd6c, priceId=e9f7eefd-fa5c-4c12-ae39-4b47f001309f, priceValidityPeriod=TimeWindow{fromInclusive=2023-02-15T20:24:58.305118Z, toExclusive=2023-03-01T20:24:58.310391Z}}
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * Event: 4
+     *     PriceAdjusted{price=110 DKK, forProduct=1fa246b1-8c8f-43fa-a9fd-6b002ffcfd6c, priceId=3990eedd-d8ed-44eb-bd3b-d753538b4a2b, priceValidityPeriod=TimeWindow{fromInclusive=2023-03-01T20:24:58.310391Z, toExclusive=2023-03-15T20:24:58.307168Z}}
+     * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * }</pre>
+     * @throws Exception
+     */
     @Test
     void add_a_price_in_between_two_other_prices() throws Exception {
         var forProduct            = ProductId.random();
+
+        // Set the initial which is valid as of 14 days ago
         var initialPriceValidFrom = Instant.now().minus(14, ChronoUnit.DAYS);
         var initialPrice          = Money.of("100", CurrencyCode.DKK);
         var productPrice = new ProductPrice(forProduct,
                                             initialPrice,
                                             initialPriceValidFrom);
 
+        // Set a future price, that will be valid in 14 days
         var futurePrice          = Money.of("120", CurrencyCode.DKK);
         var futurePriceValidFrom = Instant.now().plus(14, ChronoUnit.DAYS);
         productPrice.adjustPrice(futurePrice,
                                  futurePriceValidFrom);
 
+        // Add a new price that is valid from now and the next 14 days
         var midPrice          = Money.of("110", CurrencyCode.DKK);
         var midPriceValidFrom = Instant.now();
         productPrice.adjustPrice(midPrice,
@@ -325,6 +405,23 @@ public class BiTemporalProductPriceIT {
                     log.debug("    {}", indexAndEvent._2.toString());
                     log.debug("--------------------------------------------------------------------------------------------------");
                 });
+
+        // Print out timeline
+        var businessTimeline = productPrice.getPriceOverTime()
+                .entrySet()
+                .stream()
+                .sorted(Comparator.comparing(o -> o.getKey().fromInclusive))
+                .map(entry -> {
+                    var priceValidityPeriod = entry.getKey();
+                    var price = entry.getValue().price();
+                    return msg("[{} ----- {} ----- {}[",
+                               DATE_FORMATTER.format(priceValidityPeriod.fromInclusive),
+                               price,
+                               priceValidityPeriod.toExclusive != null ? DATE_FORMATTER.format(priceValidityPeriod.toExclusive) : "∞");
+                })
+                .reduce((s1, s2) -> s1 + " → " + s2)
+                .get();
+        log.debug("Business timeline: {}", businessTimeline);
     }
 
     private void logEventsPersisted(ProductId productId) {

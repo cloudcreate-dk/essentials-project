@@ -176,7 +176,7 @@ public class ProductPrice extends AggregateRoot<ProductId, ProductPriceEvent, Pr
     public Optional<Money> getPriceAt(Instant timestamp) {
         var matchingTimeWindow = getPricePairAt(timestamp);
 
-        return matchingTimeWindow.map(timeWindow -> priceOverTime.get(timeWindow)._2);
+        return matchingTimeWindow.map(timeWindow -> priceOverTime.get(timeWindow).price());
     }
 
     /**
@@ -192,6 +192,14 @@ public class ProductPrice extends AggregateRoot<ProductId, ProductPriceEvent, Pr
                             .stream()
                             .filter(timeWindow -> timeWindow.covers(timestamp))
                             .findFirst();
+    }
+
+    /**
+     * Get all the prices for this product over time
+     * @return all the prices for this product over time
+     */
+    public Map<TimeWindow, Price> getPriceOverTime() {
+        return priceOverTime;
     }
 
     private Optional<PriceValidity> findTheValidityPeriodOfTheNextPriceAfter(Instant fromIncluding) {
@@ -220,7 +228,7 @@ public class ProductPrice extends AggregateRoot<ProductId, ProductPriceEvent, Pr
     /**
      * {@link PriceId}/{@link Money} pair for internal storage of prices and their validity
      */
-    private static class Price extends Pair<PriceId, Money> {
+    public static class Price extends Pair<PriceId, Money> {
 
         /**
          * Construct a new {@link Tuple} with 2 elements
@@ -248,7 +256,7 @@ public class ProductPrice extends AggregateRoot<ProductId, ProductPriceEvent, Pr
     /**
      * {@link PriceId}/{@link TimeWindow} pair for capturing when a given {@link PriceId} is valid
      */
-    private static class PriceValidity extends Pair<PriceId, TimeWindow> {
+    public static class PriceValidity extends Pair<PriceId, TimeWindow> {
 
         /**
          * Construct a new {@link Tuple} with 2 elements

@@ -35,7 +35,7 @@ package dk.cloudcreate.essentials.shared.messages;
  * Message msg = ACCOUNT_NOT_FOUND.create(accountId);
  * }</pre>
  */
-public class MessageTemplate1<PARAM_1> extends MessageTemplate0 {
+public class MessageTemplate1<PARAM_1> extends AbstractMessageTemplate {
 
     public MessageTemplate1(String messageKey, String defaultMessage) {
         super(messageKey, defaultMessage);
