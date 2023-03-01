@@ -16,8 +16,6 @@
 
 package dk.cloudcreate.essentials.shared.messages;
 
-import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
-
 /**
  * Represents a {@link MessageTemplate} accepting 0 parameters.<br>
  * Example defining a {@link MessageTemplate0}'s:
@@ -35,28 +33,14 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Message msg = VALIDATION.create();
  * }</pre>
  */
-public class MessageTemplate0 implements MessageTemplate {
-    private       String messageKey;
-    private final String defaultMessage;
+public class MessageTemplate0 extends AbstractMessageTemplate {
 
     public MessageTemplate0(String messageKey, String defaultMessage) {
-        this.messageKey = requireNonNull(messageKey, "No messageKey provided");
-        this.defaultMessage = requireNonNull(defaultMessage, "No defaultMessage provided");
+        super(messageKey, defaultMessage);
     }
 
     public MessageTemplate0(String messageKey) {
-        this.messageKey = requireNonNull(messageKey, "No messageKey provided");
-        this.defaultMessage = null;
-    }
-
-    @Override
-    public String getKey() {
-        return messageKey;
-    }
-
-    @Override
-    public String getDefaultMessage() {
-        return defaultMessage;
+        super(messageKey);
     }
 
     /**
@@ -88,8 +72,8 @@ public class MessageTemplate0 implements MessageTemplate {
      * @param messageKey the message key
      * @return a new {@link MessageTemplate} with {@link #getKey()}: this.getKey() + "." + messageKey
      */
-    MessageTemplate0 subKey(String messageKey) {
-        return new MessageTemplate0(this.messageKey + "." + messageKey);
+    public MessageTemplate0 subKey(String messageKey) {
+        return new MessageTemplate0(this.key + "." + messageKey);
     }
 
     /**
@@ -108,8 +92,8 @@ public class MessageTemplate0 implements MessageTemplate {
      * @return a new {@link MessageTemplate} with {@link #getKey()}: this.getKey() + "." + messageKey
      * and the provided defaultMessage
      */
-    MessageTemplate0 subKey(String messageKey, String defaultMessage) {
-        return new MessageTemplate0(this.messageKey + "." + messageKey,
+    public MessageTemplate0 subKey(String messageKey, String defaultMessage) {
+        return new MessageTemplate0(this.key + "." + messageKey,
                                     defaultMessage);
     }
 
@@ -129,9 +113,9 @@ public class MessageTemplate0 implements MessageTemplate {
      * @return a new {@link MessageTemplate} with {@link #getKey()}: this.getKey() + "." + messageKey
      * and the provided defaultMessage
      */
-    <PARAM_1> MessageTemplate1<PARAM_1> key1(String messageKey,
+    public <PARAM_1> MessageTemplate1<PARAM_1> key1(String messageKey,
                                              String defaultMessage) {
-        return new MessageTemplate1<>(this.messageKey + "." + messageKey, defaultMessage);
+        return new MessageTemplate1<>(this.key + "." + messageKey, defaultMessage);
     }
 
     /**
@@ -151,9 +135,9 @@ public class MessageTemplate0 implements MessageTemplate {
      * @return a new {@link MessageTemplate} with {@link #getKey()}: this.getKey() + "." + messageKey
      * and the provided defaultMessage
      */
-    <PARAM_1, PARAM_2> MessageTemplate2<PARAM_1, PARAM_2> key2(String messageKey,
+    public <PARAM_1, PARAM_2> MessageTemplate2<PARAM_1, PARAM_2> key2(String messageKey,
                                                                String defaultMessage) {
-        return new MessageTemplate2<>(this.messageKey + "." + messageKey, defaultMessage);
+        return new MessageTemplate2<>(this.key + "." + messageKey, defaultMessage);
     }
 
     /**
@@ -174,9 +158,9 @@ public class MessageTemplate0 implements MessageTemplate {
      * @return a new {@link MessageTemplate} with {@link #getKey()}: this.getKey() + "." + messageKey
      * and the provided defaultMessage
      */
-    <PARAM_1, PARAM_2, PARAM_3> MessageTemplate3<PARAM_1, PARAM_2, PARAM_3> key3(String messageKey,
+    public <PARAM_1, PARAM_2, PARAM_3> MessageTemplate3<PARAM_1, PARAM_2, PARAM_3> key3(String messageKey,
                                                                                  String defaultMessage) {
-        return new MessageTemplate3<>(this.messageKey + "." + messageKey, defaultMessage);
+        return new MessageTemplate3<>(this.key + "." + messageKey, defaultMessage);
     }
 
     /**
@@ -198,8 +182,8 @@ public class MessageTemplate0 implements MessageTemplate {
      * @return a new {@link MessageTemplate} with {@link #getKey()}: this.getKey() + "." + messageKey
      * and the provided defaultMessage
      */
-    <PARAM_1, PARAM_2, PARAM_3, PARAM_4> MessageTemplate4<PARAM_1, PARAM_2, PARAM_3, PARAM_4> key4(String messageKey,
+    public <PARAM_1, PARAM_2, PARAM_3, PARAM_4> MessageTemplate4<PARAM_1, PARAM_2, PARAM_3, PARAM_4> key4(String messageKey,
                                                                                                    String defaultMessage) {
-        return new MessageTemplate4<>(this.messageKey + "." + messageKey, defaultMessage);
+        return new MessageTemplate4<>(this.key + "." + messageKey, defaultMessage);
     }
 }

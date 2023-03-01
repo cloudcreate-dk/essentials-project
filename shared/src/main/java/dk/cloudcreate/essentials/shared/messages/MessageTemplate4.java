@@ -46,7 +46,7 @@ package dk.cloudcreate.essentials.shared.messages;
  * will create a {@link Message} with {@link Message#getMessage()}:
  * <code>"Account Account1 is overdrawn by $125. A fee of $10 will be debited on the 2023-2-25"</code> (date formatting is dependent on the {@link java.util.Locale})
  */
-public class MessageTemplate4<PARAM_1, PARAM_2, PARAM_3, PARAM_4> extends MessageTemplate0 {
+public class MessageTemplate4<PARAM_1, PARAM_2, PARAM_3, PARAM_4> extends AbstractMessageTemplate {
     public MessageTemplate4(String messageKey, String defaultMessage) {
         super(messageKey, defaultMessage);
     }
