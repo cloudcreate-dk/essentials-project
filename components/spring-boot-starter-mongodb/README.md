@@ -35,6 +35,8 @@ The `EssentialsComponentsConfiguration` auto-configures:
     essentials.durable-queues.transactional-mode=fullytransactional
     # Only relevant if transactional-mode=manualacknowledgement
     # essentials.durable-queues.message-handling-timeout=5s
+    essentials.durable-queues.polling-delay-interval-increment-factor=0.5
+    essentials.durable-queues.max-polling-interval=2s
     ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `MongoDurableQueues`
 - `LocalEventBus` with bus-name `default` and Bean name `eventBus`

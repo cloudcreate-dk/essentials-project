@@ -22,7 +22,9 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.e
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
+import dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener;
 import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -35,27 +37,60 @@ import java.time.Duration;
 @Configuration
 @ConfigurationProperties(prefix = "essentials")
 public class EssentialsComponentsProperties {
-    private final EventStore        eventStore        = new EventStore();
-    private final FencedLockManager fencedLockManager = new FencedLockManager();
-    private final DurableQueues     durableQueues     = new DurableQueues();
+    private final EventStoreProperties        eventStore        = new EventStoreProperties();
+    private final FencedLockManagerProperties fencedLockManager = new FencedLockManagerProperties();
+    private final DurableQueuesProperties     durableQueues     = new DurableQueuesProperties();
 
-    public EventStore getEventStore() {
+    private final MultiTableChangeListenerProperties multiTableChangeListener = new MultiTableChangeListenerProperties();
+
+    public EventStoreProperties getEventStore() {
         return eventStore;
     }
 
-    public FencedLockManager getFencedLockManager() {
+    public FencedLockManagerProperties getFencedLockManager() {
         return fencedLockManager;
     }
 
-    public DurableQueues getDurableQueues() {
+    public DurableQueuesProperties getDurableQueues() {
         return durableQueues;
     }
 
-    public static class DurableQueues {
-        private String sharedQueueTableName = PostgresqlDurableQueues.DEFAULT_DURABLE_QUEUES_TABLE_NAME;
+    public MultiTableChangeListenerProperties getMultiTableChangeListener() {
+        return multiTableChangeListener;
+    }
+
+    public static class MultiTableChangeListenerProperties {
+        private Duration pollingInterval = Duration.ofMillis(50);
 
         /**
-         * Get the name of the table that will contain all messages (across all {@link QueueName}'s)
+         * Get the interval with which the {@link MultiTableChangeListener} is polling Postgresql for notification
+         *
+         * @return the interval with which the {@link MultiTableChangeListener} is polling Postgresql for notification
+         */
+        public Duration getPollingInterval() {
+            return pollingInterval;
+        }
+
+        /**
+         * Set the interval with which the {@link MultiTableChangeListener} is polling Postgresql for notification
+         *
+         * @param pollingInterval the interval with which the {@link MultiTableChangeListener} is polling Postgresql for notification
+         */
+        public void setSharedQueueTableName(Duration pollingInterval) {
+            this.pollingInterval = pollingInterval;
+        }
+    }
+
+    public static class DurableQueuesProperties {
+        private String sharedQueueTableName = PostgresqlDurableQueues.DEFAULT_DURABLE_QUEUES_TABLE_NAME;
+
+        private Double pollingDelayIntervalIncrementFactor = 0.5d;
+
+        private Duration maxPollingInterval = Duration.ofMillis(2000);
+
+        /**
+         * Get the name of the table that will contain all messages (across all {@link QueueName}'s)<br>
+         * Default is {@value PostgresqlDurableQueues#DEFAULT_DURABLE_QUEUES_TABLE_NAME}
          *
          * @return the name of the table that will contain all messages (across all {@link QueueName}'s)
          */
@@ -64,16 +99,61 @@ public class EssentialsComponentsProperties {
         }
 
         /**
-         * Set the name of the table that will contain all messages (across all {@link QueueName}'s)
+         * Set the name of the table that will contain all messages (across all {@link QueueName}'s)<br>
+         * Default is {@value PostgresqlDurableQueues#DEFAULT_DURABLE_QUEUES_TABLE_NAME}
          *
          * @param sharedQueueTableName the name of the table that will contain all messages (across all {@link QueueName}'s)
          */
         public void setSharedQueueTableName(String sharedQueueTableName) {
             this.sharedQueueTableName = sharedQueueTableName;
         }
+
+        /**
+         * When the {@link PostgresqlDurableQueues} polling returns 0 messages, what should the increase in the {@link ConsumeFromQueue#getPollingInterval()}
+         * be?<br>
+         * Default is 0.5d<br>
+         * This is used to avoid polling a the {@link DurableQueues} for a queue that isn't experiencing a lot of messages
+         *
+         * @return the increase in the {@link ConsumeFromQueue#getPollingInterval()} when the {@link DurableQueues} polling returns 0 messages
+         */
+        public Double getPollingDelayIntervalIncrementFactor() {
+            return pollingDelayIntervalIncrementFactor;
+        }
+
+        /**
+         * When the {@link PostgresqlDurableQueues} polling returns 0 messages, what should the increase in the {@link ConsumeFromQueue#getPollingInterval()}
+         * be?<br>
+         * Default is 0.5d<br>
+         * This is used to avoid polling a the {@link DurableQueues} for a queue that isn't experiencing a lot of messages
+         *
+         * @param pollingDelayIntervalIncrementFactor the increase in the {@link ConsumeFromQueue#getPollingInterval()} when the {@link DurableQueues} polling returns 0 messages
+         */
+        public void setPollingDelayIntervalIncrementFactor(Double pollingDelayIntervalIncrementFactor) {
+            this.pollingDelayIntervalIncrementFactor = pollingDelayIntervalIncrementFactor;
+        }
+
+        /**
+         * What is the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})<br>
+         * Default is 2 seconds
+         *
+         * @return What is the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})
+         */
+        public Duration getMaxPollingInterval() {
+            return maxPollingInterval;
+        }
+
+        /**
+         * What is the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})<br>
+         * Default is 2 seconds
+         *
+         * @param maxPollingInterval the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})
+         */
+        public void setMaxPollingInterval(Duration maxPollingInterval) {
+            this.maxPollingInterval = maxPollingInterval;
+        }
     }
 
-    public static class FencedLockManager {
+    public static class FencedLockManagerProperties {
         private Duration lockTimeOut              = Duration.ofSeconds(15);
         private Duration lockConfirmationInterval = Duration.ofSeconds(4);
         private String   fencedLocksTableName     = PostgresqlFencedLockStorage.DEFAULT_FENCED_LOCKS_TABLE_NAME;
@@ -133,7 +213,7 @@ public class EssentialsComponentsProperties {
         }
     }
 
-    public static class EventStore {
+    public static class EventStoreProperties {
         private IdentifierColumnType identifierColumnType     = IdentifierColumnType.TEXT;
         private JSONColumnType       jsonColumnType           = JSONColumnType.JSONB;
         private boolean              useEventStreamGapHandler = true;

@@ -31,6 +31,8 @@ Per default only the `EssentialsComponentsConfiguration` is auto-configured:
   - Supports additional properties:
   - ```
     essentials.durable-queues.shared-queue-table-name=durable_queues
+    essentials.durable-queues.polling-delay-interval-increment-factor=0.5
+    essentials.durable-queues.max-polling-interval=2s
     ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `PostgresqlDurableQueues`
 - `LocalEventBus` with bus-name `default` and Bean name `eventBus`
