@@ -88,7 +88,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                                   MessageMetaData.of("correlation_id", CorrelationId.random(),
                                                      "trace_id", UUID.randomUUID().toString()));
 
-        var idMsg2   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
+        var idMsg2 = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
 
         var message3 = Message.of(new OrderEvent.OrderAccepted(OrderId.random()));
         var idMsg3   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message3));
@@ -131,6 +131,29 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(queuedMessages.get(2).getRedeliveryAttempts()).isEqualTo(0);
         assertThat(queuedMessages.get(2).getTotalDeliveryAttempts()).isEqualTo(0);
 
+        // Then verify queryForMessagesSoonReadyForDelivery
+        var nextMessages = durableQueues.queryForMessagesSoonReadyForDelivery(queueName,
+                                                                              Instant.now().minusSeconds(2),
+                                                                              10);
+        assertThat(nextMessages).hasSize(3);
+        assertThat((CharSequence) nextMessages.get(0).id).isEqualTo(queuedMessages.get(0).getId());
+        assertThat(nextMessages.get(0).addedTimestamp).isEqualTo(queuedMessages.get(0).getAddedTimestamp().toInstant());
+        assertThat(nextMessages.get(0).nextDeliveryTimestamp).isEqualTo(queuedMessages.get(0).getNextDeliveryTimestamp().toInstant());
+
+        assertThat((CharSequence) nextMessages.get(1).id).isEqualTo(queuedMessages.get(1).getId());
+        assertThat(nextMessages.get(1).addedTimestamp).isEqualTo(queuedMessages.get(1).getAddedTimestamp().toInstant());
+        assertThat(nextMessages.get(1).nextDeliveryTimestamp).isEqualTo(queuedMessages.get(1).getNextDeliveryTimestamp().toInstant());
+
+        assertThat((CharSequence) nextMessages.get(2).id).isEqualTo(queuedMessages.get(2).getId());
+        assertThat(nextMessages.get(2).addedTimestamp).isEqualTo(queuedMessages.get(2).getAddedTimestamp().toInstant());
+        assertThat(nextMessages.get(2).nextDeliveryTimestamp).isEqualTo(queuedMessages.get(2).getNextDeliveryTimestamp().toInstant());
+
+
+        nextMessages = durableQueues.queryForMessagesSoonReadyForDelivery(queueName,
+                                                                              Instant.now().minusSeconds(2),
+                                                                              2);
+        assertThat(nextMessages).hasSize(2);
+
         // And When
         var numberOfDeletedMessages = durableQueues.purgeQueue(queueName);
 
@@ -154,7 +177,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                                   MessageMetaData.of("correlation_id", CorrelationId.random(),
                                                      "trace_id", UUID.randomUUID().toString()));
 
-        var idMsg2   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
+        var idMsg2 = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
 
         var message3 = Message.of(new OrderEvent.OrderAccepted(OrderId.random()));
         var idMsg3   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message3));
@@ -250,9 +273,9 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         // Given
         var queueName = QueueName.of("TestQueue");
 
-        var message1   = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 123456),
-                                    MessageMetaData.of("correlation_id", CorrelationId.random(),
-                                                       "trace_id", UUID.randomUUID().toString()));
+        var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 123456),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
         var message1Id = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
