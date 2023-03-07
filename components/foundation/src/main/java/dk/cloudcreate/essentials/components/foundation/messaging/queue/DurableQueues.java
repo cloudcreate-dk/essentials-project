@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolic
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 
-import java.time.Duration;
+import java.time.*;
 import java.util.*;
 
 /**
@@ -51,7 +51,6 @@ import java.util.*;
  * <br>
  */
 public interface DurableQueues extends Lifecycle {
-
     /**
      * The sorting order for the {@link QueuedMessage#getId()}
      */
@@ -132,6 +131,31 @@ public interface DurableQueues extends Lifecycle {
      * an {@link Optional#empty()}
      */
     Optional<UnitOfWorkFactory<? extends UnitOfWork>> getUnitOfWorkFactory();
+
+    /**
+     * Start an asynchronous message consumer.<br>
+     * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance
+     *
+     * @param consumerName        the name of the consumer (for logging purposes)
+     * @param queueName           the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
+     * @param redeliveryPolicy    the redelivery policy in case the handling of a message fails
+     * @param parallelConsumers   the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
+     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s
+     * @return the queue consumer
+     */
+    default DurableQueueConsumer consumeFromQueue(String consumerName,
+                                                  QueueName queueName,
+                                                  RedeliveryPolicy redeliveryPolicy,
+                                                  int parallelConsumers,
+                                                  QueuedMessageHandler queueMessageHandler) {
+        return consumeFromQueue(ConsumeFromQueue.builder()
+                                                .setConsumerName(consumerName)
+                                                .setQueueName(queueName)
+                                                .setRedeliveryPolicy(redeliveryPolicy)
+                                                .setParallelConsumers(parallelConsumers)
+                                                .setQueueMessageHandler(queueMessageHandler)
+                                                .build());
+    }
 
     /**
      * Start an asynchronous message consumer.<br>
@@ -585,4 +609,36 @@ public interface DurableQueues extends Lifecycle {
      * @return the number of deleted messages
      */
     int purgeQueue(PurgeQueue operation);
+
+    /**
+     * Query for the next <code>maxNumberOfMessagesToReturn</code> queued messages
+     * that are soon ready to be delivered using {@link Instant#now()} as <code>withNextDeliveryTimestampAfter</code><br>
+     * This is a useful method for a custom queue consumer to know if it's necessary to
+     * call {@link #getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery)}
+     *
+     * @param queueName                   the name of the queue being queried
+     * @param maxNumberOfMessagesToReturn the maximum number of messages to return
+     * @return the messages soon ready to be delivered
+     */
+    default List<NextQueuedMessage> queryForMessagesSoonReadyForDelivery(QueueName queueName,
+                                                                         int maxNumberOfMessagesToReturn) {
+        return queryForMessagesSoonReadyForDelivery(queueName,
+                                                    Instant.now(),
+                                                    maxNumberOfMessagesToReturn);
+    }
+
+    /**
+     * Query for the next <code>maxNumberOfMessagesToReturn</code> queued messages
+     * that are soon ready to be delivered<br>
+     * This is a useful method for a custom queue consumer to know if it's necessary to
+     * call {@link #getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery)}
+     *
+     * @param queueName                      the name of the queue being queried
+     * @param withNextDeliveryTimestampAfter return {@link NextQueuedMessage} with a {@link NextQueuedMessage#nextDeliveryTimestamp} > than this timestamp
+     * @param maxNumberOfMessagesToReturn    the maximum number of messages to return
+     * @return the messages soon ready to be delivered
+     */
+    List<NextQueuedMessage> queryForMessagesSoonReadyForDelivery(QueueName queueName,
+                                                                 Instant withNextDeliveryTimestampAfter,
+                                                                 int maxNumberOfMessagesToReturn);
 }

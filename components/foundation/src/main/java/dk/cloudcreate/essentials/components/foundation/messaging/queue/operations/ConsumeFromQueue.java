@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -33,11 +34,23 @@ import static dk.cloudcreate.essentials.shared.FailFast.*;
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class ConsumeFromQueue {
+    /**
+     * The name of the consumer (for logging purposes)
+     */
+    public final  String                             consumerName;
+    /**
+     * The name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
+     */
     public final  QueueName                          queueName;
     private       RedeliveryPolicy                   redeliveryPolicy;
+    /**
+     * The message handler that will receive {@link QueuedMessage}'s
+     */
     public final  QueuedMessageHandler               queueMessageHandler;
     private final int                                parallelConsumers;
     private       Optional<ScheduledExecutorService> consumerExecutorService = Optional.empty();
+
+    private final Duration pollingInterval;
 
     /**
      * Create a new builder that produces a new {@link ConsumeFromQueue} instance
@@ -52,60 +65,95 @@ public class ConsumeFromQueue {
      * Start an asynchronous message consumer.<br>
      * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance
      *
+     * @param consumerName        the name of the consumer (for logging purposes)
      * @param queueName           the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
      * @param redeliveryPolicy    the redelivery policy in case the handling of a message fails
      * @param parallelConsumers   the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
      * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s
+     * @param pollingInterval     the interval with which the consumer poll the queue db for new messages to process
      */
-    public ConsumeFromQueue(QueueName queueName, RedeliveryPolicy redeliveryPolicy, int parallelConsumers, QueuedMessageHandler queueMessageHandler) {
+    public ConsumeFromQueue(String consumerName,
+                            QueueName queueName,
+                            RedeliveryPolicy redeliveryPolicy,
+                            int parallelConsumers,
+                            QueuedMessageHandler queueMessageHandler,
+                            Duration pollingInterval) {
+        this.consumerName = requireNonNull(consumerName, "No consumerName provided");
         this.queueName = requireNonNull(queueName, "No queueName provided");
         this.redeliveryPolicy = requireNonNull(redeliveryPolicy, "No redeliveryPolicy provided");
         this.parallelConsumers = parallelConsumers;
         this.queueMessageHandler = requireNonNull(queueMessageHandler, "No queueMessageHandler provided");
+        this.pollingInterval = requireNonNull(pollingInterval, "No pollingInterval provided");
     }
 
     /**
      * Start an asynchronous message consumer.<br>
      * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance
      *
+     * @param consumerName            the name of the consumer (for logging purposes)
      * @param queueName               the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
      * @param redeliveryPolicy        the redelivery policy in case the handling of a message fails
      * @param parallelConsumers       the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
      * @param consumerExecutorService the optional {@link ScheduledExecutorService} that's responsible for scheduling the <code>parallelConsumers</code>. Also see {@link ThreadFactoryBuilder}
      * @param queueMessageHandler     the message handler that will receive {@link QueuedMessage}'s
+     * @param pollingInterval         the interval with which the consumer poll the queue db for new messages to process
      */
-    public ConsumeFromQueue(QueueName queueName,
+    public ConsumeFromQueue(String consumerName,
+                            QueueName queueName,
                             RedeliveryPolicy redeliveryPolicy,
                             int parallelConsumers,
                             ScheduledExecutorService consumerExecutorService,
-                            QueuedMessageHandler queueMessageHandler) {
+                            QueuedMessageHandler queueMessageHandler,
+                            Duration pollingInterval) {
+        this.consumerName = requireNonNull(consumerName, "No consumerName provided");
         this.queueName = requireNonNull(queueName, "No queueName provided");
         this.redeliveryPolicy = requireNonNull(redeliveryPolicy, "No redeliveryPolicy provided");
         this.parallelConsumers = parallelConsumers;
         this.consumerExecutorService = Optional.of(consumerExecutorService);
         this.queueMessageHandler = requireNonNull(queueMessageHandler, "No queueMessageHandler provided");
+        this.pollingInterval = requireNonNull(pollingInterval, "No pollingInterval provided");
     }
 
     /**
      * Start an asynchronous message consumer.<br>
      * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance
      *
+     * @param consumerName            the name of the consumer (for logging purposes)
      * @param queueName               the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
      * @param redeliveryPolicy        the redelivery policy in case the handling of a message fails
      * @param parallelConsumers       the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
      * @param consumerExecutorService the optional {@link ScheduledExecutorService} that's responsible for scheduling the <code>parallelConsumers</code>. Also see {@link ThreadFactoryBuilder}
      * @param queueMessageHandler     the message handler that will receive {@link QueuedMessage}'s
+     * @param pollingInterval         the interval with which the consumer poll the queue db for new messages to process
      */
-    public ConsumeFromQueue(QueueName queueName,
+    public ConsumeFromQueue(String consumerName,
+                            QueueName queueName,
                             RedeliveryPolicy redeliveryPolicy,
                             int parallelConsumers,
                             Optional<ScheduledExecutorService> consumerExecutorService,
-                            QueuedMessageHandler queueMessageHandler) {
-        this.queueName = queueName;
-        this.redeliveryPolicy = redeliveryPolicy;
-        this.queueMessageHandler = queueMessageHandler;
+                            QueuedMessageHandler queueMessageHandler,
+                            Duration pollingInterval) {
+        this.consumerName = requireNonNull(consumerName, "No consumerName provided");
+        this.queueName = requireNonNull(queueName, "No queueName provided");
+        this.redeliveryPolicy = requireNonNull(redeliveryPolicy, "No redeliveryPolicy provided");
+        this.queueMessageHandler = requireNonNull(queueMessageHandler, "No queueMessageHandler provided");
         this.parallelConsumers = parallelConsumers;
         this.consumerExecutorService = requireNonNull(consumerExecutorService, "No consumerExecutorService Optional provided");
+        this.pollingInterval = requireNonNull(pollingInterval, "No pollingInterval provided");
+    }
+
+    /**
+     * @return the consumer name (for logging purposes)
+     */
+    public String getConsumerName() {
+        return consumerName;
+    }
+
+    /**
+     * @return the interval with which the consumer poll the queue db for new messages to process
+     */
+    public Duration getPollingInterval() {
+        return pollingInterval;
     }
 
     /**
@@ -153,7 +201,8 @@ public class ConsumeFromQueue {
     @Override
     public String toString() {
         return "ConsumeFromQueue{" +
-                "queueName=" + queueName +
+                "consumerName='" + consumerName + '\'' +
+                ", queueName=" + queueName +
                 ", redeliveryPolicy=" + redeliveryPolicy +
                 ", queueMessageHandler=" + queueMessageHandler +
                 ", parallelConsumers=" + parallelConsumers +
@@ -162,10 +211,14 @@ public class ConsumeFromQueue {
     }
 
     public void validate() {
+        requireNonNull(consumerName, "You must provide a consumerName");
         requireNonNull(queueName, "You must provide a queueName");
         requireNonNull(redeliveryPolicy, "You must provide a redeliveryPolicy");
         requireNonNull(queueMessageHandler, "You must provide a queueMessageHandler");
+        requireNonNull(pollingInterval, "You must provide a pollingInterval");
         requireTrue(parallelConsumers >= 1,
                     "parallelConsumers must be >= 1");
+        requireTrue(pollingInterval.toMillis() >= 10,
+                    "pollingInterval must be >= 10 ms");
     }
 }

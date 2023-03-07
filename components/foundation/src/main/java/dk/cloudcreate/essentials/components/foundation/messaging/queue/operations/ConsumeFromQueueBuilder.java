@@ -20,19 +20,21 @@ import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolic
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 
-import java.util.Optional;
+import java.time.Duration;
+import java.util.*;
 import java.util.concurrent.*;
 
 /**
  * Builder for {@link ConsumeFromQueue}
  */
 public class ConsumeFromQueueBuilder {
+    private String                             consumerName            = UUID.randomUUID().toString();
     private QueueName                          queueName;
     private RedeliveryPolicy                   redeliveryPolicy;
     private int                                parallelConsumers;
     private Optional<ScheduledExecutorService> consumerExecutorService = Optional.empty();
-
-    private QueuedMessageHandler queueMessageHandler;
+    private Duration                           pollingInterval         = Duration.ofMillis(100);
+    private QueuedMessageHandler               queueMessageHandler;
 
     /**
      * @param queueName the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
@@ -43,6 +45,23 @@ public class ConsumeFromQueueBuilder {
         return this;
     }
 
+    /**
+     * @param pollingInterval the interval with which the consumer poll the queue db for new messages to process
+     * @return this builder instance
+     */
+    public ConsumeFromQueueBuilder setPollingInterval(Duration pollingInterval) {
+        this.pollingInterval = pollingInterval;
+        return this;
+    }
+
+    /**
+     * @param consumerName the name of the consumer (for logging purposes)
+     * @return this builder instance
+     */
+    public ConsumeFromQueueBuilder setConsumerName(String consumerName) {
+        this.consumerName = consumerName;
+        return this;
+    }
 
     /**
      * @param redeliveryPolicy the redelivery policy in case the handling of a message fails
@@ -89,6 +108,12 @@ public class ConsumeFromQueueBuilder {
      * @return the {@link ConsumeFromQueue} instance
      */
     public ConsumeFromQueue build() {
-        return new ConsumeFromQueue(queueName, redeliveryPolicy, parallelConsumers, consumerExecutorService, queueMessageHandler);
+        return new ConsumeFromQueue(consumerName,
+                                    queueName,
+                                    redeliveryPolicy,
+                                    parallelConsumers,
+                                    consumerExecutorService,
+                                    queueMessageHandler,
+                                    pollingInterval);
     }
 }
