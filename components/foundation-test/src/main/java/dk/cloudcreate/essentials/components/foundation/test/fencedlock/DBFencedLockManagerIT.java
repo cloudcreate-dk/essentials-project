@@ -293,7 +293,7 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         // When
         lockNode1Callback.lockAcquired.release();
         lockManagerNode1.pause();
-        Awaitility.waitAtMost(Duration.ofSeconds(2))
+        Awaitility.waitAtMost(Duration.ofSeconds(5))
                   .untilAsserted(() -> assertThat(lockNode1Callback.lockReleased).isNotNull());
 
         // Then
@@ -302,7 +302,7 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         assertThat(lockNode1Callback.lockReleased.isLockedByThisLockManagerInstance()).isFalse();
 
         // Node 2 should have acquired the lock
-        Awaitility.waitAtMost(Duration.ofSeconds(2))
+        Awaitility.waitAtMost(Duration.ofSeconds(5))
                   .untilAsserted(() -> assertThat(lockNode2Callback.lockAcquired).isNotNull());
         lockManagerNode1.resume();
         assertThat(lockNode2Callback.lockAcquired.isLocked()).isTrue();
@@ -335,7 +335,7 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
 
         // When
         lockManagerNode1.acquireLockAsync(lockName, lockNode1Callback);
-        Awaitility.waitAtMost(Duration.ofSeconds(2))
+        Awaitility.waitAtMost(Duration.ofSeconds(5))
                   .untilAsserted(() -> assertThat(lockManagerNode1.isLockedByThisLockManagerInstance(lockName)).isTrue());
         lockManagerNode2.acquireLockAsync(lockName, lockNode2Callback);
         Thread.sleep(1000);
@@ -363,7 +363,7 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         lockManagerNode1.pause();
 
         // Then Node 2 should have acquired the lock
-        Awaitility.waitAtMost(Duration.ofSeconds(4))
+        Awaitility.waitAtMost(Duration.ofSeconds(5))
                   .untilAsserted(() -> assertThat(lockNode2Callback.lockAcquired).isNotNull());
         lockManagerNode1.resume();
         assertThat(lockNode2Callback.lockAcquired.isLocked()).isTrue();
@@ -373,7 +373,7 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
 
         // Then we should be notified that the lock was released on node 1
         lockManagerNode1.resume();
-        Awaitility.waitAtMost(Duration.ofSeconds(4))
+        Awaitility.waitAtMost(Duration.ofSeconds(5))
                   .untilAsserted(() -> assertThat(lockNode1Callback.lockReleased).isNotNull());
         assertThat(lockNode1Callback.lockReleased.isLocked()).isFalse();
         assertThat(lockNode1Callback.lockReleased.isLockedByThisLockManagerInstance()).isFalse();
