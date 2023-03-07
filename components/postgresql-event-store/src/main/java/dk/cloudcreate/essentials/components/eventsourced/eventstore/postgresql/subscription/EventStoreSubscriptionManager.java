@@ -430,6 +430,10 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             }
 
             private void onEvent(Object e) {
+                if (!(e instanceof PersistedEvents)) {
+                    return;
+                }
+
                 var persistedEvents = (PersistedEvents) e;
                 if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
                     persistedEvents.events.stream()
