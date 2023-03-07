@@ -48,6 +48,12 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 /**
  * Postgresql specific {@link EventStore} implementation
  *
+ * Relevant logger names:
+ * <ul>
+ *     <li>dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore</li>
+ *     <li>dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore.PollingEventStream</li>
+ * </ul>
+ *
  * @param <CONFIG> The concrete {@link AggregateEventStreamConfiguration
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -623,12 +629,14 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
             eventStoreStreamLog.debug("[{}] Polling worker - Started with initial demand for events {}",
                                       eventStreamLogName,
                                       demandForEvents);
-            var pollingSleep             = pollingInterval.orElse(Duration.ofMillis(DEFAULT_POLLING_INTERVAL_MILLISECONDS)).toMillis();
-            var remainingDemandForEvents = demandForEvents;
+            var pollingSleep                                 = pollingInterval.orElse(Duration.ofMillis(DEFAULT_POLLING_INTERVAL_MILLISECONDS)).toMillis();
+            var remainingDemandForEvents                     = demandForEvents;
             while (remainingDemandForEvents > 0 && !sink.isCancelled()) {
-                remainingDemandForEvents -= pollForEvents(remainingDemandForEvents);
-                eventStoreStreamLog.trace("[{}] Polling worker - Outstanding demand for events {}",
+                var numberOfEventsPublished = pollForEvents(remainingDemandForEvents);
+                remainingDemandForEvents -= numberOfEventsPublished;
+                eventStoreStreamLog.trace("[{}] Polling worker published {} event(s) - Outstanding demand for events {}",
                                           eventStreamLogName,
+                                          numberOfEventsPublished,
                                           remainingDemandForEvents);
                 try {
                     Thread.sleep(pollingSleep);
@@ -642,6 +650,12 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                                       sink.isCancelled());
         }
 
+        /**
+         * Poll the event store for events
+         *
+         * @param remainingDemandForEvents the remaining demand from the subscriber/consumer
+         * @return the number of events published to the subscriber/consumer
+         */
         private long pollForEvents(long remainingDemandForEvents) {
             eventStoreStreamLog.trace("[{}] Polling worker - Polling for {} events",
                                       eventStreamLogName,
