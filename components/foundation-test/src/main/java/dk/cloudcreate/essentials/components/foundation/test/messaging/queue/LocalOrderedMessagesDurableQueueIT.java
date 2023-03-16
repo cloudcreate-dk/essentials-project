@@ -31,11 +31,12 @@ import org.junit.jupiter.api.*;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.*;
 
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>> {
+public abstract class LocalOrderedMessagesDurableQueueIT<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>> {
     public static final int            NUMBER_OF_MESSAGES = 2000;
     public static final int            PARALLEL_CONSUMERS = 20;
     private             UOW_FACTORY    unitOfWorkFactory;
@@ -75,31 +76,52 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
     }
 
     @Test
-    void verify_queued_messages_are_dequeued_in_order() throws InterruptedException {
+    void verify_queued_ordered_messages_are_dequeued_in_order_per_key() throws InterruptedException {
         // Given
         var random    = new Random();
         var queueName = QueueName.of("TestQueue");
         durableQueues.purgeQueue(queueName);
 
         var numberOfMessages = NUMBER_OF_MESSAGES;
-        var messages         = new ArrayList<Message>(numberOfMessages);
+        var messages         = new ArrayList<OrderedMessage>(numberOfMessages);
 
+        var messageKeys = IntStream.range(0, 45)
+                                   .mapToObj(AccountId::of)
+                                   .collect(Collectors.toList());
+
+        int messageKeyIndex = 0;
+        // MessageOrder is zero based - so the last messageOrder + 1 == size
+        var messageKeyIndexNextMessageOrder = new HashMap<Integer, Integer>();
         for (var i = 0; i < numberOfMessages; i++) {
-            Message message;
+            var            messageOrder = messageKeyIndexNextMessageOrder.computeIfAbsent(messageKeyIndex, _ignore -> 0);
+            OrderedMessage message;
             if (i % 2 == 0) {
-                message = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), random.nextInt()),
-                                     MessageMetaData.of("correlation_id", CorrelationId.random(),
-                                                        "trace_id", UUID.randomUUID().toString()));
+                message = OrderedMessage.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), random.nextInt()),
+                                            messageKeys.get(messageKeyIndex).toString(),
+                                            messageOrder,
+                                            MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                               "trace_id", UUID.randomUUID().toString()));
             } else if (i % 3 == 0) {
-                message = Message.of(new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), random.nextInt()),
-                                     MessageMetaData.of("correlation_id", CorrelationId.random(),
-                                                        "trace_id", UUID.randomUUID().toString()));
+                message = OrderedMessage.of(new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), random.nextInt()),
+                                            messageKeys.get(messageKeyIndex).toString(),
+                                            messageOrder,
+                                            MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                               "trace_id", UUID.randomUUID().toString()));
             } else {
-                message = Message.of(new OrderEvent.OrderAccepted(OrderId.random()),
-                                     MessageMetaData.of("correlation_id", CorrelationId.random(),
-                                                        "trace_id", UUID.randomUUID().toString()));
+                message = OrderedMessage.of(new OrderEvent.OrderAccepted(OrderId.random()),
+                                            messageKeys.get(messageKeyIndex).toString(),
+                                            messageOrder,
+                                            MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                               "trace_id", UUID.randomUUID().toString()));
             }
             messages.add(message);
+
+            messageKeyIndexNextMessageOrder.put(messageKeyIndex, messageOrder + 1);
+            if (messageKeyIndex == messageKeys.size() - 1) {
+                messageKeyIndex = 0;
+            } else {
+                messageKeyIndex++;
+            }
         }
 
         var timings = new ArrayList<Timing>();
@@ -119,7 +141,7 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
                                                                       .setParallelConsumers(PARALLEL_CONSUMERS)    // Required for polling DurableQueues implementations
                                                                       .setConsumerExecutorService(Executors.newScheduledThreadPool(PARALLEL_CONSUMERS, ThreadFactoryBuilder.builder()
                                                                                                                                                                            .daemon(true)
-                                                                                                                                                                           .nameFormat(queueName + "-Consume-Messages-%d")
+                                                                                                                                                                           .nameFormat("Message-Consumption-Thread-%d")
                                                                                                                                                                            .build()))
                                                                       .build()
                                                      );
@@ -138,6 +160,29 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
         softAssertions.assertThat(messages).containsAll(receivedMessages);
         softAssertions.assertAll();
 
+        // Verify that messages were received in order (per key)
+        messageKeys.forEach(messageKey -> {
+            var strMsgKey = messageKey.toString();
+            var intMsgKey = messageKey.value();
+
+            var messagesInReceivedOrder = recordingQueueMessageHandler.messages.stream()
+                                                                               .filter(orderedMessage -> orderedMessage.getKey().equals(strMsgKey))
+                                                                               .collect(Collectors.toList());
+//            System.out.println("**********************************************");
+//            System.out.println("Key: " + strMsgKey);
+//            System.out.println(messagesInReceivedOrder.stream().map(OrderedMessage::toString).reduce((s, s2) -> s + "\n" + s2));
+
+            assertThat(messagesInReceivedOrder)
+                    .describedAs("Message with Key %s", strMsgKey)
+                    .hasSize(messageKeyIndexNextMessageOrder.get(intMsgKey));
+            var lastSentMessageOrder = messageKeyIndexNextMessageOrder.get(intMsgKey);
+            for (int i = 0; i < lastSentMessageOrder; i++) {
+                assertThat(messagesInReceivedOrder.get(i).order)
+                        .describedAs("Message with Key %s and received as msg number %d (zero based)", strMsgKey, i)
+                        .isEqualTo(i);
+            }
+        });
+
         // Check no messages are delivered after our assertions
         Awaitility.await()
                   .during(Duration.ofMillis(1990))
@@ -149,11 +194,12 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
     }
 
     private static class RecordingQueuedMessageHandler implements QueuedMessageHandler {
-        ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
+        ConcurrentLinkedQueue<OrderedMessage> messages = new ConcurrentLinkedQueue<>();
 
         @Override
         public void handle(QueuedMessage message) {
-            messages.add(message.getMessage());
+            var orderedMessage = (OrderedMessage) message.getMessage();
+            messages.add(orderedMessage);
         }
     }
 }
