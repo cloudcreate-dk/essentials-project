@@ -95,7 +95,7 @@ hikariConfig.setPassword(password);
 var ds = new HikariDataSource(hikariConfig);
 var jdbi = Jdbi.create(ds);
 jdbi.installPlugin(new PostgresPlugin());
-jdbi.setSqlLogger(new EventStoreSqlLogger());
+jdbi.setSqlLogger(new SqlExecutionTimeLogger());
 ```
 
 ## UnitOfWork / Transaction Management
