@@ -318,7 +318,7 @@ public interface DurableQueues extends Lifecycle {
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      * @return the unique entry id's for the messages queued ordered in the same order as the payloads that were queued
      */
-    default List<QueueEntryId> queueMessages(QueueName queueName, List<Message> messages, Optional<Duration> deliveryDelay) {
+    default List<QueueEntryId> queueMessages(QueueName queueName, List<? extends Message> messages, Optional<Duration> deliveryDelay) {
         return queueMessages(new QueueMessages(queueName,
                                                messages,
                                                deliveryDelay));
@@ -334,7 +334,7 @@ public interface DurableQueues extends Lifecycle {
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      * @return the unique entry id's for the messages queued ordered in the same order as the payloads that were queued
      */
-    default List<QueueEntryId> queueMessages(QueueName queueName, List<Message> messages, Duration deliveryDelay) {
+    default List<QueueEntryId> queueMessages(QueueName queueName, List<? extends Message> messages, Duration deliveryDelay) {
         return queueMessages(queueName,
                              messages,
                              Optional.ofNullable(deliveryDelay));
@@ -350,7 +350,7 @@ public interface DurableQueues extends Lifecycle {
      * @param messages  the message to enqueue
      * @return the unique entry id's for the messages queued, ordered in the same order as the payloads that were queued
      */
-    default List<QueueEntryId> queueMessages(QueueName queueName, List<Message> messages) {
+    default List<QueueEntryId> queueMessages(QueueName queueName, List<? extends Message> messages) {
         return queueMessages(queueName, messages, Optional.empty());
     }
 

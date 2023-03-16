@@ -26,6 +26,8 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Encapsulated Metadata (like headers, correlation id, tracing id's, etc.) associated with a {@link Message}
  */
 public class MessageMetaData implements Map<String, String>, Serializable {
+    public static String              MESSAGE_KEY   = "message_key";
+    public static String              MESSAGE_ORDER = "message_order";
     private final Map<String, String> metaData;
 
     public MessageMetaData(Map<String, String> metaData) {

@@ -24,6 +24,7 @@ import java.time.OffsetDateTime;
  * Represents a {@link Message} that has been queued using {@link QueueMessage}/{@link QueueMessages}/{@link QueueMessageAsDeadLetterMessage}
  */
 public interface QueuedMessage {
+    enum DeliveryMode { NORMAL, IN_ORDER }
 
     /**
      * The unique queue entry id for this message
@@ -105,4 +106,6 @@ public interface QueuedMessage {
      * Get the message queued
      */
     Message getMessage();
+
+    DeliveryMode getDeliveryMode();
 }

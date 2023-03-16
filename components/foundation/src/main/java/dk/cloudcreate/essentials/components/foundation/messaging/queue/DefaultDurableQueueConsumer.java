@@ -16,14 +16,17 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage.DeliveryMode;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.slf4j.*;
 
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -38,18 +41,27 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>>
         implements DurableQueueConsumer, DurableQueueConsumerNotifications {
-    private static final Logger log = LoggerFactory.getLogger(DefaultDurableQueueConsumer.class);
+    private static final Logger  log                                          = LoggerFactory.getLogger(DefaultDurableQueueConsumer.class);
+    public static final Runnable NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE = () -> {
+    };
 
-    public final     QueueName                queueName;
-    private final    ConsumeFromQueue         consumeFromQueue;
-    private volatile boolean                  started;
-    private final    ScheduledExecutorService scheduler;
-    private final    DURABLE_QUEUES           durableQueues;
-
-    private Consumer<DurableQueueConsumer> removeDurableQueueConsumer;
-    private UOW_FACTORY                    unitOfWorkFactory;
-    private QueuePollingOptimizer          queuePollingOptimizer;
-    private long                           pollingIntervalMs;
+    public final     QueueName                             queueName;
+    private final    ConsumeFromQueue                      consumeFromQueue;
+    private volatile boolean                               started;
+    private final    ScheduledExecutorService              scheduler;
+    private final    DURABLE_QUEUES                        durableQueues;
+    private final    Consumer<DurableQueueConsumer>        removeDurableQueueConsumer;
+    private final    UOW_FACTORY                           unitOfWorkFactory;
+    private final    QueuePollingOptimizer                 queuePollingOptimizer;
+    private final    long                                  pollingIntervalMs;
+    /**
+     * Only used for {@link DeliveryMode#IN_ORDER} - it is used to ensure that two (or more) threads aren't handling messages
+     * belonging to the same {@link OrderedMessage#getKey()}
+     * <p>
+     * Key: The thread instance processing a given {@link OrderedMessage}<br>
+     * Value: The {@link OrderedMessage} currently being handled by the Thread
+     */
+    private final    ConcurrentMap<Thread, OrderedMessage> orderedMessageDeliveryThreads = new ConcurrentHashMap<>();
 
     public DefaultDurableQueueConsumer(ConsumeFromQueue consumeFromQueue,
                                        UOW_FACTORY unitOfWorkFactory,
@@ -63,6 +75,8 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
         this.durableQueues = requireNonNull(durableQueues, "durableQueues is missing");
         if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
             this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "You must specify a unitOfWorkFactory");
+        } else {
+            this.unitOfWorkFactory = null;
         }
         this.removeDurableQueueConsumer = requireNonNull(removeDurableQueueConsumer, "removeDurableQueueConsumer is missing");
         this.queueName = consumeFromQueue.queueName;
@@ -155,7 +169,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
 
         try {
             if (queuePollingOptimizer.shouldSkipPolling()) {
-                log.debug("[{}] {} - Skipping polling",
+                log.trace("[{}] {} - Skipping polling",
                           queueName,
                           consumeFromQueue.consumerName);
                 return;
@@ -210,29 +224,44 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
     private Runnable processNextMessageReadyForDelivery() {
         try {
             if (started) {
-                return durableQueues.getNextMessageReadyForDelivery(queueName)
+                List<String> excludeOrderedMessagesWithTheseKeys = resolveMessageKeysToExclude();
+                return durableQueues.getNextMessageReadyForDelivery(new GetNextMessageReadyForDelivery(queueName,
+                                                                                                       excludeOrderedMessagesWithTheseKeys))
                                     .map(this::handleMessage)
-                                    .orElseGet(() ->
-                                                       () -> queuePollingOptimizer.queuePollingReturnedNoMessages()
-                                              );
+                                    .orElseGet(() -> queuePollingOptimizer::queuePollingReturnedNoMessages);
             } else {
-                return () -> {
-                };
+                return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
             }
         } catch (Exception e) {
             log.error(msg("[{}] Error Polling Queue", queueName), e);
-            return () -> {
-            };
+            return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
         }
     }
 
+    private List<String> resolveMessageKeysToExclude() {
+        var orderedMessageLastHandled = orderedMessageDeliveryThreads.get(Thread.currentThread());
+        var allOrderedMessages        = new HashSet<>(orderedMessageDeliveryThreads.values());
+        allOrderedMessages.remove(orderedMessageLastHandled);
+        var excludeOrderedMessagesWithTheseKeys = allOrderedMessages.stream()
+                                        .map(OrderedMessage::getKey)
+                                        .collect(Collectors.toList());
+        return excludeOrderedMessagesWithTheseKeys;
+    }
+
     private Runnable handleMessage(QueuedMessage queuedMessage) {
-        log.debug("[{}:{}] {} - Delivering message. Total attempts: {}, Redelivery Attempts: {}",
+        var isOrderedMessage = queuedMessage.getMessage() instanceof OrderedMessage;
+        log.debug("[{}:{}] {} - Delivering {}message{}. Total attempts: {}, Redelivery Attempts: {}",
                   queueName,
                   queuedMessage.getId(),
                   consumeFromQueue.consumerName,
+                  isOrderedMessage ? "Ordered " : "",
+                  isOrderedMessage ? msg(" {}:{}", ((OrderedMessage) queuedMessage.getMessage()).getKey(), ((OrderedMessage) queuedMessage.getMessage()).getOrder()): "",
                   queuedMessage.getTotalDeliveryAttempts(),
                   queuedMessage.getRedeliveryAttempts());
+        if (isOrderedMessage) {
+            // Keep track of the ordered message being handled, to ensure other threads on this node doesn't start processing messages related to the OrderedMessage#getKey
+            orderedMessageDeliveryThreads.put(Thread.currentThread(), (OrderedMessage) queuedMessage.getMessage());
+        }
         try {
             consumeFromQueue.queueMessageHandler.handle(queuedMessage);
             log.debug("[{}:{}] {} - Message handled successfully. Deleting the message in the Queue Store message. Total attempts: {}, Redelivery Attempts: {}",
@@ -242,6 +271,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                       queuedMessage.getTotalDeliveryAttempts(),
                       queuedMessage.getRedeliveryAttempts());
             durableQueues.acknowledgeMessageAsHandled(queuedMessage.getId());
+            orderedMessageDeliveryThreads.remove(Thread.currentThread());
             return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
         } catch (Exception e) {
             log.debug(msg("[{}:{}] {} - QueueMessageHandler for failed to handle message: {}",
@@ -260,6 +290,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                           queuedMessage);
                 try {
                     durableQueues.markAsDeadLetterMessage(queuedMessage.getId(), e);
+                    orderedMessageDeliveryThreads.remove(Thread.currentThread());
                     return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
                 } catch (Exception ex) {
                     log.error(msg("[{}:{}] {} - Failed to mark the Message as a Dead Letter Message. Details: Is Permanent Error: {}. Message: {}",
@@ -268,8 +299,8 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                                   consumeFromQueue.consumerName,
                                   isPermanentError,
                                   queuedMessage), ex);
-                    return () -> {
-                    };
+                    // Note: Don't clean up orderedMessageDeliveryThreads yet
+                    return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
                 }
             } else {
                 // Redeliver later
@@ -286,15 +317,15 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                     durableQueues.retryMessage(queuedMessage.getId(),
                                                e,
                                                redeliveryDelay);
-                    return () -> {
-                    };
+                    orderedMessageDeliveryThreads.remove(Thread.currentThread());
+                    return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
                 } catch (Exception ex) {
                     log.error(msg("[{}:{}] {} - Failed to register the message for retry.",
                                   queueName,
                                   queuedMessage.getId(),
                                   consumeFromQueue.consumerName), ex);
-                    return () -> {
-                    };
+                    // Note: Don't clean up orderedMessageDeliveryThreads yet
+                    return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
                 }
             }
         }

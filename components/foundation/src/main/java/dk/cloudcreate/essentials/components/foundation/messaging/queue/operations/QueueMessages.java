@@ -32,9 +32,9 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Operation also matches {@link DurableQueuesInterceptor#intercept(QueueMessages, InterceptorChain)}
  */
 public class QueueMessages {
-    public final QueueName          queueName;
-    public       List<Message>      messages;
-    private      Optional<Duration> deliveryDelay;
+    public final QueueName               queueName;
+    public       List<? extends Message> messages;
+    private      Optional<Duration>      deliveryDelay;
 
     /**
      * Create a new builder that produces a new {@link QueueMessages} instance
@@ -54,7 +54,7 @@ public class QueueMessages {
      * @param messages      the message payloads
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      */
-    public QueueMessages(QueueName queueName, List<Message> messages, Optional<Duration> deliveryDelay) {
+    public QueueMessages(QueueName queueName, List<? extends Message> messages, Optional<Duration> deliveryDelay) {
         this.queueName = requireNonNull(queueName, "No queueName provided");
         this.messages = requireNonNull(messages, "No payloads provided");
         this.deliveryDelay = requireNonNull(deliveryDelay, "No deliveryDelay provided");
@@ -85,7 +85,7 @@ public class QueueMessages {
     /**
      * @return the message payloads
      */
-    public List<Message> getMessages() {
+    public List<? extends Message> getMessages() {
         return messages;
     }
 
