@@ -32,7 +32,9 @@ import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonMod
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
 import dk.cloudcreate.essentials.reactive.*;
 import dk.cloudcreate.essentials.shared.Exceptions;
+import dk.cloudcreate.essentials.shared.collections.Lists;
 import dk.cloudcreate.essentials.shared.reflection.Classes;
+import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
 import org.slf4j.*;
@@ -174,8 +176,11 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                 "  total_attempts         INTEGER DEFAULT 0,\n" +
                                                                 "  redelivery_attempts    INTEGER DEFAULT 0,\n" +
                                                                 "  last_delivery_error    TEXT DEFAULT NULL,\n" +
-                                                                "  is_dead_letter_message BOOLEAN NOT NULL DEFAULT FALSE\n," +
-                                                                "  meta_data JSONB DEFAULT NULL\n" +
+                                                                "  is_dead_letter_message BOOLEAN NOT NULL DEFAULT FALSE,\n" +
+                                                                "  meta_data JSONB DEFAULT NULL,\n" +
+                                                                "  delivery_mode TEXT DEFAULT '" + QueuedMessage.DeliveryMode.NORMAL.name() + "',\n" +
+                                                                "  key TEXT DEFAULT NULL,\n" +
+                                                                "  key_order BIGINT DEFAULT -1\n" +
                                                                 ")",
                                                         arg("tableName", sharedQueueTableName))
                                                   );
@@ -185,14 +190,34 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                   );
             log.info("Ensured 'meta_data' column exists in Durable Queues table '{}'", sharedQueueTableName);
 
-            var indexName = sharedQueueTableName + "queue_name__next_delivery__id__index";
-            handleAwareUnitOfWork.handle().execute(bind("CREATE INDEX IF NOT EXISTS {:indexName} ON {:tableName} (\n" +
-                                                                "    queue_name, next_delivery_ts, id DESC\n" +
-                                                                ")",
-                                                        arg("indexName", indexName),
+            handleAwareUnitOfWork.handle().execute(bind("ALTER TABLE {:tableName} ADD COLUMN IF NOT EXISTS delivery_mode TEXT DEFAULT 'NORMAL'",
                                                         arg("tableName", sharedQueueTableName))
                                                   );
-            log.info("Ensured Durable Queues index '{}' exists", indexName);
+            log.info("Ensured 'delivery_mode' column exists in Durable Queues table '{}'", sharedQueueTableName);
+
+            handleAwareUnitOfWork.handle().execute(bind("ALTER TABLE {:tableName} ADD COLUMN IF NOT EXISTS key TEXT DEFAULT NULL",
+                                                        arg("tableName", sharedQueueTableName))
+                                                  );
+            log.info("Ensured 'key' column exists in Durable Queues table '{}'", sharedQueueTableName);
+
+            handleAwareUnitOfWork.handle().execute(bind("ALTER TABLE {:tableName} ADD COLUMN IF NOT EXISTS key_order BIGINT DEFAULT -1",
+                                                        arg("tableName", sharedQueueTableName))
+                                                  );
+            log.info("Ensured 'key_order' column exists in Durable Queues table '{}'", sharedQueueTableName);
+
+            var oldNextDeliveryIndexName = sharedQueueTableName + "queue_name__next_delivery__id__index";
+            handleAwareUnitOfWork.handle().execute(bind("DROP INDEX IF EXISTS {:indexName}",
+                                                        arg("indexName", oldNextDeliveryIndexName))
+                                                  );
+
+            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_queue_name ON {:tableName} (queue_name)",
+                        handleAwareUnitOfWork.handle());
+            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_next_delivery_ts ON {:tableName} (next_delivery_ts)",
+                        handleAwareUnitOfWork.handle());
+            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_is_dead_letter_message ON {:tableName} (is_dead_letter_message)",
+                        handleAwareUnitOfWork.handle());
+            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_key_key_order ON {:tableName} (key, key_order)",
+                        handleAwareUnitOfWork.handle());
 
             multiTableChangeListener.ifPresent(listener -> {
                 ListenNotify.addChangeNotificationTriggerToTable(handleAwareUnitOfWork.handle(),
@@ -201,6 +226,12 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                  "id", "queue_name", "added_ts", "next_delivery_ts", "is_dead_letter_message");
             });
         });
+    }
+
+    private void createIndex(String indexStatement, Handle handle) {
+        handle.execute(bind(indexStatement,
+                            arg("tableName", sharedQueueTableName))
+                      );
     }
 
     public List<DurableQueuesInterceptor> getInterceptors() {
@@ -291,7 +322,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                        (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                                                                                        () -> {
                                                                                                                            var pollingIntervalMs = operation.getPollingInterval().toMillis();
-                                                                                                                           var queuePollingOptimizer = multiTableChangeListener.map(_ignore -> createQueuePollingOptimizerFor(operation))
+                                                                                                                           var queuePollingOptimizer = multiTableChangeListener.map(_ignore -> queuePollingOptimizerFactory.apply(operation))
                                                                                                                                                                                .orElseGet(QueuePollingOptimizer::None);
                                                                                                                            return (DurableQueueConsumer) new PostgresqlDurableQueueConsumer(operation,
                                                                                                                                                                                             unitOfWorkFactory,
@@ -385,7 +416,8 @@ public class PostgresqlDurableQueues implements DurableQueues {
         } catch (JsonProcessingException e) {
             throw new DurableQueueException(msg("Failed to serialize message payload of type", message.getPayload().getClass().getName()), e, queueName);
         }
-
+        // TODO: Future improvement: If queueing an OrderedMessage check if another OrderMessage related to the same key and a lower order is already marked as a dead letter message,
+        //  in which case this message can be queued directly as a dead letter message
         var update = unitOfWorkFactory.getRequiredUnitOfWork().handle().createUpdate(bind("INSERT INTO {:tableName} (\n" +
                                                                                                   "       id,\n" +
                                                                                                   "       queue_name,\n" +
@@ -395,7 +427,10 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                                   "       next_delivery_ts,\n" +
                                                                                                   "       last_delivery_error,\n" +
                                                                                                   "       is_dead_letter_message,\n" +
-                                                                                                  "       meta_data\n" +
+                                                                                                  "       meta_data,\n" +
+                                                                                                  "       delivery_mode,\n" +
+                                                                                                  "       key,\n" +
+                                                                                                  "       key_order\n" +
                                                                                                   "   ) VALUES (\n" +
                                                                                                   "       :id,\n" +
                                                                                                   "       :queueName,\n" +
@@ -405,7 +440,10 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                                   "       :nextDeliveryTimestamp,\n" +
                                                                                                   "       :lastDeliveryError,\n" +
                                                                                                   "       :isDeadLetterMessage,\n" +
-                                                                                                  "       :metaData::jsonb\n" +
+                                                                                                  "       :metaData::jsonb,\n" +
+                                                                                                  "       :deliveryMode,\n" +
+                                                                                                  "       :key,\n" +
+                                                                                                  "       :order\n" +
                                                                                                   "   )",
                                                                                           arg("tableName", sharedQueueTableName)))
                                       .bind("id", queueEntryId)
@@ -415,6 +453,20 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                       .bind("addedTimestamp", addedTimestamp)
                                       .bind("nextDeliveryTimestamp", nextDeliveryTimestamp)
                                       .bind("isDeadLetterMessage", isDeadLetterMessage);
+
+        if (message instanceof OrderedMessage) {
+            var orderedMessage = (OrderedMessage) message;
+            requireNonNull(orderedMessage.getKey(), "An OrderedMessage requires a non null key");
+            requireTrue(orderedMessage.getOrder() >= 0, "An OrderedMessage requires an order >= 0");
+            update.bind("deliveryMode", QueuedMessage.DeliveryMode.IN_ORDER)
+                  .bind("key", orderedMessage.getKey())
+                  .bind("order", orderedMessage.getOrder());
+        } else {
+            update.bind("deliveryMode", QueuedMessage.DeliveryMode.NORMAL)
+                  .bindNull("key", Types.VARCHAR)
+                  .bind("order", -1L);
+
+        }
 
         try {
             var jsonMetaData = messagePayloadObjectMapper.writeValueAsString(message.getMetaData());
@@ -433,9 +485,10 @@ public class PostgresqlDurableQueues implements DurableQueues {
         if (numberOfRowsUpdated == 0) {
             throw new DurableQueueException("Failed to insert message", queueName);
         }
-        log.debug("[{}] Queued {}Message with entry-id {} and nextDeliveryTimestamp {}",
+        log.debug("[{}] Queued {}{}Message with entry-id {} and nextDeliveryTimestamp {}",
                   queueName,
                   isDeadLetterMessage ? "Dead Letter " : "",
+                  message instanceof OrderedMessage ? "Ordered " : "",
                   queueEntryId,
                   nextDeliveryTimestamp);
         return queueEntryId;
@@ -465,7 +518,10 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                                             "       next_delivery_ts,\n" +
                                                                                                                                             "       last_delivery_error,\n" +
                                                                                                                                             "       is_dead_letter_message,\n" +
-                                                                                                                                            "       meta_data\n" +
+                                                                                                                                            "       meta_data,\n" +
+                                                                                                                                            "       delivery_mode,\n" +
+                                                                                                                                            "       key,\n" +
+                                                                                                                                            "       key_order\n" +
                                                                                                                                             "   ) VALUES (\n" +
                                                                                                                                             "       :id,\n" +
                                                                                                                                             "       :queueName,\n" +
@@ -475,10 +531,14 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                                             "       :nextDeliveryTimestamp,\n" +
                                                                                                                                             "       :lastDeliveryError,\n" +
                                                                                                                                             "       :isDeadLetterMessage,\n" +
-                                                                                                                                            "       :metaData::jsonb\n" +
+                                                                                                                                            "       :metaData::jsonb,\n" +
+                                                                                                                                            "       :deliveryMode,\n" +
+                                                                                                                                            "       :key,\n" +
+                                                                                                                                            "       :order\n" +
                                                                                                                                             "   )",
                                                                                                                                     arg("tableName", sharedQueueTableName)));
-                                                   var queueEntryIds = messages.stream().map(message -> {
+                                                   var queueEntryIds = Lists.toIndexedStream(messages).map(indexedMessage -> {
+                                                       var    message = indexedMessage._2;
                                                        String jsonPayload;
                                                        try {
                                                            jsonPayload = messagePayloadObjectMapper.writeValueAsString(message.getPayload());
@@ -494,6 +554,20 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                             .bind("nextDeliveryTimestamp", nextDeliveryTimestamp)
                                                             .bind("isDeadLetterMessage", false)
                                                             .bindNull("lastDeliveryError", Types.VARCHAR);
+
+                                                       if (message instanceof OrderedMessage) {
+                                                           var orderedMessage = (OrderedMessage) message;
+                                                           requireNonNull(orderedMessage.getKey(), msg("[Index: {}] - OrderedMessage requires a non null key", indexedMessage._1));
+                                                           requireTrue(orderedMessage.getOrder() >= 0, msg("[Index: {}] - OrderedMessage requires an order >= 0", indexedMessage._1));
+
+                                                           batch.bind("deliveryMode", QueuedMessage.DeliveryMode.IN_ORDER)
+                                                                .bind("key", orderedMessage.getKey())
+                                                                .bind("order", orderedMessage.getOrder());
+                                                       } else {
+                                                           batch.bind("deliveryMode", QueuedMessage.DeliveryMode.NORMAL)
+                                                                .bindNull("key", Types.VARCHAR)
+                                                                .bind("order", -1L);
+                                                       }
 
                                                        try {
                                                            var jsonMetaData = messagePayloadObjectMapper.writeValueAsString(message.getMetaData());
@@ -650,7 +724,6 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                }).proceed();
     }
 
-
     @Override
     public Optional<QueuedMessage> getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery operation) {
         requireNonNull(operation, "You must specify a GetNextMessageReadyForDelivery instance");
@@ -658,39 +731,57 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> {
-                                                   var now = OffsetDateTime.now(Clock.systemUTC());
-                                                   return unitOfWorkFactory.getRequiredUnitOfWork().handle().createQuery(bind("WITH queued_message_ready_for_delivery AS (\n" +
-                                                                                                                                      "    SELECT id FROM {:tableName} \n" +
-                                                                                                                                      "    WHERE\n" +
-                                                                                                                                      "        queue_name = :queueName AND\n" +
-                                                                                                                                      "        next_delivery_ts <= :now AND\n" +
-                                                                                                                                      "        is_dead_letter_message = FALSE\n" +
-                                                                                                                                      "    ORDER BY next_delivery_ts ASC\n" +
-                                                                                                                                      "    LIMIT 1\n" +
-                                                                                                                                      "    FOR UPDATE SKIP LOCKED\n" +
-                                                                                                                                      " )\n" +
-                                                                                                                                      " UPDATE {:tableName} queued_message SET\n" +
-                                                                                                                                      "    total_attempts = total_attempts + 1,\n" +
-                                                                                                                                      "    next_delivery_ts = NULL\n" +
-                                                                                                                                      " FROM queued_message_ready_for_delivery\n" +
-                                                                                                                                      " WHERE queued_message.id = queued_message_ready_for_delivery.id\n" +
-                                                                                                                                      " RETURNING\n" +
-                                                                                                                                      "     queued_message.id,\n" +
-                                                                                                                                      "     queued_message.queue_name,\n" +
-                                                                                                                                      "     queued_message.message_payload,\n" +
-                                                                                                                                      "     queued_message.message_payload_type,\n" +
-                                                                                                                                      "     queued_message.added_ts,\n" +
-                                                                                                                                      "     queued_message.next_delivery_ts,\n" +
-                                                                                                                                      "     queued_message.last_delivery_error,\n" +
-                                                                                                                                      "     queued_message.total_attempts,\n" +
-                                                                                                                                      "     queued_message.redelivery_attempts,\n" +
-                                                                                                                                      "     queued_message.is_dead_letter_message,\n" +
-                                                                                                                                      "     queued_message.meta_data",
-                                                                                                                              arg("tableName", sharedQueueTableName)))
-                                                                           .bind("queueName", operation.queueName)
-                                                                           .bind("now", now)
-                                                                           .map(queuedMessageMapper)
-                                                                           .findOne();
+                                                   var now                 = OffsetDateTime.now(Clock.systemUTC());
+                                                   var excludeKeysLimitSql = "";
+                                                   var excludedKeys        = operation.getExcludeOrderedMessagesWithKey() != null ? operation.getExcludeOrderedMessagesWithKey() : List.of();
+                                                   if (!excludedKeys.isEmpty()) {
+                                                       excludeKeysLimitSql = "        AND key NOT IN (<excludedKeys>)\n";
+                                                   }
+                                                   var sql = bind("WITH queued_message_ready_for_delivery AS (\n" +
+                                                                          "    SELECT id FROM {:tableName} q1 \n" +
+                                                                          "    WHERE\n" +
+                                                                          "        queue_name = :queueName AND\n" +
+                                                                          "        next_delivery_ts <= :now AND\n" +
+                                                                          "        is_dead_letter_message = FALSE\n" +
+                                                                          "        AND NOT EXISTS (SELECT 1 FROM {:tableName} q2 WHERE q2.key = q1.key AND q2.key_order < q1.key_order)\n" +
+                                                                          excludeKeysLimitSql +
+                                                                          "    ORDER BY key_order ASC, next_delivery_ts ASC\n" +
+                                                                          "    LIMIT 1\n" +
+                                                                          "    FOR UPDATE SKIP LOCKED\n" +
+                                                                          " )\n" +
+                                                                          " UPDATE {:tableName} queued_message SET\n" +
+                                                                          "    total_attempts = total_attempts + 1,\n" +
+                                                                          "    next_delivery_ts = NULL\n" +
+                                                                          " FROM queued_message_ready_for_delivery\n" +
+                                                                          " WHERE queued_message.id = queued_message_ready_for_delivery.id\n" +
+                                                                          " RETURNING\n" +
+                                                                          "     queued_message.id,\n" +
+                                                                          "     queued_message.queue_name,\n" +
+                                                                          "     queued_message.message_payload,\n" +
+                                                                          "     queued_message.message_payload_type,\n" +
+                                                                          "     queued_message.added_ts,\n" +
+                                                                          "     queued_message.next_delivery_ts,\n" +
+                                                                          "     queued_message.last_delivery_error,\n" +
+                                                                          "     queued_message.total_attempts,\n" +
+                                                                          "     queued_message.redelivery_attempts,\n" +
+                                                                          "     queued_message.is_dead_letter_message,\n" +
+                                                                          "     queued_message.meta_data,\n" +
+                                                                          "     queued_message.delivery_mode,\n" +
+                                                                          "     queued_message.key,\n" +
+                                                                          "     queued_message.key_order",
+                                                                  arg("tableName", sharedQueueTableName));
+
+                                                   var query = unitOfWorkFactory.getRequiredUnitOfWork().handle().createQuery(sql)
+                                                                                .bind("queueName", operation.queueName)
+                                                                                .bind("now", now);
+                                                   if (!excludedKeys.isEmpty()) {
+                                                       query.bindList("excludedKeys", excludedKeys);
+                                                   }
+
+
+                                                   return query
+                                                           .map(queuedMessageMapper)
+                                                           .findOne();
                                                }).proceed();
     }
 
@@ -920,10 +1011,27 @@ public class PostgresqlDurableQueues implements DurableQueues {
             } else {
                 messageMetaData = new MessageMetaData();
             }
+
+            var     deliveryMode = QueuedMessage.DeliveryMode.valueOf(rs.getString("delivery_mode"));
+            Message message      = null;
+            switch (deliveryMode) {
+                case NORMAL:
+                    message = new Message(messagePayload,
+                                          messageMetaData);
+                    break;
+                case IN_ORDER:
+                    message = new OrderedMessage(messagePayload,
+                                                 rs.getString("key"),
+                                                 rs.getLong("key_order"),
+                                                 messageMetaData);
+                    break;
+                default:
+                    throw new IllegalStateException(msg("Unsupported deliveryMode '{}'", deliveryMode));
+            }
+
             return new DefaultQueuedMessage(QueueEntryId.of(rs.getString("id")),
                                             queueName,
-                                            new Message(messagePayload,
-                                                        messageMetaData),
+                                            message,
                                             rs.getObject("added_ts", OffsetDateTime.class),
                                             rs.getObject("next_delivery_ts", OffsetDateTime.class),
                                             rs.getString("last_delivery_error"),
