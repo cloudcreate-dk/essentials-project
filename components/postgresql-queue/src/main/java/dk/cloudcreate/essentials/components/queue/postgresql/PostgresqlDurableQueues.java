@@ -71,6 +71,10 @@ public class PostgresqlDurableQueues implements DurableQueues {
 
     private volatile boolean started;
 
+    public static PostgresqlDurableQueuesBuilder builder() {
+        return new PostgresqlDurableQueuesBuilder();
+    }
+
     /**
      * Create {@link DurableQueues} with sharedQueueTableName: {@value DEFAULT_DURABLE_QUEUES_TABLE_NAME} and a default {@link ObjectMapper}
      * configuration
@@ -79,7 +83,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
      */
     public PostgresqlDurableQueues(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory) {
         this(unitOfWorkFactory,
-             createObjectMapper(),
+             createDefaultObjectMapper(),
              DEFAULT_DURABLE_QUEUES_TABLE_NAME,
              null,
              null);
@@ -96,7 +100,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
     public PostgresqlDurableQueues(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
                                    Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this(unitOfWorkFactory,
-             createObjectMapper(),
+             createDefaultObjectMapper(),
              DEFAULT_DURABLE_QUEUES_TABLE_NAME,
              null,
              queuePollingOptimizerFactory);
@@ -404,10 +408,14 @@ public class PostgresqlDurableQueues implements DurableQueues {
         var queueEntryId          = QueueEntryId.random();
         var addedTimestamp        = Instant.now();
         var nextDeliveryTimestamp = isDeadLetterMessage ? null : addedTimestamp.plus(deliveryDelay.orElse(Duration.ZERO));
-        log.debug("[{}] Queuing {}Message with entry-id {} and nextDeliveryTimestamp {}",
+
+        var isOrderedMessage = message instanceof OrderedMessage;
+        log.trace("[{}:{}] Queuing {}{}message{} with nextDeliveryTimestamp {}",
                   queueName,
-                  isDeadLetterMessage ? "Dead Letter " : "",
                   queueEntryId,
+                  isDeadLetterMessage ? "Dead Letter " : "",
+                  isOrderedMessage ? "Ordered " : "",
+                  isOrderedMessage ? msg(" {}:{}", ((OrderedMessage) message).getKey(), ((OrderedMessage) message).getOrder()) : "",
                   nextDeliveryTimestamp);
 
         String jsonPayload;
@@ -485,11 +493,12 @@ public class PostgresqlDurableQueues implements DurableQueues {
         if (numberOfRowsUpdated == 0) {
             throw new DurableQueueException("Failed to insert message", queueName);
         }
-        log.debug("[{}] Queued {}{}Message with entry-id {} and nextDeliveryTimestamp {}",
+        log.debug("[{}:{}] Queued {}{}message{} with nextDeliveryTimestamp {}",
                   queueName,
-                  isDeadLetterMessage ? "Dead Letter " : "",
-                  message instanceof OrderedMessage ? "Ordered " : "",
                   queueEntryId,
+                  isDeadLetterMessage ? "Dead Letter " : "",
+                  isOrderedMessage ? "Ordered " : "",
+                  isOrderedMessage ? msg(" {}:{}", ((OrderedMessage) message).getKey(), ((OrderedMessage) message).getOrder()) : "",
                   nextDeliveryTimestamp);
         return queueEntryId;
     }
@@ -678,7 +687,16 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                                  .map(queuedMessageMapper)
                                                                                  .findOne();
                                                    if (result.isPresent()) {
-                                                       log.debug("Resurrected Dead Letter Message with id '{}'. Message entry after update: {}", operation.queueEntryId, result.get());
+                                                       var updateResult = result.get();
+
+                                                       var isOrderedMessage = updateResult.getDeliveryMode() == QueuedMessage.DeliveryMode.IN_ORDER;
+                                                       log.debug("[{}] Resurrected Dead Letter {}Message with id '{}' {} and nextDeliveryTimestamp: {}. Message entry after update: {}",
+                                                                 updateResult.getQueueName(),
+                                                                 isOrderedMessage ? "Ordered " : "",
+                                                                 operation.getQueueEntryId(),
+                                                                 isOrderedMessage ? "(key: " + ((OrderedMessage) updateResult).getKey() + ", order: " + ((OrderedMessage) updateResult).getOrder() + ")" : "",
+                                                                 nextDeliveryTimestamp,
+                                                                 updateResult);
                                                        return result;
                                                    } else {
                                                        log.error("Failed to resurrect Dead Letter Message with id '{}'", operation.queueEntryId);
@@ -745,7 +763,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                           "        is_dead_letter_message = FALSE\n" +
                                                                           "        AND NOT EXISTS (SELECT 1 FROM {:tableName} q2 WHERE q2.key = q1.key AND q2.key_order < q1.key_order)\n" +
                                                                           excludeKeysLimitSql +
-                                                                          "    ORDER BY key_order ASC, next_delivery_ts ASC\n" +
+                                                                          "    ORDER BY key_order ASC, next_delivery_ts ASC\n" + // TODO: Future improvement: Allow the user to specify if key_order or next_delivery_ts should have the highest priority
                                                                           "    LIMIT 1\n" +
                                                                           "    FOR UPDATE SKIP LOCKED\n" +
                                                                           " )\n" +
@@ -969,7 +987,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
     }
 
 
-    private static ObjectMapper createObjectMapper() {
+    public static ObjectMapper createDefaultObjectMapper() {
         var objectMapper = JsonMapper.builder()
                                      .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                      .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
