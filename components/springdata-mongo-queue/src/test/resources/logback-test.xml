@@ -25,6 +25,8 @@
     </appender>
 
     <logger name="dk.cloudcreate.essentials" level="TRACE"/>
+    <logger name="dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain" level="DEBUG"/>
+    <logger name="dk.cloudcreate.essentials.components.foundation.messaging.queue.DefaultDurableQueueConsumer" level="TRACE"/>
     <logger name="dk.cloudcreate.essentials.components.foundation.transaction" level="INFO"/>
 
     <root level="INFO">
