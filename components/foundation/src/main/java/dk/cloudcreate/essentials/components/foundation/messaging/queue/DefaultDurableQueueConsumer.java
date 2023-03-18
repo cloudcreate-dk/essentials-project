@@ -41,8 +41,8 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>>
         implements DurableQueueConsumer, DurableQueueConsumerNotifications {
-    private static final Logger  log                                          = LoggerFactory.getLogger(DefaultDurableQueueConsumer.class);
-    public static final Runnable NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE = () -> {
+    private static final Logger   log                                          = LoggerFactory.getLogger(DefaultDurableQueueConsumer.class);
+    public static final  Runnable NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE = () -> {
     };
 
     public final     QueueName                             queueName;
@@ -102,7 +102,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
     public void start() {
         if (!started) {
 
-            log.info("[{}] {} - Starting {} DurableQueueConsumer threads with polling interval {}",
+            log.info("[{}] {} - Starting {} DurableQueueConsumer threads with polling interval {} ms",
                      queueName,
                      consumeFromQueue.consumerName,
                      consumeFromQueue.getParallelConsumers(),
@@ -243,8 +243,8 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
         var allOrderedMessages        = new HashSet<>(orderedMessageDeliveryThreads.values());
         allOrderedMessages.remove(orderedMessageLastHandled);
         var excludeOrderedMessagesWithTheseKeys = allOrderedMessages.stream()
-                                        .map(OrderedMessage::getKey)
-                                        .collect(Collectors.toList());
+                                                                    .map(OrderedMessage::getKey)
+                                                                    .collect(Collectors.toList());
         return excludeOrderedMessagesWithTheseKeys;
     }
 
@@ -255,7 +255,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                   queuedMessage.getId(),
                   consumeFromQueue.consumerName,
                   isOrderedMessage ? "Ordered " : "",
-                  isOrderedMessage ? msg(" {}:{}", ((OrderedMessage) queuedMessage.getMessage()).getKey(), ((OrderedMessage) queuedMessage.getMessage()).getOrder()): "",
+                  isOrderedMessage ? msg(" {}:{}", ((OrderedMessage) queuedMessage.getMessage()).getKey(), ((OrderedMessage) queuedMessage.getMessage()).getOrder()) : "",
                   queuedMessage.getTotalDeliveryAttempts(),
                   queuedMessage.getRedeliveryAttempts());
         if (isOrderedMessage) {
@@ -320,10 +320,19 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                     orderedMessageDeliveryThreads.remove(Thread.currentThread());
                     return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
                 } catch (Exception ex) {
-                    log.error(msg("[{}:{}] {} - Failed to register the message for retry.",
-                                  queueName,
-                                  queuedMessage.getId(),
-                                  consumeFromQueue.consumerName), ex);
+                    if (ex.getMessage().contains("Interrupted waiting for lock")) {
+                        // Usually happening when SpringBoot is performing an unclean shutdown
+                        log.debug(msg("[{}:{}] {} - Failed to register the message for retry.",
+                                      queueName,
+                                      queuedMessage.getId(),
+                                      consumeFromQueue.consumerName), ex);
+
+                    } else {
+                        log.error(msg("[{}:{}] {} - Failed to register the message for retry.",
+                                      queueName,
+                                      queuedMessage.getId(),
+                                      consumeFromQueue.consumerName), ex);
+                    }
                     // Note: Don't clean up orderedMessageDeliveryThreads yet
                     return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
                 }
