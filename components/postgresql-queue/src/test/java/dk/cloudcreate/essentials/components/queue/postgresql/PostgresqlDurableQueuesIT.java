@@ -33,7 +33,7 @@ class PostgresqlDurableQueuesIT extends DurableQueuesIT<PostgresqlDurableQueues,
 
     @Override
     protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory) {
-        return new PostgresqlDurableQueues(unitOfWorkFactory);
+        return PostgresqlDurableQueues.builder().setUnitOfWorkFactory(unitOfWorkFactory).build();
     }
 
     @Override

@@ -34,7 +34,7 @@ class PostgresqlDistributedCompetingConsumersDurableQueuesIT extends Distributed
 
     @Override
     protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory) {
-        return new PostgresqlDurableQueues(unitOfWorkFactory);
+        return PostgresqlDurableQueues.builder().setUnitOfWorkFactory(unitOfWorkFactory).build();
     }
 
     @Override
