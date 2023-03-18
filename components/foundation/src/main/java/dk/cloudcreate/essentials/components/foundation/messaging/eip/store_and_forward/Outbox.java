@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
@@ -25,6 +26,11 @@ public interface Outbox {
     /**
      * Start consuming messages from the Outbox using the provided message consumer.<br>
      * Only needs to be called if the instance was created without a message consumer
+     * <p>
+     * If the message is delivered via an {@link Outbox} using a {@link FencedLock} (such as
+     * the {@link Outboxes#durableQueueBasedOutboxes(DurableQueues, FencedLockManager)})
+     * to coordinate message consumption, then you can find the {@link FencedLock#getCurrentToken()}
+     * of the consumer in the {@link Message#getMetaData()} under key {@link MessageMetaData#FENCED_LOCK_TOKEN}
      *
      * @param messageConsumer the message consumer
      * @return

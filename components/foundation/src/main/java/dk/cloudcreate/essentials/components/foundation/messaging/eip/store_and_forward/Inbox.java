@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
@@ -25,6 +26,11 @@ public interface Inbox {
     /**
      * Start consuming messages from the Outbox using the provided message consumer.<br>
      * Only needs to be called if the instance was created without a message consumer
+     * <p>
+     * If the message is delivered via an {@link Inbox} using a {@link FencedLock}
+     * (such as {@link Inboxes#durableQueueBasedInboxes(DurableQueues, FencedLockManager)})
+     * to coordinate message consumption, then you can find the {@link FencedLock#getCurrentToken()}
+     * of the consumer in the {@link Message#getMetaData()} under key {@link MessageMetaData#FENCED_LOCK_TOKEN}
      *
      * @param messageConsumer the message consumer
      * @return this
@@ -64,7 +70,7 @@ public interface Inbox {
      * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
-     * @param payload the message payload
+     * @param payload  the message payload
      * @param metaData the message meta-data
      */
     default void addMessageReceived(Object payload, MessageMetaData metaData) {

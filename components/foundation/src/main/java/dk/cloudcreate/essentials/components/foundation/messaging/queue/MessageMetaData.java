@@ -16,6 +16,9 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
+
 import java.io.Serializable;
 import java.util.*;
 import java.util.function.*;
@@ -26,8 +29,14 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Encapsulated Metadata (like headers, correlation id, tracing id's, etc.) associated with a {@link Message}
  */
 public class MessageMetaData implements Map<String, String>, Serializable {
-    public static String              MESSAGE_KEY   = "message_key";
-    public static String              MESSAGE_ORDER = "message_order";
+    /**
+     * If the message is delivered via either an {@link Inbox}
+     * or {@link Outbox} using a {@link FencedLock}, such as {@link Inboxes#durableQueueBasedInboxes(DurableQueues, FencedLockManager)})
+     * or {@link Outboxes#durableQueueBasedOutboxes(DurableQueues, FencedLockManager)},
+     * to coordinate message consumption, then you can find the {@link FencedLock#getCurrentToken()}
+     * of the consumer under this key
+     */
+    public static String              FENCED_LOCK_TOKEN   = "FENCED_LOCK_TOKEN";
     private final Map<String, String> metaData;
 
     public MessageMetaData(Map<String, String> metaData) {

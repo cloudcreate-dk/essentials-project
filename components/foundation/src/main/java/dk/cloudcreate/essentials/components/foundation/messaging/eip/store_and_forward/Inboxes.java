@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
+import static dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.MessageConsumptionMode.SingleGlobalConsumer;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
@@ -156,12 +157,12 @@ public interface Inboxes {
                     case SingleGlobalConsumer:
                         fencedLockManager.acquireLockAsync(config.inboxName.asLockName(),
                                                            LockCallback.builder()
-                                                                       .onLockAcquired(lock -> durableQueueConsumer = consumeFromDurableQueue())
+                                                                       .onLockAcquired(lock -> durableQueueConsumer = consumeFromDurableQueue(lock))
                                                                        .onLockReleased(lock -> durableQueueConsumer.cancel())
                                                                        .build());
                         break;
                     case GlobalCompetingConsumers:
-                        durableQueueConsumer = consumeFromDurableQueue();
+                        durableQueueConsumer = consumeFromDurableQueue(null);
                         break;
                     default:
                         throw new IllegalStateException("Unexpected messageConsumptionMode: " + config.messageConsumptionMode);
@@ -222,11 +223,17 @@ public interface Inboxes {
                 }
             }
 
-            private DurableQueueConsumer consumeFromDurableQueue() {
+            private DurableQueueConsumer consumeFromDurableQueue(FencedLock lock) {
                 return durableQueues.consumeFromQueue(inboxQueueName,
                                                       config.redeliveryPolicy,
                                                       config.numberOfParallelMessageConsumers,
-                                                      this::handleMessage);
+                                                      queuedMessage -> {
+                                                          if (config.messageConsumptionMode == SingleGlobalConsumer) {
+                                                              queuedMessage.getMetaData().put(MessageMetaData.FENCED_LOCK_TOKEN,
+                                                                                              lock.getCurrentToken().toString());
+                                                          }
+                                                          handleMessage(queuedMessage);
+                                                      });
             }
 
             @SuppressWarnings("unchecked")
