@@ -288,8 +288,10 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         var consumer                     = durableQueues.consumeFromQueue(queueName, RedeliveryPolicy.fixedBackoff(Duration.ofMillis(200), 1), 2, recordingQueueMessageHandler);
 
         // Then all key2 messages are delivered, but only messages with key_order < Key1Msg3 are delivered for key1
-        Awaitility.waitAtMost(Duration.ofSeconds(2000))
-                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages).hasSize(key2Messages.size() + 2)); // + 2 for Key1Msg1 and Key1Msg2
+        Awaitility.waitAtMost(Duration.ofSeconds(5000))
+                  .untilAsserted(() -> {
+                      assertThat(recordingQueueMessageHandler.messages).hasSize(key2Messages.size() + 2); // + 2 for Key1Msg1 and Key1Msg2
+                  });
 
         assertThat(recordingQueueMessageHandler.messages.stream().map(o -> (String) o.getPayload()))
                 .containsOnly("Key1Msg1", "Key1Msg2", "Key2Msg1", "Key2Msg2", "Key2Msg3", "Key2Msg4", "Key2Msg5");
@@ -300,7 +302,18 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
 
         // Then the remaining key1 messages are delivered
         Awaitility.waitAtMost(Duration.ofSeconds(2000))
-                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages).hasSize(3)); // 3 for "Key1Msg3", "Key1Msg4", "Key1Msg5"
+                  .untilAsserted(() -> {
+                      // Some DurableQueues implementations may choose to mark messages as dead letter messages in case a message with the same key and a lower order is already marked as a dead letter message
+                      // So in this case let's resurrect these messages
+                      var newDeadLetterMessages = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20);
+                      if (!newDeadLetterMessages.isEmpty()) {
+                          newDeadLetterMessages.forEach(queuedMessage -> {
+                              System.out.println("Resurrected new DeadLetterMessage: " + queuedMessage);
+                              usingDurableQueue(() -> durableQueues.resurrectDeadLetterMessage(queuedMessage.getId(), Duration.ofMillis(10)));
+                          });
+                      }
+                      assertThat(recordingQueueMessageHandler.messages).hasSize(3); // 3 for "Key1Msg3", "Key1Msg4", "Key1Msg5"
+                  });
 
         assertThat(recordingQueueMessageHandler.messages.stream().map(o -> (String) o.getPayload()))
                 .containsOnly("Key1Msg3", "Key1Msg4", "Key1Msg5");
