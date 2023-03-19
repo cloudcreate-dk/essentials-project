@@ -22,18 +22,35 @@ import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
 import java.util.function.Consumer;
 
+/**
+ * The {@link Outbox} supports the transactional Store and Forward pattern from Enterprise Integration Patterns supporting At-Least-Once delivery guarantee.<br>
+ * The {@link Outbox} pattern is used to handle outgoing messages, that are created as a side effect of adding/updating an entity in a database, but where the message infrastructure
+ * (such as a Queue, Kafka, EventBus, etc.) that doesn't share the same underlying transactional resource as the database.<br>
+ * Instead, you need to use an {@link Outbox} that can join in the same {@link UnitOfWork}/transactional-resource
+ * that the database is using.<br>
+ * The message is added to the {@link Outbox} in a transaction/{@link UnitOfWork} and afterwards the {@link UnitOfWork} is committed.<br>
+ * If the transaction fails then both the entity and the message will be rolled back when then {@link UnitOfWork} rolls back.<br>
+ * After the {@link UnitOfWork} has been committed, the messages will be asynchronously delivered to the message consumer in a new {@link UnitOfWork}.<br>
+ * The {@link Outbox} itself supports Message Redelivery in case the Message consumer experiences failures.<br>
+ * This means that the Message consumer, registered with the {@link Outbox}, can and will receive Messages more than once and therefore its message handling has to be idempotent.
+ * <p>
+ * If you're working with {@link OrderedMessage}'s then the {@link Outbox} consumer must be configured
+ * with {@link OutboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
+ * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
+ * across as many {@link OutboxConfig#numberOfParallelMessageConsumers} as you wish to use.
+ */
 public interface Outbox {
     /**
      * Start consuming messages from the Outbox using the provided message consumer.<br>
      * Only needs to be called if the instance was created without a message consumer
      * <p>
-     * If the message is delivered via an {@link Outbox} using a {@link FencedLock} (such as
+     * If an {@link OrderedMessage} is delivered via an {@link Outbox} using a {@link FencedLock} (such as
      * the {@link Outboxes#durableQueueBasedOutboxes(DurableQueues, FencedLockManager)})
      * to coordinate message consumption, then you can find the {@link FencedLock#getCurrentToken()}
      * of the consumer in the {@link Message#getMetaData()} under key {@link MessageMetaData#FENCED_LOCK_TOKEN}
      *
      * @param messageConsumer the message consumer
-     * @return
+     * @return this outbox instance
      */
     Outbox consume(Consumer<Message> messageConsumer);
 
@@ -93,6 +110,7 @@ public interface Outbox {
      * The message will be delivered asynchronously to the message consumer
      *
      * @param message the message
+     * @see OrderedMessage
      */
     void sendMessage(Message message);
 

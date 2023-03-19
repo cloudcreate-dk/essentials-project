@@ -56,8 +56,15 @@ and comes in two flavours
 `PostgresqlDurableQueues` and `MongoDurableQueues` which both implement the `DurableQueues` interface.
 
 Each Queue is uniquely identified by its `QueueName`.
-Durable Queue concept that supports **queuing** a message on to a Queue. Each message is associated with a
+Durable Queue concept that supports **queuing** a `Message` on to a Queue. Each message is associated with a
 unique `QueueEntryId`.
+
+### Ordered Messages
+If you're queuing with `OrderedMessage` then, IF and only IF,  only a single cluster node is consuming from the Queue, 
+such as with an `Inbox` or `Outbox` configured with `MessageConsumptionMode#SingleGlobalConsumer` (which uses a FencedLock to 
+coordinate message consumption across cluster nodes)
+in order to be able to guarantee that `OrderedMessage`'s are delivered in `OrderedMessage#order` per `OrderedMessage#key`
+across as many `numberOfParallelMessageConsumers` as you wish to use.
 
 ### Transactional Queueing of a Message (supported by `PostgresqlDurableQueues` and `MongoDurableQueues`)
 
@@ -360,6 +367,17 @@ The `Inboxes` concept supports two different `MessageConsumptionMode`'s:
 
 To support `SingleGlobalConsumer` the `Inboxes` logic needs to be configured with an instance of a `FencedLockManager` (see configuration further below).
 
+### Ordered Messages
+If you're working with `OrderedMessage`'s then the `Inbox` consumer must be configured
+with `InboxConfig#getMessageConsumptionMode()` having value `MessageConsumptionMode#SingleGlobalConsumer`
+in order to be able to guarantee that `OrderedMessage`'s are delivered in `OrderedMessage#getOrder()` per `OrderedMessage#getKey()`
+across as many `InboxConfig#numberOfParallelMessageConsumers` as you wish to use.
+
+If an `OrderedMessage` is delivered via an `Inbox` using a `FencedLock` (such as
+the `Inboxes#durableQueueBasedInboxes(DurableQueues, FencedLockManager)`)
+to coordinate message consumption, then you can find the `FencedLock#getCurrentToken()`
+of the consumer in the `Message#getMetaData()` under key `MessageMetaData#FENCED_LOCK_TOKEN`
+
 ### `Inboxes` Spring configuration
 
 ```
@@ -456,6 +474,17 @@ The `Outboxes` concept supports two different `MessageConsumptionMode`'s:
 - `GlobalCompetingConsumers`: Multiple consumers in a cluster can compete to handle messages, but a message will only be handled a single consumer
 
 To support `SingleGlobalConsumer` the `Outboxes` logic needs to be configured with an instance of a `FencedLockManager` (see configuration further below).
+
+### Ordered Messages
+If you're working with `OrderedMessage`'s then the `Outbox` consumer must be configured
+with `OutboxConfig#getMessageConsumptionMode()` having value `MessageConsumptionMode#SingleGlobalConsumer`
+in order to be able to guarantee that `OrderedMessage`'s are delivered in `OrderedMessage#getOrder()` per `OrderedMessage#getKey()`
+across as many `OutboxConfig#numberOfParallelMessageConsumers` as you wish to use.
+
+If an `OrderedMessage` is delivered via an `Outbox` using a `FencedLock` (such as
+the `Outboxes#durableQueueBasedOutboxes(DurableQueues, FencedLockManager)`)
+to coordinate message consumption, then you can find the `FencedLock#getCurrentToken()`
+of the consumer in the `Message#getMetaData()` under key `MessageMetaData#FENCED_LOCK_TOKEN`
 
 ### `Outboxes` Spring configuration
 

@@ -39,6 +39,11 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * After the {@link UnitOfWork} has been committed, the messages will be asynchronously delivered to the message consumer in a new {@link UnitOfWork}.<br>
  * The {@link Outbox} itself supports Message Redelivery in case the Message consumer experiences failures.<br>
  * This means that the Message consumer, registered with the {@link Outbox}, can and will receive Messages more than once and therefore its message handling has to be idempotent.
+ * <p>
+ * If you're working with {@link OrderedMessage}'s then the {@link Outbox} consumer must be configured
+ * with {@link OutboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
+ * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
+ * across as many {@link OutboxConfig#numberOfParallelMessageConsumers} as you wish to use.
  */
 public interface Outboxes {
     /**

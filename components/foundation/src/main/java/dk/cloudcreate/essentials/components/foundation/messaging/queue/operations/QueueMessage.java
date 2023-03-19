@@ -52,9 +52,10 @@ public class QueueMessage {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName        the name of the Queue the message is added to
-     * @param message          the message being queued
+     * @param message          the message being queued ({@link Message}/{@link OrderedMessage})
      * @param causeOfEnqueuing the optional reason for the message being queued
      * @param deliveryDelay    the Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
+     * @see OrderedMessage
      */
     public QueueMessage(QueueName queueName, Message message, Optional<Exception> causeOfEnqueuing, Optional<Duration> deliveryDelay) {
         this.queueName = requireNonNull(queueName, "No queueName provided");
@@ -70,15 +71,16 @@ public class QueueMessage {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName        the name of the Queue the message is added to
-     * @param message          the message being queued
+     * @param message          the message being queued  ({@link Message}/{@link OrderedMessage})
      * @param causeOfEnqueuing the optional reason for the message being queued
      * @param deliveryDelay    the Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
+     * @see OrderedMessage
      */
     public QueueMessage(QueueName queueName, Message message, Exception causeOfEnqueuing, Duration deliveryDelay) {
-       this(queueName,
-            message,
-            Optional.ofNullable(causeOfEnqueuing),
-            Optional.ofNullable(deliveryDelay));
+        this(queueName,
+             message,
+             Optional.ofNullable(causeOfEnqueuing),
+             Optional.ofNullable(deliveryDelay));
     }
 
     /**
@@ -110,7 +112,7 @@ public class QueueMessage {
     }
 
     /**
-     * @param message the message being queued
+     * @param message the message being queued  ({@link Message}/{@link OrderedMessage})
      */
     public void setMessage(Message message) {
         this.message = requireNonNull(message, "No message provided");
@@ -118,7 +120,8 @@ public class QueueMessage {
 
     /**
      * Get the message being queued
-     * @return Get the message being queued
+     *
+     * @return Get the message being queued  ({@link Message}/{@link OrderedMessage})
      */
     public Message getMessage() {
         return message;

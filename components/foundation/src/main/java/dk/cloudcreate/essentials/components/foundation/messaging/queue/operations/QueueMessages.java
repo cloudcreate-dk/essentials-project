@@ -51,7 +51,7 @@ public class QueueMessages {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the messages will be added to
-     * @param messages      the message payloads
+     * @param messages      the message payloads  ({@link Message}/{@link OrderedMessage})
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      */
     public QueueMessages(QueueName queueName, List<? extends Message> messages, Optional<Duration> deliveryDelay) {
@@ -66,10 +66,10 @@ public class QueueMessages {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the messages will be added to
-     * @param messages      the message payloads
+     * @param messages      the message payloads  ({@link Message}/{@link OrderedMessage})
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      */
-    public QueueMessages(QueueName queueName, List<Message> messages, Duration deliveryDelay) {
+    public QueueMessages(QueueName queueName, List<? extends Message> messages, Duration deliveryDelay) {
         this(queueName,
              messages,
              Optional.ofNullable(deliveryDelay));
@@ -83,7 +83,7 @@ public class QueueMessages {
     }
 
     /**
-     * @return the message payloads
+     * @return the message payloads  ({@link Message}/{@link OrderedMessage})
      */
     public List<? extends Message> getMessages() {
         return messages;
@@ -110,6 +110,10 @@ public class QueueMessages {
         this.deliveryDelay = Optional.ofNullable(deliveryDelay);
     }
 
+    /**
+     *
+     * @param messages the messages being queued  ({@link Message}/{@link OrderedMessage})
+     */
     public void setMessages(List<Message> messages) {
         this.messages = requireNonNull(messages, "No payloads provided");
     }
