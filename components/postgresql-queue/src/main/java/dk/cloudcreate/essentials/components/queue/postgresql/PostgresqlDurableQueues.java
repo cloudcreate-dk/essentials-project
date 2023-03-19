@@ -1061,7 +1061,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
 
     public static class QueueTableNotification extends TableChangeNotification {
         @JsonProperty("id")
-        private long   id;
+        private String id;
         @JsonProperty("queue_name")
         private String queueName;
 
