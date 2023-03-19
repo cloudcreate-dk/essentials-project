@@ -40,10 +40,17 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * <pre>{@code
  * var patternMatchingInvoker = new PatternMatchingMethodInvoker<>(invokeMethodsOn,
  *                                                                 new SingleArgumentAnnotatedMethodPatternMatcher<>(EventHandler.class,
- *                                                                                                                   OrderEvent.class,
+ *                                                                                                                   OrderEvent.class),
  *                                                                 InvocationStrategy.InvokeMostSpecificTypeMatched);
  * }</pre>
-
+ *
+ * Usage:
+ * <pre>{@code
+ * invoker.invoke(event, unmatchedEvent -> {
+ *     // Decide how to handle if a given event doesn't have a corresponding handler
+ * });
+ * }</pre>
+ *
  * @param <ARGUMENT_COMMON_ROOT_TYPE> The method argument common root type (i.e. a common superclass or common interface) for the argument-type that we're performing pattern matching on. <br>
  *                                    If there isn't a common root type, then you can specify {@link Object} instead<p>
  *                                    Example: Within a single class we have placed a set methods that can handle <code>OrderEvent</code>'s, such as <code>OrderCreated, OrderShipped, OrderAccepted</code>, etc.<br>
