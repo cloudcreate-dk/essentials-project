@@ -172,7 +172,8 @@ public class MultiTableChangeListener<T extends TableChangeNotification> impleme
                               log.error(msg("Failed to deserialize notification payload '{}' to concrete {} related to table '{}'",
                                             notification.getParameter(),
                                             payloadType.getName(),
-                                            notification.getName()));
+                                            notification.getName()),
+                                        e);
                               return null;
                           }
                       })
