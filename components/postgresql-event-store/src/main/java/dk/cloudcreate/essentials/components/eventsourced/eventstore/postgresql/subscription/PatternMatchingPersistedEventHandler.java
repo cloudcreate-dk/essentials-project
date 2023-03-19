@@ -45,7 +45,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * </ul>
  * Each method may also include a 2nd argument that of type {@link PersistedEvent} in which case the event that's being matched is included as the 2nd argument in the call to the method.<br>
  * The methods can have any accessibility (private, public, etc.), they just have to be instance methods.
- *
+ * <p>
  * Example:
  * <pre>{@code
  * public class MyEventHandler extends PatternMatchingPersistedEventHandler {
@@ -79,11 +79,50 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 public abstract class PatternMatchingPersistedEventHandler implements PersistedEventHandler {
     private final PatternMatchingMethodInvoker<Object> invoker;
+    private       boolean                              allowUnmatchedEvents = false;
 
     public PatternMatchingPersistedEventHandler() {
         invoker = new PatternMatchingMethodInvoker<>(this,
                                                      new PersistedEventHandlerMethodPatternMatcher(),
                                                      InvocationStrategy.InvokeMostSpecificTypeMatched);
+    }
+
+    /**
+     * Should the event handler allow unmatched events?
+     * If true then an unmatched event is ignored, if false (the default value)
+     * then an unmatched event
+     * will cause {@link #handleUnmatchedEvent(PersistedEvent)} will throw
+     * an {@link IllegalArgumentException}
+     *
+     * @return should the event handler allow unmatched events
+     */
+    protected boolean isAllowUnmatchedEvents() {
+        return allowUnmatchedEvents;
+    }
+
+    /**
+     * Should the event handler allow unmatched events?
+     * If true then an unmatched event is ignored, if false (the default value)
+     * then an unmatched event
+     * will cause {@link #handleUnmatchedEvent(PersistedEvent)} will throw
+     * an {@link IllegalArgumentException}
+     *
+     * @param allowUnmatchedEvents should the event handler allow unmatched events
+     */
+    protected void setAllowUnmatchedEvents(boolean allowUnmatchedEvents) {
+        this.allowUnmatchedEvents = allowUnmatchedEvents;
+    }
+
+    /**
+     * Allow unmatched events, in which case an unmatched event is ignored.<br>
+     * If unmatched events are disallowed (the default)
+     * then {@link #handleUnmatchedEvent(PersistedEvent)} will throw
+     * an {@link IllegalArgumentException} in case of an unmatched event
+     *
+     * @see #setAllowUnmatchedEvents(boolean)
+     */
+    protected void allowUnmatchedEvents() {
+        setAllowUnmatchedEvents(true);
     }
 
     @Override
@@ -95,17 +134,20 @@ public abstract class PatternMatchingPersistedEventHandler implements PersistedE
 
     /**
      * Override this method to provide custom handling for events that aren't matched<br>
-     * Default behaviour is to throw an {@link IllegalArgumentException}
+     * Default behaviour is to throw an {@link IllegalArgumentException} unless {@link #isAllowUnmatchedEvents()}
+     * is set to true (default value is false)
      *
      * @param event the unmatched event
      */
     protected void handleUnmatchedEvent(PersistedEvent event) {
-        throw new IllegalArgumentException(msg("Unmatched PersistedEvent with eventId: {}, globalOrder: {}, eventType: {}, aggregateId: {}, eventOrder: {}",
-                                               event.eventId(),
-                                               event.globalEventOrder(),
-                                               event.event().getEventTypeOrName().getValue(),
-                                               event.aggregateId(),
-                                               event.eventOrder()));
+        if (!allowUnmatchedEvents) {
+            throw new IllegalArgumentException(msg("Unmatched PersistedEvent with eventId: {}, globalOrder: {}, eventType: {}, aggregateId: {}, eventOrder: {}",
+                                                   event.eventId(),
+                                                   event.globalEventOrder(),
+                                                   event.event().getEventTypeOrName().getValue(),
+                                                   event.aggregateId(),
+                                                   event.eventOrder()));
+        }
     }
 
     private static class PersistedEventHandlerMethodPatternMatcher implements MethodPatternMatcher<Object> {
