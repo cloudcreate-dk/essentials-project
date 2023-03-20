@@ -691,7 +691,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                            e.eventOrder()
                                                           );
                                                  try {
-                                                     eventHandler.handle(e);
+                                                     eventStore.getUnitOfWorkFactory()
+                                                               .usingUnitOfWork(unitOfWork -> eventHandler.handle(e));
                                                  } catch (Exception cause) {
                                                      onErrorHandlingEvent(e, cause);
                                                  } finally {
@@ -908,7 +909,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                                    e.eventOrder()
                                                                   );
                                                          try {
-                                                             eventHandler.handle(e);
+                                                             eventStore.getUnitOfWorkFactory()
+                                                                       .usingUnitOfWork(unitOfWork -> eventHandler.handle(e));
                                                          } catch (Exception cause) {
                                                              onErrorHandlingEvent(e, cause);
                                                          } finally {

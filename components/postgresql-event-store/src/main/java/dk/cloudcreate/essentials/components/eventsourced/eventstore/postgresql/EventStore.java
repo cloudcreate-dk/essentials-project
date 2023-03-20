@@ -19,7 +19,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.operations.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.AggregateEventStreamConfiguration;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.types.*;
@@ -58,7 +58,7 @@ public interface EventStore {
      *
      * @return the {@link UnitOfWorkFactory} associated with the {@link EventStore}
      */
-    EventStoreUnitOfWorkFactory getUnitOfWorkFactory();
+    EventStoreUnitOfWorkFactory<EventStoreUnitOfWork> getUnitOfWorkFactory();
 
     /**
      * Get the {@link LocalEventBus}, which can be used for transactional listening for {@link EventStore} changes
