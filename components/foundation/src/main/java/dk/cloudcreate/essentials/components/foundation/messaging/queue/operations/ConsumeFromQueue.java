@@ -45,6 +45,7 @@ public class ConsumeFromQueue {
     private       RedeliveryPolicy                   redeliveryPolicy;
     /**
      * The message handler that will receive {@link QueuedMessage}'s
+     * @see PatternMatchingQueuedMessageHandler
      */
     public final  QueuedMessageHandler               queueMessageHandler;
     private final int                                parallelConsumers;
@@ -69,7 +70,7 @@ public class ConsumeFromQueue {
      * @param queueName           the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
      * @param redeliveryPolicy    the redelivery policy in case the handling of a message fails
      * @param parallelConsumers   the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
-     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s
+     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s. See {@link PatternMatchingQueuedMessageHandler}
      * @param pollingInterval     the interval with which the consumer poll the queue db for new messages to process
      */
     public ConsumeFromQueue(String consumerName,
@@ -95,7 +96,7 @@ public class ConsumeFromQueue {
      * @param redeliveryPolicy        the redelivery policy in case the handling of a message fails
      * @param parallelConsumers       the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
      * @param consumerExecutorService the optional {@link ScheduledExecutorService} that's responsible for scheduling the <code>parallelConsumers</code>. Also see {@link ThreadFactoryBuilder}
-     * @param queueMessageHandler     the message handler that will receive {@link QueuedMessage}'s
+     * @param queueMessageHandler     the message handler that will receive {@link QueuedMessage}'s. See {@link PatternMatchingQueuedMessageHandler}
      * @param pollingInterval         the interval with which the consumer poll the queue db for new messages to process
      */
     public ConsumeFromQueue(String consumerName,
@@ -123,7 +124,7 @@ public class ConsumeFromQueue {
      * @param redeliveryPolicy        the redelivery policy in case the handling of a message fails
      * @param parallelConsumers       the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
      * @param consumerExecutorService the optional {@link ScheduledExecutorService} that's responsible for scheduling the <code>parallelConsumers</code>. Also see {@link ThreadFactoryBuilder}
-     * @param queueMessageHandler     the message handler that will receive {@link QueuedMessage}'s
+     * @param queueMessageHandler     the message handler that will receive {@link QueuedMessage}'s. See {@link PatternMatchingQueuedMessageHandler}
      * @param pollingInterval         the interval with which the consumer poll the queue db for new messages to process
      */
     public ConsumeFromQueue(String consumerName,
@@ -192,7 +193,8 @@ public class ConsumeFromQueue {
     }
 
     /**
-     * @return the message handler that will receive {@link QueuedMessage}'s
+     * @return the message handler that will receive {@link QueuedMessage}'s<br>
+     * @see PatternMatchingQueuedMessageHandler
      */
     public QueuedMessageHandler getQueueMessageHandler() {
         return queueMessageHandler;

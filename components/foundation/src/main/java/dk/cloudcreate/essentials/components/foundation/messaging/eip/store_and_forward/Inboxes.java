@@ -60,7 +60,7 @@ public interface Inboxes {
      * created then that instance is returned (irrespective of whether the redeliveryPolicy, etc. have the same values)
      *
      * @param inboxConfig     the inbox configuration
-     * @param messageConsumer the asynchronous message consumer
+     * @param messageConsumer the asynchronous message consumer. See {@link PatternMatchingMessageHandler}
      * @return the {@link Inbox}
      */
     Inbox getOrCreateInbox(InboxConfig inboxConfig,

@@ -122,6 +122,33 @@ var consumer = durableQueues.consumeFromQueue(ConsumeFromQueue.builder()
 consumer.cancel();
 ```
 
+You can also provide a subtype of `PatternMatchingQueuedMessageHandler` which supports pattern matching on the `Message#payload` contained in the `QueuedMessage`'s:
+```
+var consumer = durableQueues.consumeFromQueue(ConsumeFromQueue.builder()
+                                                              .setQueueName(queueName)
+                                                              .setRedeliveryPolicy(
+                                                                      RedeliveryPolicy.fixedBackoff()
+                                                                                      .setRedeliveryDelay(Duration.ofMillis(200))
+                                                                                      .setMaximumNumberOfRedeliveries(5)
+                                                                                      .setDeliveryErrorHandler(MessageDeliveryErrorHandler.stopRedeliveryOn(ValidationException.class))
+                                                                                      .build())
+                                                              .setParallelConsumers(1)
+                                                              .setQueueMessageHandler(new PatternMatchingQueuedMessageHandler() {
+                                                                                        @MessageHandler
+                                                                                        void handle(SomeCommand someCommand) {
+                                                                                        }
+                                                                                
+                                                                                        @MessageHandler
+                                                                                        void handle(SomeOtherCommand someOtherCommand, QueuedMessage queuedMessageForSomeOtherCommand) {
+                                                                                        }
+                                                                                
+                                                                                        @Override
+                                                                                        protected void handleUnmatchedMessage(QueuedMessage queuedMessage) {
+                                                                                        }
+                                                                                    })
+                                                              .build());
+```
+
 To use `DurableQueues` you must create an instance of a concrete `DurableQueues` implementation, such as `PostgresqlDurableQueues` or `MongoDurableQueues`.
 
 ### `PostgresqlDurableQueues`
@@ -405,6 +432,33 @@ Inbox orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder()
                                                                }); 
 ```
 
+You can also provide a subtype of `PatternMatchingMessageHandler` which supports pattern matching on the `Message#payload`:
+```
+Inbox orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder()
+                                                               .inboxName(InboxName.of("OrderService:OrderEvents"))
+                                                               .redeliveryPolicy(RedeliveryPolicy.fixedBackoff()
+                                                                                                 .setRedeliveryDelay(Duration.ofMillis(100))
+                                                                                                 .setMaximumNumberOfRedeliveries(10)
+                                                                                                 .build())
+                                                               .messageConsumptionMode(MessageConsumptionMode.SingleGlobalConsumer)
+                                                               .numberOfParallelMessageConsumers(5)
+                                                               .build(),
+                                                               new PatternMatchingMessageHandler() {
+                                                                    @MessageHandler
+                                                                    void handle(SomeCommand someCommand) {
+                                                                    }
+                                                            
+                                                                    @MessageHandler
+                                                                    void handle(SomeOtherCommand someOtherCommand, Message messageForSomeOtherCommand) {
+                                                                    }
+                                                            
+                                                                    @Override
+                                                                    protected void handleUnmatchedMessage(Message message) {
+                                                                    }
+                                                                }); 
+
+```
+
 ### Adding a message to an `Inbox` from a Spring KafkaListener:
 
 ```
@@ -511,6 +565,30 @@ Outbox kafkaOutbox = outboxes.getOrCreateOutbox(OutboxConfig.builder()
                                                                                                                      e.getPayload().);
                                                              kafkaTemplate.send(producerRecord);
                                                          });
+```
+
+You can also provide a subtype of `PatternMatchingMessageHandler` which supports pattern matching on the `Message#payload`:
+```
+Outbox kafkaOutbox = outboxes.getOrCreateOutbox(OutboxConfig.builder()
+                                                         .setOutboxName(OutboxName.of("ShippingOrder:KafkaShippingEvents"))
+                                                         .setRedeliveryPolicy(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(100), 10))
+                                                         .setMessageConsumptionMode(MessageConsumptionMode.SingleGlobalConsumer)
+                                                         .setNumberOfParallelMessageConsumers(1)
+                                                         .build(),
+                                                          new PatternMatchingMessageHandler() {
+    
+                                                                @MessageHandler
+                                                                void handle(SomeCommand someCommand) {
+                                                                }
+                                                        
+                                                                @MessageHandler
+                                                                void handle(SomeOtherCommand someOtherCommand, Message messageForSomeOtherCommand) {
+                                                                }
+                                                        
+                                                                @Override
+                                                                protected void handleUnmatchedMessage(Message message) {
+                                                                }
+                                                            }); 
 ```
 
 ### Adding a message to an `Outbox`

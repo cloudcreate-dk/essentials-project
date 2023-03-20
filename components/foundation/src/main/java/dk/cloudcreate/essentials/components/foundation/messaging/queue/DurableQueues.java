@@ -148,7 +148,7 @@ public interface DurableQueues extends Lifecycle {
      * @param queueName           the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
      * @param redeliveryPolicy    the redelivery policy in case the handling of a message fails
      * @param parallelConsumers   the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
-     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s
+     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s. See {@link PatternMatchingQueuedMessageHandler}
      * @return the queue consumer
      */
     default DurableQueueConsumer consumeFromQueue(String consumerName,
@@ -172,7 +172,7 @@ public interface DurableQueues extends Lifecycle {
      * @param queueName           the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
      * @param redeliveryPolicy    the redelivery policy in case the handling of a message fails
      * @param parallelConsumers   the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
-     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s
+     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s. See {@link PatternMatchingQueuedMessageHandler}
      * @return the queue consumer
      */
     default DurableQueueConsumer consumeFromQueue(QueueName queueName,

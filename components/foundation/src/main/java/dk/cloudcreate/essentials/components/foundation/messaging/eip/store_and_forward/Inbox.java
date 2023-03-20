@@ -48,7 +48,7 @@ public interface Inbox {
      * to coordinate message consumption, then you can find the {@link FencedLock#getCurrentToken()}
      * of the consumer in the {@link Message#getMetaData()} under key {@link MessageMetaData#FENCED_LOCK_TOKEN}
      *
-     * @param messageConsumer the message consumer
+     * @param messageConsumer the message consumer. See {@link PatternMatchingMessageHandler}
      * @return this inbox instance
      */
     Inbox consume(Consumer<Message> messageConsumer);

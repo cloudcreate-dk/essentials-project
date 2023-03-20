@@ -51,7 +51,7 @@ public interface Outboxes {
      * created then that instance is returned (irrespective of whether the redeliveryPolicy, etc. have the same values)
      *
      * @param outboxConfig    the outbox configuration
-     * @param messageConsumer the asynchronous message consumer
+     * @param messageConsumer the asynchronous message consumer. See {@link PatternMatchingMessageHandler}
      * @return the {@link Outbox}
      */
     Outbox getOrCreateOutbox(OutboxConfig outboxConfig,
