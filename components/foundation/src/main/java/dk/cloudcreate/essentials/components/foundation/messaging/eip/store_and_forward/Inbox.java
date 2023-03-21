@@ -16,18 +16,40 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
 import java.util.function.Consumer;
 
+/**
+ * The {@link Inbox} supports the transactional Store and Forward pattern from Enterprise Integration Patterns supporting At-Least-Once delivery guarantee.<br>
+ * The {@link Inbox} pattern is used to handle incoming messages from a message infrastructure (such as a Queue, Kafka, EventBus, etc). <br>
+ * The message is added to the {@link Inbox} in a transaction/{@link UnitOfWork} and afterwards the message is Acknowledged (ACK) with the message infrastructure the {@link UnitOfWork} is committed.<br>
+ * If the ACK fails then the message infrastructure will attempt to redeliver the message even if the {@link UnitOfWork} has been committed, since the message infrastructure and the {@link Inbox}
+ * don't share the same transactional resource. This means that messages received from the message infrastructure
+ * can be added more than once to the {@link Inbox}.<br>
+ * After the {@link UnitOfWork} has been committed, the messages will be asynchronously delivered to the message consumer in a new {@link UnitOfWork}.<br>
+ * The {@link Inbox} itself supports Message Redelivery in case the Message consumer experiences failures.<br>
+ * This means that the Message consumer, registered with the {@link Inbox}, can and will receive Messages more than once and therefore its message handling has to be idempotent.
+ * <p>
+ * If you're working with {@link OrderedMessage}'s then the {@link Inbox} consumer must be configured
+ * with {@link InboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
+ * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
+ * across as many {@link InboxConfig#numberOfParallelMessageConsumers} as you wish to use.
+ */
 public interface Inbox {
     /**
      * Start consuming messages from the Outbox using the provided message consumer.<br>
      * Only needs to be called if the instance was created without a message consumer
+     * <p>
+     * If an {@link OrderedMessage} is delivered via an {@link Inbox} using a {@link FencedLock}
+     * (such as {@link Inboxes#durableQueueBasedInboxes(DurableQueues, FencedLockManager)})
+     * to coordinate message consumption, then you can find the {@link FencedLock#getCurrentToken()}
+     * of the consumer in the {@link Message#getMetaData()} under key {@link MessageMetaData#FENCED_LOCK_TOKEN}
      *
-     * @param messageConsumer the message consumer
-     * @return this
+     * @param messageConsumer the message consumer. See {@link PatternMatchingMessageHandler}
+     * @return this inbox instance
      */
     Inbox consume(Consumer<Message> messageConsumer);
 
@@ -64,7 +86,7 @@ public interface Inbox {
      * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
-     * @param payload the message payload
+     * @param payload  the message payload
      * @param metaData the message meta-data
      */
     default void addMessageReceived(Object payload, MessageMetaData metaData) {
@@ -88,6 +110,7 @@ public interface Inbox {
      * The message will be delivered asynchronously to the message consumer
      *
      * @param message the message
+     * @see OrderedMessage
      */
     void addMessageReceived(Message message);
 

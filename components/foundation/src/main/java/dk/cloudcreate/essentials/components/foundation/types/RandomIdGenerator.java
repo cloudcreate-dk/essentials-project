@@ -31,7 +31,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *   if <code>com.fasterxml.uuid.Generators</code> is on the classpath</li>
  *   <li>Otherwise it generates UUIDv4 random id's
  *   using the default Java {@link UUID#randomUUID()} generator.</li>
- *   <li>The random-id generator provided to {@link #overrideRandomIdGenerator(Supplier)}</li>
+ *   <li>The random-id generator provided to {@link #overrideRandomIdGenerator(Supplier, boolean)}</li>
  * </ul>
  * <p>
  * To add <code>com.fasterxml.uuid.Generators</code> you need to include the <code>com.fasterxml.uuid:java-uuid-generator</code> dependency in your project.<br>
@@ -46,12 +46,15 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  */
 public final class RandomIdGenerator {
     private static Supplier<String> randomIdGenerator;
+    private static boolean          isSequentialIdGenerator;
 
     static {
         if (Classes.doesClassExistOnClasspath("com.fasterxml.uuid.Generators")) {
             randomIdGenerator = () -> Generators.timeBasedGenerator().generate().toString();
+            isSequentialIdGenerator = true;
         } else {
             randomIdGenerator = () -> UUID.randomUUID().toString();
+            isSequentialIdGenerator = false;
         }
     }
 
@@ -62,12 +65,13 @@ public final class RandomIdGenerator {
      * overrideRandomIdGenerator(() -> Generators.timeBasedEpochGenerator().generate().toString());
      * }</pre>
      *
-     *
-     * @param randomIdGenerator the new random id generator that generates a new random id every time it's called.<br>
-     *                          The provided random id generator MUST be thread safe
+     * @param randomIdGenerator       the new random id generator that generates a new random id every time it's called.<br>
+     *                                The provided random id generator MUST be thread safe
+     * @param isSequentialIdGenerator Is this a sequential id generator
      */
-    public static void overrideRandomIdGenerator(Supplier<String> randomIdGenerator) {
+    public static void overrideRandomIdGenerator(Supplier<String> randomIdGenerator, boolean isSequentialIdGenerator) {
         RandomIdGenerator.randomIdGenerator = requireNonNull(randomIdGenerator, "No randomIdGenerator instance provided");
+        RandomIdGenerator.isSequentialIdGenerator = isSequentialIdGenerator;
     }
 
     /**
@@ -77,12 +81,16 @@ public final class RandomIdGenerator {
      *   if <code>com.fasterxml.uuid.Generators</code> is on the classpath</li>
      *   <li>Otherwise it generates UUIDv4 random id's
      *   using the default Java {@link UUID#randomUUID()} generator.</li>
-     *   <li>The random-id generator provided to {@link #overrideRandomIdGenerator(Supplier)}</li>
+     *   <li>The random-id generator provided to {@link #overrideRandomIdGenerator(Supplier, boolean)}</li>
      * </ul>
      *
      * @return a new random id
      */
     public static String generate() {
         return randomIdGenerator.get();
+    }
+
+    public static boolean isOrderedIdGenerator() {
+        return isSequentialIdGenerator;
     }
 }

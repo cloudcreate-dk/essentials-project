@@ -16,12 +16,8 @@
 
 package dk.cloudcreate.essentials.shared.interceptor;
 
-import org.slf4j.*;
-
-import java.util.*;
+import java.util.List;
 import java.util.function.*;
-
-import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * Generic interceptor chain concept that supports intercepting concrete {@link Interceptor} operations to modify the behaviour or
@@ -75,61 +71,4 @@ public interface InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE extends In
         return new DefaultInterceptorChain<>(operation, interceptors, interceptorMethodInvoker, defaultBehaviour);
     }
 
-    /**
-     * Default implementation for the {@link InterceptorChain}. It's recommended to use
-     * {@link InterceptorChain#newInterceptorChainForOperation(Object, List, BiFunction, Supplier)} to create a new chain
-     * instance for a given operation
-     *
-     * @param <OPERATION> the type of operation to intercept, aka. the argument to the interceptor
-     * @param <RESULT>    the result of the operation
-     */
-    class DefaultInterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE extends Interceptor> implements InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE> {
-        private static final Logger                                                                                      log = LoggerFactory.getLogger(DefaultInterceptorChain.class);
-        private final        OPERATION                                                                                   operation;
-        private final        Iterator<INTERCEPTOR_TYPE>                                                                  interceptorIterator;
-        private final        BiFunction<INTERCEPTOR_TYPE, InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE>, RESULT> interceptorMethodInvoker;
-        private final        Supplier<RESULT>                                                                            defaultBehaviour;
-
-        /**
-         * Create a new {@link InterceptorChain} instance for the provided <code>operation</code>
-         *
-         * @param operation                the operation to intercept, aka. the argument to the interceptor
-         * @param interceptors             the {@link Interceptor}'s (can be an empty List if no interceptors have been configured)
-         * @param interceptorMethodInvoker the function that's responsible for invoking the matching {@link Interceptor} method
-         * @param defaultBehaviour         the default behaviour for the given <code>operation</code> in case none of the interceptors provided a different result and stopped the interceptor chain
-         */
-        public DefaultInterceptorChain(OPERATION operation,
-                                       List<INTERCEPTOR_TYPE> interceptors,
-                                       BiFunction<INTERCEPTOR_TYPE, InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE>, RESULT> interceptorMethodInvoker,
-                                       Supplier<RESULT> defaultBehaviour) {
-            this.operation = requireNonNull(operation, "No operation provided");
-            this.interceptorIterator = requireNonNull(interceptors, "No interceptors provided").iterator();
-            this.interceptorMethodInvoker = requireNonNull(interceptorMethodInvoker, "No interceptorMethodInvoker provided");
-            this.defaultBehaviour = requireNonNull(defaultBehaviour, "No defaultBehaviour supplier provided");
-        }
-
-        @Override
-        public RESULT proceed() {
-            if (interceptorIterator.hasNext()) {
-                var interceptor = interceptorIterator.next();
-                log.trace("Invoking interceptor '{}'", interceptor.getClass().getName());
-                return interceptorMethodInvoker.apply(interceptor, this);
-            } else {
-                log.trace("Invoking default behaviour for operation '{}'", operation.getClass().getSimpleName());
-                return defaultBehaviour.get();
-            }
-        }
-
-        @Override
-        public OPERATION operation() {
-            return operation;
-        }
-
-        @Override
-        public String toString() {
-            return "InterceptorChain{" +
-                    "operation=" + operation +
-                    '}';
-        }
-    }
 }

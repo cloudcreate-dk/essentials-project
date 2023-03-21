@@ -17,11 +17,13 @@
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 
-import java.time.Duration;
+import java.time.*;
 import java.util.*;
 
 /**
@@ -48,10 +50,15 @@ import java.util.*;
  * The {@link RedeliveryPolicy} supports fixed, linear and exponential backoff strategies.
  * The {@link DurableQueues} supports delayed message delivery as well as Poison-Message/Dead-Letter-Messages, which are messages that have repeatedly failed processing.<br>
  * Poison Messages/Dead-Letter-Messages won't be delivered to a {@link DurableQueueConsumer}, unless they're explicitly resurrected call {@link #resurrectDeadLetterMessage(QueueEntryId, Duration)}<br>
- * <br>
+ * <p>
+ * <b>Ordered Messages</b><br>
+ * If you're queuing with {@link OrderedMessage} then, IF and only IF, only a single cluster node is consuming from the Queue,
+ * such as with an {@link Inbox} or {@link Outbox} configured with {@link MessageConsumptionMode#SingleGlobalConsumer} (which uses a {@link FencedLock} to
+ * coordinate message consumption across cluster nodes)
+ * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per
+ * {@link OrderedMessage#getKey()} across as many parallel message consumers as you wish to use.
  */
 public interface DurableQueues extends Lifecycle {
-
     /**
      * The sorting order for the {@link QueuedMessage#getId()}
      */
@@ -137,10 +144,35 @@ public interface DurableQueues extends Lifecycle {
      * Start an asynchronous message consumer.<br>
      * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance
      *
+     * @param consumerName        the name of the consumer (for logging purposes)
      * @param queueName           the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
      * @param redeliveryPolicy    the redelivery policy in case the handling of a message fails
      * @param parallelConsumers   the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
-     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s
+     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s. See {@link PatternMatchingQueuedMessageHandler}
+     * @return the queue consumer
+     */
+    default DurableQueueConsumer consumeFromQueue(String consumerName,
+                                                  QueueName queueName,
+                                                  RedeliveryPolicy redeliveryPolicy,
+                                                  int parallelConsumers,
+                                                  QueuedMessageHandler queueMessageHandler) {
+        return consumeFromQueue(ConsumeFromQueue.builder()
+                                                .setConsumerName(consumerName)
+                                                .setQueueName(queueName)
+                                                .setRedeliveryPolicy(redeliveryPolicy)
+                                                .setParallelConsumers(parallelConsumers)
+                                                .setQueueMessageHandler(queueMessageHandler)
+                                                .build());
+    }
+
+    /**
+     * Start an asynchronous message consumer.<br>
+     * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance
+     *
+     * @param queueName           the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
+     * @param redeliveryPolicy    the redelivery policy in case the handling of a message fails
+     * @param parallelConsumers   the number of parallel consumers (if number > 1 then you will effectively have competing consumers on the current node)
+     * @param queueMessageHandler the message handler that will receive {@link QueuedMessage}'s. See {@link PatternMatchingQueuedMessageHandler}
      * @return the queue consumer
      */
     default DurableQueueConsumer consumeFromQueue(QueueName queueName,
@@ -196,9 +228,10 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the message is added to
-     * @param message       the message
+     * @param message       the message  ({@link Message}/{@link OrderedMessage})
      * @param deliveryDelay Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
      * @return the unique entry id for the message queued
+     * @see OrderedMessage
      */
     default QueueEntryId queueMessage(QueueName queueName, Message message, Optional<Duration> deliveryDelay) {
         return queueMessage(queueName,
@@ -213,9 +246,10 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the message is added to
-     * @param message       the message
+     * @param message       the message  ({@link Message}/{@link OrderedMessage})
      * @param deliveryDelay Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
      * @return the unique entry id for the message queued
+     * @see OrderedMessage
      */
     default QueueEntryId queueMessage(QueueName queueName, Message message, Duration deliveryDelay) {
         return queueMessage(queueName,
@@ -230,10 +264,11 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName        the name of the Queue the message is added to
-     * @param message          the message
+     * @param message          the message  ({@link Message}/{@link OrderedMessage})
      * @param causeOfEnqueuing the optional reason for the message being queued
      * @param deliveryDelay    Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
      * @return the unique entry id for the message queued
+     * @see OrderedMessage
      */
     default QueueEntryId queueMessage(QueueName queueName, Message message, Optional<Exception> causeOfEnqueuing, Optional<Duration> deliveryDelay) {
         return queueMessage(new QueueMessage(queueName,
@@ -248,10 +283,11 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName        the name of the Queue the message is added to
-     * @param message          the message payload
+     * @param message          the message payload  ({@link Message}/{@link OrderedMessage})
      * @param causeOfEnqueuing the optional reason for the message being queued
      * @param deliveryDelay    Optional delay for the first delivery of the message to the {@link DurableQueueConsumer}
      * @return the unique entry id for the message queued
+     * @see OrderedMessage
      */
     default QueueEntryId queueMessage(QueueName queueName, Message message, Exception causeOfEnqueuing, Duration deliveryDelay) {
         return queueMessage(queueName,
@@ -265,9 +301,10 @@ public interface DurableQueues extends Lifecycle {
      * To deliver a Dead Letter Message you must first resurrect the message using {@link #resurrectDeadLetterMessage(QueueEntryId, Duration)}
      *
      * @param queueName    the name of the Queue the message is added to
-     * @param message      the message
+     * @param message      the message  ({@link Message}/{@link OrderedMessage})
      * @param causeOfError the reason for the message being queued directly as a Dead Letter Message
      * @return the unique entry id for the message queued
+     * @see OrderedMessage
      */
     default QueueEntryId queueMessageAsDeadLetterMessage(QueueName queueName, Message message, Exception causeOfError) {
         return queueMessageAsDeadLetterMessage(new QueueMessageAsDeadLetterMessage(queueName,
@@ -290,11 +327,11 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the messages will be added to
-     * @param messages      the message to enqueue
+     * @param messages      the message to enqueue  ({@link Message}/{@link OrderedMessage})
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      * @return the unique entry id's for the messages queued ordered in the same order as the payloads that were queued
      */
-    default List<QueueEntryId> queueMessages(QueueName queueName, List<Message> messages, Optional<Duration> deliveryDelay) {
+    default List<QueueEntryId> queueMessages(QueueName queueName, List<? extends Message> messages, Optional<Duration> deliveryDelay) {
         return queueMessages(new QueueMessages(queueName,
                                                messages,
                                                deliveryDelay));
@@ -306,11 +343,11 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName     the name of the Queue the messages will be added to
-     * @param messages      the messages to enqueue
+     * @param messages      the messages to enqueue  ({@link Message}/{@link OrderedMessage})
      * @param deliveryDelay optional: how long will the queue wait until it delivers the messages to the {@link DurableQueueConsumer}
      * @return the unique entry id's for the messages queued ordered in the same order as the payloads that were queued
      */
-    default List<QueueEntryId> queueMessages(QueueName queueName, List<Message> messages, Duration deliveryDelay) {
+    default List<QueueEntryId> queueMessages(QueueName queueName, List<? extends Message> messages, Duration deliveryDelay) {
         return queueMessages(queueName,
                              messages,
                              Optional.ofNullable(deliveryDelay));
@@ -323,10 +360,10 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueName the name of the Queue the messages will be added to
-     * @param messages  the message to enqueue
+     * @param messages  the message to enqueue  ({@link Message}/{@link OrderedMessage})
      * @return the unique entry id's for the messages queued, ordered in the same order as the payloads that were queued
      */
-    default List<QueueEntryId> queueMessages(QueueName queueName, List<Message> messages) {
+    default List<QueueEntryId> queueMessages(QueueName queueName, List<? extends Message> messages) {
         return queueMessages(queueName, messages, Optional.empty());
     }
 
@@ -525,7 +562,10 @@ public interface DurableQueues extends Lifecycle {
      * @param pageSize          how many messages to include in the result (used for pagination)
      * @return the messages matching the criteria
      */
-    default List<QueuedMessage> getQueuedMessages(QueueName queueName, QueueingSortOrder queueingSortOrder, long startIndex, long pageSize) {
+    default List<QueuedMessage> getQueuedMessages(QueueName queueName,
+                                                  QueueingSortOrder queueingSortOrder,
+                                                  long startIndex,
+                                                  long pageSize) {
         return getQueuedMessages(GetQueuedMessages.builder()
                                                   .setQueueName(queueName)
                                                   .setQueueingSortOrder(queueingSortOrder)
@@ -551,7 +591,10 @@ public interface DurableQueues extends Lifecycle {
      * @param pageSize          how many messages to include in the result (used for pagination)
      * @return the dead letter messages matching the criteria
      */
-    default List<QueuedMessage> getDeadLetterMessages(QueueName queueName, QueueingSortOrder queueingSortOrder, long startIndex, long pageSize) {
+    default List<QueuedMessage> getDeadLetterMessages(QueueName queueName,
+                                                      QueueingSortOrder queueingSortOrder,
+                                                      long startIndex,
+                                                      long pageSize) {
         return getDeadLetterMessages(GetDeadLetterMessages.builder()
                                                           .setQueueName(queueName)
                                                           .setQueueingSortOrder(queueingSortOrder)
@@ -585,4 +628,36 @@ public interface DurableQueues extends Lifecycle {
      * @return the number of deleted messages
      */
     int purgeQueue(PurgeQueue operation);
+
+    /**
+     * Query for the next <code>maxNumberOfMessagesToReturn</code> queued messages
+     * that are soon ready to be delivered using {@link Instant#now()} as <code>withNextDeliveryTimestampAfter</code><br>
+     * This is a useful method for a custom queue consumer to know if it's necessary to
+     * call {@link #getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery)}
+     *
+     * @param queueName                   the name of the queue being queried
+     * @param maxNumberOfMessagesToReturn the maximum number of messages to return
+     * @return the messages soon ready to be delivered
+     */
+    default List<NextQueuedMessage> queryForMessagesSoonReadyForDelivery(QueueName queueName,
+                                                                         int maxNumberOfMessagesToReturn) {
+        return queryForMessagesSoonReadyForDelivery(queueName,
+                                                    Instant.now(),
+                                                    maxNumberOfMessagesToReturn);
+    }
+
+    /**
+     * Query for the next <code>maxNumberOfMessagesToReturn</code> queued messages
+     * that are soon ready to be delivered<br>
+     * This is a useful method for a custom queue consumer to know if it's necessary to
+     * call {@link #getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery)}
+     *
+     * @param queueName                      the name of the queue being queried
+     * @param withNextDeliveryTimestampAfter return {@link NextQueuedMessage} with a {@link NextQueuedMessage#nextDeliveryTimestamp} > than this timestamp
+     * @param maxNumberOfMessagesToReturn    the maximum number of messages to return
+     * @return the messages soon ready to be delivered
+     */
+    List<NextQueuedMessage> queryForMessagesSoonReadyForDelivery(QueueName queueName,
+                                                                 Instant withNextDeliveryTimestampAfter,
+                                                                 int maxNumberOfMessagesToReturn);
 }

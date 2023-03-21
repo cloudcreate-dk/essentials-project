@@ -47,7 +47,7 @@ public class QueueMessageAsDeadLetterMessage {
      * To deliver a Dead Letter Message you must first resurrect the message using {@link DurableQueues#resurrectDeadLetterMessage(QueueEntryId, Duration)}
      *
      * @param queueName    the name of the Queue the message is added to
-     * @param message      the message being enqueued directly as a Dead Letter Message
+     * @param message      the message being enqueued directly as a Dead Letter Message  ({@link Message}/{@link OrderedMessage})
      * @param causeOfError the reason for the message being queued directly as a Dead Letter Message
      */
     public QueueMessageAsDeadLetterMessage(QueueName queueName, Message message, Exception causeOfError) {
@@ -73,12 +73,16 @@ public class QueueMessageAsDeadLetterMessage {
     /**
      * Get the dead letter message
      *
-     * @return the dead letter message
+     * @return the dead letter message  ({@link Message}/{@link OrderedMessage})
      */
     public Message getMessage() {
         return message;
     }
 
+    /**
+     *
+     * @param message set the dead letter message  ({@link Message}/{@link OrderedMessage})
+     */
     public void setMessage(Message message) {
         this.message = requireNonNull(message, "No message provided");
     }

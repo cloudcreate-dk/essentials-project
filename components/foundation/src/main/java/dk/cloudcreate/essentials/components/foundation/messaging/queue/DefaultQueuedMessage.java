@@ -74,6 +74,11 @@ public class DefaultQueuedMessage implements QueuedMessage {
     }
 
     @Override
+    public DeliveryMode getDeliveryMode() {
+        return DeliveryMode.NORMAL;
+    }
+
+    @Override
     public OffsetDateTime getAddedTimestamp() {
         return addedTimestamp;
     }
@@ -127,7 +132,6 @@ public class DefaultQueuedMessage implements QueuedMessage {
                 ", totalDeliveryAttempts=" + totalDeliveryAttempts +
                 ", redeliveryAttempts=" + redeliveryAttempts +
                 ", isDeadLetterMessage=" + isDeadLetterMessage +
-                ", lastDeliveryError='" + lastDeliveryError + '\'' +
                 '}';
     }
 }

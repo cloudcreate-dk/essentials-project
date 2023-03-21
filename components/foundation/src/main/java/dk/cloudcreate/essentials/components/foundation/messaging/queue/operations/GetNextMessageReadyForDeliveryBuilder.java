@@ -16,16 +16,18 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue.operations;
 
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+
+import java.util.*;
 
 /**
  * Builder for {@link GetNextMessageReadyForDelivery}
  */
 public class GetNextMessageReadyForDeliveryBuilder {
-    private QueueName queueName;
+    private QueueName          queueName;
+    private Collection<String> excludeOrderedMessagesWithKey = List.of();
 
     /**
-     *
      * @param queueName the name of the Queue where we will query for the next message ready for delivery
      * @return this builder instance
      */
@@ -35,10 +37,21 @@ public class GetNextMessageReadyForDeliveryBuilder {
     }
 
     /**
+     * @param excludeOrderedMessagesWithKey collection of {@link OrderedMessage#getKey()}'s to exclude in the search for the next message
+     * @return this builder instance
+     */
+    public GetNextMessageReadyForDeliveryBuilder setExcludeOrderedMessagesWithKey(Collection<String> excludeOrderedMessagesWithKey) {
+        this.excludeOrderedMessagesWithKey = excludeOrderedMessagesWithKey;
+        return this;
+    }
+
+    /**
      * Builder an {@link GetNextMessageReadyForDelivery} instance from the builder properties
+     *
      * @return the {@link GetNextMessageReadyForDelivery} instance
      */
     public GetNextMessageReadyForDelivery build() {
-        return new GetNextMessageReadyForDelivery(queueName);
+        return new GetNextMessageReadyForDelivery(queueName,
+                                                  excludeOrderedMessagesWithKey);
     }
 }

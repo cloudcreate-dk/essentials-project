@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
@@ -48,7 +49,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  *      }
  * }}</pre>
  */
-public abstract class AnnotatedCommandHandler implements CommandHandler {
+public class AnnotatedCommandHandler implements CommandHandler {
     private static final Logger log = LoggerFactory.getLogger(AnnotatedCommandHandler.class);
 
     private final List<Method>                    invokableMethods;
@@ -58,25 +59,47 @@ public abstract class AnnotatedCommandHandler implements CommandHandler {
      */
     private final ConcurrentMap<Class<?>, Method> commandTypeToHandlerMethodCache = new ConcurrentHashMap<>();
 
-    public AnnotatedCommandHandler() {
-        var onClass = this.getClass();
-        invokableMethods = Methods.methods(onClass)
-                                  .stream()
-                                  .filter(method -> method.getDeclaringClass() != Object.class)
-                                  .filter(candidateMethod -> candidateMethod.isAnnotationPresent(Handler.class) && candidateMethod.getParameterCount() == 1)
-                                  .collect(Collectors.toList());
+    private final Object invokeCommandHandlerMethodsOn;
+
+    /**
+     * Create an {@link AnnotatedCommandHandler} that can resolve and invoke command handler methods, i.e. methods
+     * annotated with {@literal @Handler}, on another object
+     *
+     * @param invokeCommandHandlerMethodsOn the object that contains the {@literal @Handler} annotated methods
+     */
+    public AnnotatedCommandHandler(Object invokeCommandHandlerMethodsOn) {
+        this.invokeCommandHandlerMethodsOn = requireNonNull(invokeCommandHandlerMethodsOn, "No invokeCommandHandlerMethodsOn provided");
+        invokableMethods = resolveCommandHandlerMethods();
+    }
+
+    /**
+     * Create an {@link AnnotatedCommandHandler} that can resolve and invoke command handler methods, i.e. methods
+     * annotated with {@literal @Handler}, on this concrete subclass of {@link AnnotatedCommandHandler}
+     */
+    protected AnnotatedCommandHandler() {
+        this.invokeCommandHandlerMethodsOn = this;
+        invokableMethods = resolveCommandHandlerMethods();
+    }
+
+    private List<Method> resolveCommandHandlerMethods() {
+        var onClass = invokeCommandHandlerMethodsOn.getClass();
+        var invokableMethods = Methods.methods(onClass)
+                                      .stream()
+                                      .filter(method -> method.getDeclaringClass() != Object.class)
+                                      .filter(candidateMethod -> candidateMethod.isAnnotationPresent(Handler.class) && candidateMethod.getParameterCount() == 1)
+                                      .collect(Collectors.toList());
         if (log.isTraceEnabled()) {
             log.trace("InvokableMethod in {}: {}",
-                      this.getClass().getName(),
+                      onClass.getName(),
                       invokableMethods);
         }
+        return invokableMethods;
     }
 
     @Override
     public boolean canHandle(Class<?> commandType) {
         return getHandlerMethod(commandType) != null;
     }
-
 
     @Override
     public final Object handle(Object command) {
@@ -90,13 +113,13 @@ public abstract class AnnotatedCommandHandler implements CommandHandler {
                                                          commandType.getName()));
         }
         try {
-            return handlerMethod.invoke(this, command);
+            return handlerMethod.invoke(invokeCommandHandlerMethodsOn, command);
         } catch (InvocationTargetException e) {
             log.error(msg("Failed to handle command of type {} using @{} annotated method {} in '{}'",
                           commandType.getName(),
                           Handler.class.getSimpleName(),
                           handlerMethod.toString(),
-                          this.toString()),
+                          invokeCommandHandlerMethodsOn.toString()),
                       e);
             return Exceptions.sneakyThrow(e.getTargetException());
         } catch (Exception e) {
@@ -104,7 +127,7 @@ public abstract class AnnotatedCommandHandler implements CommandHandler {
                           commandType.getName(),
                           Handler.class.getSimpleName(),
                           handlerMethod.toString(),
-                          this.toString()),
+                          invokeCommandHandlerMethodsOn.toString()),
                       e);
             return Exceptions.sneakyThrow(e);
         }
@@ -126,7 +149,7 @@ public abstract class AnnotatedCommandHandler implements CommandHandler {
                                                                                                                        msg("There should only be one @{} annotated method in '{}' that can handle a given command. " +
                                                                                                                                    "Found {} @{} annotated methods that all can handle a command of type '{}': {}",
                                                                                                                            Handler.class.getSimpleName(),
-                                                                                                                           this.toString(),
+                                                                                                                           invokeCommandHandlerMethodsOn.toString(),
                                                                                                                            matchingMethods.size(),
                                                                                                                            Handler.class.getSimpleName(),
                                                                                                                            commandType.getName(),

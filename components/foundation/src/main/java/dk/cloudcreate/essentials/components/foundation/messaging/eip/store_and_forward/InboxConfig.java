@@ -17,21 +17,42 @@
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
 
 import java.util.Objects;
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 
 public class InboxConfig {
+    /**
+     * The name of the inbox
+     */
     public final InboxName              inboxName;
+    /**
+     * The message redelivery policy
+     */
     public final RedeliveryPolicy       redeliveryPolicy;
+    /**
+     * The consumption mode for the inbox's <code>messageConsumer</code> across all the different instances in the entire cluster<br>
+     * If you're working with {@link OrderedMessage}'s then the {@link Inbox} consumer must be configured
+     * with {@link InboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
+     * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
+     * across as many {@link InboxConfig#numberOfParallelMessageConsumers} as you wish to use.
+     */
     public final MessageConsumptionMode messageConsumptionMode;
+    /**
+     * The number of local parallel message consumers
+     */
     public final int                    numberOfParallelMessageConsumers;
 
     /**
      * @param inboxName                        the name of the inbox
      * @param redeliveryPolicy                 the message redelivery policy
-     * @param messageConsumptionMode           the consumption mode for the inbox's <code>messageConsumer</code> across all the different instances in the entire cluster
+     * @param messageConsumptionMode           the consumption mode for the inbox's <code>messageConsumer</code> across all the different instances in the entire cluster<br>
+     *                                         If you're working with {@link OrderedMessage}'s then the {@link Inbox} consumer must be configured
+     *                                         with {@link InboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
+     *                                         in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
+     *                                         across as many {@link InboxConfig#numberOfParallelMessageConsumers} as you wish to use.
      * @param numberOfParallelMessageConsumers the number of local parallel message consumers
      */
     public InboxConfig(InboxName inboxName, RedeliveryPolicy redeliveryPolicy, MessageConsumptionMode messageConsumptionMode, int numberOfParallelMessageConsumers) {
@@ -46,18 +67,34 @@ public class InboxConfig {
         return new InboxConfigBuilder();
     }
 
+    /**
+     * @return the name of the inbox
+     */
     public InboxName getInboxName() {
         return inboxName;
     }
 
+    /**
+     * @return the message redelivery policy
+     */
     public RedeliveryPolicy getRedeliveryPolicy() {
         return redeliveryPolicy;
     }
 
+    /**
+     * @return the consumption mode for the inbox's <code>messageConsumer</code> across all the different instances in the entire cluster<br>
+     * If you're working with {@link OrderedMessage}'s then the {@link Inbox} consumer must be configured
+     * with {@link InboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
+     * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
+     * across as many {@link InboxConfig#numberOfParallelMessageConsumers} as you wish to use.
+     */
     public MessageConsumptionMode getMessageConsumptionMode() {
         return messageConsumptionMode;
     }
 
+    /**
+     * @return the number of local parallel message consumers
+     */
     public int getNumberOfParallelMessageConsumers() {
         return numberOfParallelMessageConsumers;
     }

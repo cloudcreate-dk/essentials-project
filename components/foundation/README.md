@@ -35,7 +35,7 @@ To use `foundation` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>foundation</artifactId>
-    <version>0.8.10</version>
+    <version>0.9.0</version>
 </dependency>
 ```
 
@@ -56,8 +56,15 @@ and comes in two flavours
 `PostgresqlDurableQueues` and `MongoDurableQueues` which both implement the `DurableQueues` interface.
 
 Each Queue is uniquely identified by its `QueueName`.
-Durable Queue concept that supports **queuing** a message on to a Queue. Each message is associated with a
+Durable Queue concept that supports **queuing** a `Message` on to a Queue. Each message is associated with a
 unique `QueueEntryId`.
+
+### Ordered Messages
+If you're queuing with `OrderedMessage` then, IF and only IF,  only a single cluster node is consuming from the Queue, 
+such as with an `Inbox` or `Outbox` configured with `MessageConsumptionMode#SingleGlobalConsumer` (which uses a FencedLock to 
+coordinate message consumption across cluster nodes)
+in order to be able to guarantee that `OrderedMessage`'s are delivered in `OrderedMessage#order` per `OrderedMessage#key`
+across as many `numberOfParallelMessageConsumers` as you wish to use.
 
 ### Transactional Queueing of a Message (supported by `PostgresqlDurableQueues` and `MongoDurableQueues`)
 
@@ -115,6 +122,33 @@ var consumer = durableQueues.consumeFromQueue(ConsumeFromQueue.builder()
 consumer.cancel();
 ```
 
+You can also provide a subtype of `PatternMatchingQueuedMessageHandler` which supports pattern matching on the `Message#payload` contained in the `QueuedMessage`'s:
+```
+var consumer = durableQueues.consumeFromQueue(ConsumeFromQueue.builder()
+                                                              .setQueueName(queueName)
+                                                              .setRedeliveryPolicy(
+                                                                      RedeliveryPolicy.fixedBackoff()
+                                                                                      .setRedeliveryDelay(Duration.ofMillis(200))
+                                                                                      .setMaximumNumberOfRedeliveries(5)
+                                                                                      .setDeliveryErrorHandler(MessageDeliveryErrorHandler.stopRedeliveryOn(ValidationException.class))
+                                                                                      .build())
+                                                              .setParallelConsumers(1)
+                                                              .setQueueMessageHandler(new PatternMatchingQueuedMessageHandler() {
+                                                                                        @MessageHandler
+                                                                                        void handle(SomeCommand someCommand) {
+                                                                                        }
+                                                                                
+                                                                                        @MessageHandler
+                                                                                        void handle(SomeOtherCommand someOtherCommand, QueuedMessage queuedMessageForSomeOtherCommand) {
+                                                                                        }
+                                                                                
+                                                                                        @Override
+                                                                                        protected void handleUnmatchedMessage(QueuedMessage queuedMessage) {
+                                                                                        }
+                                                                                    })
+                                                              .build());
+```
+
 To use `DurableQueues` you must create an instance of a concrete `DurableQueues` implementation, such as `PostgresqlDurableQueues` or `MongoDurableQueues`.
 
 ### `PostgresqlDurableQueues`
@@ -126,7 +160,7 @@ To use `PostgresqlDurableQueues` you must include dependency
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-queue</artifactId>
-    <version>0.8.10</version>
+    <version>0.9.0</version>
 </dependency>
 ```
 
@@ -174,7 +208,7 @@ To use `MongoDurableQueues` you must include dependency
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>springdata-mongo-queue</artifactId>
-    <version>0.8.10</version>
+    <version>0.9.0</version>
 </dependency>
 ```
 
@@ -360,6 +394,17 @@ The `Inboxes` concept supports two different `MessageConsumptionMode`'s:
 
 To support `SingleGlobalConsumer` the `Inboxes` logic needs to be configured with an instance of a `FencedLockManager` (see configuration further below).
 
+### Ordered Messages
+If you're working with `OrderedMessage`'s then the `Inbox` consumer must be configured
+with `InboxConfig#getMessageConsumptionMode()` having value `MessageConsumptionMode#SingleGlobalConsumer`
+in order to be able to guarantee that `OrderedMessage`'s are delivered in `OrderedMessage#getOrder()` per `OrderedMessage#getKey()`
+across as many `InboxConfig#numberOfParallelMessageConsumers` as you wish to use.
+
+If an `OrderedMessage` is delivered via an `Inbox` using a `FencedLock` (such as
+the `Inboxes#durableQueueBasedInboxes(DurableQueues, FencedLockManager)`)
+to coordinate message consumption, then you can find the `FencedLock#getCurrentToken()`
+of the consumer in the `Message#getMetaData()` under key `MessageMetaData#FENCED_LOCK_TOKEN`
+
 ### `Inboxes` Spring configuration
 
 ```
@@ -385,6 +430,33 @@ Inbox orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder()
                                                                (Message shipOrderMessage) -> {
                                                                    // Handle message
                                                                }); 
+```
+
+You can also provide a subtype of `PatternMatchingMessageHandler` which supports pattern matching on the `Message#payload`:
+```
+Inbox orderEventsInbox = inboxes.getOrCreateInbox(InboxConfig.builder()
+                                                               .inboxName(InboxName.of("OrderService:OrderEvents"))
+                                                               .redeliveryPolicy(RedeliveryPolicy.fixedBackoff()
+                                                                                                 .setRedeliveryDelay(Duration.ofMillis(100))
+                                                                                                 .setMaximumNumberOfRedeliveries(10)
+                                                                                                 .build())
+                                                               .messageConsumptionMode(MessageConsumptionMode.SingleGlobalConsumer)
+                                                               .numberOfParallelMessageConsumers(5)
+                                                               .build(),
+                                                               new PatternMatchingMessageHandler() {
+                                                                    @MessageHandler
+                                                                    void handle(SomeCommand someCommand) {
+                                                                    }
+                                                            
+                                                                    @MessageHandler
+                                                                    void handle(SomeOtherCommand someOtherCommand, Message messageForSomeOtherCommand) {
+                                                                    }
+                                                            
+                                                                    @Override
+                                                                    protected void handleUnmatchedMessage(Message message) {
+                                                                    }
+                                                                }); 
+
 ```
 
 ### Adding a message to an `Inbox` from a Spring KafkaListener:
@@ -457,6 +529,17 @@ The `Outboxes` concept supports two different `MessageConsumptionMode`'s:
 
 To support `SingleGlobalConsumer` the `Outboxes` logic needs to be configured with an instance of a `FencedLockManager` (see configuration further below).
 
+### Ordered Messages
+If you're working with `OrderedMessage`'s then the `Outbox` consumer must be configured
+with `OutboxConfig#getMessageConsumptionMode()` having value `MessageConsumptionMode#SingleGlobalConsumer`
+in order to be able to guarantee that `OrderedMessage`'s are delivered in `OrderedMessage#getOrder()` per `OrderedMessage#getKey()`
+across as many `OutboxConfig#numberOfParallelMessageConsumers` as you wish to use.
+
+If an `OrderedMessage` is delivered via an `Outbox` using a `FencedLock` (such as
+the `Outboxes#durableQueueBasedOutboxes(DurableQueues, FencedLockManager)`)
+to coordinate message consumption, then you can find the `FencedLock#getCurrentToken()`
+of the consumer in the `Message#getMetaData()` under key `MessageMetaData#FENCED_LOCK_TOKEN`
+
 ### `Outboxes` Spring configuration
 
 ```
@@ -482,6 +565,30 @@ Outbox kafkaOutbox = outboxes.getOrCreateOutbox(OutboxConfig.builder()
                                                                                                                      e.getPayload().);
                                                              kafkaTemplate.send(producerRecord);
                                                          });
+```
+
+You can also provide a subtype of `PatternMatchingMessageHandler` which supports pattern matching on the `Message#payload`:
+```
+Outbox kafkaOutbox = outboxes.getOrCreateOutbox(OutboxConfig.builder()
+                                                         .setOutboxName(OutboxName.of("ShippingOrder:KafkaShippingEvents"))
+                                                         .setRedeliveryPolicy(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(100), 10))
+                                                         .setMessageConsumptionMode(MessageConsumptionMode.SingleGlobalConsumer)
+                                                         .setNumberOfParallelMessageConsumers(1)
+                                                         .build(),
+                                                          new PatternMatchingMessageHandler() {
+    
+                                                                @MessageHandler
+                                                                void handle(SomeCommand someCommand) {
+                                                                }
+                                                        
+                                                                @MessageHandler
+                                                                void handle(SomeOtherCommand someOtherCommand, Message messageForSomeOtherCommand) {
+                                                                }
+                                                        
+                                                                @Override
+                                                                protected void handleUnmatchedMessage(Message message) {
+                                                                }
+                                                            }); 
 ```
 
 ### Adding a message to an `Outbox`
@@ -612,7 +719,7 @@ To use `PostgreSQL Distributed Fenced Lock` just add the following Maven depende
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-distributed-fenced-lock</artifactId>
-    <version>0.8.10</version>
+    <version>0.9.0</version>
 </dependency>
 ```
 

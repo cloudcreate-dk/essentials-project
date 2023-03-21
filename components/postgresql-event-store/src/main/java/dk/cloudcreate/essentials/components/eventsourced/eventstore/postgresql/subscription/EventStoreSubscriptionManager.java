@@ -20,9 +20,12 @@ import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.Po
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inbox;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.shared.FailFast;
@@ -68,7 +71,9 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using this {@link GlobalEventOrder} as the starting point in the
      *                                                                EventStream associated with the <code>aggregateType</code>
      * @param onlyIncludeEventsForTenant                              if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
-     * @param eventHandler                                            the event handler that will receive the published {@link PersistedEvent}'s
+     * @param eventHandler                                            the event handler that will receive the published {@link PersistedEvent}'s<br>
+     *                                                                Exceptions thrown from the eventHandler will cause the event to be skipped. If you need a retry capability
+     *                                                                please use {@link #subscribeToAggregateEventsAsynchronously(SubscriberId, AggregateType, GlobalEventOrder, Optional, Inbox)}
      * @return the subscription handle
      */
     EventStoreSubscription subscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
@@ -76,6 +81,87 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                                     GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
                                                                     Optional<Tenant> onlyIncludeEventsForTenant,
                                                                     PersistedEventHandler eventHandler);
+
+    /**
+     * Create an asynchronous subscription that will receive {@link PersistedEvent} after they have been committed to the {@link EventStore}<br>
+     * This ensures that the handling of events can occur in a separate transaction, than the one that persisted the events, thereby avoiding the dual write problem
+     *
+     * @param subscriberId                                            the unique id for the subscriber
+     * @param forAggregateType                                        the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using this {@link GlobalEventOrder} as the starting point in the
+     *                                                                EventStream associated with the <code>aggregateType</code>
+     * @param onlyIncludeEventsForTenant                              if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
+     * @param forwardToInbox                                          The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
+     *                                                                the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                                                                and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
+     *                                                                This reuses the {@link Inbox} ability to retry event deliveries
+     * @return the subscription handle
+     */
+    default EventStoreSubscription subscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
+                                                                            AggregateType forAggregateType,
+                                                                            GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                            Optional<Tenant> onlyIncludeEventsForTenant,
+                                                                            Inbox forwardToInbox) {
+        requireNonNull(forwardToInbox, "No forwardToInbox instance provided");
+        return subscribeToAggregateEventsAsynchronously(subscriberId,
+                                                        forAggregateType,
+                                                        onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                        onlyIncludeEventsForTenant,
+                                                        event -> forwardToInbox.addMessageReceived(OrderedMessage.of(event.event().getJsonDeserialized().get(),
+                                                                                                                     event.aggregateId().toString(),
+                                                                                                                     event.eventOrder().longValue())));
+    }
+
+    /**
+     * Create an asynchronous subscription that will receive {@link PersistedEvent} after they have been committed to the {@link EventStore}<br>
+     * This ensures that the handling of events can occur in a separate transaction, than the one that persisted the events, thereby avoiding the dual write problem
+     *
+     * @param subscriberId                                            the unique id for the subscriber
+     * @param forAggregateType                                        the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using this {@link GlobalEventOrder} as the starting point in the
+     *                                                                EventStream associated with the <code>aggregateType</code>
+     * @param forwardToInbox                                          The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
+     *                                                                the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                                                                and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
+     *                                                                This reuses the {@link Inbox} ability to retry event deliveries
+     * @return the subscription handle
+     */
+    default EventStoreSubscription subscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
+                                                                            AggregateType forAggregateType,
+                                                                            GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                            Inbox forwardToInbox) {
+
+        return subscribeToAggregateEventsAsynchronously(subscriberId,
+                                                        forAggregateType,
+                                                        onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                        Optional.empty(),
+                                                        forwardToInbox);
+    }
+
+
+    /**
+     * Create an asynchronous subscription that will receive {@link PersistedEvent} after they have been committed to the {@link EventStore}<br>
+     * This ensures that the handling of events can occur in a separate transaction, than the one that persisted the events, thereby avoiding the dual write problem
+     *
+     * @param subscriberId                                            the unique id for the subscriber
+     * @param forAggregateType                                        the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using this {@link GlobalEventOrder} as the starting point in the
+     *                                                                EventStream associated with the <code>aggregateType</code>
+     * @param eventHandler                                            the event handler that will receive the published {@link PersistedEvent}'s<br>
+     *                                                                Exceptions thrown from the eventHandler will cause the event to be skipped. If you need a retry capability
+     *                                                                please use {@link #subscribeToAggregateEventsAsynchronously(SubscriberId, AggregateType, GlobalEventOrder, Inbox)}
+     * @return the subscription handle
+     */
+    default EventStoreSubscription subscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
+                                                                            AggregateType forAggregateType,
+                                                                            GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                            PersistedEventHandler eventHandler) {
+        return subscribeToAggregateEventsAsynchronously(subscriberId,
+                                                        forAggregateType,
+                                                        onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                        Optional.empty(),
+                                                        eventHandler);
+    }
 
     /**
      * Create an exclusive asynchronous subscription that will receive {@link PersistedEvent} after they have been committed to the {@link EventStore}<br>
@@ -89,7 +175,9 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      *                                                                EventStream associated with the <code>aggregateType</code>
      * @param onlyIncludeEventsForTenant                              if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
      * @param fencedLockAwareSubscriber                               Callback interface that will be called when the exclusive/fenced lock is acquired or released
-     * @param eventHandler                                            the event handler that will receive the published {@link PersistedEvent}'s
+     * @param eventHandler                                            the event handler that will receive the published {@link PersistedEvent}'s<br>
+     *                                                                Exceptions thrown from the eventHandler will cause the event to be skipped. If you need a retry capability
+     *                                                                please use {@link #exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId, AggregateType, GlobalEventOrder, Optional, FencedLockAwareSubscriber, Inbox)}
      * @return the subscription handle
      */
     EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
@@ -109,8 +197,130 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      * @param forAggregateType                                        the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
      * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using this {@link GlobalEventOrder} as the starting point in the
      *                                                                EventStream associated with the <code>aggregateType</code>
+     * @param fencedLockAwareSubscriber                               Callback interface that will be called when the exclusive/fenced lock is acquired or released
+     * @param eventHandler                                            the event handler that will receive the published {@link PersistedEvent}'s<br>
+     *                                                                Exceptions thrown from the eventHandler will cause the event to be skipped. If you need a retry capability
+     *                                                                please use {@link #exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId, AggregateType, GlobalEventOrder, FencedLockAwareSubscriber, Inbox)}
+     * @return the subscription handle
+     */
+    default EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
+                                                                                       AggregateType forAggregateType,
+                                                                                       GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                                       FencedLockAwareSubscriber fencedLockAwareSubscriber,
+                                                                                       PersistedEventHandler eventHandler) {
+        return exclusivelySubscribeToAggregateEventsAsynchronously(subscriberId,
+                                                                   forAggregateType,
+                                                                   onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                   fencedLockAwareSubscriber,
+                                                                   eventHandler);
+    }
+
+    /**
+     * Create an exclusive asynchronous subscription that will receive {@link PersistedEvent} after they have been committed to the {@link EventStore}<br>
+     * This ensures that the handling of events can occur in a separate transaction, than the one that persisted the events, thereby avoiding the dual write problem<br>
+     * An exclusive subscription means that the {@link EventStoreSubscriptionManager} will acquire a distributed {@link FencedLock} to ensure that only one active subscriber in a cluster,
+     * out of all subscribers that share the same <code>subscriberId</code>, is allowed to have an active subscribe at a time
+     *
+     * @param subscriberId                                            the unique id for the subscriber
+     * @param forAggregateType                                        the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using this {@link GlobalEventOrder} as the starting point in the
+     *                                                                EventStream associated with the <code>aggregateType</code>
      * @param onlyIncludeEventsForTenant                              if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
-     * @param handler                                                 combined the event handler that will receive the published {@link PersistedEvent}'s and Callback interface that will be called when the exclusive/fenced lock is acquired or released
+     * @param fencedLockAwareSubscriber                               Callback interface that will be called when the exclusive/fenced lock is acquired or released
+     * @param forwardToInbox                                          The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
+     *                                                                the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                                                                and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
+     *                                                                This reuses the {@link Inbox} ability to retry event deliveries
+     * @return the subscription handle
+     */
+    default EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
+                                                                                       AggregateType forAggregateType,
+                                                                                       GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                                       Optional<Tenant> onlyIncludeEventsForTenant,
+                                                                                       FencedLockAwareSubscriber fencedLockAwareSubscriber,
+                                                                                       Inbox forwardToInbox) {
+        requireNonNull(forwardToInbox, "No forwardToInbox instance provided");
+        return exclusivelySubscribeToAggregateEventsAsynchronously(subscriberId,
+                                                                   forAggregateType,
+                                                                   onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                   onlyIncludeEventsForTenant,
+                                                                   fencedLockAwareSubscriber,
+                                                                   event -> forwardToInbox.addMessageReceived(OrderedMessage.of(event.event().getJsonDeserialized().get(),
+                                                                                                                                event.aggregateId().toString(),
+                                                                                                                                event.eventOrder().longValue())));
+    }
+
+    /**
+     * Create an exclusive asynchronous subscription that will receive {@link PersistedEvent} after they have been committed to the {@link EventStore}<br>
+     * This ensures that the handling of events can occur in a separate transaction, than the one that persisted the events, thereby avoiding the dual write problem<br>
+     * An exclusive subscription means that the {@link EventStoreSubscriptionManager} will acquire a distributed {@link FencedLock} to ensure that only one active subscriber in a cluster,
+     * out of all subscribers that share the same <code>subscriberId</code>, is allowed to have an active subscribe at a time
+     *
+     * @param subscriberId                                            the unique id for the subscriber
+     * @param forAggregateType                                        the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using this {@link GlobalEventOrder} as the starting point in the
+     *                                                                EventStream associated with the <code>aggregateType</code>
+     * @param fencedLockAwareSubscriber                               Callback interface that will be called when the exclusive/fenced lock is acquired or released
+     * @param forwardToInbox                                          The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
+     *                                                                the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                                                                and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
+     *                                                                This reuses the {@link Inbox} ability to retry event deliveries
+     * @return the subscription handle
+     */
+    default EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
+                                                                                       AggregateType forAggregateType,
+                                                                                       GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                                       FencedLockAwareSubscriber fencedLockAwareSubscriber,
+                                                                                       Inbox forwardToInbox) {
+        requireNonNull(forwardToInbox, "No forwardToInbox instance provided");
+        return exclusivelySubscribeToAggregateEventsAsynchronously(subscriberId,
+                                                                   forAggregateType,
+                                                                   onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                   Optional.empty(),
+                                                                   fencedLockAwareSubscriber,
+                                                                   forwardToInbox);
+    }
+
+    /**
+     * Create an exclusive asynchronous subscription that will receive {@link PersistedEvent} after they have been committed to the {@link EventStore}<br>
+     * This ensures that the handling of events can occur in a separate transaction, than the one that persisted the events, thereby avoiding the dual write problem<br>
+     * An exclusive subscription means that the {@link EventStoreSubscriptionManager} will acquire a distributed {@link FencedLock} to ensure that only one active subscriber in a cluster,
+     * out of all subscribers that share the same <code>subscriberId</code>, is allowed to have an active subscribe at a time
+     *
+     * @param subscriberId                                            the unique id for the subscriber
+     * @param forAggregateType                                        the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using this {@link GlobalEventOrder} as the starting point in the
+     *                                                                EventStream associated with the <code>aggregateType</code>
+     * @param handler                                                 the event handler that will receive the published {@link PersistedEvent}'s and the callback interface will be called when the exclusive/fenced lock is acquired or released<br>
+     *                                                                Exceptions thrown from the eventHandler will cause the event to be skipped. If you need a retry capability
+     *                                                                please use {@link #exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId, AggregateType, GlobalEventOrder, FencedLockAwareSubscriber, Inbox)}
+     * @return the subscription handle
+     */
+    default <HANDLER extends PersistedEventHandler & FencedLockAwareSubscriber> EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
+                                                                                                                                                           AggregateType forAggregateType,
+                                                                                                                                                           GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                                                                                                           HANDLER handler) {
+        return exclusivelySubscribeToAggregateEventsAsynchronously(subscriberId,
+                                                                   forAggregateType,
+                                                                   onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                   Optional.empty(),
+                                                                   handler);
+    }
+
+    /**
+     * Create an exclusive asynchronous subscription that will receive {@link PersistedEvent} after they have been committed to the {@link EventStore}<br>
+     * This ensures that the handling of events can occur in a separate transaction, than the one that persisted the events, thereby avoiding the dual write problem<br>
+     * An exclusive subscription means that the {@link EventStoreSubscriptionManager} will acquire a distributed {@link FencedLock} to ensure that only one active subscriber in a cluster,
+     * out of all subscribers that share the same <code>subscriberId</code>, is allowed to have an active subscribe at a time
+     *
+     * @param subscriberId                                            the unique id for the subscriber
+     * @param forAggregateType                                        the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using this {@link GlobalEventOrder} as the starting point in the
+     *                                                                EventStream associated with the <code>aggregateType</code>
+     * @param onlyIncludeEventsForTenant                              if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
+     * @param handler                                                 the event handler that will receive the published {@link PersistedEvent}'s and the callback interface will be called when the exclusive/fenced lock is acquired or released<br>
+     *                                                                Exceptions thrown from the eventHandler will cause the event to be skipped. If you need a retry capability
+     *                                                                please use {@link #exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId, AggregateType, GlobalEventOrder, Optional, FencedLockAwareSubscriber, Inbox)}
      * @return the subscription handle
      */
     default <HANDLER extends PersistedEventHandler & FencedLockAwareSubscriber> EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
@@ -130,16 +340,85 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      * Create an inline event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
      * {@link UnitOfWork} is committed. This allows you to create transactional consistent event projections.
      *
+     * @param subscriberId     the unique id for the subscriber
+     * @param forAggregateType the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param eventHandler     the event handler that will receive the published {@link PersistedEvent}'s. Exceptions thrown by this handler will cause the {@link UnitOfWork} to rollback
+     * @return the subscription handle
+     */
+    default EventStoreSubscription subscribeToAggregateEventsInTransaction(SubscriberId subscriberId,
+                                                                           AggregateType forAggregateType,
+                                                                           TransactionalPersistedEventHandler eventHandler) {
+        return subscribeToAggregateEventsInTransaction(subscriberId,
+                                                       forAggregateType,
+                                                       Optional.empty(),
+                                                       eventHandler);
+    }
+
+
+    /**
+     * Create an inline event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
+     * {@link UnitOfWork} is committed. This allows you to create transactional consistent event projections.
+     *
      * @param subscriberId               the unique id for the subscriber
      * @param forAggregateType           the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
      * @param onlyIncludeEventsForTenant if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
-     * @param eventHandler               the event handler that will receive the published {@link PersistedEvent}'s
+     * @param eventHandler               the event handler that will receive the published {@link PersistedEvent}'s. Exceptions thrown by this handler will cause the {@link UnitOfWork} to rollback
      * @return the subscription handle
      */
     EventStoreSubscription subscribeToAggregateEventsInTransaction(SubscriberId subscriberId,
                                                                    AggregateType forAggregateType,
                                                                    Optional<Tenant> onlyIncludeEventsForTenant,
                                                                    TransactionalPersistedEventHandler eventHandler);
+
+    /**
+     * Create an inline event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
+     * {@link UnitOfWork} is committed. This allows you to create transactional consistent event projections.
+     *
+     * @param subscriberId               the unique id for the subscriber
+     * @param forAggregateType           the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onlyIncludeEventsForTenant if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
+     * @param forwardToInbox             The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
+     *                                   the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                                   and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
+     *                                   This reuses the {@link Inbox} ability to retry event deliveries
+     * @return the subscription handle
+     */
+    default EventStoreSubscription subscribeToAggregateEventsInTransaction(SubscriberId subscriberId,
+                                                                           AggregateType forAggregateType,
+                                                                           Optional<Tenant> onlyIncludeEventsForTenant,
+                                                                           Inbox forwardToInbox) {
+        requireNonNull(forwardToInbox, "No forwardToInbox instance provided");
+        return subscribeToAggregateEventsInTransaction(subscriberId,
+                                                       forAggregateType,
+                                                       onlyIncludeEventsForTenant,
+                                                       (event, unitOfWork) -> forwardToInbox.addMessageReceived(OrderedMessage.of(event.event().getJsonDeserialized().get(),
+                                                                                                                                  event.aggregateId().toString(),
+                                                                                                                                  event.eventOrder().longValue())));
+
+    }
+
+    /**
+     * Create an inline event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
+     * {@link UnitOfWork} is committed. This allows you to create transactional consistent event projections.
+     *
+     * @param subscriberId     the unique id for the subscriber
+     * @param forAggregateType the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param forwardToInbox   The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
+     *                         the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                         and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
+     *                         This reuses the {@link Inbox} ability to retry event deliveries
+     * @return the subscription handle
+     */
+    default EventStoreSubscription subscribeToAggregateEventsInTransaction(SubscriberId subscriberId,
+                                                                           AggregateType forAggregateType,
+                                                                           Inbox forwardToInbox) {
+        requireNonNull(forwardToInbox, "No forwardToInbox instance provided");
+        return subscribeToAggregateEventsInTransaction(subscriberId,
+                                                       forAggregateType,
+                                                       Optional.empty(),
+                                                       forwardToInbox);
+
+    }
 
     /**
      * Create a new {@link EventStoreSubscriptionManager} that can manage event subscriptions against the provided <code>eventStore</code>
@@ -430,6 +709,10 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             }
 
             private void onEvent(Object e) {
+                if (!(e instanceof PersistedEvents)) {
+                    return;
+                }
+
                 var persistedEvents = (PersistedEvents) e;
                 if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
                     persistedEvents.events.stream()
@@ -521,6 +804,16 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             public boolean isActive() {
                 return started;
             }
+
+            @Override
+            public String toString() {
+                return "NonExclusiveInTransactionSubscription{" +
+                        "aggregateType=" + aggregateType +
+                        ", subscriberId=" + subscriberId +
+                        ", onlyIncludeEventsForTenant=" + onlyIncludeEventsForTenant +
+                        ", started=" + started +
+                        '}';
+            }
         }
 
         private class NonExclusiveAsynchronousSubscription implements EventStoreSubscription {
@@ -596,7 +889,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                            e.eventOrder()
                                                           );
                                                  try {
-                                                     eventHandler.handle(e);
+                                                     eventStore.getUnitOfWorkFactory()
+                                                               .usingUnitOfWork(unitOfWork -> eventHandler.handle(e));
                                                  } catch (Exception cause) {
                                                      onErrorHandlingEvent(e, cause);
                                                  } finally {
@@ -640,12 +934,18 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                       subscriberId,
                                       aggregateType), e);
                     }
+                    try {
+                        // Allow the reactive components to complete
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        // Ignore
+                    }
                     // Save resume point to be the next global order event
                     log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
                               subscriberId,
                               aggregateType,
                               resumePoint.getResumeFromAndIncluding());
-                    resumePoint.setResumeFromAndIncluding(resumePoint.getResumeFromAndIncluding());
+
                     durableSubscriptionRepository.saveResumePoint(resumePoint);
                     started = false;
                     log.info("[{}-{}] Stopped subscription",
@@ -714,6 +1014,17 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             @Override
             public boolean isActive() {
                 return started;
+            }
+
+            @Override
+            public String toString() {
+                return "NonExclusiveAsynchronousSubscription{" +
+                        "aggregateType=" + aggregateType +
+                        ", subscriberId=" + subscriberId +
+                        ", onlyIncludeEventsForTenant=" + onlyIncludeEventsForTenant +
+                        ", resumePoint=" + resumePoint +
+                        ", started=" + started +
+                        '}';
             }
         }
 
@@ -813,7 +1124,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                                    e.eventOrder()
                                                                   );
                                                          try {
-                                                             eventHandler.handle(e);
+                                                             eventStore.getUnitOfWorkFactory()
+                                                                       .usingUnitOfWork(unitOfWork -> eventHandler.handle(e));
                                                          } catch (Exception cause) {
                                                              onErrorHandlingEvent(e, cause);
                                                          } finally {
@@ -853,12 +1165,19 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                 log.error(msg("FencedLockAwareSubscriber#onLockReleased failed for lock {}", lock.getName()), e);
                             }
 
+                            try {
+                                // Allow the reactive components to complete
+                                Thread.sleep(500);
+                            } catch (InterruptedException e) {
+                                // Ignore
+                            }
+
                             // Save resume point to be the next global order event AFTER the one we know we just handled
                             log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
                                       subscriberId,
                                       aggregateType,
                                       resumePoint.getResumeFromAndIncluding());
-                            resumePoint.setResumeFromAndIncluding(resumePoint.getResumeFromAndIncluding());
+
                             durableSubscriptionRepository.saveResumePoint(resumePoint);
                             active = false;
                             log.info("[{}-{}] Stopped subscription",
@@ -956,6 +1275,19 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             @Override
             public boolean isActive() {
                 return active;
+            }
+
+            @Override
+            public String toString() {
+                return "ExclusiveAsynchronousSubscription{" +
+                        "aggregateType=" + aggregateType +
+                        ", subscriberId=" + subscriberId +
+                        ", onlyIncludeEventsForTenant=" + onlyIncludeEventsForTenant +
+                        ", lockName=" + lockName +
+                        ", resumePoint=" + resumePoint +
+                        ", started=" + started +
+                        ", active=" + active +
+                        '}';
             }
         }
     }

@@ -28,6 +28,7 @@ import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
@@ -52,6 +53,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.convert.*;
 
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * MongoDB focused Essentials Components auto configuration
@@ -192,16 +194,27 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                        SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
                                        ObjectMapper essentialComponentsObjectMapper,
                                        EssentialsComponentsProperties properties) {
+        Function<ConsumeFromQueue, QueuePollingOptimizer> pollingOptimizerFactory =
+                consumeFromQueue -> new QueuePollingOptimizer.SimpleQueuePollingOptimizer(consumeFromQueue,
+                                                                                          (long) (consumeFromQueue.getPollingInterval().toMillis() *
+                                                                                                  properties.getDurableQueues()
+                                                                                                            .getPollingDelayIntervalIncrementFactor()),
+                                                                                          properties.getDurableQueues()
+                                                                                                    .getMaxPollingInterval()
+                                                                                                    .toMillis()
+                );
         if (properties.getDurableQueues().getTransactionalMode() == TransactionalMode.FullyTransactional) {
             return new MongoDurableQueues(mongoTemplate,
                                           unitOfWorkFactory,
                                           essentialComponentsObjectMapper,
-                                          properties.getDurableQueues().getSharedQueueCollectionName());
+                                          properties.getDurableQueues().getSharedQueueCollectionName(),
+                                          pollingOptimizerFactory);
         } else {
             return new MongoDurableQueues(mongoTemplate,
                                           properties.getDurableQueues().getMessageHandlingTimeout(),
                                           essentialComponentsObjectMapper,
-                                          properties.getDurableQueues().getSharedQueueCollectionName());
+                                          properties.getDurableQueues().getSharedQueueCollectionName(),
+                                          pollingOptimizerFactory);
         }
     }
 
@@ -304,7 +317,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                 log.info("Starting {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
                 lifecycleBean.start();
             });
-        } else if (event instanceof ContextStoppedEvent) {
+        } else if (event instanceof ContextClosedEvent) {
             applicationContext.getBeansOfType(Lifecycle.class).forEach((beanName, lifecycleBean) -> {
                 log.info("Stopping {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
                 lifecycleBean.stop();

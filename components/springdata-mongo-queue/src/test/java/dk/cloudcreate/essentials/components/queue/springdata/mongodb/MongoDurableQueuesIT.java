@@ -78,7 +78,7 @@ class MongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, SpringMon
         var indexes = mongoTemplate.getCollection(MongoDurableQueues.DEFAULT_DURABLE_QUEUES_COLLECTION_NAME).listIndexes();
         var indexNames      = StreamSupport.stream(indexes.spliterator(), false).map(document -> (String) document.get("name")).collect(Collectors.toList());
 
-        var allIndexes = List.of("_id_", "next_msg", "stuck_msgs", "find_msg", "resurrect_msg");
+        var allIndexes = List.of("_id_", "next_msg", "ordered_msg", "stuck_msgs", "find_msg", "resurrect_msg");
         assertThat(indexNames).containsAll(allIndexes);
         assertThat(allIndexes).containsAll(indexNames);
     }

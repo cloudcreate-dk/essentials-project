@@ -19,6 +19,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStoreSubscription;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 
 import java.util.Optional;
@@ -41,7 +42,7 @@ public interface PersistedEventHandler {
     default void onResetFrom(GlobalEventOrder globalEventOrder) {};
 
     /**
-     * This method will be called when ever a {@link PersistedEvent} is published
+     * This method will be called in a {@link UnitOfWork} when ever a {@link PersistedEvent} is published
      *
      * @param event the event published
      */

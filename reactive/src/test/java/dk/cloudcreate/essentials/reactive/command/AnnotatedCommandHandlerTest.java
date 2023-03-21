@@ -78,7 +78,7 @@ class AnnotatedCommandHandlerTest {
 
     @Test
     void test_handle_failing_command_handler() {
-        var handler = new FailingAnnotatedCommandHandler();
+        var handler = new AnnotatedCommandHandler(new FailingAnnotatedCommandHandler());
 
         assertThatThrownBy(() -> handler.handle("Test"))
                 .isInstanceOf(RuntimeException.class)
@@ -108,7 +108,7 @@ class AnnotatedCommandHandlerTest {
         }
     }
 
-    private static class FailingAnnotatedCommandHandler extends AnnotatedCommandHandler {
+    private static class FailingAnnotatedCommandHandler {
 
         @Handler
         private String handleString(String stringCommand) {

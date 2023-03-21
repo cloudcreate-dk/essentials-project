@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
+import static dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.MessageConsumptionMode.SingleGlobalConsumer;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
@@ -37,6 +38,11 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * After the {@link UnitOfWork} has been committed, the messages will be asynchronously delivered to the message consumer in a new {@link UnitOfWork}.<br>
  * The {@link Inbox} itself supports Message Redelivery in case the Message consumer experiences failures.<br>
  * This means that the Message consumer, registered with the {@link Inbox}, can and will receive Messages more than once and therefore its message handling has to be idempotent.
+ * <p>
+ * If you're working with {@link OrderedMessage}'s then the {@link Inbox} consumer must be configured
+ * with {@link InboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
+ * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
+ * across as many {@link InboxConfig#numberOfParallelMessageConsumers} as you wish to use.
  */
 public interface Inboxes {
     /**
@@ -54,7 +60,7 @@ public interface Inboxes {
      * created then that instance is returned (irrespective of whether the redeliveryPolicy, etc. have the same values)
      *
      * @param inboxConfig     the inbox configuration
-     * @param messageConsumer the asynchronous message consumer
+     * @param messageConsumer the asynchronous message consumer. See {@link PatternMatchingMessageHandler}
      * @return the {@link Inbox}
      */
     Inbox getOrCreateInbox(InboxConfig inboxConfig,
@@ -156,12 +162,12 @@ public interface Inboxes {
                     case SingleGlobalConsumer:
                         fencedLockManager.acquireLockAsync(config.inboxName.asLockName(),
                                                            LockCallback.builder()
-                                                                       .onLockAcquired(lock -> durableQueueConsumer = consumeFromDurableQueue())
+                                                                       .onLockAcquired(lock -> durableQueueConsumer = consumeFromDurableQueue(lock))
                                                                        .onLockReleased(lock -> durableQueueConsumer.cancel())
                                                                        .build());
                         break;
                     case GlobalCompetingConsumers:
-                        durableQueueConsumer = consumeFromDurableQueue();
+                        durableQueueConsumer = consumeFromDurableQueue(null);
                         break;
                     default:
                         throw new IllegalStateException("Unexpected messageConsumptionMode: " + config.messageConsumptionMode);
@@ -222,11 +228,17 @@ public interface Inboxes {
                 }
             }
 
-            private DurableQueueConsumer consumeFromDurableQueue() {
+            private DurableQueueConsumer consumeFromDurableQueue(FencedLock lock) {
                 return durableQueues.consumeFromQueue(inboxQueueName,
                                                       config.redeliveryPolicy,
                                                       config.numberOfParallelMessageConsumers,
-                                                      this::handleMessage);
+                                                      queuedMessage -> {
+                                                          if (config.messageConsumptionMode == SingleGlobalConsumer) {
+                                                              queuedMessage.getMetaData().put(MessageMetaData.FENCED_LOCK_TOKEN,
+                                                                                              lock.getCurrentToken().toString());
+                                                          }
+                                                          handleMessage(queuedMessage);
+                                                      });
             }
 
             @SuppressWarnings("unchecked")

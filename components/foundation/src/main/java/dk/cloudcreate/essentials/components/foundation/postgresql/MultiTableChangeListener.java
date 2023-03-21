@@ -19,7 +19,7 @@ package dk.cloudcreate.essentials.components.foundation.postgresql;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dk.cloudcreate.essentials.components.foundation.postgresql.ListenNotify.SqlOperation;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
+import dk.cloudcreate.essentials.reactive.EventBus;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.jdbi.v3.core.*;
 import org.postgresql.PGConnection;
@@ -41,28 +41,29 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * Variant of {@link ListenNotify#listen(Jdbi, String, Duration)} that allows you to listen for notifications from multiple tables using a single polling thread
  */
 public class MultiTableChangeListener<T extends TableChangeNotification> implements Closeable {
-    private static final Logger                                    log = LoggerFactory.getLogger(MultiTableChangeListener.class);
-    private final        Jdbi                                      jdbi;
-    private final        Duration                                  pollingInterval;
-    private final        ObjectMapper                              objectMapper;
-    private final        LocalEventBus                             localEventBus;
+    private static final Logger log = LoggerFactory.getLogger(MultiTableChangeListener.class);
+
+    private final Jdbi                                      jdbi;
+    private final Duration                                  pollingInterval;
+    private final ObjectMapper                              objectMapper;
+    private final EventBus                                  eventBus;
     /**
      * Key: The table name<br>
      * Value: The {@link TableChangeNotification} subclass that the notification string payload should be mapped to using the {@link #objectMapper}
      */
-    private final        ConcurrentMap<String, Class<? extends T>> listenForNotificationsRelatedToTables;
-    private final        AtomicReference<Handle>                   handleReference;
-    private              ScheduledExecutorService                  executorService;
-    private              ScheduledFuture<?>                        scheduledFuture;
+    private final ConcurrentMap<String, Class<? extends T>> listenForNotificationsRelatedToTables;
+    private final AtomicReference<Handle>                   handleReference;
+    private       ScheduledExecutorService                  executorService;
+    private       ScheduledFuture<?>                        scheduledFuture;
 
     public MultiTableChangeListener(Jdbi jdbi,
                                     Duration pollingInterval,
                                     ObjectMapper objectMapper,
-                                    LocalEventBus localEventBus) {
+                                    EventBus eventBus) {
         this.jdbi = requireNonNull(jdbi, "No jdbi provided");
         this.pollingInterval = requireNonNull(pollingInterval, "No pollingInterval provided");
         this.objectMapper = requireNonNull(objectMapper, "No objectMapper provided");
-        this.localEventBus = requireNonNull(localEventBus, "No localEventBus instance provided");
+        this.eventBus = requireNonNull(eventBus, "No localEventBus instance provided");
         listenForNotificationsRelatedToTables = new ConcurrentHashMap<>();
         handleReference = new AtomicReference<>();
         executorService = Executors.newSingleThreadScheduledExecutor(ThreadFactoryBuilder.builder()
@@ -90,6 +91,9 @@ public class MultiTableChangeListener<T extends TableChangeNotification> impleme
         log.info("Closed");
     }
 
+    public EventBus getEventBus() {
+        return eventBus;
+    }
 
     /**
      * Start listening for notifications related to changes to the given table<br>
@@ -168,12 +172,13 @@ public class MultiTableChangeListener<T extends TableChangeNotification> impleme
                               log.error(msg("Failed to deserialize notification payload '{}' to concrete {} related to table '{}'",
                                             notification.getParameter(),
                                             payloadType.getName(),
-                                            notification.getName()));
+                                            notification.getName()),
+                                        e);
                               return null;
                           }
                       })
                       .filter(Objects::nonNull)
-                      .forEach(localEventBus::publish);
+                      .forEach(eventBus::publish);
             } else {
                 log.trace("Didn't receive any Notifications");
             }

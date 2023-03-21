@@ -95,7 +95,7 @@ hikariConfig.setPassword(password);
 var ds = new HikariDataSource(hikariConfig);
 var jdbi = Jdbi.create(ds);
 jdbi.installPlugin(new PostgresPlugin());
-jdbi.setSqlLogger(new EventStoreSqlLogger());
+jdbi.setSqlLogger(new SqlExecutionTimeLogger());
 ```
 
 ## UnitOfWork / Transaction Management
@@ -609,6 +609,6 @@ To use `Postgresql Event Store` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-event-store</artifactId>
-    <version>0.8.10</version>
+    <version>0.9.0</version>
 </dependency>
 ```

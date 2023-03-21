@@ -16,9 +16,8 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
+import dk.cloudcreate.essentials.components.foundation.types.RandomIdGenerator;
 import dk.cloudcreate.essentials.types.CharSequenceType;
-
-import java.util.UUID;
 
 /**
  * The unique entry for a message in a queue. This id is unique across all messages across all Queues (as identified by the {@link QueueName})
@@ -33,6 +32,6 @@ public class QueueEntryId extends CharSequenceType<QueueEntryId> {
     }
 
     public static QueueEntryId random() {
-        return new QueueEntryId(UUID.randomUUID().toString());
+        return new QueueEntryId(RandomIdGenerator.generate());
     }
 }

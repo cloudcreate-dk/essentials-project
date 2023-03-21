@@ -23,7 +23,10 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mongodb.MongoInterruptedException;
+import com.mongodb.client.model.changestream.ChangeStreamDocument;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuePollingOptimizer.SimpleQueuePollingOptimizer;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
@@ -39,19 +42,23 @@ import org.springframework.data.mongodb.UncategorizedMongoDbException;
 import org.springframework.data.mongodb.core.*;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.messaging.*;
 import org.springframework.data.mongodb.core.query.*;
 
 import java.io.IOException;
 import java.time.*;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static dk.cloudcreate.essentials.shared.interceptor.InterceptorChain.newInterceptorChainForOperation;
+import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static org.springframework.data.mongodb.core.query.Query.query;
 
@@ -62,8 +69,9 @@ import static org.springframework.data.mongodb.core.query.Query.query;
  */
 public class MongoDurableQueues implements DurableQueues {
 
-    protected static final Logger log                                    = LoggerFactory.getLogger(MongoDurableQueues.class);
-    public static final    String DEFAULT_DURABLE_QUEUES_COLLECTION_NAME = "durable_queues";
+    protected static final Logger                                            log                                    = LoggerFactory.getLogger(MongoDurableQueues.class);
+    public static final    String                                            DEFAULT_DURABLE_QUEUES_COLLECTION_NAME = "durable_queues";
+    private final          Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory;
 
     protected       SpringMongoTransactionAwareUnitOfWorkFactory        unitOfWorkFactory;
     protected final MongoTemplate                                       mongoTemplate;
@@ -73,6 +81,8 @@ public class MongoDurableQueues implements DurableQueues {
     private final   ConcurrentMap<QueueName, MongoDurableQueueConsumer> durableQueueConsumers = new ConcurrentHashMap<>();
     private final   ConcurrentMap<QueueName, ReentrantLock>             localQueuePollLock    = new ConcurrentHashMap<>();
     private final   List<DurableQueuesInterceptor>                      interceptors          = new ArrayList<>();
+    private final   MessageListenerContainer                            messageListenerContainer;
+
 
     private volatile boolean                           started;
     private          int                               messageHandlingTimeoutMs;
@@ -80,6 +90,7 @@ public class MongoDurableQueues implements DurableQueues {
      * Contains the timestamp of the last performed {@link #resetMessagesStuckBeingDelivered(QueueName)} check
      */
     protected        ConcurrentMap<QueueName, Instant> lastResetStuckMessagesCheckTimestamps = new ConcurrentHashMap<>();
+    private          Subscription                      changeSubscription;
 
     /**
      * Create {@link DurableQueues} running in {@link TransactionalMode#ManualAcknowledgement} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}, default {@link ObjectMapper}
@@ -91,12 +102,31 @@ public class MongoDurableQueues implements DurableQueues {
      */
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               Duration messageHandlingTimeout) {
+        this(mongoTemplate,
+             messageHandlingTimeout,
+             null);
+    }
+
+    /**
+     * Create {@link DurableQueues} running in {@link TransactionalMode#ManualAcknowledgement} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}, default {@link ObjectMapper}
+     * configuration
+     *
+     * @param mongoTemplate                the {@link MongoTemplate} used
+     * @param messageHandlingTimeout       Defines the timeout for messages being delivered, but haven't yet been acknowledged.
+     *                                     After this timeout the message delivery will be reset and the message will again be a candidate for delivery
+     * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
+     *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
+     */
+    public MongoDurableQueues(MongoTemplate mongoTemplate,
+                              Duration messageHandlingTimeout,
+                              Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this(TransactionalMode.ManualAcknowledgement,
              mongoTemplate,
              null,
              messageHandlingTimeout,
              createObjectMapper(),
-             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME);
+             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME,
+             queuePollingOptimizerFactory);
     }
 
     /**
@@ -108,109 +138,146 @@ public class MongoDurableQueues implements DurableQueues {
      */
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory) {
+        this(mongoTemplate,
+             unitOfWorkFactory,
+             null);
+    }
+
+    /**
+     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME} and a default {@link ObjectMapper}
+     * configuration
+     *
+     * @param mongoTemplate                the {@link MongoTemplate} used
+     * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
+     * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
+     *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
+     */
+    public MongoDurableQueues(MongoTemplate mongoTemplate,
+                              SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
+                              Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this(TransactionalMode.FullyTransactional,
              mongoTemplate,
              unitOfWorkFactory,
              null,
              createObjectMapper(),
-             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME);
+             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME,
+             queuePollingOptimizerFactory);
     }
 
     /**
      * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with custom messagePayloadObjectMapper and sharedQueueTableName
      *
-     * @param mongoTemplate              the {@link MongoTemplate} used
-     * @param unitOfWorkFactory          the {@link UnitOfWorkFactory} needed to access the database
-     * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
-     * @param sharedQueueCollectionName  the name of the collection that will contain all messages (across all {@link QueueName}'s)
+     * @param mongoTemplate                the {@link MongoTemplate} used
+     * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
+     * @param messagePayloadObjectMapper   the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)
+     * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
+     *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
                               ObjectMapper messagePayloadObjectMapper,
-                              String sharedQueueCollectionName) {
+                              String sharedQueueCollectionName,
+                              Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this(TransactionalMode.FullyTransactional,
              mongoTemplate,
              unitOfWorkFactory,
              null,
              messagePayloadObjectMapper,
-             sharedQueueCollectionName);
+             sharedQueueCollectionName,
+             queuePollingOptimizerFactory);
     }
 
     /**
      * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with custom messagePayloadObjectMapper and with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
      *
-     * @param mongoTemplate              the {@link MongoTemplate} used
-     * @param unitOfWorkFactory          the {@link UnitOfWorkFactory} needed to access the database
-     * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param mongoTemplate                the {@link MongoTemplate} used
+     * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
+     * @param messagePayloadObjectMapper   the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
+     *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
-                              ObjectMapper messagePayloadObjectMapper) {
+                              ObjectMapper messagePayloadObjectMapper,
+                              Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this(TransactionalMode.FullyTransactional,
              mongoTemplate,
              unitOfWorkFactory,
              null,
              messagePayloadObjectMapper,
-             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME);
+             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME,
+             queuePollingOptimizerFactory);
     }
 
     /**
      * Create {@link DurableQueues} running in {@link TransactionalMode#ManualAcknowledgement} with custom messagePayloadObjectMapper and sharedQueueTableName
      *
-     * @param mongoTemplate              the {@link MongoTemplate} used
-     * @param messageHandlingTimeout     Defines the timeout for messages being delivered, but haven't yet been acknowledged.
-     *                                   After this timeout the message delivery will be reset and the message will again be a candidate for delivery
-     * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
-     * @param sharedQueueCollectionName  the name of the collection that will contain all messages (across all {@link QueueName}'s)
+     * @param mongoTemplate                the {@link MongoTemplate} used
+     * @param messageHandlingTimeout       Defines the timeout for messages being delivered, but haven't yet been acknowledged.
+     *                                     After this timeout the message delivery will be reset and the message will again be a candidate for delivery
+     * @param messagePayloadObjectMapper   the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)
+     * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
+     *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               Duration messageHandlingTimeout,
                               ObjectMapper messagePayloadObjectMapper,
-                              String sharedQueueCollectionName) {
+                              String sharedQueueCollectionName,
+                              Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this(TransactionalMode.ManualAcknowledgement,
              mongoTemplate,
              null,
              messageHandlingTimeout,
              messagePayloadObjectMapper,
-             sharedQueueCollectionName);
+             sharedQueueCollectionName,
+             queuePollingOptimizerFactory);
     }
 
     /**
      * Create {@link DurableQueues} running in {@link TransactionalMode#ManualAcknowledgement} with custom messagePayloadObjectMapper and with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
      *
-     * @param mongoTemplate              the {@link MongoTemplate} used
-     * @param messageHandlingTimeout     Defines the timeout for messages being delivered, but haven't yet been acknowledged.
-     *                                   After this timeout the message delivery will be reset and the message will again be a candidate for delivery
-     * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param mongoTemplate                the {@link MongoTemplate} used
+     * @param messageHandlingTimeout       Defines the timeout for messages being delivered, but haven't yet been acknowledged.
+     *                                     After this timeout the message delivery will be reset and the message will again be a candidate for delivery
+     * @param messagePayloadObjectMapper   the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
+     *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               Duration messageHandlingTimeout,
-                              ObjectMapper messagePayloadObjectMapper) {
+                              ObjectMapper messagePayloadObjectMapper,
+                              Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this(TransactionalMode.ManualAcknowledgement,
              mongoTemplate,
              null,
              messageHandlingTimeout,
              messagePayloadObjectMapper,
-             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME);
+             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME,
+             queuePollingOptimizerFactory);
     }
 
     /**
      * Create {@link DurableQueues} custom messagePayloadObjectMapper and sharedQueueTableName
      *
-     * @param transactionalMode          The transactional behaviour mode of this {@link MongoDurableQueues}
-     * @param mongoTemplate              the {@link MongoTemplate} used
-     * @param unitOfWorkFactory          the {@link UnitOfWorkFactory} needed to access the database
-     * @param messageHandlingTimeout     Only relevant when using {@link TransactionalMode#ManualAcknowledgement} and defines the timeout for messages being delivered, but haven't yet been acknowledged.
-     *                                   After this timeout the message delivery will be reset and the message will again be a candidate for delivery
-     * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads
-     * @param sharedQueueCollectionName  the name of the collection that will contain all messages (across all {@link QueueName}'s)
+     * @param transactionalMode            The transactional behaviour mode of this {@link MongoDurableQueues}
+     * @param mongoTemplate                the {@link MongoTemplate} used
+     * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
+     * @param messageHandlingTimeout       Only relevant when using {@link TransactionalMode#ManualAcknowledgement} and defines the timeout for messages being delivered, but haven't yet been acknowledged.
+     *                                     After this timeout the message delivery will be reset and the message will again be a candidate for delivery
+     * @param messagePayloadObjectMapper   the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)
+     * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
+     *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
     protected MongoDurableQueues(TransactionalMode transactionalMode,
                                  MongoTemplate mongoTemplate,
                                  SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
                                  Duration messageHandlingTimeout,
                                  ObjectMapper messagePayloadObjectMapper,
-                                 String sharedQueueCollectionName) {
+                                 String sharedQueueCollectionName,
+                                 Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this.transactionalMode = requireNonNull(transactionalMode, "No transactionalMode instance provided");
         this.mongoTemplate = requireNonNull(mongoTemplate, "No mongoTemplate instance provided");
         log.info("Using transactionalMode: {}", transactionalMode);
@@ -225,7 +292,10 @@ public class MongoDurableQueues implements DurableQueues {
         }
         this.messagePayloadObjectMapper = requireNonNull(messagePayloadObjectMapper, "No messagePayloadObjectMapper");
         this.sharedQueueCollectionName = requireNonNull(sharedQueueCollectionName, "No sharedQueueCollectionName provided").toLowerCase(Locale.ROOT);
+        this.queuePollingOptimizerFactory = queuePollingOptimizerFactory != null ? queuePollingOptimizerFactory : this::createQueuePollingOptimizerFor;
+
         initializeQueueCollection();
+        this.messageListenerContainer = new DefaultMessageListenerContainer(mongoTemplate);
     }
 
     /**
@@ -240,15 +310,36 @@ public class MongoDurableQueues implements DurableQueues {
                     throw new RuntimeException(msg("Failed to create Queue collection '{}'", this.sharedQueueCollectionName), e);
                 }
             }
+        } else {
+            // Migrate old messages that doesn't include the ordered messages properties
+            Query query = new Query();
+            query.addCriteria(Criteria.where("keyOrder").exists(false));
+
+            Update update = new Update();
+            update.set("key", null);
+            update.set("keyOrder", -1);
+            update.set("deliveryMode", QueuedMessage.DeliveryMode.NORMAL);
+
+            mongoTemplate.updateMulti(query, update, sharedQueueCollectionName);
         }
+
         // Ensure indexes
         var indexes = List.of(new Index()
                                       .named("next_msg")
+                                      .on("queueName", Sort.Direction.ASC)
                                       .on("nextDeliveryTimestamp", Sort.Direction.ASC)
                                       .on("isDeadLetterMessage", Sort.Direction.ASC)
-                                      .on("isBeingDelivered", Sort.Direction.ASC),
-                              new Index( )
+                                      .on("isBeingDelivered", Sort.Direction.ASC)
+                                      .on("key", Sort.Direction.ASC)
+                                      .on("keyOrder", Sort.Direction.ASC),
+                              new Index()
+                                      .named("ordered_msg")
+                                      .on("queueName", Sort.Direction.ASC)
+                                      .on("key", Sort.Direction.ASC)
+                                      .on("keyOrder", Sort.Direction.ASC),
+                              new Index()
                                       .named("stuck_msgs")
+                                      .on("queueName", Sort.Direction.ASC)
                                       .on("deliveryTimestamp", Sort.Direction.ASC)
                                       .on("isBeingDelivered", Sort.Direction.ASC),
                               new Index()
@@ -259,12 +350,23 @@ public class MongoDurableQueues implements DurableQueues {
                                       .named("resurrect_msg")
                                       .on("id", Sort.Direction.ASC)
                                       .on("isDeadLetterMessage", Sort.Direction.ASC));
+        var indexOperations = mongoTemplate.indexOps(this.sharedQueueCollectionName);
+        var allIndexes      = indexOperations.getIndexInfo();
         indexes.forEach(index -> {
             log.debug("Ensuring Index on Collection '{}': {}",
                       sharedQueueCollectionName,
                       index);
-            mongoTemplate.indexOps(this.sharedQueueCollectionName)
-                         .ensureIndex(index);
+            allIndexes.stream().filter(indexInfo -> indexInfo.getName().equals(index)).findFirst()
+                      .ifPresent(indexInfo -> {
+                          if (!indexInfo.isIndexForFields(index.getIndexKeys().keySet())) {
+                              log.debug("Deleting outdated index '{}' on collection '{}'",
+                                        indexInfo.getName(),
+                                        this.sharedQueueCollectionName);
+                              indexOperations.dropIndex(indexInfo.getName());
+                          }
+                      });
+            indexOperations
+                    .ensureIndex(index);
         });
     }
 
@@ -274,6 +376,7 @@ public class MongoDurableQueues implements DurableQueues {
             started = true;
             log.info("Starting");
             durableQueueConsumers.values().forEach(MongoDurableQueueConsumer::start);
+            startCollectionListener();
             log.info("Started");
         }
     }
@@ -283,14 +386,61 @@ public class MongoDurableQueues implements DurableQueues {
         if (started) {
             log.info("Stopping");
             durableQueueConsumers.values().forEach(MongoDurableQueueConsumer::stop);
+            stopCollectionListener();
             started = false;
             log.info("Stopped");
         }
     }
 
+
     @Override
     public boolean isStarted() {
         return started;
+    }
+
+    protected void startCollectionListener() {
+        MessageListener<ChangeStreamDocument<Document>, DurableQueuedMessage> listener = message -> {
+            try {
+                if (message.getBody() == null) {
+                    // Ignore, as these are
+                    log.error("Received notification with null payload: {}", message.getRaw());
+                    return;
+                }
+
+                var queueName = message.getBody().queueName;
+                log.trace("[{}:{}] Received QueueMessage notification",
+                          queueName,
+                          message.getBody().id);
+                durableQueueConsumers.values()
+                                     .stream()
+                                     .filter(mongoDurableQueueConsumer -> mongoDurableQueueConsumer.queueName.equals(queueName))
+                                     .forEach(mongoDurableQueueConsumer -> {
+                                         mongoDurableQueueConsumer.messageAdded(message.getBody());
+                                     });
+            } catch (Exception e) {
+                log.error("An error occurred while handling notification", e);
+            }
+        };
+        ChangeStreamRequest<DurableQueuedMessage> request = ChangeStreamRequest.builder()
+                                                                               .collection(sharedQueueCollectionName)
+                                                                               .filter(newAggregation(
+                                                                                       match(where("operationType").in("insert", "update", "replace")),
+                                                                                       match(where("queueName").exists(true))
+                                                                                                     ))
+                                                                               .publishTo(listener)
+                                                                               .build();
+
+        changeSubscription = messageListenerContainer.register(request, DurableQueuedMessage.class);
+        messageListenerContainer.start();
+    }
+
+    protected void stopCollectionListener() {
+        if (changeSubscription != null) {
+            changeSubscription.cancel();
+        }
+        if (messageListenerContainer != null) {
+            messageListenerContainer.stop();
+        }
     }
 
     @Override
@@ -342,7 +492,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                () -> queueMessage(operation.queueName,
                                                                   operation.getMessage(),
                                                                   true,
-                                                                  Optional.of(operation.getCauseOfError()),
+                                                                  Optional.ofNullable(operation.getCauseOfError()),
                                                                   Optional.empty()))
                 .proceed();
     }
@@ -356,44 +506,33 @@ public class MongoDurableQueues implements DurableQueues {
         var queueEntryId          = QueueEntryId.random();
         var addedTimestamp        = Instant.now();
         var nextDeliveryTimestamp = isDeadLetterMessage ? null : addedTimestamp.plus(deliveryDelay.orElse(Duration.ZERO));
-        log.debug("[{}] Queuing {}Message with entry-id {} and nextDeliveryTimestamp {}. TransactionalMode: {}",
+
+        var isOrderedMessage = message instanceof OrderedMessage;
+        log.trace("[{}:{}] Queuing {}{}message{} with nextDeliveryTimestamp {}. TransactionalMode: {}",
                   queueName,
-                  isDeadLetterMessage ? "Dead Letter " : "",
                   queueEntryId,
+                  isDeadLetterMessage ? "Dead Letter " : "",
+                  isOrderedMessage ? "Ordered " : "",
+                  isOrderedMessage ? msg(" {}:{}", ((OrderedMessage) message).getKey(), ((OrderedMessage) message).getOrder()) : "",
                   nextDeliveryTimestamp,
                   transactionalMode);
+
         if (transactionalMode == TransactionalMode.FullyTransactional) {
             unitOfWorkFactory.getRequiredUnitOfWork();
         }
 
-        byte[] jsonPayload;
-        try {
-            jsonPayload = messagePayloadObjectMapper.writeValueAsBytes(message.getPayload());
-        } catch (JsonProcessingException e) {
-            throw new DurableQueueException(msg("Failed to serialize message payload of type", message.getPayload().getClass().getName()), e, queueName);
-        }
-
-        var durableQueuedMessage = new DurableQueuedMessage(queueEntryId,
-                                                            queueName,
-                                                            false,
-                                                            jsonPayload,
-                                                            message.getPayload().getClass().getName(),
-                                                            addedTimestamp,
-                                                            nextDeliveryTimestamp,
-                                                            null,
-                                                            0,
-                                                            0,
-                                                            causeOfEnqueuing.map(Exceptions::getStackTrace).orElse(null),
-                                                            isDeadLetterMessage,
-                                                            message.getMetaData());
+        var durableQueuedMessage = createDurableQueuedMessage(queueName, isDeadLetterMessage, addedTimestamp, nextDeliveryTimestamp, message);
 
         mongoTemplate.save(durableQueuedMessage, sharedQueueCollectionName);
-        log.debug("[{}] Queued {}Message with entry-id {} and nextDeliveryTimestamp {}. TransactionalMode: {}",
+        log.debug("[{}:{}] Queued {}{}message{} with nextDeliveryTimestamp {}. TransactionalMode: {}",
                   queueName,
+                  queueEntryId,
                   isDeadLetterMessage ? "Dead Letter " : "",
-                  durableQueuedMessage.getId(),
+                  isOrderedMessage ? "Ordered " : "",
+                  isOrderedMessage ? msg(" {}:{}", ((OrderedMessage) message).getKey(), ((OrderedMessage) message).getOrder()) : "",
                   nextDeliveryTimestamp,
                   transactionalMode);
+
         return durableQueuedMessage.getId();
     }
 
@@ -454,29 +593,9 @@ public class MongoDurableQueues implements DurableQueues {
                                                    var nextDeliveryTimestamp = addedTimestamp.plus(deliveryDelay.orElse(Duration.ZERO));
 
 
-                                                   var messages = payloads.stream().map(message -> {
-                                                       byte[] jsonPayload;
-                                                       try {
-                                                           jsonPayload = messagePayloadObjectMapper.writeValueAsBytes(message.getPayload());
-                                                       } catch (JsonProcessingException e) {
-                                                           throw new DurableQueueException(msg("Failed to serialize message payload of type", message.getPayload().getClass().getName()), e, queueName);
-                                                       }
-                                                       return new DurableQueuedMessage(QueueEntryId.random(),
-                                                                                       queueName,
-                                                                                       false,
-                                                                                       jsonPayload,
-                                                                                       message.getPayload().getClass().getName(),
-                                                                                       addedTimestamp,
-                                                                                       nextDeliveryTimestamp,
-                                                                                       null,
-                                                                                       0,
-                                                                                       0,
-                                                                                       null,
-                                                                                       false,
-                                                                                       message.getMetaData());
-
-
-                                                   }).collect(Collectors.toList());
+                                                   var messages = payloads.stream()
+                                                                          .map(message -> createDurableQueuedMessage(queueName, false, addedTimestamp, nextDeliveryTimestamp, message))
+                                                                          .collect(Collectors.toList());
 
                                                    var insertedEntryIds = mongoTemplate.insert(messages,
                                                                                                sharedQueueCollectionName)
@@ -495,6 +614,43 @@ public class MongoDurableQueues implements DurableQueues {
                                                              insertedEntryIds);
                                                    return insertedEntryIds;
                                                }).proceed();
+    }
+
+    private DurableQueuedMessage createDurableQueuedMessage(QueueName queueName, boolean isDeadLetterMessage, Instant addedTimestamp, Instant nextDeliveryTimestamp, Message message) {
+        byte[] jsonPayload;
+        try {
+            jsonPayload = messagePayloadObjectMapper.writeValueAsBytes(message.getPayload());
+        } catch (JsonProcessingException e) {
+            throw new DurableQueueException(msg("Failed to serialize message payload of type", message.getPayload().getClass().getName()), e, queueName);
+        }
+
+        var    deliveryMode = QueuedMessage.DeliveryMode.NORMAL;
+        String key          = null;
+        var    keyOrder     = -1L;
+        if (message instanceof OrderedMessage) {
+            var orderedMessage = (OrderedMessage) message;
+            deliveryMode = QueuedMessage.DeliveryMode.IN_ORDER;
+            key = requireNonNull(orderedMessage.getKey(), "An OrderedMessage requires a non null key");
+            requireTrue(orderedMessage.getOrder() >= 0, "An OrderedMessage requires an order >= 0");
+            keyOrder = orderedMessage.getOrder();
+        }
+
+        return new DurableQueuedMessage(QueueEntryId.random(),
+                                        queueName,
+                                        false,
+                                        jsonPayload,
+                                        message.getPayload().getClass().getName(),
+                                        addedTimestamp,
+                                        nextDeliveryTimestamp,
+                                        null,
+                                        0,
+                                        0,
+                                        null,
+                                        isDeadLetterMessage,
+                                        message.getMetaData(),
+                                        deliveryMode,
+                                        key,
+                                        keyOrder);
     }
 
     @Override
@@ -603,10 +759,14 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                                   FindAndModifyOptions.options().returnNew(true),
                                                                                                   DurableQueuedMessage.class,
                                                                                                   sharedQueueCollectionName);
+
                                                    if (updateResult != null && !updateResult.isDeadLetterMessage) {
-                                                       log.debug("[{}] Resurrected Dead Letter Message with id '{}' and nextDeliveryTimestamp: {}. Message entry after update: {}",
+                                                       var isOrderedMessage = updateResult.deliveryMode == QueuedMessage.DeliveryMode.IN_ORDER;
+                                                       log.debug("[{}] Resurrected Dead Letter {}Message with id '{}' {} and nextDeliveryTimestamp: {}. Message entry after update: {}",
                                                                  updateResult.queueName,
+                                                                 isOrderedMessage ? "Ordered " : "",
                                                                  queueEntryId,
+                                                                 isOrderedMessage ? "(key: " + updateResult.getKey() + ", order: " + updateResult.getKeyOrder() + ")" : "",
                                                                  nextDeliveryTimestamp,
                                                                  updateResult);
                                                        return Optional.of((QueuedMessage) updateResult);
@@ -669,7 +829,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                        unitOfWorkFactory.getRequiredUnitOfWork();
                                                    }
 
-                                                   // Use a lock to ensure less WriteConflict if multiple competing threads a busy polling the same queue
+                                                   // Use a lock to ensure less WriteConflict if multiple competing threads are busy polling the same queue
                                                    var queueName = operation.queueName;
                                                    var lock      = localQueuePollLock.computeIfAbsent(queueName, queueName_ -> new ReentrantLock(true));
                                                    try {
@@ -683,27 +843,40 @@ public class MongoDurableQueues implements DurableQueues {
                                                    try {
                                                        resetMessagesStuckBeingDelivered(queueName);
 
-                                                       var nextMessageReadyForDeliveryQuery = query(where("queueName").is(queueName)
-                                                                                                                      .and("nextDeliveryTimestamp").lte(Instant.now())
-                                                                                                                      .and("isDeadLetterMessage").is(false)
-                                                                                                                      .and("isBeingDelivered").is(false)
-                                                                                                   ).limit(1)
-                                                                                                    .with(Sort.by(Sort.Direction.ASC, "nextDeliveryTimestamp"));
+                                                       var whereCriteria = where("queueName").is(queueName)
+                                                                                             .and("nextDeliveryTimestamp").lte(Instant.now())
+                                                                                             .and("isDeadLetterMessage").is(false)
+                                                                                             .and("isBeingDelivered").is(false);
+                                                       var excludedKeys = operation.getExcludeOrderedMessagesWithKey() != null ? operation.getExcludeOrderedMessagesWithKey() : List.of();
+                                                       if (!excludedKeys.isEmpty()) {
+                                                           whereCriteria.and("key").not().in(excludedKeys);
+                                                       }
+
+                                                       var nextMessageReadyForDeliveryQuery = query(whereCriteria)
+                                                               .with(Sort.by(Sort.Direction.ASC, "keyOrder, nextDeliveryTimestamp"))
+                                                               .limit(1);
 
                                                        var update = new Update().inc("totalDeliveryAttempts", 1)
                                                                                 .set("isBeingDelivered", true)
                                                                                 .set("deliveryTimestamp", Instant.now());
 
-                                                       var updateResult = mongoTemplate.findAndModify(nextMessageReadyForDeliveryQuery,
-                                                                                                      update,
-                                                                                                      FindAndModifyOptions.options().returnNew(true),
-                                                                                                      DurableQueuedMessage.class,
-                                                                                                      sharedQueueCollectionName);
-                                                       if (updateResult != null && updateResult.isBeingDelivered) {
-                                                           log.debug("[{}] Found a message ready for delivery: {}", queueName, updateResult.id);
-                                                           return Optional.of(updateResult)
-                                                                          .map(durableQueuedMessage -> (QueuedMessage) durableQueuedMessage.setDeserializeMessagePayloadFunction(this::deserializeMessagePayload));
+                                                       var nextMessageToDeliver = mongoTemplate.findAndModify(nextMessageReadyForDeliveryQuery,
+                                                                                                              update,
+                                                                                                              FindAndModifyOptions.options().returnNew(true),
+                                                                                                              DurableQueuedMessage.class,
+                                                                                                              sharedQueueCollectionName);
 
+                                                       if (nextMessageToDeliver != null && nextMessageToDeliver.isBeingDelivered()) {
+                                                           var deliverMessage = resolveIfMessageShouldBeDelivered(queueName, nextMessageToDeliver);
+
+                                                           if (deliverMessage) {
+                                                               log.debug("[{}] Found a message ready for delivery: {}", queueName, nextMessageToDeliver.id);
+                                                               return Optional.of(nextMessageToDeliver)
+                                                                              .map(durableQueuedMessage -> (QueuedMessage) durableQueuedMessage.setDeserializeMessagePayloadFunction(this::deserializeMessagePayload));
+                                                           } else {
+                                                               log.trace("[{}] Didn't find a message ready for delivery (deliverMessage: {} for '{}')", queueName, deliverMessage, nextMessageToDeliver.getId());
+                                                               return Optional.<QueuedMessage>empty();
+                                                           }
                                                        } else {
                                                            log.trace("[{}] Didn't find a message ready for delivery", queueName);
                                                            return Optional.<QueuedMessage>empty();
@@ -725,6 +898,122 @@ public class MongoDurableQueues implements DurableQueues {
                                                        lock.unlock();
                                                    }
                                                }).proceed();
+    }
+
+    private boolean resolveIfMessageShouldBeDelivered(QueueName queueName, DurableQueuedMessage nextMessageToDeliver) {
+        if (nextMessageToDeliver.getDeliveryMode() == QueuedMessage.DeliveryMode.IN_ORDER) {
+            // Check if there's another ordered message queued with the same key and a keyOrder lower than the one we found
+            // in which case we need to return the message and adjust the message, so it won't be delivered immediately (or mark it as a dead letter messasge in case the message with a
+            // lower keyOrder is marked as such
+
+            var queuedMessagesWithSameKeyAndALowerKeyOrder = mongoTemplate.find(query(where("queueName")
+                                                                                              .is(queueName)
+                                                                                              .and("key").is(nextMessageToDeliver.getKey())
+                                                                                              .and("keyOrder").lt(nextMessageToDeliver.getKeyOrder()))
+                                                                                        .with(Sort.by(Sort.Direction.ASC, "keyOrder"))
+                                                                                        .limit(10),
+                                                                                DurableQueuedMessage.class,
+                                                                                sharedQueueCollectionName);
+            if (queuedMessagesWithSameKeyAndALowerKeyOrder.size() > 0) {
+                var findOrderedMessagesWithTheSameKeyAndAHigherOrder = query(where("queueName").is(queueName.toString())
+                                                                                               .and("key").is(nextMessageToDeliver.key)
+                                                                                               .and("keyOrder").gt(nextMessageToDeliver.keyOrder));
+                var firstDeadLetterMessage = queuedMessagesWithSameKeyAndALowerKeyOrder.stream()
+                                                                                       .filter(DurableQueuedMessage::isDeadLetterMessage)
+                                                                                       .findFirst();
+                if (firstDeadLetterMessage.isPresent()) {
+                    var firstDeadLetterMessageWithSameKey = firstDeadLetterMessage.get();
+
+                    var updateResult = mongoTemplate.findAndModify(query(where("id").is(nextMessageToDeliver.id)),
+                                                                   new Update().set("totalDeliveryAttempts", nextMessageToDeliver.getTotalDeliveryAttempts() - 1)
+                                                                               .set("isBeingDelivered", false)
+                                                                               .set("deliveryTimestamp", null)
+                                                                               .set("isDeadLetterMessage", true)
+                                                                               .set("lastDeliveryError", msg("Marked as Dead Letter Message because message '{}' with same key and lower order '{}' is already marked as a Dead Letter Message",
+                                                                                                             firstDeadLetterMessageWithSameKey.getId(),
+                                                                                                             firstDeadLetterMessageWithSameKey.getKeyOrder())),
+                                                                   FindAndModifyOptions.options().returnNew(true),
+                                                                   DurableQueuedMessage.class,
+                                                                   sharedQueueCollectionName);
+                    if (updateResult != null && !updateResult.isBeingDelivered()) {
+                        var reason = msg("Resetting message with id '{}' (key: '{}', order: {}) as not being delivered and marking it as a Dead Letter Message, because message '{}' (order: {}) is marked as a Dead Letter Message",
+                                         nextMessageToDeliver.getId(),
+                                         nextMessageToDeliver.getKey(),
+                                         nextMessageToDeliver.getKeyOrder(),
+                                         firstDeadLetterMessageWithSameKey.getId(),
+                                         firstDeadLetterMessageWithSameKey.getKeyOrder());
+                        log.debug("** [{}] {}. Message entry after update: {}", updateResult.getQueueName(), reason, updateResult);
+                    } else {
+                        log.error("** Failed to update isBeingDelivered for message with id '{}'", nextMessageToDeliver.getId());
+                    }
+
+
+                    var markAsDeadLetterMessageUpdate = new Update().set("nextDeliveryTimestamp", null)
+                                                                    .set("isDeadLetterMessage", true)
+                                                                    .set("lastDeliveryError", msg("Marked as Dead Letter Message because message '{}' with same key and lower order '{}' is already marked as a Dead Letter Message",
+                                                                                                  firstDeadLetterMessageWithSameKey.getId(),
+                                                                                                  firstDeadLetterMessageWithSameKey.getKeyOrder()));
+                    var updatedResult = mongoTemplate.updateMulti(findOrderedMessagesWithTheSameKeyAndAHigherOrder,
+                                                                  markAsDeadLetterMessageUpdate,
+                                                                  sharedQueueCollectionName);
+                    if (updatedResult.getModifiedCount() > 0) {
+                        log.debug("** [{}] Marked {} message(s) with key '{}' and order > '{}' as Dead Letter Messages, because Message '{}' with same key '{}' and lower order '{}' was already marked as a Dead Letter Message",
+                                  queueName,
+                                  updatedResult.getModifiedCount(),
+                                  firstDeadLetterMessageWithSameKey.getKey(),
+                                  firstDeadLetterMessageWithSameKey.getKeyOrder(),
+                                  firstDeadLetterMessageWithSameKey.getId(),
+                                  firstDeadLetterMessageWithSameKey.getKey(),
+                                  firstDeadLetterMessageWithSameKey.getKeyOrder());
+                    }
+                    return false;
+                } else {
+                    var messageWithTheHighestNextDeliveryTimestamp = queuedMessagesWithSameKeyAndALowerKeyOrder.stream()
+                                                                                                               .sorted(Comparator.comparing(DurableQueuedMessage::getNextDeliveryTimestamp).reversed())
+                                                                                                               .findFirst()
+                                                                                                               .get();
+                    var nextDeliveryTimestamp = messageWithTheHighestNextDeliveryTimestamp.getNextDeliveryTimestamp().plus(100, ChronoUnit.MILLIS);
+                    var adjustNextDeliveryTimestampUpdate = new Update().set("totalDeliveryAttempts", nextMessageToDeliver.getTotalDeliveryAttempts() - 1)
+                                                                        .set("isBeingDelivered", false)
+                                                                        .set("nextDeliveryTimestamp", nextDeliveryTimestamp.toInstant());
+                    var updateResult = mongoTemplate.findAndModify(query(where("id").is(nextMessageToDeliver.id)),
+                                                                   adjustNextDeliveryTimestampUpdate,
+                                                                   FindAndModifyOptions.options().returnNew(true),
+                                                                   DurableQueuedMessage.class,
+                                                                   sharedQueueCollectionName);
+                    if (updateResult != null && updateResult.getNextDeliveryTimestamp().equals(nextDeliveryTimestamp)) {
+                        var reason = msg("Adjusting message nextDeliveryTimestamp for message with id '{}' (key: '{}', order: {}) to ´{}´ because message '{}' (order: {}) has nextDeliveryTimestamp '{}'",
+                                         nextMessageToDeliver.getId(),
+                                         nextMessageToDeliver.getKey(),
+                                         nextMessageToDeliver.getKeyOrder(),
+                                         nextDeliveryTimestamp,
+                                         messageWithTheHighestNextDeliveryTimestamp.getId(),
+                                         messageWithTheHighestNextDeliveryTimestamp.getKeyOrder(),
+                                         messageWithTheHighestNextDeliveryTimestamp.getNextDeliveryTimestamp());
+                        log.debug("** [{}] {}. Message entry after update: {}", updateResult.getQueueName(), reason, updateResult);
+                    } else {
+                        log.error("** Failed to update nextDeliveryTimestamp for message with id '{}'", nextMessageToDeliver.getId());
+                    }
+
+                    var updateNextDeliveryTimestamp = new Update().set("nextDeliveryTimestamp", nextDeliveryTimestamp.plus(100, ChronoUnit.MILLIS).toInstant());
+
+                    var updatedResult = mongoTemplate.updateMulti(findOrderedMessagesWithTheSameKeyAndAHigherOrder, updateNextDeliveryTimestamp, sharedQueueCollectionName);
+                    if (updatedResult.getModifiedCount() > 0) {
+                        log.debug("** [{}] Updated {} messages nextDeliveryTimestamp to '{}', because Message '{}' with same key '{}' and lower order '{}' has nextDeliveryTimestamp '{}'",
+                                  queueName,
+                                  updatedResult.getModifiedCount(),
+                                  nextDeliveryTimestamp,
+                                  messageWithTheHighestNextDeliveryTimestamp.getId(),
+                                  messageWithTheHighestNextDeliveryTimestamp.getKey(),
+                                  messageWithTheHighestNextDeliveryTimestamp.getKeyOrder(),
+                                  messageWithTheHighestNextDeliveryTimestamp.getNextDeliveryTimestamp());
+                    }
+
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**
@@ -848,6 +1137,31 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
+    public List<NextQueuedMessage> queryForMessagesSoonReadyForDelivery(QueueName queueName, Instant withNextDeliveryTimestampAfter, int maxNumberOfMessagesToReturn) {
+        requireNonNull(queueName, "No queueName provided");
+        requireNonNull(withNextDeliveryTimestampAfter, "No withNextDeliveryTimestampAfter provided");
+        var criteria = where("queueName").is(queueName.toString())
+                                         .and("isDeadLetterMessage").is(false)
+                                         .and("isBeingDelivered").in(false)
+                                         .and("nextDeliveryTimestamp").gt(withNextDeliveryTimestampAfter);
+        var query = query(criteria)
+                .limit(maxNumberOfMessagesToReturn)
+                .with(Sort.by(Sort.Direction.ASC, "nextDeliveryTimestamp"));
+
+        query.fields()
+             .include("addedTimestamp", "nextDeliveryTimestamp");
+        return mongoTemplate.find(query,
+                                  DurableQueuedMessage.class,
+                                  sharedQueueCollectionName)
+                            .stream()
+                            .map(durableQueuedMessage -> new NextQueuedMessage(durableQueuedMessage.id,
+                                                                               queueName,
+                                                                               durableQueuedMessage.addedTimestamp,
+                                                                               durableQueuedMessage.nextDeliveryTimestamp))
+                            .collect(Collectors.toList());
+    }
+
+    @Override
     public DurableQueueConsumer consumeFromQueue(ConsumeFromQueue operation) {
         requireNonNull(operation, "No operation provided");
         if (durableQueueConsumers.containsKey(operation.queueName)) {
@@ -861,12 +1175,27 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                                              () -> (DurableQueueConsumer) new MongoDurableQueueConsumer(operation,
                                                                                                                                                                         unitOfWorkFactory,
                                                                                                                                                                         this,
-                                                                                                                                                                        this::removeQueueConsumer)).proceed();
+                                                                                                                                                                        this::removeQueueConsumer,
+                                                                                                                                                                        operation.getPollingInterval().toMillis(),
+                                                                                                                                                                        createQueuePollingOptimizerFor(operation))).proceed();
             if (started) {
                 consumer.start();
             }
             return consumer;
         });
+    }
+
+    /**
+     * Override this method to provide another {@link QueuePollingOptimizer} than the default {@link SimpleQueuePollingOptimizer}
+     *
+     * @param operation the operation for which the {@link QueuePollingOptimizer} will be responsible
+     * @return the {@link QueuePollingOptimizer}
+     */
+    protected QueuePollingOptimizer createQueuePollingOptimizerFor(ConsumeFromQueue operation) {
+        var pollingIntervalMs = operation.getPollingInterval().toMillis();
+        return new SimpleQueuePollingOptimizer(operation,
+                                               (long) (pollingIntervalMs * 0.5d),
+                                               pollingIntervalMs * 20);
     }
 
     void removeQueueConsumer(DurableQueueConsumer durableQueueConsumer) {
@@ -932,7 +1261,12 @@ public class MongoDurableQueues implements DurableQueues {
         private boolean         isDeadLetterMessage;
         private MessageMetaData metaData;
 
-        private           TripleFunction<QueueName, byte[], String, Object> deserializeMessagePayloadFunction;
+        private DeliveryMode deliveryMode = DeliveryMode.NORMAL;
+        private String       key;
+        private long         keyOrder     = -1L;
+
+        @Transient
+        private transient TripleFunction<QueueName, byte[], String, Object> deserializeMessagePayloadFunction;
         @Transient
         private transient Message                                           message;
 
@@ -951,7 +1285,10 @@ public class MongoDurableQueues implements DurableQueues {
                                     int redeliveryAttempts,
                                     String lastDeliveryError,
                                     boolean isDeadLetterMessage,
-                                    MessageMetaData metaData) {
+                                    MessageMetaData metaData,
+                                    DeliveryMode deliveryMode,
+                                    String key,
+                                    long keyOrder) {
             this.id = id;
             this.queueName = queueName;
             this.isBeingDelivered = isBeingDelivered;
@@ -965,6 +1302,9 @@ public class MongoDurableQueues implements DurableQueues {
             this.lastDeliveryError = lastDeliveryError;
             this.isDeadLetterMessage = isDeadLetterMessage;
             this.metaData = metaData;
+            this.deliveryMode = deliveryMode;
+            this.key = key;
+            this.keyOrder = keyOrder;
         }
 
         @Override
@@ -1024,13 +1364,39 @@ public class MongoDurableQueues implements DurableQueues {
         }
 
         @Override
+        public DeliveryMode getDeliveryMode() {
+            return deliveryMode;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        public long getKeyOrder() {
+            return keyOrder;
+        }
+
+        @Override
         public Message getMessage() {
             requireNonNull(deserializeMessagePayloadFunction, "Internal Error: deserializeMessagePayloadFunction is null");
             if (message == null) {
-                message = new Message(deserializeMessagePayloadFunction.apply(queueName,
-                                                                              messagePayload,
-                                                                              messagePayloadType),
-                                      getMetaData());
+                switch (deliveryMode) {
+                    case NORMAL:
+                        message = new Message(deserializeMessagePayloadFunction.apply(queueName,
+                                                                                      messagePayload,
+                                                                                      messagePayloadType),
+                                              getMetaData());
+                        break;
+                    case IN_ORDER:
+                        message = new OrderedMessage(deserializeMessagePayloadFunction.apply(queueName,
+                                                                                             messagePayload,
+                                                                                             messagePayloadType),
+                                                     key,
+                                                     keyOrder,
+                                                     getMetaData());
+
+                        break;
+                }
             }
             return message;
         }
@@ -1068,8 +1434,10 @@ public class MongoDurableQueues implements DurableQueues {
                     ", deliveryTimestamp=" + deliveryTimestamp +
                     ", totalDeliveryAttempts=" + totalDeliveryAttempts +
                     ", redeliveryAttempts=" + redeliveryAttempts +
-                    ", lastDeliveryError='" + lastDeliveryError + '\'' +
                     ", isDeadLetterMessage=" + isDeadLetterMessage +
+                    ", deliveryMode=" + deliveryMode +
+                    ", key=" + key +
+                    ", keyOrder=" + keyOrder +
                     ", metaData=" + metaData +
                     '}';
         }

@@ -28,8 +28,8 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.t
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
-import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.postgresql.*;
 import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
@@ -169,19 +169,43 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     /**
      * The {@link PostgresqlDurableQueues} that handles messaging and supports the {@link Inboxes}/{@link Outboxes} implementations
      *
-     * @param unitOfWorkFactory               the {@link UnitOfWorkFactory}
-     * @param essentialComponentsObjectMapper the {@link ObjectMapper} responsible for serializing Messages
-     * @param properties                      the auto configure properties
+     * @param unitOfWorkFactory                the {@link UnitOfWorkFactory}
+     * @param essentialComponentsObjectMapper  the {@link ObjectMapper} responsible for serializing Messages
+     * @param optionalMultiTableChangeListener the optional {@link MultiTableChangeListener}
+     * @param properties                       the auto configure properties
      * @return the {@link PostgresqlDurableQueues}
      */
     @Bean
     @ConditionalOnMissingBean
     public DurableQueues durableQueues(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
                                        ObjectMapper essentialComponentsObjectMapper,
+                                       Optional<MultiTableChangeListener<TableChangeNotification>> optionalMultiTableChangeListener,
                                        EssentialsComponentsProperties properties) {
-        return new PostgresqlDurableQueues(unitOfWorkFactory,
-                                           essentialComponentsObjectMapper,
-                                           properties.getDurableQueues().getSharedQueueTableName());
+        return PostgresqlDurableQueues.builder()
+                                      .setUnitOfWorkFactory(unitOfWorkFactory)
+                                      .setMessagePayloadObjectMapper(essentialComponentsObjectMapper)
+                                      .setSharedQueueTableName(properties.getDurableQueues().getSharedQueueTableName())
+                                      .setMultiTableChangeListener(optionalMultiTableChangeListener.orElse(null))
+                                      .setQueuePollingOptimizerFactory(consumeFromQueue -> new QueuePollingOptimizer.SimpleQueuePollingOptimizer(consumeFromQueue,
+                                                                                                                                                 (long) (consumeFromQueue.getPollingInterval().toMillis() *
+                                                                                                                                                         properties.getDurableQueues()
+                                                                                                                                                                   .getPollingDelayIntervalIncrementFactor()),
+                                                                                                                                                 properties.getDurableQueues()
+                                                                                                                                                           .getMaxPollingInterval()
+                                                                                                                                                           .toMillis()
+                                      )).build();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public MultiTableChangeListener<TableChangeNotification> multiTableChangeListener(Jdbi jdbi,
+                                                                                      ObjectMapper essentialComponentsObjectMapper,
+                                                                                      EventBus eventBus,
+                                                                                      EssentialsComponentsProperties properties) {
+        return new MultiTableChangeListener<>(jdbi,
+                                              properties.getMultiTableChangeListener().getPollingInterval(),
+                                              essentialComponentsObjectMapper,
+                                              eventBus);
     }
 
     /**
@@ -233,6 +257,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     @Bean
+    @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.EventStoreEventBus")
     @ConditionalOnMissingBean
     public EventBus eventBus() {
         return new LocalEventBus("default");
@@ -283,7 +308,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                 log.info("Starting {} bean '{}' of type '{}'", dk.cloudcreate.essentials.components.foundation.Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
                 lifecycleBean.start();
             });
-        } else if (event instanceof ContextStoppedEvent) {
+        } else if (event instanceof ContextClosedEvent) {
             applicationContext.getBeansOfType(dk.cloudcreate.essentials.components.foundation.Lifecycle.class).forEach((beanName, lifecycleBean) -> {
                 log.info("Stopping {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
                 lifecycleBean.stop();

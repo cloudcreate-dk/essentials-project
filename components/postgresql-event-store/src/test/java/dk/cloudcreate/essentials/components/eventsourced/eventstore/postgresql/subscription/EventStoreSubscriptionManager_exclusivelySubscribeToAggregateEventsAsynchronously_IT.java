@@ -45,6 +45,7 @@ import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.*;
 import java.util.stream.*;
 
@@ -291,7 +292,7 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
 
         var testEvents = createTestEvents();
 
-        var orderEventsReceived = new ArrayList<PersistedEvent>();
+        var orderEventsReceived = new ConcurrentLinkedDeque<PersistedEvent>();
         var ordersSubscription  = createOrderSubscription(orderEventsReceived);
 
         System.out.println("ordersSubscription: " + ordersSubscription);
@@ -365,7 +366,7 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
         ordersSubscription.stop();
 
         // Check the ResumePoints are updated and saved
-        var lastEventOrder = orderEventsReceived.get(totalNumberOfOrderEvents - 1);
+        var lastEventOrder = new ArrayList<>(orderEventsReceived).get(totalNumberOfOrderEvents - 1);
 
         assertThat(ordersSubscription.currentResumePoint().get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // When the subscriber is stopped we store the next global event order
         var ordersSubscriptionResumePoint = durableSubscriptionRepository.getResumePoint(ordersSubscription.subscriberId(), ordersSubscription.aggregateType());
@@ -393,7 +394,7 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
 
         var testEvents = createTestEvents();
 
-        var orderEventsReceived = new ArrayList<PersistedEvent>();
+        var orderEventsReceived = new ConcurrentLinkedDeque<PersistedEvent>();
         var ordersSubscription  = new AtomicReference<>(createOrderSubscription(orderEventsReceived));
 
         System.out.println("ordersSubscription: " + ordersSubscription);
@@ -467,7 +468,7 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
         ordersSubscription.get().stop();
 
         // Check the ResumePoints are updated and saved
-        var lastEventOrder = orderEventsReceived.get(totalNumberOfOrderEvents - 1);
+        var lastEventOrder = new ArrayList<>(orderEventsReceived).get(totalNumberOfOrderEvents - 1);
 
         assertThat(ordersSubscription.get().currentResumePoint().get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // When the subscriber is stopped we store the next global event order
         var ordersSubscriptionResumePoint = durableSubscriptionRepository.getResumePoint(ordersSubscription.get().subscriberId(), ordersSubscription.get().aggregateType());
@@ -476,7 +477,7 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
         System.out.println("********** test_with_resubscription Completed ***********");
     }
 
-    private EventStoreSubscription createOrderSubscription(ArrayList<PersistedEvent> orderEventsReceived) {
+    private EventStoreSubscription createOrderSubscription(ConcurrentLinkedDeque<PersistedEvent> orderEventsReceived) {
         return eventStoreSubscriptionManagerNode1.exclusivelySubscribeToAggregateEventsAsynchronously(
                 SubscriberId.of("OrdersSub1"),
                 ORDERS,

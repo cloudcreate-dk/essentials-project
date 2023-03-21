@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.components.queue.postgresql;
 
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
@@ -24,10 +24,15 @@ import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 import java.util.function.Consumer;
 
 @SuppressWarnings("unchecked")
-public class PostgresqlDurableQueueConsumer extends DurableQueueConsumer.DefaultDurableQueueConsumer<PostgresqlDurableQueues, HandleAwareUnitOfWork, UnitOfWorkFactory<HandleAwareUnitOfWork>> {
+public class PostgresqlDurableQueueConsumer extends DefaultDurableQueueConsumer<PostgresqlDurableQueues, HandleAwareUnitOfWork, UnitOfWorkFactory<HandleAwareUnitOfWork>> {
 
     @SuppressWarnings("rawtypes")
-    public PostgresqlDurableQueueConsumer(ConsumeFromQueue consumeFromQueue, HandleAwareUnitOfWorkFactory unitOfWorkFactory, PostgresqlDurableQueues durableQueues, Consumer<DurableQueueConsumer> removeDurableQueueConsumer) {
-        super(consumeFromQueue, unitOfWorkFactory, durableQueues, removeDurableQueueConsumer);
+    public PostgresqlDurableQueueConsumer(ConsumeFromQueue consumeFromQueue,
+                                          HandleAwareUnitOfWorkFactory unitOfWorkFactory,
+                                          PostgresqlDurableQueues durableQueues,
+                                          Consumer<DurableQueueConsumer> removeDurableQueueConsumer,
+                                          long pollingIntervalMs,
+                                          QueuePollingOptimizer queuePollingOptimizer) {
+        super(consumeFromQueue, unitOfWorkFactory, durableQueues, removeDurableQueueConsumer, pollingIntervalMs, queuePollingOptimizer);
     }
 }

@@ -20,6 +20,8 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
 
+import java.util.*;
+
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
@@ -32,7 +34,8 @@ public class GetNextMessageReadyForDelivery {
     /**
      * the name of the Queue where we will query for the next message ready for delivery
      */
-    public final QueueName           queueName;
+    public final  QueueName          queueName;
+    private final Collection<String> excludeOrderedMessagesWithKey;
 
     /**
      * Create a new builder that produces a new {@link GetNextMessageReadyForDelivery} instance
@@ -48,24 +51,45 @@ public class GetNextMessageReadyForDelivery {
      * Note this method MUST be called within an existing {@link UnitOfWork} IF
      * using {@link TransactionalMode#FullyTransactional}
      *
-     * @param queueName           the name of the Queue where we will query for the next message ready for delivery
+     * @param queueName the name of the Queue where we will query for the next message ready for delivery
      */
     public GetNextMessageReadyForDelivery(QueueName queueName) {
         this.queueName = requireNonNull(queueName, "No queueName provided");
+        this.excludeOrderedMessagesWithKey = List.of();
     }
 
     /**
+     * Query the next Queued Message (i.e. not including Dead Letter Messages) that's ready to be delivered to a {@link DurableQueueConsumer}<br>
+     * Note this method MUST be called within an existing {@link UnitOfWork} IF
+     * using {@link TransactionalMode#FullyTransactional}
      *
+     * @param queueName the name of the Queue where we will query for the next message ready for delivery
+     * @param excludeOrderedMessagesWithKey collection of {@link OrderedMessage#getKey()}'s to exclude in the search for the next message
+     */
+    public GetNextMessageReadyForDelivery(QueueName queueName, Collection<String> excludeOrderedMessagesWithKey) {
+        this.queueName = requireNonNull(queueName, "No queueName provided");
+        this.excludeOrderedMessagesWithKey = requireNonNull(excludeOrderedMessagesWithKey, "No excludeOrderedMessagesWithKey collection provided");
+    }
+
+    /**
      * @return the name of the Queue where we will query for the next message ready for delivery
      */
     public QueueName getQueueName() {
         return queueName;
     }
 
+    /**
+     * @return collection of {@link OrderedMessage#getKey()}'s to exclude in the search for the next message
+     */
+    public Collection<String> getExcludeOrderedMessagesWithKey() {
+        return excludeOrderedMessagesWithKey;
+    }
+
     @Override
     public String toString() {
         return "GetNextMessageReadyForDelivery{" +
                 "queueName=" + queueName +
+                ", excludeOrderedMessagesWithKey=" + excludeOrderedMessagesWithKey +
                 '}';
     }
 }

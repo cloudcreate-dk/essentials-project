@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
+import static dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.MessageConsumptionMode.SingleGlobalConsumer;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
@@ -38,6 +39,11 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * After the {@link UnitOfWork} has been committed, the messages will be asynchronously delivered to the message consumer in a new {@link UnitOfWork}.<br>
  * The {@link Outbox} itself supports Message Redelivery in case the Message consumer experiences failures.<br>
  * This means that the Message consumer, registered with the {@link Outbox}, can and will receive Messages more than once and therefore its message handling has to be idempotent.
+ * <p>
+ * If you're working with {@link OrderedMessage}'s then the {@link Outbox} consumer must be configured
+ * with {@link OutboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
+ * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
+ * across as many {@link OutboxConfig#numberOfParallelMessageConsumers} as you wish to use.
  */
 public interface Outboxes {
     /**
@@ -45,11 +51,11 @@ public interface Outboxes {
      * created then that instance is returned (irrespective of whether the redeliveryPolicy, etc. have the same values)
      *
      * @param outboxConfig    the outbox configuration
-     * @param messageConsumer the asynchronous message consumer
+     * @param messageConsumer the asynchronous message consumer. See {@link PatternMatchingMessageHandler}
      * @return the {@link Outbox}
      */
     Outbox getOrCreateOutbox(OutboxConfig outboxConfig,
-                                      Consumer<Message> messageConsumer);
+                             Consumer<Message> messageConsumer);
 
     /**
      * Get an existing {@link Outbox} instance or create a new instance. If an existing {@link Outbox} with a matching {@link OutboxName} is already
@@ -71,7 +77,7 @@ public interface Outboxes {
      * @return the {@link Outbox}
      */
     default Outbox getOrCreateForwardingOutbox(OutboxConfig outboxConfig,
-                                                        EventHandler eventHandler) {
+                                               EventHandler eventHandler) {
         requireNonNull(eventHandler, "No eventHandler provided");
         return getOrCreateOutbox(outboxConfig,
                                  message -> eventHandler.handle(message.getPayload()));
@@ -98,8 +104,8 @@ public interface Outboxes {
     }
 
     class DurableQueueBasedOutboxes implements Outboxes {
-        private final DurableQueues                              durableQueues;
-        private final FencedLockManager                          fencedLockManager;
+        private final DurableQueues                     durableQueues;
+        private final FencedLockManager                 fencedLockManager;
         private       ConcurrentMap<OutboxName, Outbox> outboxes = new ConcurrentHashMap<>();
 
         public DurableQueueBasedOutboxes(DurableQueues durableQueues, FencedLockManager fencedLockManager) {
@@ -154,12 +160,12 @@ public interface Outboxes {
                     case SingleGlobalConsumer:
                         fencedLockManager.acquireLockAsync(config.outboxName.asLockName(),
                                                            LockCallback.builder()
-                                                                       .onLockAcquired(lock -> durableQueueConsumer = consumeFromDurableQueue())
+                                                                       .onLockAcquired(lock -> durableQueueConsumer = consumeFromDurableQueue(lock))
                                                                        .onLockReleased(lock -> durableQueueConsumer.cancel())
                                                                        .build());
                         break;
                     case GlobalCompetingConsumers:
-                        durableQueueConsumer = consumeFromDurableQueue();
+                        durableQueueConsumer = consumeFromDurableQueue(null);
                         break;
                     default:
                         throw new IllegalStateException("Unexpected messageConsumptionMode: " + config.messageConsumptionMode);
@@ -208,11 +214,17 @@ public interface Outboxes {
                                            payload);
             }
 
-            private DurableQueueConsumer consumeFromDurableQueue() {
+            private DurableQueueConsumer consumeFromDurableQueue(FencedLock lock) {
                 return durableQueues.consumeFromQueue(outboxQueueName,
                                                       config.redeliveryPolicy,
                                                       config.numberOfParallelMessageConsumers,
-                                                      this::handleMessage);
+                                                      queuedMessage -> {
+                                                          if (config.messageConsumptionMode == SingleGlobalConsumer) {
+                                                              queuedMessage.getMetaData().put(MessageMetaData.FENCED_LOCK_TOKEN,
+                                                                                              lock.getCurrentToken().toString());
+                                                          }
+                                                          handleMessage(queuedMessage);
+                                                      });
             }
 
             @SuppressWarnings("unchecked")

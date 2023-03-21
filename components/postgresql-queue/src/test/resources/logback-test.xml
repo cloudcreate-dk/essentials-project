@@ -27,6 +27,8 @@
     <logger name="dk.cloudcreate.essentials" level="TRACE"/>
     <logger name="dk.cloudcreate.essentials.components.foundation.transaction.jdbi.GenericHandleAwareUnitOfWorkFactory" level="INFO"/>
     <logger name="dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory" level="INFO"/>
+    <logger name="dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain" level="DEBUG"/>
+    <logger name="dk.cloudcreate.essentials.components.foundation.messaging.queue.DefaultDurableQueueConsumer" level="TRACE"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>

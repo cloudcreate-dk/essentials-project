@@ -22,11 +22,13 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.operation
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.test_data.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.types.CorrelationId;
+import dk.cloudcreate.essentials.shared.collections.Lists;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.*;
 
@@ -88,7 +90,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                                   MessageMetaData.of("correlation_id", CorrelationId.random(),
                                                      "trace_id", UUID.randomUUID().toString()));
 
-        var idMsg2   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
+        var idMsg2 = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
 
         var message3 = Message.of(new OrderEvent.OrderAccepted(OrderId.random()));
         var idMsg3   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message3));
@@ -96,7 +98,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         // Then
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(3);
         var queuedMessages = durableQueues.getQueuedMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20);
-        assertThat(queuedMessages.size()).isEqualTo(3);
+        assertThat(queuedMessages).hasSize(3);
 
         assertThat(durableQueues.getQueuedMessage(idMsg1).get()).isEqualTo(queuedMessages.get(0));
         assertThat(queuedMessages.get(0).getMessage()).usingRecursiveComparison().isEqualTo(message1);
@@ -131,6 +133,29 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(queuedMessages.get(2).getRedeliveryAttempts()).isEqualTo(0);
         assertThat(queuedMessages.get(2).getTotalDeliveryAttempts()).isEqualTo(0);
 
+        // Then verify queryForMessagesSoonReadyForDelivery
+        var nextMessages = durableQueues.queryForMessagesSoonReadyForDelivery(queueName,
+                                                                              Instant.now().minusSeconds(2),
+                                                                              10);
+        assertThat(nextMessages).hasSize(3);
+        assertThat((CharSequence) nextMessages.get(0).id).isEqualTo(queuedMessages.get(0).getId());
+        assertThat(nextMessages.get(0).addedTimestamp).isEqualTo(queuedMessages.get(0).getAddedTimestamp().toInstant());
+        assertThat(nextMessages.get(0).nextDeliveryTimestamp).isEqualTo(queuedMessages.get(0).getNextDeliveryTimestamp().toInstant());
+
+        assertThat((CharSequence) nextMessages.get(1).id).isEqualTo(queuedMessages.get(1).getId());
+        assertThat(nextMessages.get(1).addedTimestamp).isEqualTo(queuedMessages.get(1).getAddedTimestamp().toInstant());
+        assertThat(nextMessages.get(1).nextDeliveryTimestamp).isEqualTo(queuedMessages.get(1).getNextDeliveryTimestamp().toInstant());
+
+        assertThat((CharSequence) nextMessages.get(2).id).isEqualTo(queuedMessages.get(2).getId());
+        assertThat(nextMessages.get(2).addedTimestamp).isEqualTo(queuedMessages.get(2).getAddedTimestamp().toInstant());
+        assertThat(nextMessages.get(2).nextDeliveryTimestamp).isEqualTo(queuedMessages.get(2).getNextDeliveryTimestamp().toInstant());
+
+
+        nextMessages = durableQueues.queryForMessagesSoonReadyForDelivery(queueName,
+                                                                          Instant.now().minusSeconds(2),
+                                                                          2);
+        assertThat(nextMessages).hasSize(2);
+
         // And When
         var numberOfDeletedMessages = durableQueues.purgeQueue(queueName);
 
@@ -154,7 +179,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                                   MessageMetaData.of("correlation_id", CorrelationId.random(),
                                                      "trace_id", UUID.randomUUID().toString()));
 
-        var idMsg2   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
+        var idMsg2 = withDurableQueue(() -> durableQueues.queueMessage(queueName, message2));
 
         var message3 = Message.of(new OrderEvent.OrderAccepted(OrderId.random()));
         var idMsg3   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message3));
@@ -176,10 +201,12 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
 
         // Then
         Awaitility.waitAtMost(Duration.ofSeconds(2))
-                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages.size()).isEqualTo(3));
-        assertThat(recordingQueueMessageHandler.messages.get(0)).usingRecursiveComparison().isEqualTo(message1);
-        assertThat(recordingQueueMessageHandler.messages.get(1)).usingRecursiveComparison().isEqualTo(message2);
-        assertThat(recordingQueueMessageHandler.messages.get(2)).usingRecursiveComparison().isEqualTo(message3);
+                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages).hasSize(3));
+
+        var messages = new ArrayList<>(recordingQueueMessageHandler.messages);
+        assertThat(messages.get(0)).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(messages.get(1)).usingRecursiveComparison().isEqualTo(message2);
+        assertThat(messages.get(2)).usingRecursiveComparison().isEqualTo(message3);
 
         consumer.cancel();
     }
@@ -196,7 +223,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
         var deadLetterMessages = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20);
-        assertThat(deadLetterMessages.size()).isEqualTo(1);
+        assertThat(deadLetterMessages).hasSize(1);
 
         // When
         var recordingQueueMessageHandler = new RecordingQueuedMessageHandler();
@@ -207,6 +234,89 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                   .during(Duration.ofMillis(1990))
                   .atMost(Duration.ofSeconds(2000))
                   .until(() -> recordingQueueMessageHandler.messages.size() == 0);
+
+        consumer.cancel();
+    }
+
+    @Test
+    void verify_a_that_as_long_as_an_ordered_message_with_same_key_and_a_lower_key_order_exists_as_a_dead_letter_message_then_no_further_messages_with_the_same_key_will_be_delivered() {
+        // Given
+        var queueName = QueueName.of("TestQueue");
+
+
+        var key1         = "Key1";
+        var key1Messages = List.of("Key1Msg1", "Key1Msg2", "Key1Msg3", "Key1Msg4", "Key1Msg5");
+        var key2         = "Key2";
+        var key2Messages = List.of("Key2Msg1", "Key2Msg2", "Key2Msg3", "Key2Msg4", "Key2Msg5");
+
+
+        usingDurableQueue(() -> {
+            // Queue all key1 messages, but queue Key1Msg3 as a DeadLetterMessage
+            Lists.toIndexedStream(key1Messages).forEach(indexedMessage -> {
+                if (indexedMessage._2.equals("Key1Msg3")) {
+                    durableQueues.queueMessageAsDeadLetterMessage(queueName,
+                                                                  OrderedMessage.of(indexedMessage._2,
+                                                                                    key1,
+                                                                                    indexedMessage._1),
+                                                                  new RuntimeException("On purpose"));
+                } else {
+                    durableQueues.queueMessage(queueName,
+                                               OrderedMessage.of(indexedMessage._2,
+                                                                 key1,
+                                                                 indexedMessage._1),
+                                               Duration.ofMillis(100));
+                }
+            });
+            // Queue all key2 messages
+            Lists.toIndexedStream(key2Messages).forEach(indexedMessage -> {
+                durableQueues.queueMessage(queueName,
+                                           OrderedMessage.of(indexedMessage._2,
+                                                             key2,
+                                                             indexedMessage._1),
+                                           Duration.ofMillis(100));
+            });
+        });
+
+        assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(key1Messages.size() + key2Messages.size() - 1); // -1 because Key1Msg3 is queued as a DeadLetterMessage
+        var deadLetterMessages = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20);
+        assertThat(deadLetterMessages).hasSize(1);
+        assertThat(deadLetterMessages.get(0).getPayload()).isEqualTo(key1Messages.get(2));
+        var key1Msg3EntryId = deadLetterMessages.get(0).getId();
+
+        // When
+        var recordingQueueMessageHandler = new RecordingQueuedMessageHandler();
+        var consumer                     = durableQueues.consumeFromQueue(queueName, RedeliveryPolicy.fixedBackoff(Duration.ofMillis(200), 1), 2, recordingQueueMessageHandler);
+
+        // Then all key2 messages are delivered, but only messages with key_order < Key1Msg3 are delivered for key1
+        Awaitility.waitAtMost(Duration.ofSeconds(5000))
+                  .untilAsserted(() -> {
+                      assertThat(recordingQueueMessageHandler.messages).hasSize(key2Messages.size() + 2); // + 2 for Key1Msg1 and Key1Msg2
+                  });
+
+        assertThat(recordingQueueMessageHandler.messages.stream().map(o -> (String) o.getPayload()))
+                .containsOnly("Key1Msg1", "Key1Msg2", "Key2Msg1", "Key2Msg2", "Key2Msg3", "Key2Msg4", "Key2Msg5");
+        recordingQueueMessageHandler.messages.clear();
+
+        // And When Resurrecting key1Msg3
+        usingDurableQueue(() -> durableQueues.resurrectDeadLetterMessage(key1Msg3EntryId, Duration.ofMillis(10)));
+
+        // Then the remaining key1 messages are delivered
+        Awaitility.waitAtMost(Duration.ofSeconds(2000))
+                  .untilAsserted(() -> {
+                      // Some DurableQueues implementations may choose to mark messages as dead letter messages in case a message with the same key and a lower order is already marked as a dead letter message
+                      // So in this case let's resurrect these messages
+                      var newDeadLetterMessages = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20);
+                      if (!newDeadLetterMessages.isEmpty()) {
+                          newDeadLetterMessages.forEach(queuedMessage -> {
+                              System.out.println("Resurrected new DeadLetterMessage: " + queuedMessage);
+                              usingDurableQueue(() -> durableQueues.resurrectDeadLetterMessage(queuedMessage.getId(), Duration.ofMillis(10)));
+                          });
+                      }
+                      assertThat(recordingQueueMessageHandler.messages).hasSize(3); // 3 for "Key1Msg3", "Key1Msg4", "Key1Msg5"
+                  });
+
+        assertThat(recordingQueueMessageHandler.messages.stream().map(o -> (String) o.getPayload()))
+                .containsOnly("Key1Msg3", "Key1Msg4", "Key1Msg5");
 
         consumer.cancel();
     }
@@ -236,11 +346,12 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
 
         // Then
         Awaitility.waitAtMost(Duration.ofSeconds(2))
-                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages.size()).isEqualTo(4)); // 3 redeliveries and 1 final delivery
-        assertThat(recordingQueueMessageHandler.messages.get(0)).usingRecursiveComparison().isEqualTo(message1);
-        assertThat(recordingQueueMessageHandler.messages.get(1)).usingRecursiveComparison().isEqualTo(message1);
-        assertThat(recordingQueueMessageHandler.messages.get(2)).usingRecursiveComparison().isEqualTo(message1);
-        assertThat(recordingQueueMessageHandler.messages.get(3)).usingRecursiveComparison().isEqualTo(message1);
+                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages).hasSize(4)); // 3 redeliveries and 1 final delivery
+        var messages = new ArrayList<>(recordingQueueMessageHandler.messages);
+        assertThat(messages.get(0)).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(messages.get(1)).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(messages.get(2)).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(messages.get(3)).usingRecursiveComparison().isEqualTo(message1);
 
         consumer.cancel();
     }
@@ -250,9 +361,9 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         // Given
         var queueName = QueueName.of("TestQueue");
 
-        var message1   = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 123456),
-                                    MessageMetaData.of("correlation_id", CorrelationId.random(),
-                                                       "trace_id", UUID.randomUUID().toString()));
+        var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 123456),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
         var message1Id = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
@@ -271,13 +382,14 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
 
         // Then
         Awaitility.waitAtMost(Duration.ofSeconds(4))
-                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages.size()).isEqualTo(6)); // 6 in total (1 initial delivery and 5 redeliveries)
-        assertThat(recordingQueueMessageHandler.messages.get(0)).usingRecursiveComparison().isEqualTo(message1);
-        assertThat(recordingQueueMessageHandler.messages.get(1)).usingRecursiveComparison().isEqualTo(message1);
-        assertThat(recordingQueueMessageHandler.messages.get(2)).usingRecursiveComparison().isEqualTo(message1);
-        assertThat(recordingQueueMessageHandler.messages.get(3)).usingRecursiveComparison().isEqualTo(message1);
-        assertThat(recordingQueueMessageHandler.messages.get(4)).usingRecursiveComparison().isEqualTo(message1);
-        assertThat(recordingQueueMessageHandler.messages.get(5)).usingRecursiveComparison().isEqualTo(message1);
+                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages).hasSize(6)); // 6 in total (1 initial delivery and 5 redeliveries)
+        var messages = new ArrayList<>(recordingQueueMessageHandler.messages);
+        assertThat(messages.get(0)).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(messages.get(1)).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(messages.get(2)).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(messages.get(3)).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(messages.get(4)).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(messages.get(5)).usingRecursiveComparison().isEqualTo(message1);
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0); // Dead letter messages is not counted
         var deadLetterMessage = withDurableQueue(() -> durableQueues.getDeadLetterMessage(message1Id));
@@ -294,9 +406,11 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
         Awaitility.waitAtMost(Duration.ofSeconds(4))
                   .untilAsserted(() -> {
-                      assertThat(recordingQueueMessageHandler.messages.size()).isEqualTo(7); // 7 in total (1 initial delivery and 5 redeliveries and 1 final delivery for the resurrected message)
+                      assertThat(recordingQueueMessageHandler.messages).hasSize(7); // 7 in total (1 initial delivery and 5 redeliveries and 1 final delivery for the resurrected message)
                   });
-        assertThat(recordingQueueMessageHandler.messages.get(6)).usingRecursiveComparison().isEqualTo(message1);
+        messages = new ArrayList<>(recordingQueueMessageHandler.messages);
+        assertThat(messages.get(6)).usingRecursiveComparison().isEqualTo(message1);
+
         Awaitility.waitAtMost(Duration.ofMillis(500))
                   .untilAsserted(() -> assertThat(durableQueues.getQueuedMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20)).isEmpty());
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
@@ -307,13 +421,13 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
 
 
     static class RecordingQueuedMessageHandler implements QueuedMessageHandler {
-        Consumer<Object> functionLogic;
-        List<Object>     messages = new ArrayList<>();
+        Consumer<Message>              functionLogic;
+        ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
 
         RecordingQueuedMessageHandler() {
         }
 
-        RecordingQueuedMessageHandler(Consumer<Object> functionLogic) {
+        RecordingQueuedMessageHandler(Consumer<Message> functionLogic) {
             this.functionLogic = functionLogic;
         }
 

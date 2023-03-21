@@ -19,6 +19,7 @@ package dk.cloudcreate.essentials.components.boot.autoconfigure.mongodb;
 import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockStorage;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -50,8 +51,13 @@ public class EssentialsComponentsProperties {
 
         private Duration messageHandlingTimeout = Duration.ofSeconds(15);
 
+        private Double pollingDelayIntervalIncrementFactor = 0.5d;
+
+        private Duration maxPollingInterval = Duration.ofMillis(2000);
+
         /**
-         * Get the name of the collection that will contain all messages (across all {@link QueueName}'s)
+         * Get the name of the collection that will contain all messages (across all {@link QueueName}'s)<br>
+         * Default is {@value MongoDurableQueues#DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
          *
          * @return the name of the collection that will contain all messages (across all {@link QueueName}'s)
          */
@@ -60,7 +66,8 @@ public class EssentialsComponentsProperties {
         }
 
         /**
-         * Set the name of the collection that will contain all messages (across all {@link QueueName}'s)
+         * Set the name of the collection that will contain all messages (across all {@link QueueName}'s)<br>
+         * Default is {@value MongoDurableQueues#DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
          *
          * @param sharedQueueCollectionName the name of the collection that will contain all messages (across all {@link QueueName}'s)
          */
@@ -69,7 +76,9 @@ public class EssentialsComponentsProperties {
         }
 
         /**
-         * Get the transactional behaviour mode of the {@link MongoDurableQueues}
+         * Get the transactional behaviour mode of the {@link MongoDurableQueues}<br>
+         * Default: {@link TransactionalMode#FullyTransactional}
+         *
          * @return the transactional behaviour mode of the {@link MongoDurableQueues
          */
         public TransactionalMode getTransactionalMode() {
@@ -77,7 +86,9 @@ public class EssentialsComponentsProperties {
         }
 
         /**
-         * Set the transactional behaviour mode of the {@link MongoDurableQueues
+         * Set the transactional behaviour mode of the {@link MongoDurableQueues<br>
+         * Default: {@link TransactionalMode#FullyTransactional}
+         *
          * @param transactionalMode the transactional behaviour mode of the {@link MongoDurableQueues
          */
         public void setTransactionalMode(TransactionalMode transactionalMode) {
@@ -87,7 +98,9 @@ public class EssentialsComponentsProperties {
         /**
          * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#ManualAcknowledgement}<br>
          * The Message Handling timeout defines the timeout for messages being delivered, but haven't yet been acknowledged.
-         * After this timeout the message delivery will be reset and the message will again be a candidate for delivery
+         * After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
+         * Default 15 seconds
+         *
          * @return the Message Handling timeout
          */
         public Duration getMessageHandlingTimeout() {
@@ -97,11 +110,57 @@ public class EssentialsComponentsProperties {
         /**
          * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#ManualAcknowledgement}<br>
          * The Message Handling timeout defines the timeout for messages being delivered, but haven't yet been acknowledged.
-         * After this timeout the message delivery will be reset and the message will again be a candidate for delivery
+         * After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
+         * Default 15 seconds
+         *
          * @param messageHandlingTimeout the Message Handling timeout
          */
         public void setMessageHandlingTimeout(Duration messageHandlingTimeout) {
             this.messageHandlingTimeout = messageHandlingTimeout;
+        }
+
+        /**
+         * When the {@link MongoDurableQueues} polling returns 0 messages, what should the increase in the {@link ConsumeFromQueue#getPollingInterval()}
+         * be?<br>
+         * Default is 0.5d<br>
+         * This is used to avoid polling a the {@link dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues} for a queue that isn't experiencing a lot of messages
+         *
+         * @return the increase in the {@link ConsumeFromQueue#getPollingInterval()} when the {@link dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues} polling returns 0 messages
+         */
+        public Double getPollingDelayIntervalIncrementFactor() {
+            return pollingDelayIntervalIncrementFactor;
+        }
+
+        /**
+         * When the {@link MongoDurableQueues} polling returns 0 messages, what should the increase in the {@link ConsumeFromQueue#getPollingInterval()}
+         * be?<br>
+         * Default is 0.5d<br>
+         * This is used to avoid polling a the {@link DurableQueues} for a queue that isn't experiencing a lot of messages
+         *
+         * @param pollingDelayIntervalIncrementFactor the increase in the {@link ConsumeFromQueue#getPollingInterval()} when the {@link DurableQueues} polling returns 0 messages
+         */
+        public void setPollingDelayIntervalIncrementFactor(Double pollingDelayIntervalIncrementFactor) {
+            this.pollingDelayIntervalIncrementFactor = pollingDelayIntervalIncrementFactor;
+        }
+
+        /**
+         * What is the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})<br>
+         * Default is 2 seconds
+         *
+         * @return What is the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})
+         */
+        public Duration getMaxPollingInterval() {
+            return maxPollingInterval;
+        }
+
+        /**
+         * What is the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})<br>
+         * Default is 2 seconds
+         *
+         * @param maxPollingInterval the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})
+         */
+        public void setMaxPollingInterval(Duration maxPollingInterval) {
+            this.maxPollingInterval = maxPollingInterval;
         }
     }
 
