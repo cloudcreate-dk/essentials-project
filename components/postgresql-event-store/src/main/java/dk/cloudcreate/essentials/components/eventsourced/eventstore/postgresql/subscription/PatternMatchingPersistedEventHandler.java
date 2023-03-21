@@ -117,7 +117,7 @@ public class PatternMatchingPersistedEventHandler implements PersistedEventHandl
      *
      * @return should the event handler allow unmatched events
      */
-    protected boolean isAllowUnmatchedEvents() {
+    public boolean isAllowUnmatchedEvents() {
         return allowUnmatchedEvents;
     }
 
@@ -130,7 +130,7 @@ public class PatternMatchingPersistedEventHandler implements PersistedEventHandl
      *
      * @param allowUnmatchedEvents should the event handler allow unmatched events
      */
-    protected void setAllowUnmatchedEvents(boolean allowUnmatchedEvents) {
+    public void setAllowUnmatchedEvents(boolean allowUnmatchedEvents) {
         this.allowUnmatchedEvents = allowUnmatchedEvents;
     }
 
@@ -142,7 +142,7 @@ public class PatternMatchingPersistedEventHandler implements PersistedEventHandl
      *
      * @see #setAllowUnmatchedEvents(boolean)
      */
-    protected void allowUnmatchedEvents() {
+    public void allowUnmatchedEvents() {
         setAllowUnmatchedEvents(true);
     }
 
