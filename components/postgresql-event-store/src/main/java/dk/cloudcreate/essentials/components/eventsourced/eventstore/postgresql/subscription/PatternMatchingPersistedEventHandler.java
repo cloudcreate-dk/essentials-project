@@ -77,14 +77,35 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * }
  * }</pre>
  */
-public abstract class PatternMatchingPersistedEventHandler implements PersistedEventHandler {
+public class PatternMatchingPersistedEventHandler implements PersistedEventHandler {
     private final PatternMatchingMethodInvoker<Object> invoker;
+    private final Object                               invokePersistedEventHandlerMethodsOn;
     private       boolean                              allowUnmatchedEvents = false;
 
+    /**
+     * Create an {@link PatternMatchingPersistedEventHandler} that can resolve and invoke event handler methods, i.e. methods
+     * annotated with {@literal @SubscriptionEventHandler}, on another object
+     *
+     * @param invokePersistedEventHandlerMethodsOn the object that contains the {@literal @Handler} annotated methods
+     */
+    public PatternMatchingPersistedEventHandler(Object invokePersistedEventHandlerMethodsOn) {
+        this.invokePersistedEventHandlerMethodsOn = requireNonNull(invokePersistedEventHandlerMethodsOn, "No invokePersistedEventHandlerMethodsOn provided");
+        invoker = createMethodInvoker();
+    }
+
+    /**
+     * Create an {@link PatternMatchingPersistedEventHandler} that can resolve and invoke event handler methods, i.e. methods
+     * annotated with {@literal @SubscriptionEventHandler}, on this concrete subclass of {@link PatternMatchingPersistedEventHandler}
+     */
     public PatternMatchingPersistedEventHandler() {
-        invoker = new PatternMatchingMethodInvoker<>(this,
-                                                     new PersistedEventHandlerMethodPatternMatcher(),
-                                                     InvocationStrategy.InvokeMostSpecificTypeMatched);
+        this.invokePersistedEventHandlerMethodsOn = this;
+        invoker = createMethodInvoker();
+    }
+
+    private PatternMatchingMethodInvoker<Object> createMethodInvoker() {
+        return new PatternMatchingMethodInvoker<>(invokePersistedEventHandlerMethodsOn,
+                                                  new PersistedEventHandlerMethodPatternMatcher(),
+                                                  InvocationStrategy.InvokeMostSpecificTypeMatched);
     }
 
     /**

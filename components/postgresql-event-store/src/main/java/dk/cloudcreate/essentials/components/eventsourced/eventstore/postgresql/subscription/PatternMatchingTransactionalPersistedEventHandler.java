@@ -47,7 +47,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * </ul>
  * Each method may also include a 3rd argument that of type {@link PersistedEvent} in which case the event that's being matched is included as the 3rd argument in the call to the method.<br>
  * The methods can have any accessibility (private, public, etc.), they just have to be instance methods.
- *
+ * <p>
  * Example:
  * <pre>{@code
  * public class MyEventHandler extends PatternMatchingTransactionalPersistedEventHandler {
@@ -74,13 +74,35 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * }
  * }</pre>
  */
-public abstract class PatternMatchingTransactionalPersistedEventHandler implements TransactionalPersistedEventHandler {
+public class PatternMatchingTransactionalPersistedEventHandler implements TransactionalPersistedEventHandler {
     private final PatternMatchingMethodInvoker<Object> invoker;
+    private final Object                               invokePersistedEventHandlerMethodsOn;
 
+    /**
+     * Create an {@link PatternMatchingTransactionalPersistedEventHandler} that can resolve and invoke event handler methods, i.e. methods
+     * annotated with {@literal @SubscriptionEventHandler}, on another object
+     *
+     * @param invokePersistedEventHandlerMethodsOn the object that contains the {@literal @Handler} annotated methods
+     */
+    public PatternMatchingTransactionalPersistedEventHandler(Object invokePersistedEventHandlerMethodsOn) {
+        this.invokePersistedEventHandlerMethodsOn = requireNonNull(invokePersistedEventHandlerMethodsOn, "No invokePersistedEventHandlerMethodsOn provided");
+        invoker = createMethodInvoker();
+
+    }
+
+    /**
+     * Create an {@link PatternMatchingTransactionalPersistedEventHandler} that can resolve and invoke event handler methods, i.e. methods
+     * annotated with {@literal @SubscriptionEventHandler}, on this concrete subclass of {@link PatternMatchingTransactionalPersistedEventHandler}
+     */
     public PatternMatchingTransactionalPersistedEventHandler() {
-        invoker = new PatternMatchingMethodInvoker<>(this,
-                                                     new PersistedEventHandlerMethodPatternMatcher(),
-                                                     InvocationStrategy.InvokeMostSpecificTypeMatched);
+        this.invokePersistedEventHandlerMethodsOn = this;
+        invoker = createMethodInvoker();
+    }
+
+    private PatternMatchingMethodInvoker<Object> createMethodInvoker() {
+        return new PatternMatchingMethodInvoker<>(invokePersistedEventHandlerMethodsOn,
+                                                  new PersistedEventHandlerMethodPatternMatcher(),
+                                                  InvocationStrategy.InvokeMostSpecificTypeMatched);
     }
 
     @Override
