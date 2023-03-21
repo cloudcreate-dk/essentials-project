@@ -804,6 +804,16 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             public boolean isActive() {
                 return started;
             }
+
+            @Override
+            public String toString() {
+                return "NonExclusiveInTransactionSubscription{" +
+                        "aggregateType=" + aggregateType +
+                        ", subscriberId=" + subscriberId +
+                        ", onlyIncludeEventsForTenant=" + onlyIncludeEventsForTenant +
+                        ", started=" + started +
+                        '}';
+            }
         }
 
         private class NonExclusiveAsynchronousSubscription implements EventStoreSubscription {
@@ -998,6 +1008,17 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             @Override
             public boolean isActive() {
                 return started;
+            }
+
+            @Override
+            public String toString() {
+                return "NonExclusiveAsynchronousSubscription{" +
+                        "aggregateType=" + aggregateType +
+                        ", subscriberId=" + subscriberId +
+                        ", onlyIncludeEventsForTenant=" + onlyIncludeEventsForTenant +
+                        ", resumePoint=" + resumePoint +
+                        ", started=" + started +
+                        '}';
             }
         }
 
@@ -1241,6 +1262,19 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             @Override
             public boolean isActive() {
                 return active;
+            }
+
+            @Override
+            public String toString() {
+                return "ExclusiveAsynchronousSubscription{" +
+                        "aggregateType=" + aggregateType +
+                        ", subscriberId=" + subscriberId +
+                        ", onlyIncludeEventsForTenant=" + onlyIncludeEventsForTenant +
+                        ", lockName=" + lockName +
+                        ", resumePoint=" + resumePoint +
+                        ", started=" + started +
+                        ", active=" + active +
+                        '}';
             }
         }
     }
