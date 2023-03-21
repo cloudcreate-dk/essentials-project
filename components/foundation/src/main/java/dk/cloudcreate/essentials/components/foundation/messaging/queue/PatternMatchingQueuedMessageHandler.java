@@ -50,8 +50,8 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 public class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler {
     private final PatternMatchingMethodInvoker<Object> invoker;
-    private final Object                               invokeMessageHandlerMethodsOn;
-    private       boolean                              allowUnmatchedMessage = false;
+    private final Object  invokeMessageHandlerMethodsOn;
+    private       boolean allowUnmatchedMessages = false;
 
     /**
      * Create an {@link PatternMatchingQueuedMessageHandler} that can resolve and invoke message handler methods, i.e. methods
@@ -89,8 +89,8 @@ public class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler
      *
      * @return should the event handler allow unmatched events
      */
-    public boolean isAllowUnmatchedMessage() {
-        return allowUnmatchedMessage;
+    public boolean isAllowUnmatchedMessages() {
+        return allowUnmatchedMessages;
     }
 
     /**
@@ -100,10 +100,10 @@ public class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler
      * will cause {@link #handleUnmatchedMessage(QueuedMessage)} will throw
      * an {@link IllegalArgumentException}
      *
-     * @param allowUnmatchedMessage should the event handler allow unmatched {@link Message#getPayload()}
+     * @param allowUnmatchedMessages should the event handler allow unmatched {@link Message#getPayload()}
      */
-    public void setAllowUnmatchedMessage(boolean allowUnmatchedMessage) {
-        this.allowUnmatchedMessage = allowUnmatchedMessage;
+    public void setAllowUnmatchedMessages(boolean allowUnmatchedMessages) {
+        this.allowUnmatchedMessages = allowUnmatchedMessages;
     }
 
     /**
@@ -113,10 +113,10 @@ public class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler
      * will cause {@link #handleUnmatchedMessage(QueuedMessage)} will throw
      * an {@link IllegalArgumentException}
      *
-     * @see #setAllowUnmatchedMessage(boolean)
+     * @see #setAllowUnmatchedMessages(boolean)
      */
     public void allowUnmatchedMessages() {
-        setAllowUnmatchedMessage(true);
+        setAllowUnmatchedMessages(true);
     }
 
     @Override
@@ -128,13 +128,13 @@ public class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler
 
     /**
      * Override this method to provide custom handling for {@link QueuedMessage}'s who's {@link Message#getPayload()} aren't matched<br>
-     * Default behaviour is to throw an {@link IllegalArgumentException} unless {@link #isAllowUnmatchedMessage()}
+     * Default behaviour is to throw an {@link IllegalArgumentException} unless {@link #isAllowUnmatchedMessages()}
      * is set to true (default value is false)
      *
      * @param queuedMessage the unmatched queue message
      */
     protected void handleUnmatchedMessage(QueuedMessage queuedMessage) {
-        if (!allowUnmatchedMessage) {
+        if (!allowUnmatchedMessages) {
             throw new IllegalArgumentException(msg("Unmatched Message with payload-type: '{}'",
                                                    queuedMessage.getMessage().getPayload().getClass().getName()));
         }

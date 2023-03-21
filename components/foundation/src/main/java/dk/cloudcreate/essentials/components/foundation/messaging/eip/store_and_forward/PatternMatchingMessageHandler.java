@@ -52,8 +52,8 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 public class PatternMatchingMessageHandler implements Consumer<Message> {
     private final PatternMatchingMethodInvoker<Object> invoker;
-    private final Object                               invokeMessageHandlerMethodsOn;
-    private       boolean                              allowUnmatchedMessage = false;
+    private final Object  invokeMessageHandlerMethodsOn;
+    private       boolean allowUnmatchedMessages = false;
 
     /**
      * Create an {@link PatternMatchingMessageHandler} that can resolve and invoke message handler methods, i.e. methods
@@ -90,8 +90,8 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
      *
      * @return should the event handler allow unmatched events
      */
-    public boolean isAllowUnmatchedMessage() {
-        return allowUnmatchedMessage;
+    public boolean isAllowUnmatchedMessages() {
+        return allowUnmatchedMessages;
     }
 
     /**
@@ -101,10 +101,10 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
      * will cause {@link #handleUnmatchedMessage(Message)} will throw
      * an {@link IllegalArgumentException}
      *
-     * @param allowUnmatchedMessage should the event handler allow unmatched {@link Message#getPayload()}
+     * @param allowUnmatchedMessages should the event handler allow unmatched {@link Message#getPayload()}
      */
-    public void setAllowUnmatchedMessage(boolean allowUnmatchedMessage) {
-        this.allowUnmatchedMessage = allowUnmatchedMessage;
+    public void setAllowUnmatchedMessages(boolean allowUnmatchedMessages) {
+        this.allowUnmatchedMessages = allowUnmatchedMessages;
     }
 
     /**
@@ -114,10 +114,10 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
      * will cause {@link #handleUnmatchedMessage(Message)} will throw
      * an {@link IllegalArgumentException}
      *
-     * @see #setAllowUnmatchedMessage(boolean)
+     * @see #setAllowUnmatchedMessages(boolean)
      */
     public void allowUnmatchedMessages() {
-        setAllowUnmatchedMessage(true);
+        setAllowUnmatchedMessages(true);
     }
 
     @Override
@@ -129,13 +129,13 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
 
     /**
      * Override this method to provide custom handling for {@link Message}'s who's {@link Message#getPayload()} aren't matched<br>
-     * Default behaviour is to throw an {@link IllegalArgumentException} unless {@link #isAllowUnmatchedMessage()}
+     * Default behaviour is to throw an {@link IllegalArgumentException} unless {@link #isAllowUnmatchedMessages()}
      * is set to true (default value is false)
      *
      * @param message the unmatched message
      */
     protected void handleUnmatchedMessage(Message message) {
-        if (!allowUnmatchedMessage) {
+        if (!allowUnmatchedMessages) {
             throw new IllegalArgumentException(msg("Unmatched Message with payload-type: '{}'",
                                                    message.getPayload().getClass().getName()));
         }
