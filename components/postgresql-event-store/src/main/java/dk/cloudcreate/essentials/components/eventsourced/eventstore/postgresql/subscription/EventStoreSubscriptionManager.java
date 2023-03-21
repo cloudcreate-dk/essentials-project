@@ -934,12 +934,18 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                       subscriberId,
                                       aggregateType), e);
                     }
+                    try {
+                        // Allow the reactive components to complete
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        // Ignore
+                    }
                     // Save resume point to be the next global order event
                     log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
                               subscriberId,
                               aggregateType,
                               resumePoint.getResumeFromAndIncluding());
-                    resumePoint.setResumeFromAndIncluding(resumePoint.getResumeFromAndIncluding());
+
                     durableSubscriptionRepository.saveResumePoint(resumePoint);
                     started = false;
                     log.info("[{}-{}] Stopped subscription",
@@ -1159,12 +1165,19 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                 log.error(msg("FencedLockAwareSubscriber#onLockReleased failed for lock {}", lock.getName()), e);
                             }
 
+                            try {
+                                // Allow the reactive components to complete
+                                Thread.sleep(500);
+                            } catch (InterruptedException e) {
+                                // Ignore
+                            }
+
                             // Save resume point to be the next global order event AFTER the one we know we just handled
                             log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
                                       subscriberId,
                                       aggregateType,
                                       resumePoint.getResumeFromAndIncluding());
-                            resumePoint.setResumeFromAndIncluding(resumePoint.getResumeFromAndIncluding());
+
                             durableSubscriptionRepository.saveResumePoint(resumePoint);
                             active = false;
                             log.info("[{}-{}] Stopped subscription",
