@@ -20,6 +20,7 @@ import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.Po
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
@@ -91,7 +92,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      *                                                                EventStream associated with the <code>aggregateType</code>
      * @param onlyIncludeEventsForTenant                              if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
      * @param forwardToInbox                                          The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
-     *                                                                the {@link PersistedEvent} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                                                                the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
      *                                                                and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
      *                                                                This reuses the {@link Inbox} ability to retry event deliveries
      * @return the subscription handle
@@ -106,7 +107,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                         forAggregateType,
                                                         onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
                                                         onlyIncludeEventsForTenant,
-                                                        event -> forwardToInbox.addMessageReceived(OrderedMessage.of(event,
+                                                        event -> forwardToInbox.addMessageReceived(OrderedMessage.of(event.event().getJsonDeserialized().get(),
                                                                                                                      event.aggregateId().toString(),
                                                                                                                      event.eventOrder().longValue())));
     }
@@ -120,7 +121,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using this {@link GlobalEventOrder} as the starting point in the
      *                                                                EventStream associated with the <code>aggregateType</code>
      * @param forwardToInbox                                          The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
-     *                                                                the {@link PersistedEvent} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                                                                the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
      *                                                                and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
      *                                                                This reuses the {@link Inbox} ability to retry event deliveries
      * @return the subscription handle
@@ -227,7 +228,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      * @param onlyIncludeEventsForTenant                              if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
      * @param fencedLockAwareSubscriber                               Callback interface that will be called when the exclusive/fenced lock is acquired or released
      * @param forwardToInbox                                          The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
-     *                                                                the {@link PersistedEvent} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                                                                the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
      *                                                                and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
      *                                                                This reuses the {@link Inbox} ability to retry event deliveries
      * @return the subscription handle
@@ -244,7 +245,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                                    onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
                                                                    onlyIncludeEventsForTenant,
                                                                    fencedLockAwareSubscriber,
-                                                                   event -> forwardToInbox.addMessageReceived(OrderedMessage.of(event,
+                                                                   event -> forwardToInbox.addMessageReceived(OrderedMessage.of(event.event().getJsonDeserialized().get(),
                                                                                                                                 event.aggregateId().toString(),
                                                                                                                                 event.eventOrder().longValue())));
     }
@@ -261,7 +262,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      *                                                                EventStream associated with the <code>aggregateType</code>
      * @param fencedLockAwareSubscriber                               Callback interface that will be called when the exclusive/fenced lock is acquired or released
      * @param forwardToInbox                                          The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
-     *                                                                the {@link PersistedEvent} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                                                                the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
      *                                                                and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
      *                                                                This reuses the {@link Inbox} ability to retry event deliveries
      * @return the subscription handle
@@ -377,7 +378,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      * @param forAggregateType           the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
      * @param onlyIncludeEventsForTenant if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
      * @param forwardToInbox             The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
-     *                                   the {@link PersistedEvent} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                                   the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
      *                                   and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
      *                                   This reuses the {@link Inbox} ability to retry event deliveries
      * @return the subscription handle
@@ -390,7 +391,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         return subscribeToAggregateEventsInTransaction(subscriberId,
                                                        forAggregateType,
                                                        onlyIncludeEventsForTenant,
-                                                       (event, unitOfWork) -> forwardToInbox.addMessageReceived(OrderedMessage.of(event,
+                                                       (event, unitOfWork) -> forwardToInbox.addMessageReceived(OrderedMessage.of(event.event().getJsonDeserialized().get(),
                                                                                                                                   event.aggregateId().toString(),
                                                                                                                                   event.eventOrder().longValue())));
 
@@ -403,7 +404,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      * @param subscriberId     the unique id for the subscriber
      * @param forAggregateType the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
      * @param forwardToInbox   The Inbox where the {@link PersistedEvent}'s will be forwarded to as an {@link OrderedMessage} containing
-     *                         the {@link PersistedEvent} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
+     *                         the {@link PersistedEvent#event()}'s {@link EventJSON#getJsonDeserialized()} as payload and the {@link PersistedEvent#aggregateId()} as {@link OrderedMessage#getKey()}
      *                         and the {@link PersistedEvent#eventOrder()} as {@link OrderedMessage#getOrder()}.<br>
      *                         This reuses the {@link Inbox} ability to retry event deliveries
      * @return the subscription handle
