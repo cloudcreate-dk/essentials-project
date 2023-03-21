@@ -19,6 +19,8 @@ package dk.cloudcreate.essentials.reactive;
 import dk.cloudcreate.essentials.shared.reflection.invocation.*;
 import dk.cloudcreate.essentials.shared.types.GenericType;
 
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
+
 /**
  * Extending this class will allow you to colocate multiple related Event handling methods inside the same class and use it together with the {@link LocalEventBus}<br>
  * Each method must accept a single Event argument, return void and be annotated with the {@link EventHandler} annotation.<br>
@@ -46,13 +48,34 @@ import dk.cloudcreate.essentials.shared.types.GenericType;
  */
 public class AnnotatedEventHandler implements EventHandler {
     private final PatternMatchingMethodInvoker<Object> invoker;
+    private final Object invokeEventHandlerMethodsOn;
 
+    /**
+     * Create an {@link AnnotatedEventHandler} that can resolve and invoke event handler methods, i.e. methods
+     * annotated with {@literal @Handler}, on another object
+     *
+     * @param invokeEventHandlerMethodsOn the object that contains the {@literal @Handler} annotated methods
+     */
+    public AnnotatedEventHandler(Object invokeEventHandlerMethodsOn) {
+        this.invokeEventHandlerMethodsOn = requireNonNull(invokeEventHandlerMethodsOn, "No invokeEventHandlerMethodsOn provided");
+        invoker = createMethodInvoker();
+    }
+
+    /**
+     * Create an {@link AnnotatedEventHandler} that can resolve and invoke event handler methods, i.e. methods
+     * annotated with {@literal @Handler}, on this concrete subclass of {@link AnnotatedEventHandler}
+     */
     public AnnotatedEventHandler() {
-        invoker = new PatternMatchingMethodInvoker<>(this,
-                                                     new SingleArgumentAnnotatedMethodPatternMatcher<>(Handler.class,
-                                                                                                       new GenericType<>() {
-                                                                                                       }),
-                                                     InvocationStrategy.InvokeMostSpecificTypeMatched);
+        this.invokeEventHandlerMethodsOn = this;
+        invoker = createMethodInvoker();
+    }
+
+    private PatternMatchingMethodInvoker<Object> createMethodInvoker() {
+        return new PatternMatchingMethodInvoker<>(invokeEventHandlerMethodsOn,
+                                                  new SingleArgumentAnnotatedMethodPatternMatcher<>(Handler.class,
+                                                                                                    new GenericType<>() {
+                                                                                                    }),
+                                                  InvocationStrategy.InvokeMostSpecificTypeMatched);
     }
 
     @Override
