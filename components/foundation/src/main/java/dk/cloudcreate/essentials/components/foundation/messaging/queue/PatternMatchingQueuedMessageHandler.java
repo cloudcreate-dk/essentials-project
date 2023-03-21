@@ -48,14 +48,36 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * }
  * }</pre>
  */
-public abstract class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler {
+public class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler {
     private final PatternMatchingMethodInvoker<Object> invoker;
+    private final Object                               invokeMessageHandlerMethodsOn;
     private       boolean                              allowUnmatchedMessage = false;
 
+    /**
+     * Create an {@link PatternMatchingQueuedMessageHandler} that can resolve and invoke message handler methods, i.e. methods
+     * annotated with {@literal @MessageHandler}, on another object
+     *
+     * @param invokeMessageHandlerMethodsOn the object that contains the {@literal @MessageHandler} annotated methods
+     */
+    public PatternMatchingQueuedMessageHandler(Object invokeMessageHandlerMethodsOn) {
+        this.invokeMessageHandlerMethodsOn = requireNonNull(invokeMessageHandlerMethodsOn, "No invokeMessageHandlerMethodsOn provided");
+        invoker = createMethodInvoker();
+
+    }
+
+    /**
+     * Create an {@link PatternMatchingQueuedMessageHandler} that can resolve and invoke message handler methods, i.e. methods
+     * annotated with {@literal @MessageHandler}, on this concrete subclass of {@link PatternMatchingQueuedMessageHandler}
+     */
     public PatternMatchingQueuedMessageHandler() {
-        invoker = new PatternMatchingMethodInvoker<>(this,
-                                                     new QueuedMessageHandlerMethodPatternMatcher(),
-                                                     InvocationStrategy.InvokeMostSpecificTypeMatched);
+        this.invokeMessageHandlerMethodsOn = this;
+        invoker = createMethodInvoker();
+    }
+
+    private PatternMatchingMethodInvoker<Object> createMethodInvoker() {
+        return new PatternMatchingMethodInvoker<>(invokeMessageHandlerMethodsOn,
+                                                  new QueuedMessageHandlerMethodPatternMatcher(),
+                                                  InvocationStrategy.InvokeMostSpecificTypeMatched);
     }
 
     /**
