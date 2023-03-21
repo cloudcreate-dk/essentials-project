@@ -379,12 +379,14 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
             aggregatesAndEvents.forEach((aggregateId, events) -> {
                 var count = counter.incrementAndGet();
                 if (count == 50) {
+                    System.out.println("!------> Unsubscribing");
                     ordersSubscription.get().unsubscribe();
                     assertThat(ordersSubscription.get().isActive()).isFalse();
                     assertThat(ordersSubscription.get().isStarted()).isFalse();
                     assertThat(eventStoreSubscriptionManagerNode1.hasSubscription(ordersSubscription.get())).isFalse();
                 }
                 if (count == 80) {
+                    System.out.println("!------> Resubscribing");
                     ordersSubscription.set(createOrderSubscription(orderEventsReceived));
                     assertThat(ordersSubscription.get().isActive()).isTrue();
                     assertThat(ordersSubscription.get().isStarted()).isTrue();
