@@ -308,7 +308,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                 log.info("Starting {} bean '{}' of type '{}'", dk.cloudcreate.essentials.components.foundation.Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
                 lifecycleBean.start();
             });
-        } else if (event instanceof ContextStoppedEvent) {
+        } else if (event instanceof ContextClosedEvent) {
             applicationContext.getBeansOfType(dk.cloudcreate.essentials.components.foundation.Lifecycle.class).forEach((beanName, lifecycleBean) -> {
                 log.info("Stopping {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
                 lifecycleBean.stop();
