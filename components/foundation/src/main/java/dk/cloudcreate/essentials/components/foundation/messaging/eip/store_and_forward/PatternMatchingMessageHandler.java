@@ -90,7 +90,7 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
      *
      * @return should the event handler allow unmatched events
      */
-    protected boolean isAllowUnmatchedMessage() {
+    public boolean isAllowUnmatchedMessage() {
         return allowUnmatchedMessage;
     }
 
@@ -103,7 +103,7 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
      *
      * @param allowUnmatchedMessage should the event handler allow unmatched {@link Message#getPayload()}
      */
-    protected void setAllowUnmatchedMessage(boolean allowUnmatchedMessage) {
+    public void setAllowUnmatchedMessage(boolean allowUnmatchedMessage) {
         this.allowUnmatchedMessage = allowUnmatchedMessage;
     }
 
@@ -116,7 +116,7 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
      *
      * @see #setAllowUnmatchedMessage(boolean)
      */
-    protected void allowUnmatchedMessages() {
+    public void allowUnmatchedMessages() {
         setAllowUnmatchedMessage(true);
     }
 

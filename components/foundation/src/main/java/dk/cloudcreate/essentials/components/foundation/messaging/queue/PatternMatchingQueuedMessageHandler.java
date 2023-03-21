@@ -89,7 +89,7 @@ public class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler
      *
      * @return should the event handler allow unmatched events
      */
-    protected boolean isAllowUnmatchedMessage() {
+    public boolean isAllowUnmatchedMessage() {
         return allowUnmatchedMessage;
     }
 
@@ -102,7 +102,7 @@ public class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler
      *
      * @param allowUnmatchedMessage should the event handler allow unmatched {@link Message#getPayload()}
      */
-    protected void setAllowUnmatchedMessage(boolean allowUnmatchedMessage) {
+    public void setAllowUnmatchedMessage(boolean allowUnmatchedMessage) {
         this.allowUnmatchedMessage = allowUnmatchedMessage;
     }
 
@@ -115,7 +115,7 @@ public class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler
      *
      * @see #setAllowUnmatchedMessage(boolean)
      */
-    protected void allowUnmatchedMessages() {
+    public void allowUnmatchedMessages() {
         setAllowUnmatchedMessage(true);
     }
 
