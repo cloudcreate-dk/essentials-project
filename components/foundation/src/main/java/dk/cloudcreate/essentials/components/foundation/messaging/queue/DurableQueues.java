@@ -26,6 +26,8 @@ import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import java.time.*;
 import java.util.*;
 
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
+
 /**
  * The {@link DurableQueues} concept supports <b>intra-service</b> point-to-point messaging using durable Queues that guarantee At-Least-Once delivery of messages.<br>
  * The only requirement is that message producers and message consumers can access the same underlying durable Queue storage.
@@ -81,6 +83,19 @@ public interface DurableQueues extends Lifecycle {
      * @return this {@link DurableQueues} instance
      */
     DurableQueues addInterceptor(DurableQueuesInterceptor interceptor);
+
+    /**
+     * Add {@link DurableQueuesInterceptor}'s to this {@link DurableQueues} instance<br>
+     * The {@link DurableQueuesInterceptor} allows you to intercept all high level operations
+     *
+     * @param interceptors the interceptors to add
+     * @return this {@link DurableQueues} instance
+     */
+    default DurableQueues addInterceptors(List<DurableQueuesInterceptor> interceptors) {
+        requireNonNull(interceptors, "No interceptors list provided");
+        interceptors.forEach(this::addInterceptor);
+        return this;
+    }
 
     /**
      * Remove a {@link DurableQueuesInterceptor} from this {@link DurableQueues} instance<br>
