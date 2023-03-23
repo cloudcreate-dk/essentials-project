@@ -23,6 +23,8 @@ import reactor.core.scheduler.Schedulers;
 import java.time.Duration;
 import java.util.List;
 
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
+
 /**
  * The {@link CommandBus} provides an indirection between a command and the {@link CommandHandler} that's capable of handling the command.<br>
  * Commands can be sent synchronously using {@link #send(Object)} or asynchronously using {@link #sendAsync(Object)} that returns a {@link Mono}.<br>
@@ -77,6 +79,18 @@ public interface CommandBus {
      * @return this bus instance
      */
     CommandBus addInterceptor(CommandBusInterceptor interceptor);
+
+    /**
+     * Add new interceptors
+     *
+     * @param interceptors the interceptors to add
+     * @return this bus instance
+     */
+    default CommandBus addInterceptors(List<CommandBusInterceptor> interceptors) {
+        requireNonNull(interceptors, "No interceptors list provided");
+        interceptors.forEach(this::addInterceptor);
+        return this;
+    }
 
     /**
      * Guard method to test if the {@link CommandBus} already contains the interceptor
