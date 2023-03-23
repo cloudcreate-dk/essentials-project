@@ -121,7 +121,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * When the {@link MongoDurableQueues} polling returns 0 messages, what should the increase in the {@link ConsumeFromQueue#getPollingInterval()}
-         * be?<br>
+         * be? (logic: new_polling_interval = current_polling_interval + base_polling_interval * polling_delay_interval_increment_factor)<br>
          * Default is 0.5d<br>
          * This is used to avoid polling a the {@link dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues} for a queue that isn't experiencing a lot of messages
          *
@@ -133,7 +133,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * When the {@link MongoDurableQueues} polling returns 0 messages, what should the increase in the {@link ConsumeFromQueue#getPollingInterval()}
-         * be?<br>
+         * be? (logic: new_polling_interval = current_polling_interval + base_polling_interval * polling_delay_interval_increment_factor)<br>
          * Default is 0.5d<br>
          * This is used to avoid polling a the {@link DurableQueues} for a queue that isn't experiencing a lot of messages
          *

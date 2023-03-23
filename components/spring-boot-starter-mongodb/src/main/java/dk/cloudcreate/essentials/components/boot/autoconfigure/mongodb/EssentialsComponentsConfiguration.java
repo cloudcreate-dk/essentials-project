@@ -193,7 +193,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     public DurableQueues durableQueues(MongoTemplate mongoTemplate,
                                        SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
                                        ObjectMapper essentialComponentsObjectMapper,
-                                       EssentialsComponentsProperties properties) {
+                                       EssentialsComponentsProperties properties,
+                                       List<DurableQueuesInterceptor> durableQueuesInterceptors) {
         Function<ConsumeFromQueue, QueuePollingOptimizer> pollingOptimizerFactory =
                 consumeFromQueue -> new QueuePollingOptimizer.SimpleQueuePollingOptimizer(consumeFromQueue,
                                                                                           (long) (consumeFromQueue.getPollingInterval().toMillis() *
@@ -203,19 +204,22 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                                                                                     .getMaxPollingInterval()
                                                                                                     .toMillis()
                 );
+        MongoDurableQueues durableQueues;
         if (properties.getDurableQueues().getTransactionalMode() == TransactionalMode.FullyTransactional) {
-            return new MongoDurableQueues(mongoTemplate,
+            durableQueues = new MongoDurableQueues(mongoTemplate,
                                           unitOfWorkFactory,
                                           essentialComponentsObjectMapper,
                                           properties.getDurableQueues().getSharedQueueCollectionName(),
                                           pollingOptimizerFactory);
         } else {
-            return new MongoDurableQueues(mongoTemplate,
+            durableQueues = new MongoDurableQueues(mongoTemplate,
                                           properties.getDurableQueues().getMessageHandlingTimeout(),
                                           essentialComponentsObjectMapper,
                                           properties.getDurableQueues().getSharedQueueCollectionName(),
                                           pollingOptimizerFactory);
         }
+        durableQueues.addInterceptors(durableQueuesInterceptors);
+        return durableQueues;
     }
 
     /**

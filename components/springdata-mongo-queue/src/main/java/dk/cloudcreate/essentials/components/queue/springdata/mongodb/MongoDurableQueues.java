@@ -324,44 +324,50 @@ public class MongoDurableQueues implements DurableQueues {
         }
 
         // Ensure indexes
-        var indexes = List.of(new Index()
-                                      .named("next_msg")
-                                      .on("queueName", Sort.Direction.ASC)
-                                      .on("nextDeliveryTimestamp", Sort.Direction.ASC)
-                                      .on("isDeadLetterMessage", Sort.Direction.ASC)
-                                      .on("isBeingDelivered", Sort.Direction.ASC)
-                                      .on("key", Sort.Direction.ASC)
-                                      .on("keyOrder", Sort.Direction.ASC),
-                              new Index()
-                                      .named("ordered_msg")
-                                      .on("queueName", Sort.Direction.ASC)
-                                      .on("key", Sort.Direction.ASC)
-                                      .on("keyOrder", Sort.Direction.ASC),
-                              new Index()
-                                      .named("stuck_msgs")
-                                      .on("queueName", Sort.Direction.ASC)
-                                      .on("deliveryTimestamp", Sort.Direction.ASC)
-                                      .on("isBeingDelivered", Sort.Direction.ASC),
-                              new Index()
-                                      .named("find_msg")
-                                      .on("id", Sort.Direction.ASC)
-                                      .on("isBeingDelivered", Sort.Direction.ASC),
-                              new Index()
-                                      .named("resurrect_msg")
-                                      .on("id", Sort.Direction.ASC)
-                                      .on("isDeadLetterMessage", Sort.Direction.ASC));
+        var indexes = Map.of("next_msg", new Index()
+                                     .named("next_msg")
+                                     .on("queueName", Sort.Direction.ASC)
+                                     .on("nextDeliveryTimestamp", Sort.Direction.ASC)
+                                     .on("isDeadLetterMessage", Sort.Direction.ASC)
+                                     .on("isBeingDelivered", Sort.Direction.ASC)
+                                     .on("key", Sort.Direction.ASC)
+                                     .on("keyOrder", Sort.Direction.ASC),
+                             "ordered_msg", new Index()
+                                     .named("ordered_msg")
+                                     .on("queueName", Sort.Direction.ASC)
+                                     .on("key", Sort.Direction.ASC)
+                                     .on("keyOrder", Sort.Direction.ASC),
+                             "stuck_msgs", new Index()
+                                     .named("stuck_msgs")
+                                     .on("queueName", Sort.Direction.ASC)
+                                     .on("deliveryTimestamp", Sort.Direction.ASC)
+                                     .on("isBeingDelivered", Sort.Direction.ASC),
+                             "find_msg", new Index()
+                                     .named("find_msg")
+                                     .on("id", Sort.Direction.ASC)
+                                     .on("isBeingDelivered", Sort.Direction.ASC),
+                             "resurrect_msg", new Index()
+                                     .named("resurrect_msg")
+                                     .on("id", Sort.Direction.ASC)
+                                     .on("isDeadLetterMessage", Sort.Direction.ASC));
         var indexOperations = mongoTemplate.indexOps(this.sharedQueueCollectionName);
         var allIndexes      = indexOperations.getIndexInfo();
-        indexes.forEach(index -> {
-            log.debug("Ensuring Index on Collection '{}': {}",
+        indexes.forEach((indexName, index) -> {
+            log.debug("Ensuring Index '{}' on Collection '{}': {}",
+                      indexName,
                       sharedQueueCollectionName,
                       index);
-            allIndexes.stream().filter(indexInfo -> indexInfo.getName().equals(index)).findFirst()
+            allIndexes.stream().filter(indexInfo -> indexInfo.getName().equals(indexName)).findFirst()
                       .ifPresent(indexInfo -> {
+                          log.trace("[{}] Index '{}' - Existing index: {}\nNew index: {}",
+                                    sharedQueueCollectionName,
+                                    indexName,
+                                    indexInfo,
+                                    index);
                           if (!indexInfo.isIndexForFields(index.getIndexKeys().keySet())) {
-                              log.debug("Deleting outdated index '{}' on collection '{}'",
-                                        indexInfo.getName(),
-                                        this.sharedQueueCollectionName);
+                              log.debug("[{}] Deleting outdated index '{}'",
+                                        sharedQueueCollectionName,
+                                        indexInfo.getName());
                               indexOperations.dropIndex(indexInfo.getName());
                           }
                       });

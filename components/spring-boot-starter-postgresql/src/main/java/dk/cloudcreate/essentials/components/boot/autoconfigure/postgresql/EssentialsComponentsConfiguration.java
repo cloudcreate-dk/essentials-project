@@ -180,20 +180,23 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     public DurableQueues durableQueues(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
                                        ObjectMapper essentialComponentsObjectMapper,
                                        Optional<MultiTableChangeListener<TableChangeNotification>> optionalMultiTableChangeListener,
-                                       EssentialsComponentsProperties properties) {
-        return PostgresqlDurableQueues.builder()
-                                      .setUnitOfWorkFactory(unitOfWorkFactory)
-                                      .setMessagePayloadObjectMapper(essentialComponentsObjectMapper)
-                                      .setSharedQueueTableName(properties.getDurableQueues().getSharedQueueTableName())
-                                      .setMultiTableChangeListener(optionalMultiTableChangeListener.orElse(null))
-                                      .setQueuePollingOptimizerFactory(consumeFromQueue -> new QueuePollingOptimizer.SimpleQueuePollingOptimizer(consumeFromQueue,
-                                                                                                                                                 (long) (consumeFromQueue.getPollingInterval().toMillis() *
-                                                                                                                                                         properties.getDurableQueues()
-                                                                                                                                                                   .getPollingDelayIntervalIncrementFactor()),
-                                                                                                                                                 properties.getDurableQueues()
-                                                                                                                                                           .getMaxPollingInterval()
-                                                                                                                                                           .toMillis()
-                                      )).build();
+                                       EssentialsComponentsProperties properties,
+                                       List<DurableQueuesInterceptor> durableQueuesInterceptors) {
+        var durableQueues = PostgresqlDurableQueues.builder()
+                                           .setUnitOfWorkFactory(unitOfWorkFactory)
+                                           .setMessagePayloadObjectMapper(essentialComponentsObjectMapper)
+                                           .setSharedQueueTableName(properties.getDurableQueues().getSharedQueueTableName())
+                                           .setMultiTableChangeListener(optionalMultiTableChangeListener.orElse(null))
+                                           .setQueuePollingOptimizerFactory(consumeFromQueue -> new QueuePollingOptimizer.SimpleQueuePollingOptimizer(consumeFromQueue,
+                                                                                                                                                      (long) (consumeFromQueue.getPollingInterval().toMillis() *
+                                                                                                                                                              properties.getDurableQueues()
+                                                                                                                                                                        .getPollingDelayIntervalIncrementFactor()),
+                                                                                                                                                      properties.getDurableQueues()
+                                                                                                                                                                .getMaxPollingInterval()
+                                                                                                                                                                .toMillis()
+                                           )).build();
+        durableQueues.addInterceptors(durableQueuesInterceptors);
+        return durableQueues;
     }
 
     @Bean
