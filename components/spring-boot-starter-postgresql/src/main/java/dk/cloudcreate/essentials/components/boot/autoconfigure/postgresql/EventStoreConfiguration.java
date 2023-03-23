@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.spring.SpringTransactionAwareEventStoreUnitOfWorkFactory;
@@ -36,7 +37,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.util.Optional;
+import java.util.*;
 
 import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson;
 
@@ -150,12 +151,15 @@ public class EventStoreConfiguration {
     public ConfigurableEventStore<SeparateTablePerAggregateEventStreamConfiguration> eventStore(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
                                                                                                 SeparateTablePerAggregateTypePersistenceStrategy persistenceStrategy,
                                                                                                 EventStoreEventBus eventStoreLocalEventBus,
-                                                                                                EssentialsComponentsProperties essentialsComponentsProperties) {
-        return new PostgresqlEventStore<>(eventStoreUnitOfWorkFactory,
-                                          persistenceStrategy,
-                                          Optional.of(eventStoreLocalEventBus),
-                                          eventStore -> essentialsComponentsProperties.getEventStore().isUseEventStreamGapHandler() ?
-                                                        new PostgresqlEventStreamGapHandler<>(eventStore, eventStoreUnitOfWorkFactory) :
-                                                        new NoEventStreamGapHandler<>());
+                                                                                                EssentialsComponentsProperties essentialsComponentsProperties,
+                                                                                                List<EventStoreInterceptor> eventStoreInterceptors) {
+        var configurableEventStore = new PostgresqlEventStore<>(eventStoreUnitOfWorkFactory,
+                                                                persistenceStrategy,
+                                                                Optional.of(eventStoreLocalEventBus),
+                                                                eventStore -> essentialsComponentsProperties.getEventStore().isUseEventStreamGapHandler() ?
+                                                                              new PostgresqlEventStreamGapHandler<>(eventStore, eventStoreUnitOfWorkFactory) :
+                                                                              new NoEventStreamGapHandler<>());
+        configurableEventStore.addEventStoreInterceptors(eventStoreInterceptors);
+        return configurableEventStore;
     }
 }
