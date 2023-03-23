@@ -21,7 +21,9 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.i
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 
-import java.util.Optional;
+import java.util.*;
+
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * The {@link ConfigurableEventStore} interface expands the {@link EventStore} with the capabilities to:
@@ -130,6 +132,18 @@ public interface ConfigurableEventStore<CONFIG extends AggregateEventStreamConfi
      * @return this event store instance
      */
     ConfigurableEventStore<CONFIG> addEventStoreInterceptor(EventStoreInterceptor eventStoreInterceptor);
+
+    /**
+     * Add {@link EventStoreInterceptor}'s to the {@link ConfigurableEventStore}
+     *
+     * @param eventStoreInterceptors the interceptors to add
+     * @return this event store instance
+     */
+    default ConfigurableEventStore<CONFIG> addEventStoreInterceptors(List<EventStoreInterceptor> eventStoreInterceptors) {
+        requireNonNull(eventStoreInterceptors, "No eventStoreInterceptors list provided");
+        eventStoreInterceptors.forEach(this::addEventStoreInterceptor);
+        return this;
+    }
 
     /**
      * Remove an {@link EventStoreInterceptor} from the {@link ConfigurableEventStore}
