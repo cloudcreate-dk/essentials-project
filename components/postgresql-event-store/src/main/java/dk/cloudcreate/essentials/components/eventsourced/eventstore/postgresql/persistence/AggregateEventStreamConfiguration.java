@@ -19,7 +19,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JSONSerializer;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JSONEventSerializer;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 
 import java.util.Objects;
@@ -39,9 +39,9 @@ public class AggregateEventStreamConfiguration {
      */
     public final int                   queryFetchSize;
     /**
-     * The {@link JSONSerializer} used to serialize and deserialize {@link PersistedEvent#event()} and {@link PersistedEvent#metaData()}
+     * The {@link JSONEventSerializer} used to serialize and deserialize {@link PersistedEvent#event()} and {@link PersistedEvent#metaData()}
      */
-    public final JSONSerializer        jsonSerializer;
+    public final JSONEventSerializer   jsonSerializer;
     /**
      * The serializer for the Aggregate Id
      */
@@ -63,11 +63,11 @@ public class AggregateEventStreamConfiguration {
      */
     public final IdentifierColumnType  correlationIdColumnType;
     /**
-     * The SQL column type for the {@link JSONSerializer} serialized Event
+     * The SQL column type for the {@link JSONEventSerializer} serialized Event
      */
     public final JSONColumnType        eventJsonColumnType;
     /**
-     * The SQL column type for the {@link JSONSerializer} serialized {@link EventMetaData}
+     * The SQL column type for the {@link JSONEventSerializer} serialized {@link EventMetaData}
      */
     public final JSONColumnType        eventMetadataJsonColumnType;
     /**
@@ -78,7 +78,7 @@ public class AggregateEventStreamConfiguration {
     /**
      * @param aggregateType               The type of Aggregate this event stream configuration relates to
      * @param queryFetchSize              The SQL fetch size for Queries
-     * @param jsonSerializer              The {@link JSONSerializer} used to serialize and deserialize {@link PersistedEvent#event()} and {@link PersistedEvent#metaData()}
+     * @param jsonSerializer              The {@link JSONEventSerializer} used to serialize and deserialize {@link PersistedEvent#event()} and {@link PersistedEvent#metaData()}
      * @param aggregateIdSerializer       The serializer for the Aggregate Id
      * @param aggregateIdColumnType       The SQL Column type for the Aggregate Id<br>
      *                                    We've deliberately split {@link AggregateIdSerializer} and {@link #aggregateIdColumnType}
@@ -87,13 +87,13 @@ public class AggregateEventStreamConfiguration {
      *                                    map these to {@link IdentifierColumnType#UUID}
      * @param eventIdColumnType           The SQL column type for the {@link EventId} column
      * @param correlationIdColumnType     The SQL column type for the {@link CorrelationId} column
-     * @param eventJsonColumnType         The SQL column type for the {@link JSONSerializer} serialized Event
-     * @param eventMetadataJsonColumnType The SQL column type for the {@link JSONSerializer} serialized {@link EventMetaData}
+     * @param eventJsonColumnType         The SQL column type for the {@link JSONEventSerializer} serialized Event
+     * @param eventMetadataJsonColumnType The SQL column type for the {@link JSONEventSerializer} serialized {@link EventMetaData}
      * @param tenantSerializer            The serializer for the {@link Tenant} value (or {@link TenantSerializer.TenantIdSerializer.NoSupportForMultiTenancySerializer} if it's a single tenant application)
      */
     public AggregateEventStreamConfiguration(AggregateType aggregateType,
                                              int queryFetchSize,
-                                             JSONSerializer jsonSerializer,
+                                             JSONEventSerializer jsonSerializer,
                                              AggregateIdSerializer aggregateIdSerializer,
                                              IdentifierColumnType aggregateIdColumnType,
                                              IdentifierColumnType eventIdColumnType,

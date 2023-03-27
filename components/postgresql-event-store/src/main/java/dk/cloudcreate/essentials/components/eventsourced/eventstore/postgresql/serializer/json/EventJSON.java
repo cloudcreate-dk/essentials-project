@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
+import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
 import dk.cloudcreate.essentials.types.CharSequenceType;
 
 import java.util.*;
@@ -30,31 +31,31 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class EventJSON {
-    private transient JSONSerializer   jsonSerializer;
+    private transient JSONEventSerializer jsonSerializer;
     /**
      * Cache or the {@link #json} deserialized back to its {@link #eventTypeOrName} form
      */
-    private transient Optional<Object> jsonDeserialized;
+    private transient Optional<Object>    jsonDeserialized;
     private final     EventTypeOrName  eventTypeOrName;
     private final     String           json;
 
-    public EventJSON(JSONSerializer jsonSerializer, Object jsonDeserialized, EventType eventType, String json) {
+    public EventJSON(JSONEventSerializer jsonSerializer, Object jsonDeserialized, EventType eventType, String json) {
         this(jsonSerializer, eventType, json);
         this.jsonDeserialized = Optional.of(requireNonNull(jsonDeserialized, "No payload provided"));
     }
 
-    public EventJSON(JSONSerializer jsonSerializer, EventType eventType, String json) {
+    public EventJSON(JSONEventSerializer jsonSerializer, EventType eventType, String json) {
         this.jsonSerializer = requireNonNull(jsonSerializer, "No JSON serializer provided");
         this.eventTypeOrName = EventTypeOrName.with(eventType);
         this.json = json;
     }
 
-    public EventJSON(JSONSerializer jsonSerializer, Object jsonDeserialized, EventName eventName, String json) {
+    public EventJSON(JSONEventSerializer jsonSerializer, Object jsonDeserialized, EventName eventName, String json) {
         this(jsonSerializer, eventName, json);
         this.jsonDeserialized = Optional.of(requireNonNull(jsonDeserialized, "No payload provided"));
     }
 
-    public EventJSON(JSONSerializer jsonSerializer, EventName eventName, String json) {
+    public EventJSON(JSONEventSerializer jsonSerializer, EventName eventName, String json) {
         this.jsonSerializer = requireNonNull(jsonSerializer, "No JSON serializer provided");
         this.eventTypeOrName = EventTypeOrName.with(eventName);
         this.json = json;

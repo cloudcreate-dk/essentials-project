@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json;
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
+import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
 
 import java.util.*;
 
@@ -28,20 +29,20 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class EventMetaDataJSON {
-    private transient JSONSerializer   jsonSerializer;
+    private transient JSONEventSerializer jsonSerializer;
     /**
      * Cache or the {@link #json} deserialized back to its {@link #javaType} form
      */
-    private transient Optional<Object> jsonDeserialized;
+    private transient Optional<Object>    jsonDeserialized;
     private final     Optional<String> javaType;
     private final     String           json;
 
-    public EventMetaDataJSON(JSONSerializer jsonSerializer, Object jsonDeserialized, String javaType, String json) {
+    public EventMetaDataJSON(JSONEventSerializer jsonSerializer, Object jsonDeserialized, String javaType, String json) {
         this(jsonSerializer, javaType, json);
         this.jsonDeserialized = Optional.of(requireNonNull(jsonDeserialized, "No payload provided"));
     }
 
-    public EventMetaDataJSON(JSONSerializer jsonSerializer, String javaType, String json) {
+    public EventMetaDataJSON(JSONEventSerializer jsonSerializer, String javaType, String json) {
         this.jsonSerializer = requireNonNull(jsonSerializer, "No JSON serializer provided");
         this.javaType = Optional.ofNullable(javaType);
         this.json = json;

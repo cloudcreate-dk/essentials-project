@@ -19,7 +19,7 @@ package dk.cloudcreate.essentials.components.eventsourced.aggregates.snapshot;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.ConfigurableEventStore;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.AggregateEventStreamConfiguration;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JSONSerializer;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JSONEventSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventOrder;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 import dk.cloudcreate.essentials.shared.collections.Lists;
@@ -46,9 +46,9 @@ public class PostgresqlAggregateSnapshotRepository implements AggregateSnapshotR
 
     private final ConfigurableEventStore<? extends AggregateEventStreamConfiguration> eventStore;
     private final HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork>       unitOfWorkFactory;
-    private final String                                                              snapshotTableName;
-    private final JSONSerializer                                                      jsonSerializer;
-    private final AggregateSnapshotRowMapper                                          aggregateSnapshotWithSnapshotPayloadRowMapper;
+    private final String                     snapshotTableName;
+    private final JSONEventSerializer        jsonSerializer;
+    private final AggregateSnapshotRowMapper aggregateSnapshotWithSnapshotPayloadRowMapper;
     private final AggregateSnapshotRowMapper                                          aggregateSnapshotWithoutSnapshotPayloadRowMapper;
     private final AddNewAggregateSnapshotStrategy                                     addNewSnapshotStrategy;
     private final AggregateSnapshotDeletionStrategy                                   snapshotDeletionStrategy;
@@ -65,7 +65,7 @@ public class PostgresqlAggregateSnapshotRepository implements AggregateSnapshotR
      */
     public PostgresqlAggregateSnapshotRepository(ConfigurableEventStore<? extends AggregateEventStreamConfiguration> eventStore,
                                                  HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
-                                                 JSONSerializer jsonSerializer) {
+                                                 JSONEventSerializer jsonSerializer) {
         this(eventStore,
              unitOfWorkFactory,
              Optional.empty(),
@@ -87,7 +87,7 @@ public class PostgresqlAggregateSnapshotRepository implements AggregateSnapshotR
     public PostgresqlAggregateSnapshotRepository(ConfigurableEventStore<? extends AggregateEventStreamConfiguration> eventStore,
                                                  HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
                                                  String snapshotTableName,
-                                                 JSONSerializer jsonSerializer) {
+                                                 JSONEventSerializer jsonSerializer) {
         this(eventStore,
              unitOfWorkFactory,
              Optional.ofNullable(snapshotTableName),
@@ -109,7 +109,7 @@ public class PostgresqlAggregateSnapshotRepository implements AggregateSnapshotR
     public PostgresqlAggregateSnapshotRepository(ConfigurableEventStore<? extends AggregateEventStreamConfiguration> eventStore,
                                                  HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
                                                  String snapshotTableName,
-                                                 JSONSerializer jsonSerializer,
+                                                 JSONEventSerializer jsonSerializer,
                                                  AddNewAggregateSnapshotStrategy addNewSnapshotStrategy,
                                                  AggregateSnapshotDeletionStrategy snapshotDeletionStrategy) {
         this(eventStore,
@@ -132,7 +132,7 @@ public class PostgresqlAggregateSnapshotRepository implements AggregateSnapshotR
      */
     public PostgresqlAggregateSnapshotRepository(ConfigurableEventStore<? extends AggregateEventStreamConfiguration> eventStore,
                                                  HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
-                                                 JSONSerializer jsonSerializer,
+                                                 JSONEventSerializer jsonSerializer,
                                                  AddNewAggregateSnapshotStrategy addNewSnapshotStrategy,
                                                  AggregateSnapshotDeletionStrategy snapshotDeletionStrategy) {
         this(eventStore,
@@ -158,7 +158,7 @@ public class PostgresqlAggregateSnapshotRepository implements AggregateSnapshotR
     public PostgresqlAggregateSnapshotRepository(ConfigurableEventStore<? extends AggregateEventStreamConfiguration> eventStore,
                                                  HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
                                                  Optional<String> snapshotTableName,
-                                                 JSONSerializer jsonSerializer,
+                                                 JSONEventSerializer jsonSerializer,
                                                  AddNewAggregateSnapshotStrategy addNewSnapshotStrategy,
                                                  AggregateSnapshotDeletionStrategy snapshotDeletionStrategy) {
         this.eventStore = requireNonNull(eventStore, "No eventStore instance provided");
