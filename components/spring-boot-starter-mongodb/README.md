@@ -33,7 +33,7 @@ The `EssentialsComponentsConfiguration` auto-configures:
   - ```
     essentials.durable-queues.shared-queue-collection-name=durable_queues
     essentials.durable-queues.transactional-mode=fullytransactional
-    # Only relevant if transactional-mode=manualacknowledgement
+    # Only relevant if transactional-mode=singleoperationtransaction
     # essentials.durable-queues.message-handling-timeout=5s
     essentials.durable-queues.polling-delay-interval-increment-factor=0.5
     essentials.durable-queues.max-polling-interval=2s
@@ -50,7 +50,7 @@ Optional overriding of values in `src/main/resources/application.properties`:
 ```
 essentials.durable-queues.shared-queue-collection-name=durable_queues
 essentials.durable-queues.transactional-mode=fullytransactional
-# Only relevant if transactional-mode=manualacknowledgement
+# Only relevant if transactional-mode=singleoperationtransaction
 # essentials.durable-queues.message-handling-timeout=5s
 
 essentials.fenced-lock-manager.fenced-locks-collection-name=fenced_locks

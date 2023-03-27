@@ -96,7 +96,7 @@ public class EssentialsComponentsProperties {
         }
 
         /**
-         * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#ManualAcknowledgement}<br>
+         * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#SingleOperationTransaction}<br>
          * The Message Handling timeout defines the timeout for messages being delivered, but haven't yet been acknowledged.
          * After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
          * Default 15 seconds
@@ -108,7 +108,7 @@ public class EssentialsComponentsProperties {
         }
 
         /**
-         * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#ManualAcknowledgement}<br>
+         * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#SingleOperationTransaction}<br>
          * The Message Handling timeout defines the timeout for messages being delivered, but haven't yet been acknowledged.
          * After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
          * Default 15 seconds
