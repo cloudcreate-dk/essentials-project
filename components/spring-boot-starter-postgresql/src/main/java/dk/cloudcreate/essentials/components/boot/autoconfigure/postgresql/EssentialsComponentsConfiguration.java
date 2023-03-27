@@ -23,10 +23,9 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.*;
@@ -110,7 +109,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
 
     /**
      * {@link Jdbi} is the JDBC API used by the all the Postgresql specific components such as
-     * {@link PostgresqlEventStore}, {@link PostgresqlFencedLockManager} and {@link PostgresqlDurableQueues}
+     * PostgresqlEventStore, {@link PostgresqlFencedLockManager} and {@link PostgresqlDurableQueues}
      *
      * @param dataSource the Spring managed datasource
      * @return the {@link Jdbi} instance
@@ -131,7 +130,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
      *
      * @param jdbi               the jdbi instance
      * @param transactionManager the Spring Transactional manager as we allow Spring to demarcate the transaction
-     * @return The {@link EventStoreUnitOfWorkFactory}
+     * @return The {@link SpringTransactionAwareJdbiUnitOfWorkFactory}
      */
     @Bean
     @ConditionalOnMissingBean
@@ -167,10 +166,24 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     /**
+     * The {@link JSONSerializer} that handles {@link DurableQueues} message payload serialization and deserialization
+     *
+     * @param essentialComponentsObjectMapper the {@link ObjectMapper} responsible for serializing Messages
+     * @return the {@link JSONSerializer}
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JacksonJSONEventSerializer")
+    public JSONSerializer jsonSerializer(ObjectMapper essentialComponentsObjectMapper) {
+        return new JacksonJSONSerializer(essentialComponentsObjectMapper);
+    }
+
+
+    /**
      * The {@link PostgresqlDurableQueues} that handles messaging and supports the {@link Inboxes}/{@link Outboxes} implementations
      *
      * @param unitOfWorkFactory                the {@link UnitOfWorkFactory}
-     * @param essentialComponentsObjectMapper  the {@link ObjectMapper} responsible for serializing Messages
+     * @param jsonSerializer                   the {@link JSONSerializer} responsible for serializing Message payloads
      * @param optionalMultiTableChangeListener the optional {@link MultiTableChangeListener}
      * @param properties                       the auto configure properties
      * @return the {@link PostgresqlDurableQueues}
@@ -178,23 +191,23 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @Bean
     @ConditionalOnMissingBean
     public DurableQueues durableQueues(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
-                                       ObjectMapper essentialComponentsObjectMapper,
+                                       JSONSerializer jsonSerializer,
                                        Optional<MultiTableChangeListener<TableChangeNotification>> optionalMultiTableChangeListener,
                                        EssentialsComponentsProperties properties,
                                        List<DurableQueuesInterceptor> durableQueuesInterceptors) {
         var durableQueues = PostgresqlDurableQueues.builder()
-                                           .setUnitOfWorkFactory(unitOfWorkFactory)
-                                           .setMessagePayloadObjectMapper(essentialComponentsObjectMapper)
-                                           .setSharedQueueTableName(properties.getDurableQueues().getSharedQueueTableName())
-                                           .setMultiTableChangeListener(optionalMultiTableChangeListener.orElse(null))
-                                           .setQueuePollingOptimizerFactory(consumeFromQueue -> new QueuePollingOptimizer.SimpleQueuePollingOptimizer(consumeFromQueue,
-                                                                                                                                                      (long) (consumeFromQueue.getPollingInterval().toMillis() *
+                                                   .setUnitOfWorkFactory(unitOfWorkFactory)
+                                                   .setJsonSerializer(jsonSerializer)
+                                                   .setSharedQueueTableName(properties.getDurableQueues().getSharedQueueTableName())
+                                                   .setMultiTableChangeListener(optionalMultiTableChangeListener.orElse(null))
+                                                   .setQueuePollingOptimizerFactory(consumeFromQueue -> new QueuePollingOptimizer.SimpleQueuePollingOptimizer(consumeFromQueue,
+                                                                                                                                                              (long) (consumeFromQueue.getPollingInterval().toMillis() *
+                                                                                                                                                                      properties.getDurableQueues()
+                                                                                                                                                                                .getPollingDelayIntervalIncrementFactor()),
                                                                                                                                                               properties.getDurableQueues()
-                                                                                                                                                                        .getPollingDelayIntervalIncrementFactor()),
-                                                                                                                                                      properties.getDurableQueues()
-                                                                                                                                                                .getMaxPollingInterval()
-                                                                                                                                                                .toMillis()
-                                           )).build();
+                                                                                                                                                                        .getMaxPollingInterval()
+                                                                                                                                                                        .toMillis()
+                                                   )).build();
         durableQueues.addInterceptors(durableQueuesInterceptors);
         return durableQueues;
     }

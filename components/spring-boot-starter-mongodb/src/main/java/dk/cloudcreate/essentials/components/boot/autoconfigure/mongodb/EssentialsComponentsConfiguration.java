@@ -26,6 +26,7 @@ import com.mongodb.*;
 import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockManager;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
@@ -179,20 +180,33 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                      .buildAndStart();
     }
 
+
+    /**
+     * The {@link JSONSerializer} that handles {@link DurableQueues} message payload serialization and deserialization
+     *
+     * @param essentialComponentsObjectMapper the {@link ObjectMapper} responsible for serializing Messages
+     * @return the {@link JSONSerializer}
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public JSONSerializer jsonSerializer(ObjectMapper essentialComponentsObjectMapper) {
+        return new JacksonJSONSerializer(essentialComponentsObjectMapper);
+    }
+
     /**
      * The {@link MongoDurableQueues} that handles messaging and supports the {@link Inboxes}/{@link Outboxes} implementations
      *
-     * @param mongoTemplate                   the {@link MongoTemplate}
-     * @param unitOfWorkFactory               the {@link UnitOfWorkFactory}
-     * @param essentialComponentsObjectMapper the {@link ObjectMapper} responsible for serializing Messages
-     * @param properties                      the auto configure properties
+     * @param mongoTemplate     the {@link MongoTemplate}
+     * @param unitOfWorkFactory the {@link UnitOfWorkFactory}
+     * @param jsonSerializer    the {@link JSONSerializer} responsible for serializing Message payloads
+     * @param properties        the auto configure properties
      * @return the {@link MongoDurableQueues}
      */
     @Bean
     @ConditionalOnMissingBean
     public DurableQueues durableQueues(MongoTemplate mongoTemplate,
                                        SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
-                                       ObjectMapper essentialComponentsObjectMapper,
+                                       JSONSerializer jsonSerializer,
                                        EssentialsComponentsProperties properties,
                                        List<DurableQueuesInterceptor> durableQueuesInterceptors) {
         Function<ConsumeFromQueue, QueuePollingOptimizer> pollingOptimizerFactory =
@@ -207,16 +221,16 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
         MongoDurableQueues durableQueues;
         if (properties.getDurableQueues().getTransactionalMode() == TransactionalMode.FullyTransactional) {
             durableQueues = new MongoDurableQueues(mongoTemplate,
-                                          unitOfWorkFactory,
-                                          essentialComponentsObjectMapper,
-                                          properties.getDurableQueues().getSharedQueueCollectionName(),
-                                          pollingOptimizerFactory);
+                                                   unitOfWorkFactory,
+                                                   jsonSerializer,
+                                                   properties.getDurableQueues().getSharedQueueCollectionName(),
+                                                   pollingOptimizerFactory);
         } else {
             durableQueues = new MongoDurableQueues(mongoTemplate,
-                                          properties.getDurableQueues().getMessageHandlingTimeout(),
-                                          essentialComponentsObjectMapper,
-                                          properties.getDurableQueues().getSharedQueueCollectionName(),
-                                          pollingOptimizerFactory);
+                                                   properties.getDurableQueues().getMessageHandlingTimeout(),
+                                                   jsonSerializer,
+                                                   properties.getDurableQueues().getSharedQueueCollectionName(),
+                                                   pollingOptimizerFactory);
         }
         durableQueues.addInterceptors(durableQueuesInterceptors);
         return durableQueues;

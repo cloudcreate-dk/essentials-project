@@ -33,7 +33,7 @@ import java.time.Duration;
 @Testcontainers
 @DataMongoTest(excludeAutoConfiguration = EmbeddedMongoAutoConfiguration.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-public class DurableLocalCommandBus_withManualTransactionalModeIT extends AbstractDurableLocalCommandBusIT<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
+public class DurableLocalCommandBus_withSingleOperationTransactionIT extends AbstractDurableLocalCommandBusIT<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
     @Container
     static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:latest");
 

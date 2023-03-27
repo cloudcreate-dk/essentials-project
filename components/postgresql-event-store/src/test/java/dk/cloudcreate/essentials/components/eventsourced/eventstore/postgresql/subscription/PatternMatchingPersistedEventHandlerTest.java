@@ -154,8 +154,8 @@ class PatternMatchingPersistedEventHandlerTest {
 
     // -------------------------- Supporting methods -------------------------------------
 
-    private static ObjectMapper   objectMapper   = createObjectMapper();
-    private static JSONSerializer jsonSerializer = new JacksonJSONSerializer(objectMapper);
+    private static ObjectMapper        objectMapper   = createObjectMapper();
+    private static JSONEventSerializer jsonSerializer = new JacksonJSONEventSerializer(objectMapper);
 
     private static PersistedEvent typedEvent(Object aggregateId, Object event, long eventOrder) {
         return PersistedEvent.from(EventId.random(),

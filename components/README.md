@@ -46,7 +46,7 @@ To use `foundation` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>foundation</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
 </dependency>
 ```
 
@@ -61,11 +61,11 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-postgresql</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
 </dependency>
 ```
 
-Per default only the `EssentialsComponentsConfiguration` is auto-configured:
+`EssentialsComponentsConfiguration` auto-configures:
 - Jackson/FasterXML JSON modules:
   - `EssentialTypesJacksonModule`
   - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath)
@@ -84,21 +84,24 @@ Per default only the `EssentialsComponentsConfiguration` is auto-configured:
   - Supports additional properties:
   - ```
     essentials.durable-queues.shared-queue-table-name=durable_queues
+    essentials.durable-queues.polling-delay-interval-increment-factor=0.5
+    essentials.durable-queues.max-polling-interval=2s
+    # Only relevant if transactional-mode=singleoperationtransaction
+    # essentials.durable-queues.message-handling-timeout=5s
     ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `PostgresqlDurableQueues`
 - `LocalEventBus` with bus-name `default` and Bean name `eventBus`
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
 
-If your project also specifies the
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>spring-postgresql-event-store</artifactId>
-    <version>0.9.1</version>
-</dependency>
-```
-then the `EventStoreConfiguration` will also auto-configure the `EventStore`:
+See [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
+
+# Essentials Postgresql Event Store: Spring Boot starter
+
+Auto configures everything from [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
+as well as the `EventStore`.
+
+`EventStoreConfiguration` will also auto-configure the `EventStore`:
 - `PostgresqlEventStore` using `PostgresqlEventStreamGapHandler` (using default configuration)
   - You can configure `NoEventStreamGapHandler` using Spring properties:
   - `essentials.event-store.use-event-stream-gap-handler=false`
@@ -107,7 +110,7 @@ then the `EventStoreConfiguration` will also auto-configure the `EventStore`:
   - ```
        essentials.event-store.identifier-column-type=uuid
        essentials.event-store.json-column-type=jsonb
-    ```
+      ```
 - `EventStoreUnitOfWorkFactory` in the form of `SpringTransactionAwareEventStoreUnitOfWorkFactory`
 - `EventStoreEventBus` with an internal `LocalEventBus` with bus-name `EventStoreLocalBus`
 - `PersistableEventMapper` with basic setup. Override this bean if you need additional meta-data, such as event-id, event-type, event-order, event-timestamp, event-meta-data, correlation-id, tenant-id included
@@ -117,9 +120,9 @@ then the `EventStoreConfiguration` will also auto-configure the `EventStore`:
       essentials.event-store.subscription-manager.event-store-polling-batch-size=5
       essentials.event-store.subscription-manager.snapshot-resume-points-every=2s
       essentials.event-store.subscription-manager.event-store-polling-interval=200
-    ```
+      ```
 
-See [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
+See [spring-boot-starter-postgresql-event-store](spring-boot-starter-postgresql-event-store/README.md)
 
 # Essentials MongoDB: Spring Boot starter
 This library Spring Boot auto-configuration for all MongoDB focused Essentials components.
@@ -130,7 +133,7 @@ To use `spring-boot-starter-mongodb` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-mongodb</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
 </dependency>
 ```
 
@@ -155,8 +158,10 @@ The `EssentialsComponentsConfiguration` auto-configures:
   - ```
     essentials.durable-queues.shared-queue-collection-name=durable_queues
     essentials.durable-queues.transactional-mode=fullytransactional
-    # Only relevant if transactional-mode=manualacknowledgement
+    # Only relevant if transactional-mode=singleoperationtransaction
     # essentials.durable-queues.message-handling-timeout=5s
+    essentials.durable-queues.polling-delay-interval-increment-factor=0.5
+    essentials.durable-queues.max-polling-interval=2s
     ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `MongoDurableQueues`
 - `LocalEventBus` with bus-name `default` and Bean name `eventBus`
@@ -205,7 +210,7 @@ To use `EventSourced Aggregates` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components/groupId>
     <artifactId>eventsourced-aggregates</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
 </dependency>
 ```
 
@@ -231,7 +236,7 @@ To use `Postgresql Event Store` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-event-store</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
 </dependency>
 ```
 
@@ -279,7 +284,7 @@ To use `Spring Postgresql Event Store` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-postgresql-event-store</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
 </dependency>
 ```
 
@@ -324,7 +329,7 @@ To use `PostgreSQL Distributed Fenced Lock` just add the following Maven depende
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-distributed-fenced-lock</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
 </dependency>
 ```
 
@@ -413,7 +418,7 @@ To use `PostgreSQL Durable Queue` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-queue</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
 </dependency>
 ```
 
@@ -436,7 +441,7 @@ To use `MongoDB Durable Queue` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>springdata-mongo-queue</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
 </dependency>
 ```
 

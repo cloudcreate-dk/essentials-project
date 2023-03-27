@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json;
+package dk.cloudcreate.essentials.components.foundation.json;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStoreException;
 
-public class JSONSerializationException extends EventStoreException {
-    public JSONSerializationException(String msg, Exception cause) {
+public class JSONDeserializationException extends RuntimeException {
+    public JSONDeserializationException(String message) {
+        super(message);
+    }
+
+    public JSONDeserializationException(String msg, Exception cause) {
         super(msg, cause);
     }
 }
+

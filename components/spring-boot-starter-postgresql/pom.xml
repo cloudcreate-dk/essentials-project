@@ -86,18 +86,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
-            <artifactId>spring-postgresql-event-store</artifactId>
-            <version>${project.version}</version>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
-            <artifactId>eventsourced-aggregates</artifactId>
-            <version>${project.version}</version>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
             <groupId>org.objenesis</groupId>
             <artifactId>objenesis</artifactId>
             <version>${objenesis.version}</version>

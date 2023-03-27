@@ -235,9 +235,7 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
         log.info("Resetting EventStream storage for aggregate-type '{}'", configuration.aggregateType);
         unitOfWorkFactory.usingUnitOfWork(unitOfWork -> {
             var changes = unitOfWork.handle().execute("DROP TABLE IF EXISTS " + configuration.eventStreamTableName);
-            if (changes == 1) {
-                log.debug("Dropped table '{}'", configuration.eventStreamTableName);
-            }
+            log.debug("Dropped table '{}'", configuration.eventStreamTableName);
         });
         initializeEventStorageFor(configuration);
     }
@@ -245,18 +243,17 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
     private void ensureIndexes(Handle handle, SeparateTablePerAggregateEventStreamConfiguration eventStreamConfiguration) {
         var eventStreamTableName = eventStreamConfiguration.eventStreamTableName;
         var columnNames          = eventStreamConfiguration.eventStreamTableColumnNames;
-        var numberOfChanges = handle.createUpdate(bind("CREATE INDEX IF NOT EXISTS {:tableName}_{:tenantColumn} ON {:tableName} ({:tenantColumn})",
-                                                       arg("tableName", eventStreamTableName),
-                                                       arg("tenantColumn", columnNames.tenantColumn)
-                                                      )
-                                                 )
-                                    .execute();
+        handle.createUpdate(bind("CREATE INDEX IF NOT EXISTS {:tableName}_{:tenantColumn} ON {:tableName} ({:tenantColumn})",
+                                 arg("tableName", eventStreamTableName),
+                                 arg("tenantColumn", columnNames.tenantColumn)
+                                )
+                           )
+              .execute();
 
-        log.info("[{}] '{}' index on '{}' {}",
+        log.info("[{}] '{}' index on '{}' created",
                  eventStreamConfiguration.aggregateType,
                  eventStreamConfiguration.eventStreamTableName,
-                 columnNames.tenantColumn,
-                 numberOfChanges == 1 ? "created" : "already existed");
+                 columnNames.tenantColumn);
     }
 
     private void createEventStreamTable(Handle handle, SeparateTablePerAggregateEventStreamConfiguration eventStreamConfiguration) {
@@ -697,13 +694,13 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
         requireNonNull(aggregateType, "No aggregateType provided");
 
         var configuration = getAggregateEventStreamConfiguration(aggregateType);
-        var highestGlobalOrder =  unitOfWork.handle()
-                         .createQuery(bind("SELECT MAX({:globalOrderColumnName}) FROM {:tableName}",
-                                           arg("globalOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn),
-                                           arg("tableName", configuration.eventStreamTableName)))
-                         .setFetchSize(1)
-                         .mapTo(GlobalEventOrder.class)
-                         .one();
+        var highestGlobalOrder = unitOfWork.handle()
+                                           .createQuery(bind("SELECT MAX({:globalOrderColumnName}) FROM {:tableName}",
+                                                             arg("globalOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn),
+                                                             arg("tableName", configuration.eventStreamTableName)))
+                                           .setFetchSize(1)
+                                           .mapTo(GlobalEventOrder.class)
+                                           .one();
         if (highestGlobalOrder.isGreaterThanOrEqualTo(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER)) {
             return Optional.of(highestGlobalOrder);
         } else {

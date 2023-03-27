@@ -8,11 +8,11 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-postgresql</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
 </dependency>
 ```
 
-Per default only the `EssentialsComponentsConfiguration` is auto-configured:
+`EssentialsComponentsConfiguration` auto-configures:
 - Jackson/FasterXML JSON modules:
     - `EssentialTypesJacksonModule`
     - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath)
@@ -33,52 +33,13 @@ Per default only the `EssentialsComponentsConfiguration` is auto-configured:
     essentials.durable-queues.shared-queue-table-name=durable_queues
     essentials.durable-queues.polling-delay-interval-increment-factor=0.5
     essentials.durable-queues.max-polling-interval=2s
+    # Only relevant if transactional-mode=singleoperationtransaction
+    # essentials.durable-queues.message-handling-timeout=5s
     ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `PostgresqlDurableQueues`
 - `LocalEventBus` with bus-name `default` and Bean name `eventBus`
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
-
-If your project also specifies the
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>spring-postgresql-event-store</artifactId>
-    <version>0.9.1</version>
-</dependency>
-```
-then the `EventStoreConfiguration` will also auto-configure the `EventStore`:
-- `PostgresqlEventStore` using `PostgresqlEventStreamGapHandler` (using default configuration)
-    - You can configure `NoEventStreamGapHandler` using Spring properties:
-    - `essentials.event-store.use-event-stream-gap-handler=false`
-- `SeparateTablePerAggregateTypePersistenceStrategy` using `IdentifierColumnType.TEXT` for persisting `AggregateId`'s and `JSONColumnType.JSONB` for persisting Event and EventMetadata JSON payloads
-    - ColumnTypes can be overridden by using Spring properties:
-    - ```
-       essentials.event-store.identifier-column-type=uuid
-       essentials.event-store.json-column-type=jsonb
-      ```
-- `EventStoreUnitOfWorkFactory` in the form of `SpringTransactionAwareEventStoreUnitOfWorkFactory`
-- `EventStoreEventBus` with an internal `LocalEventBus` with bus-name `EventStoreLocalBus`
-- `PersistableEventMapper` with basic setup. Override this bean if you need additional meta-data, such as event-id, event-type, event-order, event-timestamp, event-meta-data, correlation-id, tenant-id included
-- `EventStoreSubscriptionManager` with default `EventStoreSubscriptionManagerProperties` values
-    - The default `EventStoreSubscriptionManager` values can be overridden using Spring properties:
-    - ```
-      essentials.event-store.subscription-manager.event-store-polling-batch-size=5
-      essentials.event-store.subscription-manager.snapshot-resume-points-every=2s
-      essentials.event-store.subscription-manager.event-store-polling-interval=200
-      ```
-  
-Full configuration with `EventStore` support:
-
-Optional overriding of values in `src/main/resources/application.properties`:
-```
-essentials.event-store.identifier-column-type=uuid
-essentials.event-store.json-column-type=jsonb
-essentials.event-store.use-event-stream-gap-handler=true
-essentials.event-store.subscription-manager.event-store-polling-batch-size=50
-essentials.event-store.subscription-manager.snapshot-resume-points-every=5s
-essentials.event-store.subscription-manager.event-store-polling-interval=200
-```
 
 `pom.xml` dependencies:
 ```
@@ -86,11 +47,6 @@ essentials.event-store.subscription-manager.event-store-polling-interval=200
     <dependency>
         <groupId>dk.cloudcreate.essentials.components</groupId>
         <artifactId>spring-boot-starter-postgresql</artifactId>
-        <version>${essentials.version}</version>
-    </dependency>
-    <dependency>
-        <groupId>dk.cloudcreate.essentials.components</groupId>
-        <artifactId>spring-postgresql-event-store</artifactId>
         <version>${essentials.version}</version>
     </dependency>
     <dependency>

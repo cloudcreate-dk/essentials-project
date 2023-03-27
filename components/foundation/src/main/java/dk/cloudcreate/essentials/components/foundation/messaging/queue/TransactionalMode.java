@@ -17,10 +17,32 @@
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
 /**
- * The transactional behaviour mode of a {@link DurableQueues}<br>
+ * The transactional behaviour mode of a {@link DurableQueues}
+ * <p>
+ * The normal message processing flow looks like this:
+ * <pre>{@code
+ * durableQueues.queueMessage(queueName, message);
+ * var msgUnderDelivery = durableQueues.getNextMessageReadyForDelivery(queueName);
+ * if (msgUnderDelivery.isPresent()) {
+ *    try {
+ *       handleMessage(msgUnderDelivery.get());
+ *       durableQueues.acknowledgeMessageAsHandled(msgUnderDelivery.get().getId());
+ *    } catch (Exception e) {
+ *       durableQueues.retryMessage(msgUnderDelivery.get().getId(),
+ *                                  e,
+ *                                  Duration.ofMillis(500));
+ *    }
+ * }
+ * }</pre>
+ * <p>
+ * When using {@link TransactionalMode#SingleOperationTransaction} then depending on
+ * the type of errors that can occur this MAY leave a dequeued message in a state of being marked as "being delivered" forever<br>
+ * This is why {@link DurableQueues} supporting these modes must ensure that they periodically
+ * discover messages that have been under delivery for a long time (aka. stuck messages or timed-out messages) and reset them in order for them to be redelivered.<br>
  */
 public enum TransactionalMode {
     /**
@@ -33,26 +55,11 @@ public enum TransactionalMode {
      */
     FullyTransactional,
     /**
-     * Certain NoSQL databases, such as MongoDB/DocumentDB, has limitations when performing multiple data storage operations within a transaction.<br>
-     * For these cases you can configure the {@link TransactionalMode} as {@link #ManualAcknowledgement} where queueing and de-queueing are performed using separate (single document)
-     * transactions and where acknowledging/retry are performed as separate transactions. Depending on the type of errors that can occur this MAY leave a dequeued message
-     * in a state of being marked as "being delivered" forever. Hence {@link DurableQueues} supporting this mode must ensure that they periodically
-     * discover messages that have been under delivery for a long time (aka. stuck messages or timed-out messages) and reset them in order for them to be redelivered.<br>
-     * Example:
-     * <pre>{@code
-     * durableQueues.queueMessage(queueName, message);
-     * var msgUnderDelivery = durableQueues.getNextMessageReadyForDelivery(queueName);
-     * if (msgUnderDelivery.isPresent()) {
-     *    try {
-     *       handleMessage(msgUnderDelivery.get());
-     *       durableQueues.acknowledgeMessageAsHandled(msgUnderDelivery.get().getId());
-     *    } catch (Exception e) {
-     *       durableQueues.retryMessage(msgUnderDelivery.get().getId(),
-     *                                  e,
-     *                                  Duration.ofMillis(500));
-     *    }
-     * }
-     * }</pre>
+     * Useful for long-running message handling, you can choose to configure the {@link DurableQueues} to only require single operation
+     * (such as {@link DurableQueues#getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery)} , {@link DurableQueues#deleteMessage(DeleteMessage)} , etc.)
+     * as well as for certain NoSQL databases, such as MongoDB/DocumentDB, that have limitations when performing multiple data storage operations within a transaction.<br>
+     * For these cases you can configure the {@link TransactionalMode} as {@link #SingleOperationTransaction} where queueing and de-queueing are performed using separate (single document)
+     * transactions and where acknowledging/retry is performed as a separate transaction.
      */
-    ManualAcknowledgement
+    SingleOperationTransaction
 }

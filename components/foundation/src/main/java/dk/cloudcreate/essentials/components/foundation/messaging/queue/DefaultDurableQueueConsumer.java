@@ -205,7 +205,22 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                     }
                 }
             } else {
-                postTransactionalSideEffect = processNextMessageReadyForDelivery();
+                try {
+                    postTransactionalSideEffect = processNextMessageReadyForDelivery();
+                } catch (Exception e) {
+                    var rootCause = Exceptions.getRootCause(e);
+                    if (e.getMessage().contains("has been closed") || e.getMessage().contains("Connection is closed") ||
+                            rootCause.getClass().getSimpleName().equals("EOFException") || rootCause.getClass().getSimpleName().equals("ConnectionException") ||
+                            rootCause.getClass().getSimpleName().equals("MongoSocketReadException")) {
+                        log.trace(msg("[{}] {} - Experienced a Connection issue, will retry later",
+                                      queueName,
+                                      consumeFromQueue.consumerName), e);
+                    } else {
+                        log.error(msg("[{}] {} - Experienced an error",
+                                      queueName,
+                                      consumeFromQueue.consumerName), e);
+                    }
+                }
             }
 
             if (postTransactionalSideEffect != null) {

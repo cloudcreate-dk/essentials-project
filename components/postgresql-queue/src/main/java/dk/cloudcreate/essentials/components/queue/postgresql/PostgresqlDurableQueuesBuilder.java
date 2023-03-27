@@ -16,23 +16,29 @@
 
 package dk.cloudcreate.essentials.components.queue.postgresql;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 
+import java.time.Duration;
 import java.util.function.Function;
 
 import static dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues.*;
 
 public class PostgresqlDurableQueuesBuilder {
     private HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory;
-    private ObjectMapper                                                  messagePayloadObjectMapper;
+    private JSONSerializer                                                jsonSerializer;
     private String                                                        sharedQueueTableName         = DEFAULT_DURABLE_QUEUES_TABLE_NAME;
     private MultiTableChangeListener<TableChangeNotification>             multiTableChangeListener     = null;
     private Function<ConsumeFromQueue, QueuePollingOptimizer>             queuePollingOptimizerFactory = null;
+    private TransactionalMode                                             transactionalMode            = TransactionalMode.FullyTransactional;
+    /**
+     * Only used if {@link #transactionalMode} has value {@link TransactionalMode#SingleOperationTransaction}
+     */
+    private Duration                                                      messageHandlingTimeout;
 
     /**
      * @param unitOfWorkFactory the {@link UnitOfWorkFactory} needed to access the database
@@ -44,12 +50,12 @@ public class PostgresqlDurableQueuesBuilder {
     }
 
     /**
-     * @param messagePayloadObjectMapper the {@link ObjectMapper} that is used to serialize/deserialize message payloads<br>
-     *                                   If not set, then {@link PostgresqlDurableQueues#createDefaultObjectMapper()} is used
+     * @param jsonSerializer Set the {@link JSONSerializer} that is used to serialize/deserialize message payloads.<br>
+     *                       If not set, then {@link JacksonJSONSerializer} with the {@link PostgresqlDurableQueues#createDefaultObjectMapper()} will be used
      * @return this builder instance
      */
-    public PostgresqlDurableQueuesBuilder setMessagePayloadObjectMapper(ObjectMapper messagePayloadObjectMapper) {
-        this.messagePayloadObjectMapper = messagePayloadObjectMapper;
+    public PostgresqlDurableQueuesBuilder setJsonSerializer(JSONSerializer jsonSerializer) {
+        this.jsonSerializer = jsonSerializer;
         return this;
     }
 
@@ -82,11 +88,37 @@ public class PostgresqlDurableQueuesBuilder {
         return this;
     }
 
+    /**
+     * @param messageHandlingTimeout Only required if <code>transactionalMode</code> is {@link TransactionalMode#SingleOperationTransaction}.<br>
+     *                               The parameter defines the timeout for messages being delivered, but haven't yet been acknowledged.
+     *                               After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
+     *                               If you set a non-null value then {@link #setTransactionalMode(TransactionalMode)} is automatically set to {@link TransactionalMode#SingleOperationTransaction}
+     * @return this builder instance
+     */
+    public PostgresqlDurableQueuesBuilder setMessageHandlingTimeout(Duration messageHandlingTimeout) {
+        this.messageHandlingTimeout = messageHandlingTimeout;
+        setTransactionalMode(TransactionalMode.SingleOperationTransaction);
+        return this;
+    }
+
+    /**
+     * @param transactionalMode The {@link TransactionalMode} for this {@link DurableQueues} instance. If set to {@link TransactionalMode#SingleOperationTransaction}
+     *                          then the consumer MUST call the {@link DurableQueues#acknowledgeMessageAsHandled(AcknowledgeMessageAsHandled)} explicitly in a new {@link UnitOfWork}<br>
+     *                          Default value {@link TransactionalMode#FullyTransactional}
+     * @return this builder instance
+     */
+    public PostgresqlDurableQueuesBuilder setTransactionalMode(TransactionalMode transactionalMode) {
+        this.transactionalMode = transactionalMode;
+        return this;
+    }
+
     public PostgresqlDurableQueues build() {
         return new PostgresqlDurableQueues(unitOfWorkFactory,
-                                           messagePayloadObjectMapper != null ? messagePayloadObjectMapper : createDefaultObjectMapper(),
+                                           jsonSerializer != null ? jsonSerializer : new JacksonJSONSerializer(createDefaultObjectMapper()),
                                            sharedQueueTableName,
                                            multiTableChangeListener,
-                                           queuePollingOptimizerFactory);
+                                           queuePollingOptimizerFactory,
+                                           transactionalMode,
+                                           messageHandlingTimeout);
     }
 }
