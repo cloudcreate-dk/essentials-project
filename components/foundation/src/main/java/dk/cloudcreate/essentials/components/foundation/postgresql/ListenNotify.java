@@ -163,11 +163,24 @@ public final class ListenNotify {
                  tableName);
 
         // See https://www.postgresql.org/docs/current/plpgsql-trigger.html#PLPGSQL-DML-TRIGGER for more information
-        var triggerSql = bind("CREATE OR REPLACE TRIGGER notify_on_{:tableName}_changes\n" +
+        var isReplaceTriggerSupported = PostgresqlUtil.getServiceMajorVersion(handle) >= 14;
+        if (!isReplaceTriggerSupported) {
+            var dropTriggerSql = bind("DROP TRIGGER IF EXISTS notify_on_{:tableName}_change ON {:tableName} CASCADE",
+                                  arg("tableName", tableName));
+            log.debug("Trigger for '{}' changes SQL:\n{}", tableName, dropTriggerSql);
+            update = handle.createUpdate(dropTriggerSql);
+            update.execute();
+            log.info("Dropped Notification TRIGGER 'notify_on_{}_changes' for table '{}'",
+                     tableName,
+                     tableName);
+        }
+
+        var triggerSql = bind("CREATE {:optionalReplace} TRIGGER notify_on_{:tableName}_changes\n" +
                                       "      {:when} {:on} ON {:tableName}\n" +
                                       "      FOR EACH ROW\n" +
                                       "         EXECUTE FUNCTION notify_{:tableName}_change();",
                               arg("tableName", tableName),
+                              arg("optionalReplace", isReplaceTriggerSupported ? "OR REPLACE" : ""),
                               arg("when", "AFTER"),
                               arg("on", triggerOnSqlOperations.stream().map(Enum::name).reduce((result, on) -> result + " OR " + on).get())
                              );

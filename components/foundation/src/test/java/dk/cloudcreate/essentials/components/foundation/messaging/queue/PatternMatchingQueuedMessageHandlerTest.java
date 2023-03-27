@@ -37,9 +37,11 @@ class PatternMatchingQueuedMessageHandlerTest {
                                                        Message.of(someCommand),
                                                        OffsetDateTime.now(),
                                                        OffsetDateTime.now(),
+                                                       OffsetDateTime.now(),
                                                        null,
                                                        0,
                                                        0,
+                                                       false,
                                                        false));
 
         // Then
@@ -57,14 +59,16 @@ class PatternMatchingQueuedMessageHandlerTest {
 
         // When
         var queuedMessage = new DefaultQueuedMessage(QueueEntryId.random(),
-                                                    QueueName.of("TestQueue"),
-                                                    Message.of(someOtherCommand),
-                                                    OffsetDateTime.now(),
-                                                    OffsetDateTime.now(),
-                                                    null,
-                                                    0,
-                                                    0,
-                                                    false);
+                                                     QueueName.of("TestQueue"),
+                                                     Message.of(someOtherCommand),
+                                                     OffsetDateTime.now(),
+                                                     OffsetDateTime.now(),
+                                                     OffsetDateTime.now(),
+                                                     null,
+                                                     0,
+                                                     0,
+                                                     false,
+                                                     true);
         messageHandler.handle(queuedMessage);
 
         // Then
@@ -82,14 +86,16 @@ class PatternMatchingQueuedMessageHandlerTest {
 
         // When
         var queuedMessage = new DefaultQueuedMessage(QueueEntryId.random(),
-                                                    QueueName.of("TestQueue"),
-                                                    Message.of(someUnmatchedCommand),
-                                                    OffsetDateTime.now(),
-                                                    OffsetDateTime.now(),
-                                                    null,
-                                                    0,
-                                                    0,
-                                                    false);
+                                                     QueueName.of("TestQueue"),
+                                                     Message.of(someUnmatchedCommand),
+                                                     OffsetDateTime.now(),
+                                                     OffsetDateTime.now(),
+                                                     OffsetDateTime.now(),
+                                                     null,
+                                                     0,
+                                                     0,
+                                                     false,
+                                                     true);
         messageHandler.handle(queuedMessage);
 
         // Then
