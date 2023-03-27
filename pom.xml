@@ -67,7 +67,7 @@
         <objenesis.version>3.3</objenesis.version>
         <postgresql.version>42.6.0</postgresql.version>
         <slf4j.version>1.7.36</slf4j.version>
-        <spring-boot.version>2.7.9</spring-boot.version>
+        <spring-boot.version>2.7.10</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
         <spring-data-mongodb.version>3.4.10</spring-data-mongodb.version>
         <spring-data-jpa.version>2.7.10</spring-data-jpa.version>
@@ -94,6 +94,7 @@
         <module>components/foundation-test</module>
         <module>components/eventsourced-aggregates</module>
         <module>components/spring-boot-starter-postgresql</module>
+        <module>components/spring-boot-starter-postgresql-event-store</module>
         <module>components/spring-boot-starter-mongodb</module>
         <module>components/postgresql-distributed-fenced-lock</module>
         <module>components/postgresql-event-store</module>

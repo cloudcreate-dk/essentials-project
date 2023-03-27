@@ -21,6 +21,7 @@ Each module's README.md will provide information about which third party depende
 See: [Essentials Components](components/README.md) for information about **components** such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `DurableLocalCommandbus`, `Inbox` and `Outbox` 
 Also includes Spring Boot auto-configuration modules for Postgresql and MongoDB:
 - See [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
+- See [spring-boot-starter-postgresql-event-store](components/spring-boot-starter-postgresql-event-store/README.md)
 - See [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
 
 
