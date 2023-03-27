@@ -27,14 +27,19 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <description>
-        This library provides Spring Boot auto-configuration for all Postgresql focused Essentials components
+        This library provides Spring Boot auto-configuration for the Postgresql Event Store
     </description>
 
     <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>spring-boot-starter-postgresql</artifactId>
+    <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
     <packaging>jar</packaging>
 
     <dependencies>
+        <dependency>
+            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <artifactId>spring-boot-starter-postgresql</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
@@ -61,29 +66,15 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
-            <artifactId>types-jackson</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
-            <artifactId>immutable-jackson</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
-            <artifactId>types-jdbi</artifactId>
+            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <artifactId>spring-postgresql-event-store</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>dk.cloudcreate.essentials.components</groupId>
-            <artifactId>postgresql-distributed-fenced-lock</artifactId>
+            <artifactId>eventsourced-aggregates</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
-            <artifactId>postgresql-queue</artifactId>
-            <version>${project.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.objenesis</groupId>
@@ -190,7 +181,7 @@
                     <configuration>
                         <archive>
                             <manifestEntries>
-                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql</Automatic-Module-Name>
+                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.eventstore</Automatic-Module-Name>
                             </manifestEntries>
                         </archive>
                     </configuration>

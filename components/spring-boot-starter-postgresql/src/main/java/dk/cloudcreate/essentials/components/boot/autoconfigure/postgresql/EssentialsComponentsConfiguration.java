@@ -27,6 +27,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.P
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.*;
@@ -167,10 +168,24 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     /**
+     * The {@link JSONSerializer} that handles {@link DurableQueues} message payload serialization and deserialization
+     *
+     * @param essentialComponentsObjectMapper the {@link ObjectMapper} responsible for serializing Messages
+     * @return the {@link JSONSerializer}
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JacksonJSONEventSerializer")
+    public JSONSerializer jsonSerializer(ObjectMapper essentialComponentsObjectMapper) {
+        return new JacksonJSONSerializer(essentialComponentsObjectMapper);
+    }
+
+
+    /**
      * The {@link PostgresqlDurableQueues} that handles messaging and supports the {@link Inboxes}/{@link Outboxes} implementations
      *
      * @param unitOfWorkFactory                the {@link UnitOfWorkFactory}
-     * @param essentialComponentsObjectMapper  the {@link ObjectMapper} responsible for serializing Messages
+     * @param jsonSerializer  the {@link JSONSerializer} responsible for serializing Message payloads
      * @param optionalMultiTableChangeListener the optional {@link MultiTableChangeListener}
      * @param properties                       the auto configure properties
      * @return the {@link PostgresqlDurableQueues}
@@ -178,13 +193,13 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @Bean
     @ConditionalOnMissingBean
     public DurableQueues durableQueues(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
-                                       ObjectMapper essentialComponentsObjectMapper,
+                                       JSONSerializer jsonSerializer,
                                        Optional<MultiTableChangeListener<TableChangeNotification>> optionalMultiTableChangeListener,
                                        EssentialsComponentsProperties properties,
                                        List<DurableQueuesInterceptor> durableQueuesInterceptors) {
         var durableQueues = PostgresqlDurableQueues.builder()
                                            .setUnitOfWorkFactory(unitOfWorkFactory)
-                                           .setMessagePayloadObjectMapper(essentialComponentsObjectMapper)
+                                           .setJsonSerializer(jsonSerializer)
                                            .setSharedQueueTableName(properties.getDurableQueues().getSharedQueueTableName())
                                            .setMultiTableChangeListener(optionalMultiTableChangeListener.orElse(null))
                                            .setQueuePollingOptimizerFactory(consumeFromQueue -> new QueuePollingOptimizer.SimpleQueuePollingOptimizer(consumeFromQueue,

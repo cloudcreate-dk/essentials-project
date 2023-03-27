@@ -1,16 +1,18 @@
 # Essentials Components - Essentials Postgresql: Spring Boot starter
 
-This library provides Spring Boot auto-configuration for all Postgresql focused Essentials components.
+This library provides Spring Boot auto-configuration for all Postgresql focused Essentials components as well as the Postgresql `EventStore`.
 All `@Beans` auto-configured by this library use `@ConditionalOnMissingBean` to allow for easy overriding.
 
-To use `spring-boot-starter-postgresql` to add the following dependency:
+To use `spring-boot-starter-postgresql-event-store` to add the following dependency:
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>spring-boot-starter-postgresql</artifactId>
+    <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
     <version>0.9.1</version>
 </dependency>
 ```
+
+This will ensure to include the `spring-boot-starter-postgresql` starter, so you don't need to include it as well.
 
 `EssentialsComponentsConfiguration` auto-configures:
 - Jackson/FasterXML JSON modules:
@@ -41,12 +43,45 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
 
+`EventStoreConfiguration` will also auto-configure the `EventStore`:
+- `PostgresqlEventStore` using `PostgresqlEventStreamGapHandler` (using default configuration)
+    - You can configure `NoEventStreamGapHandler` using Spring properties:
+    - `essentials.event-store.use-event-stream-gap-handler=false`
+- `SeparateTablePerAggregateTypePersistenceStrategy` using `IdentifierColumnType.TEXT` for persisting `AggregateId`'s and `JSONColumnType.JSONB` for persisting Event and EventMetadata JSON payloads
+    - ColumnTypes can be overridden by using Spring properties:
+    - ```
+       essentials.event-store.identifier-column-type=uuid
+       essentials.event-store.json-column-type=jsonb
+      ```
+- `EventStoreUnitOfWorkFactory` in the form of `SpringTransactionAwareEventStoreUnitOfWorkFactory`
+- `EventStoreEventBus` with an internal `LocalEventBus` with bus-name `EventStoreLocalBus`
+- `PersistableEventMapper` with basic setup. Override this bean if you need additional meta-data, such as event-id, event-type, event-order, event-timestamp, event-meta-data, correlation-id, tenant-id included
+- `EventStoreSubscriptionManager` with default `EventStoreSubscriptionManagerProperties` values
+    - The default `EventStoreSubscriptionManager` values can be overridden using Spring properties:
+    - ```
+      essentials.event-store.subscription-manager.event-store-polling-batch-size=5
+      essentials.event-store.subscription-manager.snapshot-resume-points-every=2s
+      essentials.event-store.subscription-manager.event-store-polling-interval=200
+      ```
+  
+Full configuration with `EventStore` support:
+
+Optional overriding of values in `src/main/resources/application.properties`:
+```
+essentials.event-store.identifier-column-type=uuid
+essentials.event-store.json-column-type=jsonb
+essentials.event-store.use-event-stream-gap-handler=true
+essentials.event-store.subscription-manager.event-store-polling-batch-size=50
+essentials.event-store.subscription-manager.snapshot-resume-points-every=5s
+essentials.event-store.subscription-manager.event-store-polling-interval=200
+```
+
 `pom.xml` dependencies:
 ```
 <dependencies>
     <dependency>
         <groupId>dk.cloudcreate.essentials.components</groupId>
-        <artifactId>spring-boot-starter-postgresql</artifactId>
+        <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
         <version>${essentials.version}</version>
     </dependency>
     <dependency>

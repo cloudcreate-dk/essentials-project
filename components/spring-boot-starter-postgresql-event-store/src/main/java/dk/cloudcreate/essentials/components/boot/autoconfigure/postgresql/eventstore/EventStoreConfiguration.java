@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
+package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.eventstore;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
@@ -24,11 +24,14 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.g
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.spring.SpringTransactionAwareEventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventTypeOrName;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
+import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import org.jdbi.v3.core.Jdbi;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -46,7 +49,7 @@ import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postg
  */
 @AutoConfiguration
 @ConditionalOnClass(name = "dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore")
-@EnableConfigurationProperties(EssentialsComponentsProperties.class)
+@EnableConfigurationProperties(EssentialsEventStoreProperties.class)
 public class EventStoreConfiguration {
 
     /**
@@ -82,6 +85,18 @@ public class EventStoreConfiguration {
     }
 
     /**
+     * The {@link JSONEventSerializer} that handles both {@link EventStore} event/metadata serialization as well as {@link DurableQueues} message payload serialization and deserialization
+     *
+     * @param essentialComponentsObjectMapper the {@link ObjectMapper} responsible for serializing Messages
+     * @return the {@link JSONSerializer}
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public JSONEventSerializer jsonSerializer(ObjectMapper essentialComponentsObjectMapper) {
+        return new JacksonJSONEventSerializer(essentialComponentsObjectMapper);
+    }
+
+    /**
      * Define the {@link EventStoreUnitOfWorkFactory} which is required for the {@link EventStore}
      * in order handle events associated with a given transaction.<br>
      * The {@link SpringTransactionAwareEventStoreUnitOfWorkFactory} supports joining {@link UnitOfWork}'s
@@ -103,14 +118,14 @@ public class EventStoreConfiguration {
     public EventStoreSubscriptionManager eventStoreSubscriptionManager(EventStore eventStore,
                                                                        FencedLockManager fencedLockManager,
                                                                        Jdbi jdbi,
-                                                                       EssentialsComponentsProperties properties) {
+                                                                       EssentialsEventStoreProperties properties) {
         return EventStoreSubscriptionManager.builder()
                                             .setEventStore(eventStore)
                                             .setFencedLockManager(fencedLockManager)
                                             .setDurableSubscriptionRepository(new PostgresqlDurableSubscriptionRepository(jdbi))
-                                            .setEventStorePollingBatchSize(properties.getEventStore().getSubscriptionManager().getEventStorePollingBatchSize())
-                                            .setEventStorePollingInterval(properties.getEventStore().getSubscriptionManager().getEventStorePollingInterval())
-                                            .setSnapshotResumePointsEvery(properties.getEventStore().getSubscriptionManager().getSnapshotResumePointsEvery())
+                                            .setEventStorePollingBatchSize(properties.getSubscriptionManager().getEventStorePollingBatchSize())
+                                            .setEventStorePollingInterval(properties.getSubscriptionManager().getEventStorePollingInterval())
+                                            .setSnapshotResumePointsEvery(properties.getSubscriptionManager().getSnapshotResumePointsEvery())
                                             .build();
     }
 
@@ -129,13 +144,13 @@ public class EventStoreConfiguration {
                                                                                           EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
                                                                                           PersistableEventMapper persistableEventMapper,
                                                                                           ObjectMapper essentialComponentsObjectMapper,
-                                                                                          EssentialsComponentsProperties properties) {
+                                                                                          EssentialsEventStoreProperties properties) {
         return new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                     unitOfWorkFactory,
                                                                     persistableEventMapper,
                                                                     standardSingleTenantConfigurationUsingJackson(essentialComponentsObjectMapper,
-                                                                                                                  properties.getEventStore().getIdentifierColumnType(),
-                                                                                                                  properties.getEventStore().getJsonColumnType()));
+                                                                                                                  properties.getIdentifierColumnType(),
+                                                                                                                  properties.getJsonColumnType()));
     }
 
     /**
@@ -151,12 +166,12 @@ public class EventStoreConfiguration {
     public ConfigurableEventStore<SeparateTablePerAggregateEventStreamConfiguration> eventStore(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
                                                                                                 SeparateTablePerAggregateTypePersistenceStrategy persistenceStrategy,
                                                                                                 EventStoreEventBus eventStoreLocalEventBus,
-                                                                                                EssentialsComponentsProperties essentialsComponentsProperties,
+                                                                                                EssentialsEventStoreProperties essentialsComponentsProperties,
                                                                                                 List<EventStoreInterceptor> eventStoreInterceptors) {
         var configurableEventStore = new PostgresqlEventStore<>(eventStoreUnitOfWorkFactory,
                                                                 persistenceStrategy,
                                                                 Optional.of(eventStoreLocalEventBus),
-                                                                eventStore -> essentialsComponentsProperties.getEventStore().isUseEventStreamGapHandler() ?
+                                                                eventStore -> essentialsComponentsProperties.isUseEventStreamGapHandler() ?
                                                                               new PostgresqlEventStreamGapHandler<>(eventStore, eventStoreUnitOfWorkFactory) :
                                                                               new NoEventStreamGapHandler<>());
         configurableEventStore.addEventStoreInterceptors(eventStoreInterceptors);
