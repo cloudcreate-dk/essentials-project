@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.components.queue.springdata.mongodb;
 
-import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.LocalCompetingConsumersDurableQueueIT;
+import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.DistributedCompetingConsumersDurableQueuesIT;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration;
@@ -32,7 +32,7 @@ import java.time.Duration;
 @Testcontainers
 @DataMongoTest(excludeAutoConfiguration = EmbeddedMongoAutoConfiguration.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-class ManualAckMongoLocalCompetingConsumersDurableQueueIT extends LocalCompetingConsumersDurableQueueIT<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
+class SingleOperationTransactionMongoDistributedCompetingConsumersDurableQueuesIT extends DistributedCompetingConsumersDurableQueuesIT<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
     @Container
     static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:latest");
 
@@ -59,5 +59,4 @@ class ManualAckMongoLocalCompetingConsumersDurableQueueIT extends LocalCompeting
     protected void resetQueueStorage(SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory) {
         mongoTemplate.dropCollection(MongoDurableQueues.DEFAULT_DURABLE_QUEUES_COLLECTION_NAME);
     }
-
 }

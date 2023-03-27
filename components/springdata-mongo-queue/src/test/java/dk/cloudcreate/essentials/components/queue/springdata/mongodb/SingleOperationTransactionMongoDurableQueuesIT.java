@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 @DataMongoTest(excludeAutoConfiguration = EmbeddedMongoAutoConfiguration.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-class ManualAckMongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
+class SingleOperationTransactionMongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
     @Container
     static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:latest");
 
@@ -69,7 +69,7 @@ class ManualAckMongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, 
     }
 
     @Test
-    void test_ManualAcknowledgement_TransactionalMode() {
+    void test_SingleOperationTransaction_TransactionalMode() {
         // Given
         var queueName = QueueName.of("TestQueue");
 
@@ -98,7 +98,7 @@ class ManualAckMongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, 
     }
 
     @Test
-    void test_ManualAcknowledgement_TransactionalMode_timeout_messages_gets_automatically_retried() throws InterruptedException {
+    void test_SingleOperationTransaction_TransactionalMode_timeout_messages_gets_automatically_retried() throws InterruptedException {
         // Given
         var queueName = QueueName.of("TestQueue");
 
@@ -114,7 +114,7 @@ class ManualAckMongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, 
         assertThat(nextMessage).isPresent();
         assertThat((CharSequence) nextMessage.get().getId()).isEqualTo(addedMessageId);
         assertThat(nextMessage.get().getMessage()).isEqualTo(message1);
-        System.out.println("DeliveryTimestamp: " +((MongoDurableQueues.DurableQueuedMessage)nextMessage.get()).getDeliveryTimestamp());
+        System.out.println("DeliveryTimestamp: " + nextMessage.get().getDeliveryTimestamp());
 
         // Confirm the message is marked as being handled
         assertThat(durableQueues.getNextMessageReadyForDelivery(queueName)).isEmpty();

@@ -17,13 +17,13 @@
 package dk.cloudcreate.essentials.components.queue.springdata.mongodb;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mongodb.MongoInterruptedException;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuePollingOptimizer.SimpleQueuePollingOptimizer;
@@ -45,7 +45,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.messaging.*;
 import org.springframework.data.mongodb.core.query.*;
 
-import java.io.IOException;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -65,7 +64,7 @@ import static org.springframework.data.mongodb.core.query.Query.query;
 /**
  * Spring-data MongoDB version of the {@link DurableQueues} concept.<br>
  * Supports both {@link TransactionalMode#FullyTransactional} in collaboration with a {@link UnitOfWorkFactory} in order to support queuing message together with business logic (such as failing to handle an Event, etc.)
- * as well as {@link TransactionalMode#ManualAcknowledgement}
+ * as well as {@link TransactionalMode#SingleOperationTransaction}
  */
 public class MongoDurableQueues implements DurableQueues {
 
@@ -76,7 +75,7 @@ public class MongoDurableQueues implements DurableQueues {
     protected       SpringMongoTransactionAwareUnitOfWorkFactory        unitOfWorkFactory;
     protected final MongoTemplate                                       mongoTemplate;
     private final   TransactionalMode                                   transactionalMode;
-    private final   ObjectMapper                                        messagePayloadObjectMapper;
+    private final   JSONSerializer                                      jsonSerializer;
     protected final String                                              sharedQueueCollectionName;
     private final   ConcurrentMap<QueueName, MongoDurableQueueConsumer> durableQueueConsumers = new ConcurrentHashMap<>();
     private final   ConcurrentMap<QueueName, ReentrantLock>             localQueuePollLock    = new ConcurrentHashMap<>();
@@ -93,7 +92,7 @@ public class MongoDurableQueues implements DurableQueues {
     private          Subscription                      changeSubscription;
 
     /**
-     * Create {@link DurableQueues} running in {@link TransactionalMode#ManualAcknowledgement} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}, default {@link ObjectMapper}
+     * Create {@link DurableQueues} running in {@link TransactionalMode#SingleOperationTransaction} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}, default {@link ObjectMapper}
      * configuration
      *
      * @param mongoTemplate          the {@link MongoTemplate} used
@@ -108,7 +107,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     /**
-     * Create {@link DurableQueues} running in {@link TransactionalMode#ManualAcknowledgement} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}, default {@link ObjectMapper}
+     * Create {@link DurableQueues} running in {@link TransactionalMode#SingleOperationTransaction} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}, default {@link ObjectMapper}
      * configuration
      *
      * @param mongoTemplate                the {@link MongoTemplate} used
@@ -120,11 +119,11 @@ public class MongoDurableQueues implements DurableQueues {
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               Duration messageHandlingTimeout,
                               Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
-        this(TransactionalMode.ManualAcknowledgement,
+        this(TransactionalMode.SingleOperationTransaction,
              mongoTemplate,
              null,
              messageHandlingTimeout,
-             createObjectMapper(),
+             new JacksonJSONSerializer(createDefaultObjectMapper()),
              DEFAULT_DURABLE_QUEUES_COLLECTION_NAME,
              queuePollingOptimizerFactory);
     }
@@ -144,7 +143,8 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     /**
-     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME} and a default {@link ObjectMapper}
+     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME} and
+     * the default {@link JacksonJSONSerializer} using {@link #createDefaultObjectMapper()}
      * configuration
      *
      * @param mongoTemplate                the {@link MongoTemplate} used
@@ -159,31 +159,31 @@ public class MongoDurableQueues implements DurableQueues {
              mongoTemplate,
              unitOfWorkFactory,
              null,
-             createObjectMapper(),
+             new JacksonJSONSerializer(createDefaultObjectMapper()),
              DEFAULT_DURABLE_QUEUES_COLLECTION_NAME,
              queuePollingOptimizerFactory);
     }
 
     /**
-     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with custom messagePayloadObjectMapper and sharedQueueTableName
+     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with custom jsonSerializer and sharedQueueCollectionName
      *
      * @param mongoTemplate                the {@link MongoTemplate} used
      * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
-     * @param messagePayloadObjectMapper   the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param jsonSerializer               the {@link JSONSerializer} that is used to serialize/deserialize message payloads
      * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)
      * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
      *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
-                              ObjectMapper messagePayloadObjectMapper,
+                              JSONSerializer jsonSerializer,
                               String sharedQueueCollectionName,
                               Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this(TransactionalMode.FullyTransactional,
              mongoTemplate,
              unitOfWorkFactory,
              null,
-             messagePayloadObjectMapper,
+             jsonSerializer,
              sharedQueueCollectionName,
              queuePollingOptimizerFactory);
     }
@@ -193,80 +193,80 @@ public class MongoDurableQueues implements DurableQueues {
      *
      * @param mongoTemplate                the {@link MongoTemplate} used
      * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
-     * @param messagePayloadObjectMapper   the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param jsonSerializer               the {@link JSONSerializer} that is used to serialize/deserialize message payloads
      * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
      *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
-                              ObjectMapper messagePayloadObjectMapper,
+                              JSONSerializer jsonSerializer,
                               Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this(TransactionalMode.FullyTransactional,
              mongoTemplate,
              unitOfWorkFactory,
              null,
-             messagePayloadObjectMapper,
+             jsonSerializer,
              DEFAULT_DURABLE_QUEUES_COLLECTION_NAME,
              queuePollingOptimizerFactory);
     }
 
     /**
-     * Create {@link DurableQueues} running in {@link TransactionalMode#ManualAcknowledgement} with custom messagePayloadObjectMapper and sharedQueueTableName
+     * Create {@link DurableQueues} running in {@link TransactionalMode#SingleOperationTransaction} with custom jsonSerializer and sharedQueueCollectionName
      *
      * @param mongoTemplate                the {@link MongoTemplate} used
      * @param messageHandlingTimeout       Defines the timeout for messages being delivered, but haven't yet been acknowledged.
      *                                     After this timeout the message delivery will be reset and the message will again be a candidate for delivery
-     * @param messagePayloadObjectMapper   the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param jsonSerializer               the {@link JSONSerializer} that is used to serialize/deserialize message payloads
      * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)
      * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
      *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               Duration messageHandlingTimeout,
-                              ObjectMapper messagePayloadObjectMapper,
+                              JSONSerializer jsonSerializer,
                               String sharedQueueCollectionName,
                               Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
-        this(TransactionalMode.ManualAcknowledgement,
+        this(TransactionalMode.SingleOperationTransaction,
              mongoTemplate,
              null,
              messageHandlingTimeout,
-             messagePayloadObjectMapper,
+             jsonSerializer,
              sharedQueueCollectionName,
              queuePollingOptimizerFactory);
     }
 
     /**
-     * Create {@link DurableQueues} running in {@link TransactionalMode#ManualAcknowledgement} with custom messagePayloadObjectMapper and with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
+     * Create {@link DurableQueues} running in {@link TransactionalMode#SingleOperationTransaction} with custom jsonSerializer and with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
      *
      * @param mongoTemplate                the {@link MongoTemplate} used
      * @param messageHandlingTimeout       Defines the timeout for messages being delivered, but haven't yet been acknowledged.
      *                                     After this timeout the message delivery will be reset and the message will again be a candidate for delivery
-     * @param messagePayloadObjectMapper   the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param jsonSerializer               the {@link JSONSerializer} that is used to serialize/deserialize message payloads
      * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
      *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
     public MongoDurableQueues(MongoTemplate mongoTemplate,
                               Duration messageHandlingTimeout,
-                              ObjectMapper messagePayloadObjectMapper,
+                              JSONSerializer jsonSerializer,
                               Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
-        this(TransactionalMode.ManualAcknowledgement,
+        this(TransactionalMode.SingleOperationTransaction,
              mongoTemplate,
              null,
              messageHandlingTimeout,
-             messagePayloadObjectMapper,
+             jsonSerializer,
              DEFAULT_DURABLE_QUEUES_COLLECTION_NAME,
              queuePollingOptimizerFactory);
     }
 
     /**
-     * Create {@link DurableQueues} custom messagePayloadObjectMapper and sharedQueueTableName
+     * Create {@link DurableQueues} custom jsonSerializer and sharedQueueCollectionName
      *
      * @param transactionalMode            The transactional behaviour mode of this {@link MongoDurableQueues}
      * @param mongoTemplate                the {@link MongoTemplate} used
      * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
-     * @param messageHandlingTimeout       Only relevant when using {@link TransactionalMode#ManualAcknowledgement} and defines the timeout for messages being delivered, but haven't yet been acknowledged.
+     * @param messageHandlingTimeout       Only relevant when using {@link TransactionalMode#SingleOperationTransaction} and defines the timeout for messages being delivered, but haven't yet been acknowledged.
      *                                     After this timeout the message delivery will be reset and the message will again be a candidate for delivery
-     * @param messagePayloadObjectMapper   the {@link ObjectMapper} that is used to serialize/deserialize message payloads
+     * @param jsonSerializer               the {@link JSONSerializer} that is used to serialize/deserialize message payloads
      * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)
      * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
      *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
@@ -275,7 +275,7 @@ public class MongoDurableQueues implements DurableQueues {
                                  MongoTemplate mongoTemplate,
                                  SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
                                  Duration messageHandlingTimeout,
-                                 ObjectMapper messagePayloadObjectMapper,
+                                 JSONSerializer jsonSerializer,
                                  String sharedQueueCollectionName,
                                  Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory) {
         this.transactionalMode = requireNonNull(transactionalMode, "No transactionalMode instance provided");
@@ -285,12 +285,12 @@ public class MongoDurableQueues implements DurableQueues {
             case FullyTransactional:
                 this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "No unitOfWorkFactory instance provided");
                 break;
-            case ManualAcknowledgement:
+            case SingleOperationTransaction:
                 this.messageHandlingTimeoutMs = (int) requireNonNull(messageHandlingTimeout, "No messageHandlingTimeout instance provided").toMillis();
                 log.info("Using messageHandlingTimeout: {} seconds", messageHandlingTimeout);
                 break;
         }
-        this.messagePayloadObjectMapper = requireNonNull(messagePayloadObjectMapper, "No messagePayloadObjectMapper");
+        this.jsonSerializer = requireNonNull(jsonSerializer, "No messagePayloadObjectMapper");
         this.sharedQueueCollectionName = requireNonNull(sharedQueueCollectionName, "No sharedQueueCollectionName provided").toLowerCase(Locale.ROOT);
         this.queuePollingOptimizerFactory = queuePollingOptimizerFactory != null ? queuePollingOptimizerFactory : this::createQueuePollingOptimizerFor;
 
@@ -357,22 +357,26 @@ public class MongoDurableQueues implements DurableQueues {
                       indexName,
                       sharedQueueCollectionName,
                       index);
-            allIndexes.stream().filter(indexInfo -> indexInfo.getName().equals(indexName)).findFirst()
-                      .ifPresent(indexInfo -> {
-                          log.trace("[{}] Index '{}' - Existing index: {}\nNew index: {}",
-                                    sharedQueueCollectionName,
-                                    indexName,
-                                    indexInfo,
-                                    index);
-                          if (!indexInfo.isIndexForFields(index.getIndexKeys().keySet())) {
-                              log.debug("[{}] Deleting outdated index '{}'",
+            try {
+                allIndexes.stream().filter(indexInfo -> indexInfo.getName().equals(indexName)).findFirst()
+                          .ifPresent(indexInfo -> {
+                              log.trace("[{}] Index '{}' - Existing index: {}\nNew index: {}",
                                         sharedQueueCollectionName,
-                                        indexInfo.getName());
-                              indexOperations.dropIndex(indexInfo.getName());
-                          }
-                      });
-            indexOperations
-                    .ensureIndex(index);
+                                        indexName,
+                                        indexInfo,
+                                        index);
+                              if (!indexInfo.isIndexForFields(index.getIndexKeys().keySet())) {
+                                  log.debug("[{}] Deleting outdated index '{}'",
+                                            sharedQueueCollectionName,
+                                            indexInfo.getName());
+                                  indexOperations.dropIndex(indexInfo.getName());
+                              }
+                          });
+                indexOperations
+                        .ensureIndex(index);
+            } catch (Exception e) {
+                throw new IllegalStateException(msg("Failed to create index '{}'", indexName), e);
+            }
         });
     }
 
@@ -573,8 +577,8 @@ public class MongoDurableQueues implements DurableQueues {
 
     private Object deserializeMessagePayload(QueueName queueName, byte[] messagePayload, String messagePayloadType) {
         try {
-            return messagePayloadObjectMapper.readValue(messagePayload, Classes.forName(messagePayloadType));
-        } catch (IOException e) {
+            return jsonSerializer.deserialize(messagePayload, Classes.forName(messagePayloadType));
+        } catch (JSONDeserializationException e) {
             throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
         }
     }
@@ -625,8 +629,8 @@ public class MongoDurableQueues implements DurableQueues {
     private DurableQueuedMessage createDurableQueuedMessage(QueueName queueName, boolean isDeadLetterMessage, Instant addedTimestamp, Instant nextDeliveryTimestamp, Message message) {
         byte[] jsonPayload;
         try {
-            jsonPayload = messagePayloadObjectMapper.writeValueAsBytes(message.getPayload());
-        } catch (JsonProcessingException e) {
+            jsonPayload = jsonSerializer.serializeAsBytes(message.getPayload());
+        } catch (JSONSerializationException e) {
             throw new DurableQueueException(msg("Failed to serialize message payload of type", message.getPayload().getClass().getName()), e, queueName);
         }
 
@@ -1023,17 +1027,17 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     /**
-     * This operation will scan for messages that has been marked as {@link DurableQueuedMessage#isBeingDelivered()} for longer
+     * This operation will scan for messages that has been marked as {@link QueuedMessage#isBeingDelivered()} for longer
      * than {@link #messageHandlingTimeoutMs}<br>
-     * All messages found will have {@link DurableQueuedMessage#isBeingDelivered()} and {@link DurableQueuedMessage#getDeliveryTimestamp()}
+     * All messages found will have {@link QueuedMessage#isBeingDelivered()} and {@link QueuedMessage#getDeliveryTimestamp()}
      * reset<br>
-     * Only relevant for when using {@link TransactionalMode#ManualAcknowledgement}
+     * Only relevant for when using {@link TransactionalMode#SingleOperationTransaction}
      *
-     * @param queueName the queue for which we're looking for messages stuck being marked as {@link DurableQueuedMessage#isBeingDelivered()}
+     * @param queueName the queue for which we're looking for messages stuck being marked as {@link QueuedMessage#isBeingDelivered()}
      */
     protected void resetMessagesStuckBeingDelivered(QueueName queueName) {
         // Reset stuck messages
-        if (transactionalMode == TransactionalMode.ManualAcknowledgement) {
+        if (transactionalMode == TransactionalMode.SingleOperationTransaction) {
             var now                            = Instant.now();
             var lastStuckMessageResetTimestamp = lastResetStuckMessagesCheckTimestamps.get(queueName);
             if (lastStuckMessageResetTimestamp == null || Duration.between(now, lastStuckMessageResetTimestamp).abs().toMillis() > messageHandlingTimeoutMs) {
@@ -1222,7 +1226,7 @@ public class MongoDurableQueues implements DurableQueues {
         }
     }
 
-    private static ObjectMapper createObjectMapper() {
+    private static ObjectMapper createDefaultObjectMapper() {
         var objectMapper = JsonMapper.builder()
                                      .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                      .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
@@ -1323,6 +1327,7 @@ public class MongoDurableQueues implements DurableQueues {
             return queueName;
         }
 
+        @Override
         public boolean isBeingDelivered() {
             return isBeingDelivered;
         }
@@ -1365,8 +1370,9 @@ public class MongoDurableQueues implements DurableQueues {
             return isDeadLetterMessage;
         }
 
-        public Instant getDeliveryTimestamp() {
-            return deliveryTimestamp;
+        @Override
+        public OffsetDateTime getDeliveryTimestamp() {
+            return deliveryTimestamp.atOffset(ZoneOffset.UTC);
         }
 
         @Override
