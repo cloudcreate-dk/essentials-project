@@ -33,29 +33,35 @@ public class DefaultQueuedMessage implements QueuedMessage {
     public final Message        message;
     public final OffsetDateTime addedTimestamp;
     public final OffsetDateTime nextDeliveryTimestamp;
+    public final OffsetDateTime deliveryTimestamp;
     public final String         lastDeliveryError;
     public final int            totalDeliveryAttempts;
     public final int            redeliveryAttempts;
     public final boolean        isDeadLetterMessage;
+    public final boolean        isBeingDelivered;
 
     public DefaultQueuedMessage(QueueEntryId id,
                                 QueueName queueName,
                                 Message message,
                                 OffsetDateTime addedTimestamp,
                                 OffsetDateTime nextDeliveryTimestamp,
+                                OffsetDateTime deliveryTimestamp,
                                 String lastDeliveryError,
                                 int totalDeliveryAttempts,
                                 int redeliveryAttempts,
-                                boolean isDeadLetterMessage) {
+                                boolean isDeadLetterMessage,
+                                boolean isBeingDelivered) {
         this.id = requireNonNull(id, "No queue entry id provided");
         this.queueName = requireNonNull(queueName, "No queueName provided");
         this.message = requireNonNull(message, "No message provided");
         this.addedTimestamp = requireNonNull(addedTimestamp, "No addedTimestamp provided");
         this.nextDeliveryTimestamp = nextDeliveryTimestamp;
+        this.deliveryTimestamp = deliveryTimestamp;
         this.lastDeliveryError = lastDeliveryError;
         this.totalDeliveryAttempts = totalDeliveryAttempts;
         this.redeliveryAttempts = redeliveryAttempts;
         this.isDeadLetterMessage = isDeadLetterMessage;
+        this.isBeingDelivered = isBeingDelivered;
     }
 
     @Override
@@ -79,6 +85,11 @@ public class DefaultQueuedMessage implements QueuedMessage {
     }
 
     @Override
+    public boolean isBeingDelivered() {
+        return isBeingDelivered;
+    }
+
+    @Override
     public OffsetDateTime getAddedTimestamp() {
         return addedTimestamp;
     }
@@ -86,6 +97,11 @@ public class DefaultQueuedMessage implements QueuedMessage {
     @Override
     public OffsetDateTime getNextDeliveryTimestamp() {
         return nextDeliveryTimestamp;
+    }
+
+    @Override
+    public OffsetDateTime getDeliveryTimestamp() {
+        return deliveryTimestamp;
     }
 
     @Override
@@ -123,15 +139,18 @@ public class DefaultQueuedMessage implements QueuedMessage {
 
     @Override
     public String toString() {
-        return "QueuedMessage{" +
+        return "DefaultQueuedMessage{" +
                 "id=" + id +
                 ", queueName=" + queueName +
                 ", message=" + message +
                 ", addedTimestamp=" + addedTimestamp +
                 ", nextDeliveryTimestamp=" + nextDeliveryTimestamp +
+                ", deliveryTimestamp=" + deliveryTimestamp +
+                ", lastDeliveryError='" + lastDeliveryError + '\'' +
                 ", totalDeliveryAttempts=" + totalDeliveryAttempts +
                 ", redeliveryAttempts=" + redeliveryAttempts +
                 ", isDeadLetterMessage=" + isDeadLetterMessage +
+                ", isBeingDelivered=" + isBeingDelivered +
                 '}';
     }
 }

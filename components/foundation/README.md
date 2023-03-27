@@ -270,11 +270,12 @@ public com.fasterxml.jackson.databind.Module essentialJacksonModule() {
 }
 ```
 
-### ManualAcknowledgement
+### SingleOperationTransaction
 
 MongoDB/DocumentDB have some limitations when performing multiple data storage operations within a transaction (such as
-querying large collections returning large numbers of Documents).  
-For these cases you can configure the `TransactionalMode` as `ManualAcknowledgement` where queueing and de-queueing are
+querying large collections returning large numbers of Documents).   
+Running this mode is also useful for Long-running message handling,
+For these cases you can configure the `TransactionalMode` as `SingleOperationTransaction` where queueing and de-queueing are
 performed using separate single document
 transactions and where acknowledging/retry are also performed as separate transactions.  
 Depending on the type of errors that can occur this MAY leave a dequeued message
@@ -282,7 +283,7 @@ in a state of being marked as "being delivered" forever. Hence `MongoDurableQueu
 discovering messages that have been under delivery for a long time (aka. stuck messages or timed-out messages) and will
 reset them in order for them to be redelivered.
 
-Example `TransactionalMode#ManualAcknowledgement` Spring configuration:
+Example `TransactionalMode#SingleOperationTransaction` Spring configuration:
 
 ```
 @Bean
@@ -317,7 +318,7 @@ public com.fasterxml.jackson.databind.Module essentialJacksonModule() {
 }
 ```
 
-Using TransactionalMode#ManualAcknowledgement (if consuming messages manually without using `DurableQueues.consumeFromQueue(ConsumeFromQueue)`):
+Using TransactionalMode#SingleOperationTransaction (if consuming messages manually without using `DurableQueues.consumeFromQueue(ConsumeFromQueue)`):
 
 ```
 durableQueues.queueMessage(queueName, message);

@@ -24,7 +24,7 @@ import java.time.OffsetDateTime;
  * Represents a {@link Message} that has been queued using {@link QueueMessage}/{@link QueueMessages}/{@link QueueMessageAsDeadLetterMessage}
  */
 public interface QueuedMessage {
-    enum DeliveryMode { NORMAL, IN_ORDER }
+    enum DeliveryMode {NORMAL, IN_ORDER}
 
     /**
      * The unique queue entry id for this message
@@ -107,5 +107,25 @@ public interface QueuedMessage {
      */
     Message getMessage();
 
+    /**
+     * Get the message's {@link DeliveryMode}
+     *
+     * @return the message's {@link DeliveryMode}
+     */
     DeliveryMode getDeliveryMode();
+
+    /**
+     * Is the message currently being delivered to a message consumer
+     *
+     * @return s the message currently being delivered to a message consumer
+     */
+    boolean isBeingDelivered();
+
+    /**
+     * If {@link #isBeingDelivered()} is true, then {@link #getDeliveryTimestamp()} returns the timestamp for when
+     * the message delivery started. Otherwise, this property is null.
+     *
+     * @return the timestamp for when the message delivery started
+     */
+    OffsetDateTime getDeliveryTimestamp();
 }

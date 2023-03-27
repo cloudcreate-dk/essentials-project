@@ -423,7 +423,7 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
                                                            }
                                                        })
                                   .proceed();
-        if (durableQueues.getTransactionalMode() == TransactionalMode.ManualAcknowledgement) {
+        if (durableQueues.getTransactionalMode() == TransactionalMode.SingleOperationTransaction) {
             durableQueues.acknowledgeMessageAsHandled(queuedMessage.getId());
         }
     }

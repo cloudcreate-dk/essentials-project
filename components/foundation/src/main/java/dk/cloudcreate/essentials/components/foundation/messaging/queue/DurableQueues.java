@@ -536,6 +536,27 @@ public interface DurableQueues extends Lifecycle {
      * Query the next Queued Message (i.e. not including Dead Letter Messages) that's ready to be delivered to a {@link DurableQueueConsumer}<br>
      * Note this method MUST be called within an existing {@link UnitOfWork} IF
      * using {@link TransactionalMode#FullyTransactional}
+     * <p>
+     * The normal message processing flow looks like this:
+     * <pre>{@code
+     * durableQueues.queueMessage(queueName, message);
+     * var msgUnderDelivery = durableQueues.getNextMessageReadyForDelivery(queueName);
+     * if (msgUnderDelivery.isPresent()) {
+     *    try {
+     *       handleMessage(msgUnderDelivery.get());
+     *       durableQueues.acknowledgeMessageAsHandled(msgUnderDelivery.get().getId());
+     *    } catch (Exception e) {
+     *       durableQueues.retryMessage(msgUnderDelivery.get().getId(),
+     *                                  e,
+     *                                  Duration.ofMillis(500));
+     *    }
+     * }
+     * }</pre>
+     * <p>
+     * When using {@link TransactionalMode#SingleOperationTransaction} then depending on
+     * the type of errors that can occur this MAY leave a dequeued message in a state of being marked as "being delivered" forever<br>
+     * This is why {@link DurableQueues} supporting these modes must ensure that they periodically
+     * discover messages that have been under delivery for a long time (aka. stuck messages or timed-out messages) and reset them in order for them to be redelivered.<br>
      *
      * @param operation the {@link GetNextMessageReadyForDelivery} operation
      * @return the next message ready to be delivered (wrapped in an {@link Optional}) or {@link Optional#empty()} if no message is ready for delivery
