@@ -14,7 +14,7 @@ To use `Reactive` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>reactive</artifactId>
-    <version>0.9.2</version>
+    <version>0.9.3</version>
 </dependency>
 ```
 

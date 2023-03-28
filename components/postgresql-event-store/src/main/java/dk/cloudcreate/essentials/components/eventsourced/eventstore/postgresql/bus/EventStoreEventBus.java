@@ -23,7 +23,7 @@ import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.*;
 import org.slf4j.*;
 
-import java.util.List;
+import java.util.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -31,6 +31,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Top level {@link EventStore} specific {@link EventBus}, which ensures that {@link PersistedEvents} will be published
  * at all {@link CommitStage}'s, as coordinated by the provided {@link EventStoreUnitOfWorkFactory}
  */
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class EventStoreEventBus implements EventBus {
     private static final Logger log = LoggerFactory.getLogger("EventStoreLocalEventBus");
 
@@ -59,6 +60,21 @@ public class EventStoreEventBus implements EventBus {
      */
     public EventStoreEventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory) {
         this(new LocalEventBus("EventStoreLocalBus"),
+             unitOfWorkFactory);
+
+    }
+
+    /**
+     * Default implementation that provides an internal {@link LocalEventBus} instance.
+     *
+     * @param unitOfWorkFactory the {@link EventStoreUnitOfWorkFactory} that's coordinating the {@link UnitOfWork} life cycle such that
+     *                          this {@link EventBus} instance will ensure that {@link PersistedEvents} will be published
+     *                          at all {@link CommitStage}'s
+     * @param onErrorHandler    the error handler which will be called if any subscriber/consumer fails to handle an event
+     */
+    public EventStoreEventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
+                              Optional<OnErrorHandler> onErrorHandler) {
+        this(new LocalEventBus("EventStoreLocalBus", onErrorHandler),
              unitOfWorkFactory);
 
     }
