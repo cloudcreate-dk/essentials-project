@@ -86,7 +86,7 @@ public class LocalEventBus implements EventBus {
      * using system available processors of parallel asynchronous processing threads
      *
      * @param busName        the name of the bus
-     * @param onErrorHandler the error handler which will be called if any subscriber/consumer fails to handle an event
+     * @param onErrorHandler the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
      */
     public LocalEventBus(String busName, OnErrorHandler onErrorHandler) {
         this(busName,
@@ -111,7 +111,7 @@ public class LocalEventBus implements EventBus {
      * using system available processors of parallel asynchronous processing threads
      *
      * @param busName                the name of the bus
-     * @param optionalOnErrorHandler optional error handler which will be called if any subscriber/consumer fails to handle an event<br>
+     * @param optionalOnErrorHandler optional error handler which will be called if any asynchronous subscriber/consumer fails to handle an event<br>
      *                               If {@link Optional#empty()}, a default error logging handler is used
      */
     public LocalEventBus(String busName, Optional<OnErrorHandler> optionalOnErrorHandler) {
@@ -126,7 +126,7 @@ public class LocalEventBus implements EventBus {
      *
      * @param busName                the name of the bus
      * @param parallelThreads        the number of parallel asynchronous processing threads
-     * @param optionalOnErrorHandler optional error handler which will be called if any subscriber/consumer fails to handle an event<br>
+     * @param optionalOnErrorHandler optional error handler which will be called if any asynchronous subscriber/consumer fails to handle an event<br>
      *                               If {@link Optional#empty()}, a default error logging handler is used
      */
     public LocalEventBus(String busName, int parallelThreads, Optional<OnErrorHandler> optionalOnErrorHandler) {
@@ -140,7 +140,7 @@ public class LocalEventBus implements EventBus {
      *
      * @param busName         the name of the bus
      * @param parallelThreads the number of parallel asynchronous processing threads
-     * @param onErrorHandler  the error handler which will be called if any subscriber/consumer fails to handle an event
+     * @param onErrorHandler  the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
      */
     public LocalEventBus(String busName, int parallelThreads, OnErrorHandler onErrorHandler) {
         this(busName,
@@ -165,7 +165,7 @@ public class LocalEventBus implements EventBus {
      *
      * @param busName                   the name of the bus
      * @param asyncSubscribersScheduler the asynchronous event scheduler (for the asynchronous consumers/subscribers)
-     * @param optionalOnErrorHandler    optional error handler which will be called if any subscriber/consumer fails to handle an event<br>
+     * @param optionalOnErrorHandler    optional error handler which will be called if any asynchronous subscriber/consumer fails to handle an event<br>
      *                                  If {@link Optional#empty()}, a default error logging handler is used
      */
     public LocalEventBus(String busName, Scheduler asyncSubscribersScheduler, Optional<OnErrorHandler> optionalOnErrorHandler) {
@@ -185,7 +185,7 @@ public class LocalEventBus implements EventBus {
      *
      * @param busName                   the name of the bus
      * @param asyncSubscribersScheduler the asynchronous event scheduler (for the asynchronous consumers/subscribers)
-     * @param onErrorHandler            the error handler which will be called if any subscriber/consumer fails to handle an event
+     * @param onErrorHandler            the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
      */
     public LocalEventBus(String busName, Scheduler asyncSubscribersScheduler, OnErrorHandler onErrorHandler) {
         this(busName,
@@ -196,13 +196,23 @@ public class LocalEventBus implements EventBus {
     @Override
     public EventBus publish(Object event) {
         requireNonNull(event, "No event was supplied");
+        log.debug("Publishing event of type '{}' to {} sync-subscriber(s)", event.getClass().getName(), syncSubscribers.size());
+        syncSubscribers.forEach(subscriber -> {
+            try {
+                subscriber.handle(event);
+            } catch (Exception e) {
+                log.error(msg("Subscriber '{}' failed with exception {}",
+                              subscriber, Exceptions.getStackTrace(e)), e);
+                throw e;
+            }
+        });
+
         log.debug("Publishing event of type '{}' to {} async-subscriber(s)", event.getClass().getName(), asyncSubscribers.size());
         if (asyncSubscribers.size() > 0) {
 
             eventSink.emitNext(event, (signalType, emitResult) -> {
                 if (Sinks.EmitResult.FAIL_NON_SERIALIZED == emitResult) {
                     // Retry with a timeout
-//                    log.trace("Will retry publishing of event of type '{}' to {} async-subscriber(s): due to {}", event.getClass().getName(), asyncSubscribers.size(), emitResult);
                     LockSupport.parkNanos(100);
                     return true;
                 }
@@ -214,18 +224,6 @@ public class LocalEventBus implements EventBus {
             });
         }
 
-        log.debug("Publishing event of type '{}' to {} sync-subscriber(s)", event.getClass().getName(), syncSubscribers.size());
-        syncSubscribers.forEach(subscriber -> {
-            try {
-                subscriber.handle(event);
-            } catch (Exception e) {
-                try {
-                    onErrorHandler.handle(subscriber, event, e);
-                } catch (Exception ex) {
-                    log.error(msg("onErrorHandler failed to handle subscriber {} failing to handle exception {}", subscriber, Exceptions.getStackTrace(e)), ex);
-                }
-            }
-        });
         return this;
     }
 

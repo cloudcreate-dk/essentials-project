@@ -17,13 +17,14 @@
 package dk.cloudcreate.essentials.reactive;
 
 /**
- * Error Handler interface for the {@link LocalEventBus}
+ * Error Handler interface for the {@link LocalEventBus}'s asynchronous
+ * event handler failures
  *
  */
 @FunctionalInterface
 public interface OnErrorHandler {
     /**
-     * Will be called if a given consumer/subscriber fails to handle a message
+     * Will be called if a given asynchronous consumer/subscriber fails to handle a message
      *
      * @param failingSubscriber the subscriber instance that failed
      * @param event             the event the subscriber failed to handle

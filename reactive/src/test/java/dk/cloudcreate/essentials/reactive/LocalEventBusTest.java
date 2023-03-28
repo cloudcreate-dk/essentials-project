@@ -114,14 +114,24 @@ class LocalEventBusTest {
         var events = List.of(new OrderCreatedEvent(), new OrderPaidEvent(), new OrderCancelledEvent());
 
         // When
-        events.forEach(localEventBus::publish);
+        var errors = new ArrayList<>();
+        events.forEach(event -> {
+            try {
+                localEventBus.publish(event);
+            } catch (Exception e) {
+                errors.add(e);
+            }
+        });
 
         // Then
-        Awaitility.waitAtMost(Duration.ofMillis(5000))
-                  .untilAsserted(() -> assertThat(asyncSubscriber.eventsReceived).containsAll(events));
-        assertThat(onErrorHandler.errorsHandled.size()).isEqualTo(events.size());
-        assertThat(onErrorHandler.errorsHandled.stream().filter(failure -> failure._1 == syncSubscriber).count()).isEqualTo(events.size());
-        assertThat(onErrorHandler.errorsHandled.stream().map(failure -> failure._2).collect(Collectors.toList())).containsAll(events);
+        assertThat(onErrorHandler.errorsHandled).isEmpty(); // Only contains async errors
+        assertThat(errors).hasSize(events.size());
+        // Since a synchronous event handler failed, verify that no async event handlers are notified
+        Awaitility.await()
+                  .during(Duration.ofMillis(2000))
+                  .atMost(Duration.ofMillis(3000))
+                  .until(() -> asyncSubscriber.eventsReceived.isEmpty());
+        assertThat(onErrorHandler.errorsHandled).isEmpty();
     }
 
 
@@ -152,7 +162,7 @@ class LocalEventBusTest {
 
         @Override
         public void handle(EventHandler failingSubscriber, Object event, Exception error) {
-            errorsHandled.add(Tuple.of(failingSubscriber, (OrderEvent)event, error));
+            errorsHandled.add(Tuple.of(failingSubscriber, (OrderEvent) event, error));
         }
 
     }
