@@ -33,6 +33,7 @@ import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockMana
 import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.reactive.OnErrorHandler;
 import org.jdbi.v3.core.Jdbi;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
@@ -56,12 +57,15 @@ public class EventStoreConfiguration {
      * The Local EventBus where the {@link EventStore} publishes {@link PersistedEvents} locally
      *
      * @param eventStoreUnitOfWorkFactory the {@link EventStoreUnitOfWorkFactory} that is required for the {@link EventStore} in order handle events associated with a given transaction
+     * @param onErrorHandler              the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
      * @return the {@link EventStoreEventBus}
      */
     @Bean
     @ConditionalOnMissingBean
-    public EventStoreEventBus eventStoreLocalEventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory) {
-        return new EventStoreEventBus(eventStoreUnitOfWorkFactory);
+    public EventStoreEventBus eventStoreLocalEventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
+                                                      Optional<OnErrorHandler> onErrorHandler) {
+        return new EventStoreEventBus(eventStoreUnitOfWorkFactory,
+                                      onErrorHandler);
     }
 
     /**

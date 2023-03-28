@@ -284,10 +284,16 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
         return durableCommandBusBuilder.build();
     }
 
+    /**
+     * Configure the {@link EventBus} to use for all event handlers
+     *
+     * @param onErrorHandler the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
+     * @return the {@link EventBus} to use for all event handlers
+     */
     @Bean
     @ConditionalOnMissingBean
-    public EventBus eventBus() {
-        return new LocalEventBus("default");
+    public EventBus eventBus(Optional<OnErrorHandler> onErrorHandler) {
+        return new LocalEventBus("default", onErrorHandler);
     }
 
     /**
