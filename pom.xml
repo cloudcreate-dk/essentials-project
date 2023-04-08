@@ -73,7 +73,7 @@
         <spring-data-jpa.version>2.7.10</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
         <assertj.version>3.24.2</assertj.version>
-        <mongodb-driver-sync.version>4.9.0</mongodb-driver-sync.version>
+        <mongodb-driver-sync.version>4.9.1</mongodb-driver-sync.version>
         <log4j-to-slf4j.version>2.20.0</log4j-to-slf4j.version>
         <snakeyaml.version>1.33</snakeyaml.version>
     </properties>
@@ -117,7 +117,7 @@
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
-                <version>1.17.6</version>
+                <version>1.18.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -191,7 +191,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.2.11</version>
+            <version>1.2.12</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -304,7 +304,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>3.3.0</version>
                 <executions>
                     <execution>
                         <id>enforce-maven</id>
@@ -337,27 +337,27 @@
                     </execution>
                 </executions>
             </plugin>
-<!--            <plugin>-->
-<!--                <groupId>org.owasp</groupId>-->
-<!--                <artifactId>dependency-check-maven</artifactId>-->
-<!--                <version>8.2.1</version>-->
-<!--                <configuration>-->
-<!--                    <skipTestScope>false</skipTestScope>-->
-<!--                    <failBuildOnCVSS>0</failBuildOnCVSS>-->
-<!--                    <suppressionFile>${maven.multiModuleProjectDirectory}/project-suppression.xml</suppressionFile>-->
-<!--                </configuration>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <goals>-->
-<!--                            <goal>check</goal>-->
-<!--                        </goals>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>8.2.1</version>
+                <configuration>
+                    <skipTestScope>false</skipTestScope>
+                    <failBuildOnCVSS>0</failBuildOnCVSS>
+                    <suppressionFile>${maven.multiModuleProjectDirectory}/project-suppression.xml</suppressionFile>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.4.0</version>
+                <version>1.4.1</version>
                 <configuration>
                     <updatePomFile>true</updatePomFile>
                     <flattenMode>resolveCiFriendliesOnly</flattenMode>
