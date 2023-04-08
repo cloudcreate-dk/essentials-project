@@ -52,8 +52,8 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 public class PatternMatchingMessageHandler implements Consumer<Message> {
     private final PatternMatchingMethodInvoker<Object> invoker;
-    private final Object  invokeMessageHandlerMethodsOn;
-    private       boolean allowUnmatchedMessages = false;
+    private final Object                               invokeMessageHandlerMethodsOn;
+    private       boolean                              allowUnmatchedMessages = false;
 
     /**
      * Create an {@link PatternMatchingMessageHandler} that can resolve and invoke message handler methods, i.e. methods
@@ -122,7 +122,7 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
 
     @Override
     public void accept(Message message) {
-        invoker.invoke(message, unmatchedEvent -> {
+        invoker.invoke(message, unmatchedMessage -> {
             handleUnmatchedMessage(message);
         });
     }
@@ -139,6 +139,18 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
             throw new IllegalArgumentException(msg("Unmatched Message with payload-type: '{}'",
                                                    message.getPayload().getClass().getName()));
         }
+    }
+
+    /**
+     * Check amongst all the {@link MessageHandler} annotated methods and check if there's a method that matches (i.e. is type compatible) with
+     * the <code>payloadType</code>.
+     *
+     * @param payloadType the {@link Message#getPayload()}'s concrete type
+     * @return true if there's a {@link MessageHandler} annotated method that accepts a {@link Message} with a {@link Message#getPayload()} of the
+     * given <code>payloadType</code>, otherwise false
+     */
+    public boolean handlesMessageWithPayload(Class<?> payloadType) {
+        return invoker.hasMatchingMethod(payloadType);
     }
 
     private static class MessageHandlerMethodPatternMatcher implements MethodPatternMatcher<Object> {

@@ -38,6 +38,8 @@ class PatternMatchingMessageHandlerTest {
         assertThat(messageHandler.someOtherCommand).isNull();
         assertThat(messageHandler.messageForSomeOtherCommand).isNull();
         assertThat(messageHandler.unmatchedMessage).isNull();
+
+        assertThat(messageHandler.handlesMessageWithPayload(someCommand.getClass())).isTrue();
     }
 
     @Test
@@ -55,6 +57,8 @@ class PatternMatchingMessageHandlerTest {
         assertThat(messageHandler.someOtherCommand).isEqualTo(someOtherCommand);
         assertThat(messageHandler.messageForSomeOtherCommand).isEqualTo(message);
         assertThat(messageHandler.unmatchedMessage).isNull();
+
+        assertThat(messageHandler.handlesMessageWithPayload(someOtherCommand.getClass())).isTrue();
     }
 
     @Test
@@ -72,6 +76,8 @@ class PatternMatchingMessageHandlerTest {
         assertThat(messageHandler.someOtherCommand).isNull();
         assertThat(messageHandler.messageForSomeOtherCommand).isNull();
         assertThat(messageHandler.unmatchedMessage).isEqualTo(message);
+
+        assertThat(messageHandler.handlesMessageWithPayload(someUnmatchedCommand.getClass())).isFalse();
     }
 
     private static class TestPatternMatchingMessageHandler extends PatternMatchingMessageHandler {
