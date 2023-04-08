@@ -280,14 +280,8 @@ public final class PatternMatchingMethodInvoker<ARGUMENT_COMMON_ROOT_TYPE> {
         requireNonNull(resolvedInvokeMethodWithArgumentOfType, "resolvedInvokeMethodWithArgumentOfType may not be NULL");
         requireNonNull(noMatchingMethodsHandler, "noMatchingMethodsHandler may not be NULL");
 
-        var mostSpecificMatchingArgumentType = invokeMostSpecificTypeMatchCache.computeIfAbsent(resolvedInvokeMethodWithArgumentOfType, _ignore_ ->
-                invokableMethods.keySet()
-                                .stream()
-                                .filter(cls -> cls.isAssignableFrom(resolvedInvokeMethodWithArgumentOfType))
-                                .max(Classes::compareTypeSpecificity)
-                                .orElse(null));
-
-        var contextDescription = msg("resolvedInvokeMethodWithArgumentOfType: '{}' and argument-type: '{}'", resolvedInvokeMethodWithArgumentOfType.getName(), argument.getClass().getName());
+        var mostSpecificMatchingArgumentType = findMostSpecificMatchingArgumentType(resolvedInvokeMethodWithArgumentOfType);
+        var contextDescription               = msg("resolvedInvokeMethodWithArgumentOfType: '{}' and argument-type: '{}'", resolvedInvokeMethodWithArgumentOfType.getName(), argument.getClass().getName());
         if (mostSpecificMatchingArgumentType != null) {
             var methodToInvoke = invokableMethods.get(mostSpecificMatchingArgumentType);
             if (methodToInvoke == null) {
@@ -300,6 +294,22 @@ public final class PatternMatchingMethodInvoker<ARGUMENT_COMMON_ROOT_TYPE> {
             log.trace("invokeMostSpecificTypeMatched: Didn't find a matching method for {}, calling the noMatchingMethodsHandler", contextDescription);
             noMatchingMethodsHandler.noMatchesFor(argument);
         }
+    }
+
+    /**
+     * Find the most specific argumentType amongst all the resolve {@link #invokableMethods}, where the argumentType is type compatible with the <code>concreteArgumentType</code>
+     *
+     * @param concreteArgumentType the concrete argument type
+     * @return the best matching argument type or <code>null</code> if no matches were found
+     */
+    private Class<?> findMostSpecificMatchingArgumentType(Class<?> concreteArgumentType) {
+        var mostSpecificMatchingArgumentType = invokeMostSpecificTypeMatchCache.computeIfAbsent(concreteArgumentType, _ignore_ ->
+                invokableMethods.keySet()
+                                .stream()
+                                .filter(cls -> cls.isAssignableFrom(concreteArgumentType))
+                                .max(Classes::compareTypeSpecificity)
+                                .orElse(null));
+        return mostSpecificMatchingArgumentType;
     }
 
     /**
@@ -334,5 +344,10 @@ public final class PatternMatchingMethodInvoker<ARGUMENT_COMMON_ROOT_TYPE> {
             log.debug(msg("Failed to invoke {}", contextDescription), e);
             sneakyThrow(e);
         }
+    }
+
+    public boolean hasMatchingMethod(Class<?> argumentType) {
+        requireNonNull(argumentType, "No argumentType provided");
+        return findMostSpecificMatchingArgumentType(argumentType) != null;
     }
 }
