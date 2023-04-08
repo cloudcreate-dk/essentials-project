@@ -211,6 +211,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         return exclusivelySubscribeToAggregateEventsAsynchronously(subscriberId,
                                                                    forAggregateType,
                                                                    onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                   Optional.empty(),
                                                                    fencedLockAwareSubscriber,
                                                                    eventHandler);
     }
