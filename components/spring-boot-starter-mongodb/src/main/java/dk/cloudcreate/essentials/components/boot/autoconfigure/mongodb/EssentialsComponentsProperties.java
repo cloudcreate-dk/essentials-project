@@ -86,7 +86,7 @@ public class EssentialsComponentsProperties {
         }
 
         /**
-         * Set the transactional behaviour mode of the {@link MongoDurableQueues<br>
+         * Set the transactional behaviour mode of the {@link MongoDurableQueues}
          * Default: {@link TransactionalMode#FullyTransactional}
          *
          * @param transactionalMode the transactional behaviour mode of the {@link MongoDurableQueues
