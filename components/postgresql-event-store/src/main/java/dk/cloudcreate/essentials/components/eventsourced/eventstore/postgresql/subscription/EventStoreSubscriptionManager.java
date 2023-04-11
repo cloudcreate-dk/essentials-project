@@ -546,12 +546,16 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             // TODO: Filter out active subscribers and decide if we can increment the global event order like when the subscriber stops.
             //   Current approach is safe with regards to reset of resume-points, but it will result in one overlapping event during resubscription
             //   related to a failed node or after a subscription manager failure (i.e. it doesn't run stop() at all or run to completion)
-            durableSubscriptionRepository.saveResumePoints(subscribers.values()
-                                                                      .stream()
-                                                                      .filter(eventStoreSubscription -> eventStoreSubscription.currentResumePoint().isPresent())
-                                                                      .filter(EventStoreSubscription::isActive)
-                                                                      .map(eventStoreSubscription -> eventStoreSubscription.currentResumePoint().get())
-                                                                      .collect(Collectors.toList()));
+            try {
+                durableSubscriptionRepository.saveResumePoints(subscribers.values()
+                                                                          .stream()
+                                                                          .filter(eventStoreSubscription -> eventStoreSubscription.currentResumePoint().isPresent())
+                                                                          .filter(EventStoreSubscription::isActive)
+                                                                          .map(eventStoreSubscription -> eventStoreSubscription.currentResumePoint().get())
+                                                                          .collect(Collectors.toList()));
+            } catch (Exception e) {
+                log.error(msg("Failed to store ResumePoint's for the {} subscriber(s)", subscribers.size()), e);
+            }
         }
 
         private EventStoreSubscription addEventStoreSubscription(SubscriberId subscriberId,
@@ -1174,7 +1178,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                             }
 
                             // Save resume point to be the next global order event AFTER the one we know we just handled
-                            log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
+                            log.info("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
                                       subscriberId,
                                       aggregateType,
                                       resumePoint.getResumeFromAndIncluding());
