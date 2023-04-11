@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * Event Modeling style Event Sourced Event Processor, which is capable of both containing Command {@link Handler} as well as {@link MessageHandler}
+ * Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing Command {@link Handler} as well as {@link MessageHandler}
  * annotated methods.<br>
  * Instead of manually subscribing to the underlying {@link EventStore} using the {@link EventStoreSubscriptionManager}, which requires you to provide your own error and retry handling,
  * you can use the {@link EventProcessor} to subscribe to one or more {@link EventStore} subscription, while providing you with error and retry handling using the common {@link RedeliveryPolicy} concept
