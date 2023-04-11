@@ -535,7 +535,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
             log.debug("[{}] Canceling async Lock acquiring for lock '{}'", lockManagerInstanceId, lockName);
             scheduledFuture.cancel(true);
             var acquiredLock = locksAcquiredByThisLockManager.remove(lockName);
-            if (acquiredLock.isLockedByThisLockManagerInstance()) {
+            if (acquiredLock != null && acquiredLock.isLockedByThisLockManagerInstance()) {
                 log.debug("[{}] Releasing Lock due to cancelling the lock acquiring '{}'", lockManagerInstanceId, lockName);
                 acquiredLock.release();
             }

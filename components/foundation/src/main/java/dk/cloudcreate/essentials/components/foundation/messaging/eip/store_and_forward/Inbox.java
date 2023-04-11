@@ -40,7 +40,7 @@ import java.util.function.Consumer;
  */
 public interface Inbox {
     /**
-     * Start consuming messages from the Outbox using the provided message consumer.<br>
+     * Start consuming messages from the Inbox using the provided message consumer.<br>
      * Only needs to be called if the instance was created without a message consumer
      * <p>
      * If an {@link OrderedMessage} is delivered via an {@link Inbox} using a {@link FencedLock}
@@ -54,7 +54,7 @@ public interface Inbox {
     Inbox consume(Consumer<Message> messageConsumer);
 
     /**
-     * Stop consuming messages from the {@link Outbox}. Calling this method will remove the message consumer
+     * Stop consuming messages from the {@link Inbox}. Calling this method will remove the message consumer
      * and to resume message consumption you need to call {@link #consume(Consumer)}
      */
     void stopConsuming();
@@ -67,9 +67,9 @@ public interface Inbox {
     boolean hasAMessageConsumer();
 
     /**
-     * Is the provided Message consumer consuming messages from the {@link Outbox}
+     * Is the provided Message consumer consuming messages from the {@link Inbox}
      *
-     * @return Is the provided Message consumer consuming messages from the {@link Outbox}
+     * @return Is the provided Message consumer consuming messages from the {@link Inbox}
      */
     boolean isConsumingMessages();
 
