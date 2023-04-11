@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.processor;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStoreSubscription;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
@@ -39,11 +39,14 @@ import java.util.stream.Collectors;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * Event Modeling style Event Processor, which is capable of both containing Command {@link Handler} as well as {@link MessageHandler}
+ * Event Modeling style Event Sourced Event Processor, which is capable of both containing Command {@link Handler} as well as {@link MessageHandler}
  * annotated methods.<br>
- * Override {@link #reactsToEventsRelatedToAggregateTypes()} to specify which EventSourced {@link AggregateType}'s the {@link EventProcessor} is reacting to.<br>
- * The {@link EventProcessor} will setup an exclusive asynchronous {@link EventStoreSubscription} for each {@link AggregateType} and will forward any
- * {@link PersistedEvent}'s as {@link OrderedMessage} IF and ONLY IF the concrete {@link EventProcessor} subclass contains a corresponding {@link MessageHandler}
+ * Instead of manually subscribing to the underlying {@link EventStore} using the {@link EventStoreSubscriptionManager}, which requires you to provide your own error and retry handling,
+ * you can use the {@link EventProcessor} to subscribe to one or more {@link EventStore} subscription, while providing you with error and retry handling using the common {@link RedeliveryPolicy} concept
+ * <p>
+ * You must override {@link #reactsToEventsRelatedToAggregateTypes()} to specify which EventSourced {@link AggregateType} event-streams the {@link EventProcessor} should subscribe to.<br>
+ * The {@link EventProcessor} will set up an exclusive asynchronous {@link EventStoreSubscription} for each {@link AggregateType} and will forward any
+ * {@link PersistedEvent}'s as {@link OrderedMessage}'s IF and ONLY IF the concrete {@link EventProcessor} subclass contains a corresponding {@link MessageHandler}
  * annotated method matching the {@link PersistedEvent#event()}'s {@link EventJSON#getEventType()}'s {@link EventType#toJavaClass()} matches that first argument type.
  * <p>
  * Example:
