@@ -440,18 +440,16 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                .publishTo(listener)
                                                                                .build();
 
-        try {
-            changeSubscription = messageListenerContainer.register(request, DurableQueuedMessage.class);
-            messageListenerContainer.start();
-        } catch (UncategorizedMongoDbException e) {
-            if (e.getMessage() != null && e.getMessage().contains("error 136")) {
+        changeSubscription = messageListenerContainer.register(request, DurableQueuedMessage.class, cause -> {
+            if (cause instanceof UncategorizedMongoDbException && cause.getMessage() != null && cause.getMessage().contains("error 136")) {
                 log.info("ChangeStream is NOT ENABLED for this collection/database/cluster. Error message received: {}",
-                         e.getMessage());
+                         cause.getMessage());
                 log.info("ℹ️ If you're using DocumentDB then please see: https://docs.aws.amazon.com/documentdb/latest/developerguide/change_streams.html");
             } else {
-                log.error("Failed to setup ChangeStream listener", e);
+                log.error(msg("ChangeStream listener error: {}", cause.getMessage()), cause);
             }
-        }
+        });
+        messageListenerContainer.start();
     }
 
     protected void stopCollectionListener() {
