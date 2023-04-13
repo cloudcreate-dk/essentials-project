@@ -36,7 +36,7 @@ To use `foundation` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>foundation</artifactId>
-    <version>0.9.4</version>
+    <version>0.9.5</version>
 </dependency>
 ```
 
@@ -44,7 +44,7 @@ To use `foundation` just add the following Maven dependency:
 
 Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing Command `@Handler`, as well as `@MessageHandler` annotated methods.  
 Instead of manually subscribing to the underlying `EventStore` using the `EventStoreSubscriptionManager`, 
-which requires you to provide your own error and retry handling, you can use the `EventProcessor` to subscribe to one or more EventStore subscription, while providing you with error and retry handling using the common `RedeliveryPolicy` concept.  
+which requires you to provide your own error and retry handling, you can use the `EventProcessor` to subscribe to one or more EventStore event streams, while providing you with error and retry handling using the common `RedeliveryPolicy` concept.  
 
 You must override `reactsToEventsRelatedToAggregateTypes()` to specify which EventSourced `AggregateType` event-streams the `EventProcessor` should subscribe to. 
 The `EventProcessor` will set up an exclusive asynchronous `EventStoreSubscription` for each 
@@ -257,7 +257,7 @@ To use `PostgresqlDurableQueues` you must include dependency
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-queue</artifactId>
-    <version>0.9.4</version>
+    <version>0.9.5</version>
 </dependency>
 ```
 
@@ -305,7 +305,7 @@ To use `MongoDurableQueues` you must include dependency
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>springdata-mongo-queue</artifactId>
-    <version>0.9.4</version>
+    <version>0.9.5</version>
 </dependency>
 ```
 
@@ -817,7 +817,7 @@ To use `PostgreSQL Distributed Fenced Lock` just add the following Maven depende
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-distributed-fenced-lock</artifactId>
-    <version>0.9.4</version>
+    <version>0.9.5</version>
 </dependency>
 ```
 

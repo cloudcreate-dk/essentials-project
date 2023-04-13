@@ -42,7 +42,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing Command {@link Handler} as well as {@link MessageHandler}
  * annotated methods.<br>
  * Instead of manually subscribing to the underlying {@link EventStore} using the {@link EventStoreSubscriptionManager}, which requires you to provide your own error and retry handling,
- * you can use the {@link EventProcessor} to subscribe to one or more {@link EventStore} subscription, while providing you with error and retry handling using the common {@link RedeliveryPolicy} concept
+ * you can use the {@link EventProcessor} to subscribe to one or more {@link EventStore} event streams, while providing you with error and retry handling using the common {@link RedeliveryPolicy} concept
  * <p>
  * You must override {@link #reactsToEventsRelatedToAggregateTypes()} to specify which EventSourced {@link AggregateType} event-streams the {@link EventProcessor} should subscribe to.<br>
  * The {@link EventProcessor} will set up an exclusive asynchronous {@link EventStoreSubscription} for each {@link AggregateType} and will forward any
