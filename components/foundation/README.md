@@ -44,7 +44,7 @@ To use `foundation` just add the following Maven dependency:
 
 Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing Command `@Handler`, as well as `@MessageHandler` annotated methods.  
 Instead of manually subscribing to the underlying `EventStore` using the `EventStoreSubscriptionManager`, 
-which requires you to provide your own error and retry handling, you can use the `EventProcessor` to subscribe to one or more EventStore subscription, while providing you with error and retry handling using the common `RedeliveryPolicy` concept.  
+which requires you to provide your own error and retry handling, you can use the `EventProcessor` to subscribe to one or more EventStore event streams, while providing you with error and retry handling using the common `RedeliveryPolicy` concept.  
 
 You must override `reactsToEventsRelatedToAggregateTypes()` to specify which EventSourced `AggregateType` event-streams the `EventProcessor` should subscribe to. 
 The `EventProcessor` will set up an exclusive asynchronous `EventStoreSubscription` for each 
