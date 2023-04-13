@@ -18,12 +18,13 @@ Each module's README.md will provide information about which third party depende
 ![Essentials modules overview](images/all-essentials-modules.png)
 
 ## Advanced Components
-See: [Essentials Components](components/README.md) for information about **components** such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `DurableLocalCommandbus`, `Inbox` and `Outbox` 
-Also includes Spring Boot auto-configuration modules for Postgresql and MongoDB:
+See: [Essentials Components](components/README.md) for information about **components** such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `DurableLocalCommandbus`,
+`Inbox`, `Outbox` and `EventProcessor`
+
+Components also includes **Spring Boot** auto-configuration modules which specializes in either Postgresql or MongoDB:
 - See [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
 - See [spring-boot-starter-postgresql-event-store](components/spring-boot-starter-postgresql-event-store/README.md)
 - See [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
-
 
 **NOTE:**
 **The libraries are WORK-IN-PROGRESS**
