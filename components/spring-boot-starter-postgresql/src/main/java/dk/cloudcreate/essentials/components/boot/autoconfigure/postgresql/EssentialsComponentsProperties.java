@@ -79,6 +79,27 @@ public class EssentialsComponentsProperties {
         private Double pollingDelayIntervalIncrementFactor = 0.5d;
 
         private Duration maxPollingInterval = Duration.ofMillis(2000);
+        private TransactionalMode transactionalMode = TransactionalMode.FullyTransactional;
+
+        /**
+         * Get the transactional behaviour mode of the {@link PostgresqlDurableQueues}<br>
+         * Default: {@link TransactionalMode#FullyTransactional}
+         *
+         * @return the transactional behaviour mode of the {@link PostgresqlDurableQueues}
+         */
+        public TransactionalMode getTransactionalMode() {
+            return transactionalMode;
+        }
+
+        /**
+         * Set the transactional behaviour mode of the {@link PostgresqlDurableQueues}
+         * Default: {@link TransactionalMode#FullyTransactional}
+         *
+         * @param transactionalMode the transactional behaviour mode of the {@link PostgresqlDurableQueues}
+         */
+        public void setTransactionalMode(TransactionalMode transactionalMode) {
+            this.transactionalMode = transactionalMode;
+        }
 
         /**
          * Get the name of the table that will contain all messages (across all {@link QueueName}'s)<br>

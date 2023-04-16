@@ -79,7 +79,7 @@ public class EssentialsComponentsProperties {
          * Get the transactional behaviour mode of the {@link MongoDurableQueues}<br>
          * Default: {@link TransactionalMode#FullyTransactional}
          *
-         * @return the transactional behaviour mode of the {@link MongoDurableQueues
+         * @return the transactional behaviour mode of the {@link MongoDurableQueues}
          */
         public TransactionalMode getTransactionalMode() {
             return transactionalMode;
@@ -89,7 +89,7 @@ public class EssentialsComponentsProperties {
          * Set the transactional behaviour mode of the {@link MongoDurableQueues}
          * Default: {@link TransactionalMode#FullyTransactional}
          *
-         * @param transactionalMode the transactional behaviour mode of the {@link MongoDurableQueues
+         * @param transactionalMode the transactional behaviour mode of the {@link MongoDurableQueues}
          */
         public void setTransactionalMode(TransactionalMode transactionalMode) {
             this.transactionalMode = transactionalMode;

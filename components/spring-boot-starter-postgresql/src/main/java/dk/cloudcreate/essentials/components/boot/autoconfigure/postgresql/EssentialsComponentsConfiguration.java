@@ -197,6 +197,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                        List<DurableQueuesInterceptor> durableQueuesInterceptors) {
         var durableQueues = PostgresqlDurableQueues.builder()
                                                    .setUnitOfWorkFactory(unitOfWorkFactory)
+                                                   .setTransactionalMode(properties.getDurableQueues().getTransactionalMode())
                                                    .setJsonSerializer(jsonSerializer)
                                                    .setSharedQueueTableName(properties.getDurableQueues().getSharedQueueTableName())
                                                    .setMultiTableChangeListener(optionalMultiTableChangeListener.orElse(null))
@@ -274,7 +275,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
 
     /**
      * Configure the {@link EventBus} to use for all event handlers
-     * @param onErrorHandler    the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
+     *
+     * @param onErrorHandler the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
      * @return the {@link EventBus} to use for all event handlers
      */
     @Bean
