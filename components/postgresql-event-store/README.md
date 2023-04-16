@@ -4,10 +4,19 @@ This library contains a fully features Event Store
 
 ## Concept
 
-The primary concept of the EventStore are **Event Streams**   
-Definition: An Event Stream is a collection of related Events *(e.g. Order events that are related to Order aggregate
-instances)*   
-The most common denominator for Events in an Event Stream is the Type of Aggregate they're associated with.  
+An EventStore is like a digital storage system for events related to different aspects of a business process.
+These events represent various changes that happen over time.
+
+Inside the EventStore, events are organized into separate groups called EventStreams.
+Each EventStream has a **name** and represents a specific category or aspect of the business process.
+In the Essentials we also refer to the `EventStreamName` as the `AggregateType`, because we (typically want to) store all Events related to a specific type of business object,
+aka. an Aggregate Type, in the same EventStream.  This also allows us to subscribe to and track events per `AggregateType`. 
+
+In this example, we have three EventStreams named "Order", "Shipping", and "Payment", each corresponding to different stages in an e-commerce process:
+
+![EventStream.png](images/EventStreams.png)
+
+
 Classical examples of Aggregate Types and their associated events are:
 
 - **Order** aggregate  
@@ -28,6 +37,17 @@ Classical examples of Aggregate Types and their associated events are:
     - CustomersAddressCorrected
     - CustomerStatusChanged
 
+As mentioned, every event in an `EventStream` belongs to a broader category called an Aggregate.   
+Each Aggregate is identified by a unique AggregateId. Said another way an `Aggregate` groups together related events (it groups Events that share the same `AggregateId`)
+
+Each event contains information about the Aggregate it belongs to, as well as two values called `EventOrder` and `GlobalEventOrder`.   
+The `EventOrder` indicates the sequence of the event within its `Aggregate`, starting from 0.  
+When a new event is added to the same `Aggregate` instance, its `EventOrder` is set to the `EventOrder` of the latest event in the `Aggregate` `+1`.
+
+On the other hand, the `GlobalEventOrder` is a number that shows the overall sequence of events in the entire `EventStream`, regardless of which `Aggregate` instance they belong to.  
+The first `GlobalEventOrder` has a value of 1 and increases sequentially as new events are added.
+
+### Persistence Strategy
 We could put all Events from all Aggregate Types into one Event Stream, but this is often not very useful:
 
 - From a usage and use case perspective it makes more sense to subscribe and handle events related to the same type of
@@ -42,8 +62,8 @@ We could put all Events from all Aggregate Types into one Event Stream, but this
   This also allows us to use the GlobalEventOrder as a natual Resume-Point for the EventStore subscriptions (see
   EventStoreSubscriptionManager)
 
-This aligns with the concept of the `AggregateEventStream` which contains Events related to a specific `AggregateType`
-with a distinct **AggregateId**  
+This aligns with the concept of the `AggregateEventStream` which contains Events related to a specific `AggregateType` instance, i.e.
+an Aggregate with a distinct **AggregateId**  
 When loading/fetching and persisting/appending Events we always work at the Aggregate instance level, i.e.
 with `AggregateEventStream`'s.
 
@@ -53,16 +73,17 @@ Unless you're using a fully functional style aggregate, where you only perform a
 AggregateEventStream, then there will typically be a 1-1 relationship between
 an `AggregateType` and the class that implements the Aggregate.
 
-What's important here is that the `AggregateType` is only a name and shouldn't be confused with the Fully Qualified
-Class Name of the Aggregate implementation class.   
+### `AggregateType` vs `Aggregate` implementation type
+What's important here is that the `AggregateType` is only a name (i.e. the an `EventStreamName`) and shouldn't be confused with the Fully Qualified
+Class Name of the `Aggregate`'s implementation class.   
 This is the classical split between the logical concept and the physical implementation.  
-It's important to not link the Aggregate Implementation Class (the Fully Qualified Class Name) with the AggregateType
+It's important to not link the `Aggregate` Implementation Class (the Fully Qualified Class Name) with the `AggregateType`
 name as that would make refactoring of your code base much harder, as the Fully
-Qualified Class Name then would be captured in the stored Events.  
-Had the `AggregateType` and the Aggregate Implementation Class been one and the same, then moving the Aggregate class to
+Qualified Class Name (`FQCN`) then would be captured in the stored Events.  
+Had the `AggregateType` and the `Aggregate` Implementation Class been one and the same, then moving the `Aggregate` class to
 another package or renaming it would break many things.   
-To avoid the temptation to use the same name for both the AggregateType and the Aggregate Implementation Class, we
-prefer using the **plural name** of the Aggregate as the `AggregateType` name.  
+To avoid the temptation to use the same name for both the `AggregateType` and the `Aggregate` Implementation Class, we
+prefer using the **plural name** of the `Aggregate` as the `AggregateType` name.  
 Example:
 
 | Aggregate-Type | Aggregate Implementation Class (Fully Qualified Class Name) | Top-level Event Type (Fully Qualified Class Name) |  
@@ -76,7 +97,7 @@ Example:
 The `PostgresqlEventStore` internally uses the Jdbi JDBC API.  
 Below is an example of how to configure Jdbi - See `Spring-PostgreSQL Event Store` for a Spring oriented setup
 
-```
+```java
 var jdbi = Jdbi.create(jdbcUrl,
                            username,
                            password);
@@ -86,7 +107,7 @@ jdbi.setSqlLogger(new SqlExecutionTimeLogger());
 
 Example of setting up Jdbi using `HikariDataSource`:
 
-```
+```java
 HikariConfig hikariConfig = new HikariConfig();
 hikariConfig.setJdbcUrl(jdbcUrl);
 hikariConfig.setUsername(username);
@@ -101,9 +122,10 @@ jdbi.setSqlLogger(new SqlExecutionTimeLogger());
 ## UnitOfWork / Transaction Management
 
 Setup the EventStore using transaction/UnitOfWork management by the EventStore: `EventStoreManagedUnitOfWorkFactory`    
-See `Spring-PostgreSQL Event Store` for a Spring oriented setup
+See `Spring-PostgreSQL Event Store` for a Spring oriented setup that uses Spring's Transaction handling and where you don't need
+to work directly with the `UnitOfWork` concept.
 
-```
+```java
 var persistenceStrategy = new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                                new EventStoreManagedUnitOfWorkFactory(jdbi),
                                                                                new MyPersistableEventMapper());
@@ -121,7 +143,7 @@ etc.
 
 Here an example of a `TestPersistableEventMapper`:
 
-```
+```java
 class TestPersistableEventMapper implements PersistableEventMapper {
         private final CorrelationId correlationId   = CorrelationId.random();
         private final EventId       causedByEventId = EventId.random();
@@ -160,12 +182,11 @@ Using `SeparateTablePerAggregateTypePersistenceStrategy` means that each `Aggreg
 event store table.
 
 What's important here is that the AggregateType is only a name and shouldn't be confused with the Fully Qualified Class
-Name of the Aggregate implementation class.  
+Name (FQCN) of the `Aggregate` implementation class.  
 This is the classical split between the logical concept and the physical implementation.  
-It's important to not link the Aggregate Implementation Class (the Fully Qualified Class Name) with the AggregateType
-name as that would make refactoring of your code base much harder, as the Fully
-Qualified Class Name then would be captured in the stored Events.   
-Had the AggregateType and the Aggregate Implementation Class been one and the same, then moving the Aggregate class to
+It's important to not link the `Aggregate` Implementation Class (FQCN) with the `AggregateType`
+name as that would make refactoring of your code base much harder, as the FQCN then would be captured in the stored Events.   
+Had the `AggregateType` and the `Aggregate` Implementation Class been one and the same, then moving the Aggregate class to
 another package or renaming it would break many things.
 
 To avoid the temptation to use the same name for both the AggregateType and the Aggregate Implementation Class, we
@@ -183,7 +204,7 @@ load events related to a given `AggregateType`.
 
 Using defaults
 
-```
+```java
 var orders = AggregateType.of("Order");
 eventStore.addAggregateEventStreamConfiguration(orders,
                                                 OrderId.class);
@@ -191,7 +212,7 @@ eventStore.addAggregateEventStreamConfiguration(orders,
 
 or
 
-```
+```java
 var orders = AggregateType.of("Order");
 eventStore.addAggregateEventStreamConfiguration(
     SeparateTablePerAggregateTypeConfiguration.standardSingleTenantConfigurationUsingJackson(orders,
@@ -218,7 +239,7 @@ Below is an example of an immutable Event design, which requires the `ObjectMapp
 the [Essentials Immutable-Jackson](https://github.com/cloudcreate-dk/essentials/tree/main/immutable-jackson)
 module's `EssentialsImmutableJacksonModule`:
 
-```
+```java
 public class OrderEvent {
     public final OrderId orderId;
 
@@ -250,7 +271,7 @@ public class OrderEvent {
 }
 ```
 
-```
+```java
 private ObjectMapper createObjectMapper() {
     var objectMapper = JsonMapper.builder()
                                  .disable(MapperFeature.AUTO_DETECT_GETTERS)
@@ -286,7 +307,7 @@ directly against the `EventStore`.
 Example of appending the `OrderAdded` event, related to the `"Orders"` `AggregateType` with **aggregateId** specified by
 the `orderId` variable:
 
-```
+```java
 var orders = AggregateType.of("Order");
 
 eventStore.unitOfWorkFactory().usingUnitOfWork(unitOfWork -> {
@@ -304,7 +325,7 @@ eventStore.unitOfWorkFactory().usingUnitOfWork(unitOfWork -> {
 Example fetching an `AggregateEventStream` for the `"Orders"` `AggregateType` with **aggregateId** specified by
 the `orderId` variable:
 
-```
+```java
 var orders = AggregateType.of("Order");
 
 var events = eventStore.unitOfWorkFactory().withUnitOfWork(unitOfWork -> {
@@ -312,12 +333,12 @@ var events = eventStore.unitOfWorkFactory().withUnitOfWork(unitOfWork -> {
 });
 ```
 
-## LocalEventBus event subscription
+## EventBus event subscription
 
-You can subscribe (synchronous or asynchronous) to events directly on the `EventStore` by e.g. listening til
-the `LocalEventBus`
+You can subscribe (synchronous or asynchronous) to events directly on the `EventStore` by e.g. adding a subscriber to
+the `EventBus`
 
-```
+```java
 eventStore.localEventBus().addSyncSubscriber(persistedEvents -> {
             
 });
@@ -331,7 +352,7 @@ eventStore.localEventBus().addAsyncSubscriber(persistedEvents -> {
 You can also poll for events using the `EventStore` event polling mechanism, which allows you to subscribe to any point
 in an EventStream related to a given type of Aggregate:
 
-```
+```java
 var orders = AggregateType.of("Order");
 // poll using default polling interval, tenant filtering, etc.
 disposableFlux = eventStore.pollEvents(orders, // Aggregatetype
@@ -351,7 +372,7 @@ Two `EventStreamGapHandler` are supported:
 - `NoEventStreamGapHandler` (default if you just create a new `PostgresqlEventStore` instance)
 - `PostgresqlEventStreamGapHandler`
   - Example:
-  ```
+  ```java
     @Bean
     public ConfigurableEventStore<SeparateTablePerAggregateEventStreamConfiguration> eventStore(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
                                                                                                 SeparateTablePerAggregateTypePersistenceStrategy persistenceStrategy,
@@ -390,7 +411,7 @@ Subscribers `ResumePoint` in the AggregateType EventStream's they subscribing to
 
 Example using `exclusivelySubscribeToAggregateEventsAsynchronously`:
 
-```
+```java
 var eventStoreSubscriptionManager = EventStoreSubscriptionManager.builder()
                                                                  .setEventStore(eventStore)
                                                                  .setEventStorePollingBatchSize(10)
@@ -453,7 +474,7 @@ Each method may also include a 2nd argument that of type `PersistedEvent` in whi
 is included as the 2nd argument in the call to the method.        
 The methods can have any accessibility (private, public, etc.), they just have to be instance methods.
 
-```
+```java
 public class MyEventHandler extends PatternMatchingPersistedEventHandler {
 
         @Override
@@ -484,11 +505,54 @@ public class MyEventHandler extends PatternMatchingPersistedEventHandler {
 }
 ```
 
+#### Example subscribing for AggregateEvent and publishing an External Event to Kafka using the `EventProcessor`
+```java
+@Service
+@Slf4j
+public class ShippingEventKafkaPublisher extends EventProcessor {
+    public static final String                        SHIPPING_EVENTS_TOPIC_NAME = "shipping-events";
+    private final       KafkaTemplate<String, Object> kafkaTemplate;
+
+
+    public ShippingEventKafkaPublisher(@NonNull Inboxes inboxes,
+                                       @NonNull DurableLocalCommandBus commandBus,
+                                       @NonNull EventStoreSubscriptionManager eventStoreSubscriptionManager,
+                                       @NonNull KafkaTemplate<String, Object> kafkaTemplate) {
+        super(eventStoreSubscriptionManager,
+              inboxes,
+              commandBus);
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    @Override
+    public String getProcessorName() {
+        return "ShippingEventsKafkaPublisher";
+    }
+
+    @Override
+    protected List<AggregateType> reactsToEventsRelatedToAggregateTypes() {
+        return List.of(ShippingOrders.AGGREGATE_TYPE);
+    }
+
+    @MessageHandler
+    void handle(OrderShipped e) {
+        log.info("*** Received {} for Order '{}' and adding it to the Outbox as a {} message", e.getClass().getSimpleName(), e.orderId, ExternalOrderShipped.class.getSimpleName());
+        var externalEvent = new ExternalOrderShipped(e.orderId);
+        log.info("*** Forwarding {} message to Kafka. Order '{}'", externalEvent.getClass().getSimpleName(), externalEvent.orderId);
+        var producerRecord = new ProducerRecord<String, Object>(SHIPPING_EVENTS_TOPIC_NAME,
+                                                                externalEvent.orderId.toString(),
+                                                                externalEvent);
+        kafkaTemplate.send(producerRecord);
+        log.info("*** Completed sending event {} to Kafka. Order '{}'", externalEvent.getClass().getSimpleName(), externalEvent.orderId);
+    }
+}
+```
+
 #### Example Subscribing for Aggregate events and publishing an External Event to Kafka via an Outbox
 
 ![Subscribe for Aggregate](images/event-subscription.png)
 
-```
+```java
 var kafkaOutbox = outboxes.getOrCreateOutbox(OutboxConfig.builder()
                                                          .setOutboxName(OutboxName.of("ShippingOrder:KafkaShippingEvents"))
                                                          .setRedeliveryPolicy(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(100), 10))
@@ -531,7 +595,7 @@ assigning a sequential customer number, etc.):
 
 - `subscribeToAggregateEventsInTransaction`
 
-```
+```java
 var eventStoreSubscriptionManager = EventStoreSubscriptionManager.createFor(eventStore,
                                                                              50,
                                                                              Duration.ofMillis(100),
@@ -578,7 +642,7 @@ The methods can have any accessibility (private, public, etc.), they just have t
 
 Example:
 
-```
+```java
 public class MyEventHandler extends PatternMatchingTransactionalPersistedEventHandler {
 
         @SubscriptionEventHandler
@@ -605,7 +669,7 @@ public class MyEventHandler extends PatternMatchingTransactionalPersistedEventHa
 
 To use `Postgresql Event Store` just add the following Maven dependency:
 
-```
+```xml
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-event-store</artifactId>
