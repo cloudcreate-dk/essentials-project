@@ -65,6 +65,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     public static final Logger log = LoggerFactory.getLogger(EssentialsComponentsConfiguration.class);
 
     private ApplicationContext applicationContext;
+    private boolean closed;
+    private Map<String, Lifecycle> lifeCycleBeans;
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
@@ -337,19 +339,26 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @Override
     public void onApplicationEvent(ApplicationContextEvent event) {
         if (event instanceof ContextRefreshedEvent) {
-            applicationContext.getBeansOfType(Lifecycle.class).forEach((beanName, lifecycleBean) -> {
+            log.info(event.getClass().getSimpleName());
+            closed = false;
+            lifeCycleBeans = applicationContext.getBeansOfType(Lifecycle.class);
+            lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
                 if (!lifecycleBean.isStarted()) {
-                    log.info("Starting {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
+                    log.info("Starting {} bean '{}' of type '{}'", dk.cloudcreate.essentials.components.foundation.Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
                     lifecycleBean.start();
                 }
             });
         } else if (event instanceof ContextClosedEvent) {
-            applicationContext.getBeansOfType(Lifecycle.class).forEach((beanName, lifecycleBean) -> {
-                if (lifecycleBean.isStarted()) {
-                    log.info("Stopping {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
-                    lifecycleBean.stop();
-                }
-            });
+            log.info("{} - has Context already been closed: {}", event.getClass().getSimpleName(), closed);
+            if (!closed) {
+                lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
+                    if (lifecycleBean.isStarted()) {
+                        log.info("Stopping {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
+                        lifecycleBean.stop();
+                    }
+                });
+                closed = true;
+            }
         }
     }
 }
