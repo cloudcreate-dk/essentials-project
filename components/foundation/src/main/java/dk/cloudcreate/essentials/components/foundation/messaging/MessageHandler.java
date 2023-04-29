@@ -26,7 +26,7 @@ import java.lang.annotation.*;
  * receives respectively a {@link QueuedMessage} or a {@link Message} where the {@link Message#getPayload()} matches the type of the first argument/parameter on a method annotated with {@literal @MessageHandler}
  * <p>
  * If the class extends {@link PatternMatchingQueuedMessageHandler} (when used with a {@link DurableQueues} instance) then it allows a second optional argument of type {@link QueuedMessage}<br>
- * If the class extends {@link PatternMatchingMessageHandler} (when used with a {@link Inboxes}/{@link Inbox} or {@link Outboxes}/{@link Outbox}) then it allows a second optional argument of type {@link Message}
+ * If the class extends {@link PatternMatchingMessageHandler} (when used with a {@link Inboxes}/{@link Inbox} or {@link Outboxes}/{@link Outbox}) then it allows a second optional argument of type {@link Message}/{@link OrderedMessage}
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
