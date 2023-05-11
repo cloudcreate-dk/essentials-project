@@ -21,10 +21,11 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.types.*;
+import org.reactivestreams.Subscription;
 
 import java.util.Optional;
 
-public interface EventStoreSubscription extends Lifecycle {
+public interface EventStoreSubscription extends Lifecycle, Subscription {
     /**
      * the unique id for the subscriber
      *
@@ -40,6 +41,11 @@ public interface EventStoreSubscription extends Lifecycle {
     AggregateType aggregateType();
 
     void unsubscribe();
+
+    @Override
+    default void cancel() {
+        unsubscribe();
+    }
 
     /**
      * Reset the subscription point.<br>
