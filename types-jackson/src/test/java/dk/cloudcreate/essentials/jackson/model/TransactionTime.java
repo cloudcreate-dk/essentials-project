@@ -32,6 +32,6 @@ public class TransactionTime extends ZonedDateTimeType<TransactionTime> {
     }
 
     public static TransactionTime now() {
-        return new TransactionTime(ZonedDateTime.now(ZoneId.of("UTC")));
+        return new TransactionTime(OffsetDateTime.now(ZoneId.of("UTC")).toZonedDateTime());
     }
 }
