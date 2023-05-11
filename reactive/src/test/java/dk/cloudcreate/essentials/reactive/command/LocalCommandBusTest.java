@@ -222,12 +222,12 @@ class LocalCommandBusTest {
     }
 
     private static class TestSendAndDontWaitErrorHandler implements SendAndDontWaitErrorHandler {
-        private Exception      exception;
+        private Throwable      exception;
         private Object         command;
         private CommandHandler commandHandler;
 
         @Override
-        public void handleError(Exception exception, Object command, CommandHandler commandHandler) {
+        public void handleError(Throwable exception, Object command, CommandHandler commandHandler) {
             this.exception = exception;
             this.command = command;
             this.commandHandler = commandHandler;

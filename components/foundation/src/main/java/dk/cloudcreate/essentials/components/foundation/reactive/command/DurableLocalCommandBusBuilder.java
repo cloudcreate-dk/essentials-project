@@ -24,21 +24,18 @@ import dk.cloudcreate.essentials.reactive.command.interceptor.CommandBusIntercep
 import java.time.Duration;
 import java.util.*;
 
-import static dk.cloudcreate.essentials.components.foundation.reactive.command.CommandQueueNameSelector.defaultCommandQueueForAllCommands;
-import static dk.cloudcreate.essentials.components.foundation.reactive.command.CommandQueueRedeliveryPolicyResolver.sameReliveryPolicyForAllCommandQueues;
+import static dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus.*;
 
 /**
  * Builder for {@link DurableLocalCommandBus}
  */
 public class DurableLocalCommandBusBuilder {
-    private DurableQueues                        durableQueues;
-    private int                                  parallelSendAndDontWaitConsumers     = 10;
-    private CommandQueueNameSelector             commandQueueNameSelector             = defaultCommandQueueForAllCommands();
-    private CommandQueueRedeliveryPolicyResolver commandQueueRedeliveryPolicyResolver = sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy.linearBackoff(Duration.ofMillis(150),
-                                                                                                                                                             Duration.ofMillis(1000),
-                                                                                                                                                             20));
-    private SendAndDontWaitErrorHandler          sendAndDontWaitErrorHandler          = new SendAndDontWaitErrorHandler.RethrowingSendAndDontWaitErrorHandler();
-    private List<CommandBusInterceptor>          interceptors                         = new ArrayList<>();
+    private DurableQueues               durableQueues;
+    private int                         parallelSendAndDontWaitConsumers = 10;
+    private QueueName                   commandQueueName                 = DEFAULT_COMMAND_QUEUE_NAME;
+    private RedeliveryPolicy            commandQueueRedeliveryPolicy     = DEFAULT_REDELIVERY_POLICY;
+    private SendAndDontWaitErrorHandler sendAndDontWaitErrorHandler      = new SendAndDontWaitErrorHandler.RethrowingSendAndDontWaitErrorHandler();
+    private List<CommandBusInterceptor> interceptors                     = new ArrayList<>();
 
     /**
      * Set the underlying Durable Queues provider
@@ -64,31 +61,32 @@ public class DurableLocalCommandBusBuilder {
     }
 
     /**
-     * Set the strategy for selecting which {@link DurableQueues} {@link QueueName} to use for a given combination of command and command handler<br>
-     * Defaults to {@link CommandQueueRedeliveryPolicyResolver#sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy)}
+     * Set the name of the {@link DurableQueues} that will be used queuing commands sent using {@link DurableLocalCommandBus#sendAndDontWait(Object)}<br>
+     * Defaults to {@link DurableLocalCommandBus#DEFAULT_COMMAND_QUEUE_NAME}
      *
-     * @param commandQueueNameSelector The strategy for selecting which {@link DurableQueues} {@link QueueName} to use for a given combination of command and command handler
+     * @param commandQueueName Set the name of the {@link DurableQueues} that will be used to store asynchronous commands sent using {@link DurableLocalCommandBus#sendAndDontWait(Object)}
      * @return this builder instance
      */
-    public DurableLocalCommandBusBuilder setCommandQueueNameSelector(CommandQueueNameSelector commandQueueNameSelector) {
-        this.commandQueueNameSelector = commandQueueNameSelector;
+    public DurableLocalCommandBusBuilder setCommandQueueName(QueueName commandQueueName) {
+        this.commandQueueName = commandQueueName;
         return this;
     }
 
     /**
-     * Set the strategy that allows the {@link DurableLocalCommandBus} to vary the {@link RedeliveryPolicy} per {@link QueueName}<br>
-     * Defaults to {@link CommandQueueNameSelector#defaultCommandQueueForAllCommands()} with {@link RedeliveryPolicy}:
+     * Set the {@link RedeliveryPolicy} used when handling queued commands sent using {@link DurableLocalCommandBus#sendAndDontWait(Object)}
+     * Defaults to {@link DurableLocalCommandBus#DEFAULT_REDELIVERY_POLICY}.<br>
+     * Example:
      * <pre>{@code
      * RedeliveryPolicy.linearBackoff(Duration.ofMillis(150),
      *                                Duration.ofMillis(1000),
      *                                20)
      * }</pre>
      *
-     * @param commandQueueRedeliveryPolicyResolver The strategy that allows the {@link DurableLocalCommandBus} to vary the {@link RedeliveryPolicy} per {@link QueueName}
+     * @param commandQueueRedeliveryPolicy The strategy that allows the {@link DurableLocalCommandBus} to vary the {@link RedeliveryPolicy} per {@link QueueName}
      * @return this builder instance
      */
-    public DurableLocalCommandBusBuilder setCommandQueueRedeliveryPolicyResolver(CommandQueueRedeliveryPolicyResolver commandQueueRedeliveryPolicyResolver) {
-        this.commandQueueRedeliveryPolicyResolver = commandQueueRedeliveryPolicyResolver;
+    public DurableLocalCommandBusBuilder setCommandQueueRedeliveryPolicy(RedeliveryPolicy commandQueueRedeliveryPolicy) {
+        this.commandQueueRedeliveryPolicy = commandQueueRedeliveryPolicy;
         return this;
     }
 
@@ -107,6 +105,7 @@ public class DurableLocalCommandBusBuilder {
 
     /**
      * Set all the {@link CommandBusInterceptor}'s to use
+     *
      * @param interceptors all the {@link CommandBusInterceptor}'s to use
      * @return this builder instance
      */
@@ -117,6 +116,7 @@ public class DurableLocalCommandBusBuilder {
 
     /**
      * Set all the {@link CommandBusInterceptor}'s to use
+     *
      * @param interceptors all the {@link CommandBusInterceptor}'s to use
      * @return this builder instance
      */
@@ -127,6 +127,7 @@ public class DurableLocalCommandBusBuilder {
 
     /**
      * Add additional {@link CommandBusInterceptor}'s to use
+     *
      * @param interceptors the additional {@link CommandBusInterceptor}'s to use
      * @return this builder instance
      */
@@ -137,6 +138,7 @@ public class DurableLocalCommandBusBuilder {
 
     /**
      * Add additional {@link CommandBusInterceptor}'s to use
+     *
      * @param interceptors the additional {@link CommandBusInterceptor}'s to use
      * @return this builder instance
      */
@@ -148,8 +150,8 @@ public class DurableLocalCommandBusBuilder {
     public DurableLocalCommandBus build() {
         return new DurableLocalCommandBus(durableQueues,
                                           parallelSendAndDontWaitConsumers,
-                                          commandQueueNameSelector,
-                                          commandQueueRedeliveryPolicyResolver,
+                                          commandQueueName,
+                                          commandQueueRedeliveryPolicy,
                                           sendAndDontWaitErrorHandler,
                                           interceptors);
     }
