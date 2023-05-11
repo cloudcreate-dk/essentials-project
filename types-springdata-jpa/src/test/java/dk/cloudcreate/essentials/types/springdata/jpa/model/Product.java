@@ -23,7 +23,7 @@ import java.util.Objects;
 @Entity
 @Table(name = "products")
 public class Product {
-    @Id
+    @EmbeddedId
     private ProductId id;
     private String    name;
     @Embedded

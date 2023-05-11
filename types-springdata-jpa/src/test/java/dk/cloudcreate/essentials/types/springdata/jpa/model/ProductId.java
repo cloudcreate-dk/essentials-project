@@ -18,11 +18,27 @@ package dk.cloudcreate.essentials.types.springdata.jpa.model;
 
 import dk.cloudcreate.essentials.types.*;
 
+import javax.persistence.Embeddable;
 import java.util.UUID;
 
+@Embeddable
 public class ProductId extends CharSequenceType<ProductId> implements Identifier {
+    /**
+     * Required as otherwise JPA/Hibernate complains with "dk.cloudcreate.essentials.types.springdata.jpa.model.OrderId has no persistent id property"
+     * as it has problems with supporting SingleValueType immutable objects for identifier fields (as SingleValueType doesn't contain the necessary JPA annotations)
+     */
+    private String productId;
+
+    /**
+     * Is required by JPA
+     */
+    protected ProductId() {
+        super("null");
+    }
+
     public ProductId(CharSequence value) {
         super(value);
+        productId = value.toString();
     }
 
     public static ProductId of(CharSequence value) {

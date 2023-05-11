@@ -31,8 +31,9 @@ import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.shared.FailFast;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
+import org.reactivestreams.Subscription;
 import org.slf4j.*;
-import reactor.core.Disposable;
+import reactor.core.publisher.BaseSubscriber;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -819,19 +820,23 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                         ", started=" + started +
                         '}';
             }
+
+            @Override
+            public void request(long n) {
+                // NOP
+            }
         }
 
         private class NonExclusiveAsynchronousSubscription implements EventStoreSubscription {
-            private final EventStore                    eventStore;
-            private final DurableSubscriptionRepository durableSubscriptionRepository;
-            private final AggregateType                 aggregateType;
-            private final SubscriberId                  subscriberId;
-            private final GlobalEventOrder              onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder;
-            private final Optional<Tenant>              onlyIncludeEventsForTenant;
-            private final PersistedEventHandler         eventHandler;
-
-            private SubscriptionResumePoint resumePoint;
-            private Disposable              subscription;
+            private final EventStore                     eventStore;
+            private final DurableSubscriptionRepository  durableSubscriptionRepository;
+            private final AggregateType                  aggregateType;
+            private final SubscriberId                   subscriberId;
+            private final GlobalEventOrder               onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder;
+            private final Optional<Tenant>               onlyIncludeEventsForTenant;
+            private final PersistedEventHandler          eventHandler;
+            private       SubscriptionResumePoint        resumePoint;
+            private       BaseSubscriber<PersistedEvent> subscription;
 
             private volatile boolean started;
 
@@ -877,31 +882,53 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                              aggregateType,
                              resumePoint.getResumeFromAndIncluding());
 
-                    subscription = eventStore.pollEvents(aggregateType,
-                                                         resumePoint.getResumeFromAndIncluding(),
-                                                         Optional.of(eventStorePollingBatchSize),
-                                                         Optional.of(eventStorePollingInterval),
-                                                         onlyIncludeEventsForTenant,
-                                                         Optional.of(subscriberId))
-                                             .subscribe(e -> {
-                                                 log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {}",
-                                                           subscriberId,
-                                                           aggregateType,
-                                                           e.globalEventOrder(),
-                                                           e.event().getEventTypeOrName().toString(),
-                                                           e.eventId(),
-                                                           e.aggregateId(),
-                                                           e.eventOrder()
-                                                          );
-                                                 try {
-                                                     eventStore.getUnitOfWorkFactory()
-                                                               .usingUnitOfWork(unitOfWork -> eventHandler.handle(e));
-                                                 } catch (Exception cause) {
-                                                     onErrorHandlingEvent(e, cause);
-                                                 } finally {
-                                                     resumePoint.setResumeFromAndIncluding(e.globalEventOrder().increment());
-                                                 }
-                                             });
+                    subscription = new BaseSubscriber<>() {
+                        @Override
+                        protected void hookOnSubscribe(Subscription subscription) {
+                            NonExclusiveAsynchronousSubscription.this.request(eventStorePollingBatchSize);
+                        }
+
+                        @Override
+                        protected void hookOnNext(PersistedEvent e) {
+                            log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {}",
+                                      subscriberId,
+                                      aggregateType,
+                                      e.globalEventOrder(),
+                                      e.event().getEventTypeOrName().toString(),
+                                      e.eventId(),
+                                      e.aggregateId(),
+                                      e.eventOrder()
+                                     );
+                            try {
+                                var requestSize = eventStore.getUnitOfWorkFactory()
+                                                            .withUnitOfWork(unitOfWork -> eventHandler.handleWithBackPressure(e));
+                                if (requestSize < 0) {
+                                    requestSize = 1;
+                                }
+                                log.trace("[{}-{}] (#{}) Requesting {} events from the EventStore",
+                                          subscriberId,
+                                          aggregateType,
+                                          e.globalEventOrder(),
+                                          requestSize
+                                         );
+                                if (requestSize > 0) {
+                                    NonExclusiveAsynchronousSubscription.this.request(requestSize);
+                                }
+                            } catch (Exception cause) {
+                                onErrorHandlingEvent(e, cause);
+                            } finally {
+                                resumePoint.setResumeFromAndIncluding(e.globalEventOrder().increment());
+                            }
+                        }
+                    };
+                    eventStore.pollEvents(aggregateType,
+                                          resumePoint.getResumeFromAndIncluding(),
+                                          Optional.of(eventStorePollingBatchSize),
+                                          Optional.of(eventStorePollingInterval),
+                                          onlyIncludeEventsForTenant,
+                                          Optional.of(subscriberId))
+                              .limitRate(eventStorePollingBatchSize)
+                              .subscribe(subscription);
                 } else {
                     log.debug("[{}-{}] Subscription was already started",
                               subscriberId,
@@ -909,8 +936,24 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                 }
             }
 
+            @Override
+            public void request(long n) {
+                if (!started) {
+                    log.warn("[{}-{}] Cannot request {} event(s) as the subscriber isn't active",
+                             subscriberId,
+                             aggregateType,
+                             n);
+                    return;
+                }
+                log.trace("[{}-{}] Requesting {} event(s)",
+                         subscriberId,
+                         aggregateType,
+                         n);
+                subscription.request(n);
+            }
+
             protected void onErrorHandlingEvent(PersistedEvent e, Exception cause) {
-                // TODO: Add better retry mechanism, poison event handling, etc.
+                // TODO: Add better retry mechanism, poison event handling, etc. For now delegate to Inbox/Outbox for this (see EventProcessor)
                 log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
                               subscriberId,
                               aggregateType,
@@ -1031,6 +1074,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                         ", started=" + started +
                         '}';
             }
+
+
         }
 
         private class ExclusiveAsynchronousSubscription implements EventStoreSubscription {
@@ -1045,8 +1090,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             private final PersistedEventHandler         eventHandler;
             private final LockName                      lockName;
 
-            private SubscriptionResumePoint resumePoint;
-            private Disposable              subscription;
+            private SubscriptionResumePoint        resumePoint;
+            private BaseSubscriber<PersistedEvent> subscription;
 
             private volatile boolean started;
             private volatile boolean active;
@@ -1112,31 +1157,54 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                 log.error(msg("FencedLockAwareSubscriber#onLockAcquired failed for lock {} and resumePoint {}", lock.getName(), resumePoint), e);
                             }
 
-                            subscription = eventStore.pollEvents(aggregateType,
-                                                                 resumePoint.getResumeFromAndIncluding(),
-                                                                 Optional.of(eventStorePollingBatchSize),
-                                                                 Optional.of(eventStorePollingInterval),
-                                                                 onlyIncludeEventsForTenant,
-                                                                 Optional.of(subscriberId))
-                                                     .subscribe(e -> {
-                                                         log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {}",
-                                                                   subscriberId,
-                                                                   aggregateType,
-                                                                   e.globalEventOrder(),
-                                                                   e.event().getEventTypeOrName().toString(),
-                                                                   e.eventId(),
-                                                                   e.aggregateId(),
-                                                                   e.eventOrder()
-                                                                  );
-                                                         try {
-                                                             eventStore.getUnitOfWorkFactory()
-                                                                       .usingUnitOfWork(unitOfWork -> eventHandler.handle(e));
-                                                         } catch (Exception cause) {
-                                                             onErrorHandlingEvent(e, cause);
-                                                         } finally {
-                                                             resumePoint.setResumeFromAndIncluding(e.globalEventOrder().increment());
-                                                         }
-                                                     });
+                            subscription = new BaseSubscriber<>() {
+                                @Override
+                                protected void hookOnSubscribe(Subscription subscription) {
+                                    ExclusiveAsynchronousSubscription.this.request(eventStorePollingBatchSize);
+                                }
+
+                                @Override
+                                protected void hookOnNext(PersistedEvent e) {
+                                    log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {}",
+                                              subscriberId,
+                                              aggregateType,
+                                              e.globalEventOrder(),
+                                              e.event().getEventTypeOrName().toString(),
+                                              e.eventId(),
+                                              e.aggregateId(),
+                                              e.eventOrder()
+                                             );
+                                    try {
+                                        var requestSize = eventStore.getUnitOfWorkFactory()
+                                                                    .withUnitOfWork(unitOfWork -> eventHandler.handleWithBackPressure(e));
+                                        if (requestSize < 0) {
+                                            requestSize = 1;
+                                        }
+                                        log.trace("[{}-{}] (#{}) Requesting {} events from the EventStore",
+                                                  subscriberId,
+                                                  aggregateType,
+                                                  e.globalEventOrder(),
+                                                  requestSize
+                                                 );
+                                        if (requestSize > 0) {
+                                            ExclusiveAsynchronousSubscription.this.request(requestSize);
+                                        }
+                                    } catch (Exception cause) {
+                                        onErrorHandlingEvent(e, cause);
+                                    } finally {
+                                        resumePoint.setResumeFromAndIncluding(e.globalEventOrder().increment());
+                                    }
+                                }
+                            };
+
+                            eventStore.pollEvents(aggregateType,
+                                                  resumePoint.getResumeFromAndIncluding(),
+                                                  Optional.of(eventStorePollingBatchSize),
+                                                  Optional.of(eventStorePollingInterval),
+                                                  onlyIncludeEventsForTenant,
+                                                  Optional.of(subscriberId))
+                                      .limitRate(eventStorePollingBatchSize)
+                                      .subscribe(subscription);
                         }
 
                         @Override
@@ -1153,6 +1221,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                               subscriberId,
                                               aggregateType);
                                     subscription.dispose();
+                                    subscription = null;
                                 } else {
                                     log.debug("[{}-{}] Didn't find a subscription flux to dispose",
                                               subscriberId,
@@ -1179,9 +1248,9 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
 
                             // Save resume point to be the next global order event AFTER the one we know we just handled
                             log.info("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
-                                      subscriberId,
-                                      aggregateType,
-                                      resumePoint.getResumeFromAndIncluding());
+                                     subscriberId,
+                                     aggregateType,
+                                     resumePoint.getResumeFromAndIncluding());
 
                             durableSubscriptionRepository.saveResumePoint(resumePoint);
                             active = false;
@@ -1196,6 +1265,29 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                               subscriberId,
                               aggregateType);
                 }
+            }
+
+            @Override
+            public void request(long n) {
+                if (!started) {
+                    log.warn("[{}-{}] Cannot request {} event(s) as the subscriber isn't active",
+                             subscriberId,
+                             aggregateType,
+                             n);
+                    return;
+                }
+                if (!fencedLockManager.isLockedByThisLockManagerInstance(lockName)) {
+                    log.warn("[{}-{}] Cannot request {} event(s) as the subscriber hasn't acquired the lock",
+                             subscriberId,
+                             aggregateType,
+                             n);
+                    return;
+                }
+                log.trace("[{}-{}] Requesting {} event(s)",
+                         subscriberId,
+                         aggregateType,
+                         n);
+                subscription.request(n);
             }
 
             protected void onErrorHandlingEvent(PersistedEvent e, Exception cause) {

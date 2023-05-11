@@ -8,7 +8,7 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-mongodb</artifactId>
-    <version>0.9.5</version>
+    <version>0.9.6</version>
 </dependency>
 ```
 
@@ -33,10 +33,10 @@ The `EssentialsComponentsConfiguration` auto-configures:
   - ```
     essentials.durable-queues.shared-queue-collection-name=durable_queues
     essentials.durable-queues.transactional-mode=fullytransactional
-    # Only relevant if transactional-mode=singleoperationtransaction
-    # essentials.durable-queues.message-handling-timeout=5s
     essentials.durable-queues.polling-delay-interval-increment-factor=0.5
     essentials.durable-queues.max-polling-interval=2s
+    # Only relevant if transactional-mode=singleoperationtransaction
+    # essentials.durable-queues.message-handling-timeout=5s
     ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `MongoDurableQueues`
 - `LocalEventBus` with bus-name `default` and Bean name `eventBus`

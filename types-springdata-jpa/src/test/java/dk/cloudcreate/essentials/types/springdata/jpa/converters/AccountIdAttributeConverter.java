@@ -14,24 +14,16 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.jackson.model;
+package dk.cloudcreate.essentials.types.springdata.jpa.converters;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import dk.cloudcreate.essentials.types.ZonedDateTimeType;
+import dk.cloudcreate.essentials.types.springdata.jpa.model.AccountId;
 
-import java.time.*;
+import javax.persistence.Converter;
 
-public class TransactionTime extends ZonedDateTimeType<TransactionTime> {
-    @JsonCreator
-    public TransactionTime(ZonedDateTime value) {
-        super(value);
-    }
-
-    public static TransactionTime of(ZonedDateTime value) {
-        return new TransactionTime(value);
-    }
-
-    public static TransactionTime now() {
-        return new TransactionTime(OffsetDateTime.now(ZoneId.of("UTC")).toZonedDateTime());
+@Converter(autoApply = true)
+public class AccountIdAttributeConverter extends BaseLongTypeAttributeConverter<AccountId> {
+    @Override
+    protected Class<AccountId> getConcreteLongType() {
+        return AccountId.class;
     }
 }

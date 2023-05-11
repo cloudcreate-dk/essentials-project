@@ -34,7 +34,7 @@ public interface SendAndDontWaitErrorHandler {
      * @param commandMessage the command message that caused the exception (can be wrapped in an infrastructure wrapper, such as a Message/QueuedMessage, depending on which transport channel is used)
      * @param commandHandler the command handler that can handle the command
      */
-    void handleError(Exception exception, Object commandMessage, CommandHandler commandHandler);
+    void handleError(Throwable exception, Object commandMessage, CommandHandler commandHandler);
 
     /**
      * Fallback {@link SendAndDontWaitErrorHandler} that only error logs any issues.<br>
@@ -46,7 +46,7 @@ public interface SendAndDontWaitErrorHandler {
         private static final Logger log = LoggerFactory.getLogger(FallbackSendAndDontWaitErrorHandler.class);
 
         @Override
-        public void handleError(Exception exception, Object command, CommandHandler commandHandler) {
+        public void handleError(Throwable exception, Object command, CommandHandler commandHandler) {
             log.error(msg("SendAndDontWait ERROR: {} '{}' failed to handle command: {}",
                           CommandHandler.class.getSimpleName(),
                           commandHandler.getClass().getName(),
@@ -63,7 +63,7 @@ public interface SendAndDontWaitErrorHandler {
         private static final Logger log = LoggerFactory.getLogger(FallbackSendAndDontWaitErrorHandler.class);
 
         @Override
-        public void handleError(Exception exception, Object command, CommandHandler commandHandler) {
+        public void handleError(Throwable exception, Object command, CommandHandler commandHandler) {
             log.error(msg("SendAndDontWait ERROR: {} '{}' failed to handle command: {}",
                           CommandHandler.class.getSimpleName(),
                           commandHandler.getClass().getName(),

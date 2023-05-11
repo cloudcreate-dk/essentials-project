@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.reactive.command.AnnotatedCommandHandler;
 import java.lang.annotation.*;
 
 /**
- * Method annotation that can be applied to any single argument method inside {@link AnnotatedCommandHandler} or {@link AnnotatedEventHandler}.<br>
+ * Generic Method annotation that can be applied to any single argument method inside a {@link AnnotatedCommandHandler} or {@link AnnotatedEventHandler}.<br>
  * <b>Depending on which class you extend the rules that apply to each method may be different.</b><br>
  * <blockquote><b>Common for all is that the method accessibility can be any combination of private, protected, public, etc.</b></blockquote>
  * <p>

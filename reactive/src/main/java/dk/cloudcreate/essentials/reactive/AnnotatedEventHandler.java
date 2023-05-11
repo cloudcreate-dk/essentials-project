@@ -23,7 +23,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * Extending this class will allow you to colocate multiple related Event handling methods inside the same class and use it together with the {@link LocalEventBus}<br>
- * Each method must accept a single Event argument, return void and be annotated with the {@link EventHandler} annotation.<br>
+ * Each method must accept a single Event argument, return void and be annotated with the {@link Handler} annotation.<br>
  * The method argument type is matched against the concrete event type using {@link Class#isAssignableFrom(Class)}.<br>
  * The method accessibility can be any combination of private, protected, public, etc.<br>
  * Example:<br>

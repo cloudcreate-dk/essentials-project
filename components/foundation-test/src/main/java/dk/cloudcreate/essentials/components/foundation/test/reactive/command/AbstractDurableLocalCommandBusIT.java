@@ -29,7 +29,6 @@ import org.slf4j.*;
 
 import java.time.Duration;
 
-import static dk.cloudcreate.essentials.components.foundation.reactive.command.CommandQueueRedeliveryPolicyResolver.sameReliveryPolicyForAllCommandQueues;
 import static org.assertj.core.api.Assertions.*;
 
 public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>> {
@@ -52,13 +51,17 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         commandBus = DurableLocalCommandBus.builder()
                                            .setDurableQueues(durableQueues)
                                            .setSendAndDontWaitErrorHandler(errorHandler)
-                                           .setCommandQueueNameSelector((command, commandHandler, delayMessageDelivery) -> queueNameForCommand(command))
-                                           .setCommandQueueRedeliveryPolicyResolver(sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(100), 1)))
-                                           .build();
+                                           .setCommandQueueName(DurableLocalCommandBus.DEFAULT_COMMAND_QUEUE_NAME)
+                                           .setCommandQueueRedeliveryPolicy(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(100), 1))
+                .build();
+        commandBus.start();
     }
 
     @AfterEach
     void cleanup() {
+        if (commandBus != null) {
+            commandBus.stop();
+        }
         if (durableQueues != null) {
             durableQueues.stop();
         }
@@ -67,10 +70,6 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
     protected abstract DURABLE_QUEUES createDurableQueues(UOW_FACTORY unitOfWorkFactory);
 
     protected abstract UOW_FACTORY createUnitOfWorkFactory();
-
-    public static QueueName queueNameForCommand(Object command) {
-        return QueueName.of(command.getClass().getSimpleName());
-    }
 
     @Test
     void test_sync_send() {
@@ -147,7 +146,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         var cmdHandler = new ExceptionThrowingCommandHandler();
         commandBus.addCommandHandler(cmdHandler);
         var command = "Hello World";
-        var errorQueueSizePrior = durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+        var errorQueueSizePrior = durableQueues.getDeadLetterMessages(commandBus.getCommandQueueName(),
                                                                       DurableQueues.QueueingSortOrder.ASC,
                                                                       0,
                                                                       10).size();
@@ -164,11 +163,11 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         assertThat(errorHandler.commandHandler).isEqualTo(cmdHandler);
 
         Awaitility.waitAtMost(Duration.ofMillis(1000))
-                  .untilAsserted(() -> assertThat(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+                  .untilAsserted(() -> assertThat(durableQueues.getDeadLetterMessages(commandBus.getCommandQueueName(),
                                                                                       DurableQueues.QueueingSortOrder.ASC,
                                                                                       0,
                                                                                       10)).hasSize(errorQueueSizePrior + 1));
-        assertThat(Lists.last(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+        assertThat(Lists.last(durableQueues.getDeadLetterMessages(commandBus.getCommandQueueName(),
                                                                   DurableQueues.QueueingSortOrder.ASC,
                                                                   0,
                                                                   10)).get().getMessage().getPayload()).isEqualTo(command);
@@ -180,7 +179,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         var cmdHandler = new ExceptionThrowingCommandHandler();
         commandBus.addCommandHandler(cmdHandler);
         var command = "Hello World";
-        var errorQueueSizePrior = durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+        var errorQueueSizePrior = durableQueues.getDeadLetterMessages(commandBus.getCommandQueueName(),
                                                                       DurableQueues.QueueingSortOrder.ASC,
                                                                       0,
                                                                       10).size();
@@ -197,11 +196,11 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         assertThat(errorHandler.commandHandler).isEqualTo(cmdHandler);
 
         Awaitility.waitAtMost(Duration.ofMillis(1000))
-                  .untilAsserted(() -> assertThat(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+                  .untilAsserted(() -> assertThat(durableQueues.getDeadLetterMessages(commandBus.getCommandQueueName(),
                                                                                       DurableQueues.QueueingSortOrder.ASC,
                                                                                       0,
                                                                                       10)).hasSize(errorQueueSizePrior + 1));
-        assertThat(Lists.last(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+        assertThat(Lists.last(durableQueues.getDeadLetterMessages(commandBus.getCommandQueueName(),
                                                                   DurableQueues.QueueingSortOrder.ASC,
                                                                   0,
                                                                   10)).get().getMessage().getPayload()).isEqualTo(command);
@@ -232,7 +231,7 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         commandBus.addCommandHandler(cmdHandler);
 
         var command = "Hello World with delay";
-        var errorQueueSizePrior = durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+        var errorQueueSizePrior = durableQueues.getDeadLetterMessages(commandBus.getCommandQueueName(),
                                                                       DurableQueues.QueueingSortOrder.ASC,
                                                                       0,
                                                                       10).size();
@@ -252,11 +251,11 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
         assertThat(errorHandler.command.getPayload()).isEqualTo(command);
         assertThat(errorHandler.commandHandler).isEqualTo(cmdHandler);
         Awaitility.waitAtMost(Duration.ofMillis(1000))
-                  .untilAsserted(() -> assertThat(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+                  .untilAsserted(() -> assertThat(durableQueues.getDeadLetterMessages(commandBus.getCommandQueueName(),
                                                                                       DurableQueues.QueueingSortOrder.ASC,
                                                                                       0,
                                                                                       10)).hasSize(errorQueueSizePrior + 1));
-        assertThat(Lists.last(durableQueues.getDeadLetterMessages(queueNameForCommand(command),
+        assertThat(Lists.last(durableQueues.getDeadLetterMessages(commandBus.getCommandQueueName(),
                                                                   DurableQueues.QueueingSortOrder.ASC,
                                                                   0,
                                                                   10)).get().getMessage().getPayload()).isEqualTo(command);
@@ -335,14 +334,14 @@ public abstract class AbstractDurableLocalCommandBusIT<DURABLE_QUEUES extends Du
     }
 
     private static class TestSendAndDontWaitErrorHandler implements SendAndDontWaitErrorHandler {
-        private Exception      exception;
-        private QueuedMessage   command;
+        private Throwable      exception;
+        private QueuedMessage  command;
         private CommandHandler commandHandler;
 
         @Override
-        public void handleError(Exception exception, Object command, CommandHandler commandHandler) {
+        public void handleError(Throwable exception, Object command, CommandHandler commandHandler) {
             this.exception = exception;
-            this.command = (QueuedMessage)command;
+            this.command = (QueuedMessage) command;
             this.commandHandler = commandHandler;
 
             // rethrow exception otherwise the command will not be retried by the Queue

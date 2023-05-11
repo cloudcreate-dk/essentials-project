@@ -171,6 +171,15 @@ public interface SingleValueType<VALUE_TYPE, CONCRETE_TYPE extends SingleValueTy
      */
     VALUE_TYPE value();
 
+    /**
+     * Get the raw value of the type instance
+     *
+     * @return the value of the type instance (never null)
+     */
+    default VALUE_TYPE getValue() {
+        return value();
+    }
+
     // --------------------------------------------------------------------------------------------------------------
 
     /**

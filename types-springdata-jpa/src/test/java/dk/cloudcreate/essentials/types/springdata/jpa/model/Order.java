@@ -24,11 +24,13 @@ import java.util.*;
 @Entity
 @Table(name = "orders")
 public class Order {
-    @Id
-    public  OrderId                  id;
-    public  CustomerId               customerId;
+    @EmbeddedId
+    public OrderId    id;
+    public CustomerId customerId;
     public  AccountId                accountId;
     @ElementCollection
+    @Column(name = "quantity")
+    @CollectionTable(name = "order_lines")
     public  Map<ProductId, Quantity> orderLines;
     private Amount                   amount;
     private Percentage               percentage;

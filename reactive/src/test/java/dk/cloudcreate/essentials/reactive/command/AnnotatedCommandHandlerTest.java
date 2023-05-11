@@ -96,7 +96,7 @@ class AnnotatedCommandHandlerTest {
             return "handleString-" + stringCommand;
         }
 
-        @Handler
+        @CmdHandler
         private String handleLong(Long longCommand) {
             receivedLongCommand = longCommand;
             return "handleLong-" + longCommand;
@@ -121,7 +121,7 @@ class AnnotatedCommandHandlerTest {
         private void handleString(String stringCommand) {
         }
 
-        @Handler
+        @CmdHandler
         private void alsoHandleString(String stringCommand) {
         }
     }

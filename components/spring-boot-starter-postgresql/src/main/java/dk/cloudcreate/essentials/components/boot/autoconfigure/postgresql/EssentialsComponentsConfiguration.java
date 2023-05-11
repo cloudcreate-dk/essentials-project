@@ -26,6 +26,7 @@ import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.Po
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.json.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.*;
@@ -64,7 +65,9 @@ import java.util.*;
 public class EssentialsComponentsConfiguration implements ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
     public static final Logger log = LoggerFactory.getLogger(EssentialsComponentsConfiguration.class);
 
-    private ApplicationContext applicationContext;
+    private ApplicationContext     applicationContext;
+    private boolean                closed;
+    private Map<String, Lifecycle> lifeCycleBeans;
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
@@ -197,6 +200,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                        List<DurableQueuesInterceptor> durableQueuesInterceptors) {
         var durableQueues = PostgresqlDurableQueues.builder()
                                                    .setUnitOfWorkFactory(unitOfWorkFactory)
+                                                   .setTransactionalMode(properties.getDurableQueues().getTransactionalMode())
                                                    .setJsonSerializer(jsonSerializer)
                                                    .setSharedQueueTableName(properties.getDurableQueues().getSharedQueueTableName())
                                                    .setMultiTableChangeListener(optionalMultiTableChangeListener.orElse(null))
@@ -256,14 +260,14 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @ConditionalOnMissingBean
     public DurableLocalCommandBus commandBus(DurableQueues durableQueues,
                                              UnitOfWorkFactory<? extends UnitOfWork> unitOfWorkFactory,
-                                             Optional<CommandQueueNameSelector> optionalCommandQueueNameSelector,
-                                             Optional<CommandQueueRedeliveryPolicyResolver> optionalCommandQueueRedeliveryPolicyResolver,
+                                             Optional<QueueName> optionalCommandQueueName,
+                                             Optional<RedeliveryPolicy> optionalCommandQueueRedeliveryPolicy,
                                              Optional<SendAndDontWaitErrorHandler> optionalSendAndDontWaitErrorHandler,
                                              List<CommandBusInterceptor> commandBusInterceptors) {
         var durableCommandBusBuilder = DurableLocalCommandBus.builder()
                                                              .setDurableQueues(durableQueues);
-        optionalCommandQueueNameSelector.ifPresent(durableCommandBusBuilder::setCommandQueueNameSelector);
-        optionalCommandQueueRedeliveryPolicyResolver.ifPresent(durableCommandBusBuilder::setCommandQueueRedeliveryPolicyResolver);
+        optionalCommandQueueName.ifPresent(durableCommandBusBuilder::setCommandQueueName);
+        optionalCommandQueueRedeliveryPolicy.ifPresent(durableCommandBusBuilder::setCommandQueueRedeliveryPolicy);
         optionalSendAndDontWaitErrorHandler.ifPresent(durableCommandBusBuilder::setSendAndDontWaitErrorHandler);
         durableCommandBusBuilder.addInterceptors(commandBusInterceptors);
         if (commandBusInterceptors.stream().noneMatch(commandBusInterceptor -> UnitOfWorkControllingCommandBusInterceptor.class.isAssignableFrom(commandBusInterceptor.getClass()))) {
@@ -274,7 +278,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
 
     /**
      * Configure the {@link EventBus} to use for all event handlers
-     * @param onErrorHandler    the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
+     *
+     * @param onErrorHandler the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
      * @return the {@link EventBus} to use for all event handlers
      */
     @Bean
@@ -325,19 +330,26 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @Override
     public void onApplicationEvent(ApplicationContextEvent event) {
         if (event instanceof ContextRefreshedEvent) {
-            applicationContext.getBeansOfType(dk.cloudcreate.essentials.components.foundation.Lifecycle.class).forEach((beanName, lifecycleBean) -> {
+            log.info(event.getClass().getSimpleName());
+            closed = false;
+            lifeCycleBeans = applicationContext.getBeansOfType(Lifecycle.class);
+            lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
                 if (!lifecycleBean.isStarted()) {
                     log.info("Starting {} bean '{}' of type '{}'", dk.cloudcreate.essentials.components.foundation.Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
                     lifecycleBean.start();
                 }
             });
         } else if (event instanceof ContextClosedEvent) {
-            applicationContext.getBeansOfType(dk.cloudcreate.essentials.components.foundation.Lifecycle.class).forEach((beanName, lifecycleBean) -> {
-                if (lifecycleBean.isStarted()) {
-                    log.info("Stopping {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
-                    lifecycleBean.stop();
-                }
-            });
+            log.info("{} - has Context already been closed: {}", event.getClass().getSimpleName(), closed);
+            if (!closed) {
+                lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
+                    if (lifecycleBean.isStarted()) {
+                        log.info("Stopping {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
+                        lifecycleBean.stop();
+                    }
+                });
+                closed = true;
+            }
         }
     }
 }

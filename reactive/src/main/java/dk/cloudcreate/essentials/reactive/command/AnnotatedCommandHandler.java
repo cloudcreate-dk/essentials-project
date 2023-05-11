@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.reactive.command;
 
-import dk.cloudcreate.essentials.reactive.*;
+import dk.cloudcreate.essentials.reactive.Handler;
 import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.reflection.Methods;
 import org.slf4j.*;
@@ -31,7 +31,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
  * Extending this class will allow you to colocate multiple related Command handling methods inside the same class and use it together with the {@link LocalCommandBus}<br>
- * Each method must accept a single Command argument, may return a value or return void and be annotated with the {@link EventHandler} annotation.<br>
+ * Each method must accept a single Command argument, may return a value or return void and be annotated with either the {@link Handler} or {@link CmdHandler} annotation.<br>
  * The method argument type is matched against the concrete command type using {@link Class#isAssignableFrom(Class)}.<br>
  * The method accessibility can be any combination of private, protected, public, etc.<br>
  * Example:
@@ -43,7 +43,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  *         ...
  *      }
  *
- *      @Handler
+ *      @CmdHandler
  *      private void someMethod(ReimburseOrder cmd) {
  *         ...
  *      }
@@ -86,7 +86,9 @@ public class AnnotatedCommandHandler implements CommandHandler {
         var invokableMethods = Methods.methods(onClass)
                                       .stream()
                                       .filter(method -> method.getDeclaringClass() != Object.class)
-                                      .filter(candidateMethod -> candidateMethod.isAnnotationPresent(Handler.class) && candidateMethod.getParameterCount() == 1)
+                                      .filter(method -> method.getParameterCount() == 1)
+                                      .filter(candidateMethod -> candidateMethod.isAnnotationPresent(Handler.class) ||
+                                              candidateMethod.isAnnotationPresent(CmdHandler.class))
                                       .collect(Collectors.toList());
         if (log.isTraceEnabled()) {
             log.trace("InvokableMethod in {}: {}",

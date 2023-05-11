@@ -43,7 +43,13 @@ public final class Exceptions {
         return sw.toString();
     }
 
+    /**
+     * Get the root cause (top most parent) of an Exception.
+     * @param exception the exception we want the root cause of
+     * @return the root cause of the exception - will never be null
+     */
     public static Throwable getRootCause(Throwable exception) {
+        requireNonNull(exception, "You must supply an exception");
         var rootCause = exception;
         var parentCause = rootCause.getCause();
         while (parentCause != null) {

@@ -8,7 +8,7 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-postgresql</artifactId>
-    <version>0.9.5</version>
+    <version>0.9.6</version>
 </dependency>
 ```
 
@@ -31,6 +31,7 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
   - Supports additional properties:
   - ```
     essentials.durable-queues.shared-queue-table-name=durable_queues
+    essentials.durable-queues.transactional-mode=fullytransactional
     essentials.durable-queues.polling-delay-interval-increment-factor=0.5
     essentials.durable-queues.max-polling-interval=2s
     # Only relevant if transactional-mode=singleoperationtransaction

@@ -53,7 +53,11 @@
            <version>${snakeyaml.version}</version>
             <scope>test</scope>
         </dependency>
-
+        <dependency>
+            <groupId>org.jdbi</groupId>
+            <artifactId>jdbi3-core</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>jakarta.persistence</groupId>
             <artifactId>jakarta.persistence-api</artifactId>

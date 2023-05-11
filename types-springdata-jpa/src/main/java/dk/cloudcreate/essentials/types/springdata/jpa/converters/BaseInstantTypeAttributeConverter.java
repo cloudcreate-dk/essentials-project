@@ -19,7 +19,8 @@ package dk.cloudcreate.essentials.types.springdata.jpa.converters;
 import dk.cloudcreate.essentials.types.*;
 
 import javax.persistence.AttributeConverter;
-import java.time.*;
+import java.sql.Timestamp;
+import java.time.LocalDate;
 
 /**
  * Base implementation for all JPA {@link AttributeConverter}'s that can convert between a concrete {@link InstantType} sub-class
@@ -36,16 +37,16 @@ import java.time.*;
  *
  * @param <T> the concrete type of {@link InstantType} supported by this converter
  */
-public abstract class BaseInstantTypeAttributeConverter<T extends InstantType<T>> implements AttributeConverter<T, Instant> {
+public abstract class BaseInstantTypeAttributeConverter<T extends InstantType<T>> implements AttributeConverter<T, Timestamp> {
     @Override
-    public Instant convertToDatabaseColumn(T attribute) {
-        return attribute != null ? attribute.value() : null;
+    public Timestamp convertToDatabaseColumn(T attribute) {
+        return attribute != null ? Timestamp.from(attribute.value()) : null;
     }
 
     @Override
-    public T convertToEntityAttribute(Instant dbData) {
+    public T convertToEntityAttribute(Timestamp dbData) {
         if (dbData == null) return null;
-        return SingleValueType.from(dbData, getConcreteInstantType());
+        return SingleValueType.from(dbData.toInstant(), getConcreteInstantType());
     }
 
     /**

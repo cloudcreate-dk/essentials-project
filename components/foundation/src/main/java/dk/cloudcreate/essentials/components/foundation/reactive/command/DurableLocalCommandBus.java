@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.reactive.command;
 
+import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.reactive.command.*;
@@ -25,12 +26,8 @@ import org.slf4j.*;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.*;
 
-import static dk.cloudcreate.essentials.components.foundation.reactive.command.CommandQueueNameSelector.defaultCommandQueueForAllCommands;
-import static dk.cloudcreate.essentials.components.foundation.reactive.command.CommandQueueRedeliveryPolicyResolver.sameReliveryPolicyForAllCommandQueues;
 import static dk.cloudcreate.essentials.shared.FailFast.*;
-import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
  * Provides a JVM local and <b>durable</b>,
@@ -38,25 +35,28 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * variant of the {@link CommandBus} concept<br>
  * Durability for {@link #sendAndDontWait(Object)}/{@link #sendAndDontWait(Object, Duration)}) is delegated
  * to {@link DurableQueues}<br>
- * Which {@link QueueName} that is used will be determined by the {@link CommandQueueNameSelector} and the {@link RedeliveryPolicy} is determined by the {@link CommandQueueRedeliveryPolicyResolver}<br>
+ * Which {@link QueueName} that is used will be determined by the specified {@link #getCommandQueueName()}<br>
+ * The {@link RedeliveryPolicy} is determined by the specified {@link #getCommandQueueRedeliveryPolicy()}<br>
  * <br>
  * Note: If the {@link SendAndDontWaitErrorHandler} provided doesn't rethrow the exception, then the underlying {@link DurableQueues} will not be able to retry the command.<br>
  * Due to this the {@link DurableLocalCommandBus} defaults to using the {@link RethrowingSendAndDontWaitErrorHandler}
  *
  * @see AnnotatedCommandHandler
  */
-public class DurableLocalCommandBus extends AbstractCommandBus {
-    private static final Logger log = LoggerFactory.getLogger(DurableLocalCommandBus.class);
+public class DurableLocalCommandBus extends AbstractCommandBus implements Lifecycle {
+    private static final Logger           log                        = LoggerFactory.getLogger(DurableLocalCommandBus.class);
+    public static final  QueueName        DEFAULT_COMMAND_QUEUE_NAME = QueueName.of("DefaultCommandQueue");
+    public static final  RedeliveryPolicy DEFAULT_REDELIVERY_POLICY  = RedeliveryPolicy.linearBackoff(Duration.ofMillis(150),
+                                                                                                      Duration.ofMillis(1000),
+                                                                                                      20);
+    
+    private DurableQueues    durableQueues;
+    private int              parallelSendAndDontWaitConsumers = 10;
+    private QueueName        commandQueueName                 = DEFAULT_COMMAND_QUEUE_NAME;
+    private RedeliveryPolicy commandQueueRedeliveryPolicy     = DEFAULT_REDELIVERY_POLICY;
 
-    private DurableQueues                        durableQueues;
-    private int                                  parallelSendAndDontWaitConsumers     = 10;
-    private CommandQueueNameSelector             commandQueueNameSelector             = defaultCommandQueueForAllCommands();
-    private CommandQueueRedeliveryPolicyResolver commandQueueRedeliveryPolicyResolver = sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy.linearBackoff(Duration.ofMillis(150),
-                                                                                                                                                             Duration.ofMillis(1000),
-                                                                                                                                                             20));
-
-
-    private ConcurrentMap<QueueName, DurableQueueConsumer> queueConsumers = new ConcurrentHashMap<>();
+    private boolean              started;
+    private DurableQueueConsumer durableQueueConsumer;
 
     /**
      * Builder for a {@link DurableLocalCommandBusBuilder}
@@ -70,8 +70,8 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
     /**
      * Create a new {@link DurableLocalCommandBus} using defaults:
      * <ul>
-     *     <li>{@link CommandQueueNameSelector}: {@link CommandQueueNameSelector#defaultCommandQueueForAllCommands()}</li>
-     *     <li>{@link CommandQueueRedeliveryPolicyResolver}: {@link CommandQueueRedeliveryPolicyResolver#sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy)}</li>
+     *     <li>{@link #getCommandQueueName()}: {@link #DEFAULT_COMMAND_QUEUE_NAME}</li>
+     *     <li>{@link #getCommandQueueRedeliveryPolicy()}: {@link #DEFAULT_REDELIVERY_POLICY}</li>
      *     <li>{@link SendAndDontWaitErrorHandler}: {@link RethrowingSendAndDontWaitErrorHandler}</li>
      * </ul>
      *
@@ -88,25 +88,24 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
      *     <li>{@link SendAndDontWaitErrorHandler}: {@link RethrowingSendAndDontWaitErrorHandler}</li>
      * </ul>
      *
-     * @param durableQueues                        the underlying Durable Queues provider
-     * @param commandQueueNameSelector             {The strategy for selecting which {@link DurableQueues}
-     *                                             {@link QueueName} to use for a given combination of command and command handler
-     * @param commandQueueRedeliveryPolicyResolver Strategy that allows the {@link DurableLocalCommandBus} to vary the {@link RedeliveryPolicy} per {@link QueueName}
+     * @param durableQueues                the underlying Durable Queues provider
+     * @param commandQueueName             Set the name of the {@link DurableQueues} that will be used queuing commands sent using {@link DurableLocalCommandBus#sendAndDontWait(Object)}
+     * @param commandQueueRedeliveryPolicy Set the {@link RedeliveryPolicy} used when handling queued commnds sent using{@link DurableLocalCommandBus#sendAndDontWait(Object)}
      */
     public DurableLocalCommandBus(DurableQueues durableQueues,
-                                  CommandQueueNameSelector commandQueueNameSelector,
-                                  CommandQueueRedeliveryPolicyResolver commandQueueRedeliveryPolicyResolver) {
+                                  QueueName commandQueueName,
+                                  RedeliveryPolicy commandQueueRedeliveryPolicy) {
         super(new RethrowingSendAndDontWaitErrorHandler(), List.of());
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
-        this.commandQueueNameSelector = requireNonNull(commandQueueNameSelector, "No durableQueueNameSelector provided");
-        this.commandQueueRedeliveryPolicyResolver = requireNonNull(commandQueueRedeliveryPolicyResolver, "No commandQueueRedeliveryPolicyResolver provided");
+        this.commandQueueName = requireNonNull(commandQueueName, "No commandQueueName provided");
+        this.commandQueueRedeliveryPolicy = requireNonNull(commandQueueRedeliveryPolicy, "No commandQueueRedeliveryPolicy provided");
     }
 
     /**
      * Create a new {@link DurableLocalCommandBus} using defaults:
      * <ul>
-     *     <li>{@link CommandQueueNameSelector}: {@link CommandQueueNameSelector#defaultCommandQueueForAllCommands()}</li>
-     *     <li>{@link CommandQueueRedeliveryPolicyResolver}: {@link CommandQueueRedeliveryPolicyResolver#sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy)}</li>
+     *     <li>{@link #getCommandQueueName()}: {@link #DEFAULT_COMMAND_QUEUE_NAME}</li>
+     *     <li>{@link #getCommandQueueRedeliveryPolicy()}: {@link #DEFAULT_REDELIVERY_POLICY}</li>
      * </ul>
      *
      * @param durableQueues               the underlying Durable Queues provider
@@ -127,25 +126,24 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
      * </ul>
      *
      * @param durableQueues               the underlying Durable Queues provider
-     * @param commandQueueNameSelector    {The strategy for selecting which {@link DurableQueues}
-     *                                    {@link QueueName} to use for a given combination of command and command handler
+     * @param commandQueueName            Set the name of the {@link DurableQueues} that will be used queuing commands sent using {@link DurableLocalCommandBus#sendAndDontWait(Object)}
      * @param sendAndDontWaitErrorHandler Exception handler that will handle errors that occur during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}. If this handler doesn't rethrow the exeption,
      *                                    then the message will not be retried by the underlying {@link DurableQueues}
      */
     public DurableLocalCommandBus(DurableQueues durableQueues,
-                                  CommandQueueNameSelector commandQueueNameSelector,
+                                  QueueName commandQueueName,
                                   SendAndDontWaitErrorHandler sendAndDontWaitErrorHandler) {
         super(sendAndDontWaitErrorHandler,
               List.of());
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
-        this.commandQueueNameSelector = requireNonNull(commandQueueNameSelector, "No durableQueueNameSelector provided");
+        this.commandQueueName = requireNonNull(commandQueueName, "No commandQueueName provided");
     }
 
     /**
      * Create a new {@link DurableLocalCommandBus} using defaults:
      * <ul>
-     *     <li>{@link CommandQueueNameSelector}: {@link CommandQueueNameSelector#defaultCommandQueueForAllCommands()}</li>
-     *     <li>{@link CommandQueueRedeliveryPolicyResolver}: {@link CommandQueueRedeliveryPolicyResolver#sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy)}</li>
+     *     <li>{@link #getCommandQueueName()}: {@link #DEFAULT_COMMAND_QUEUE_NAME}</li>
+     *     <li>{@link #getCommandQueueRedeliveryPolicy()}: {@link #DEFAULT_REDELIVERY_POLICY}</li>
      *     <li>{@link SendAndDontWaitErrorHandler}: {@link RethrowingSendAndDontWaitErrorHandler}</li>
      * </ul>
      *
@@ -161,27 +159,27 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
     /**
      * Create a new {@link DurableLocalCommandBus} using defaults:
      * <ul>
-     *     <li>{@link CommandQueueRedeliveryPolicyResolver}: {@link CommandQueueRedeliveryPolicyResolver#sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy)}</li>
+     *     <li>{@link #getCommandQueueRedeliveryPolicy()}: {@link #DEFAULT_REDELIVERY_POLICY}</li>
      *     <li>{@link SendAndDontWaitErrorHandler}: {@link RethrowingSendAndDontWaitErrorHandler}</li>
      * </ul>
      *
-     * @param durableQueues            the underlying Durable Queues provider
-     * @param commandQueueNameSelector {The strategy for selecting which {@link DurableQueues}
-     *                                 {@link QueueName} to use for a given combination of command and command handler
-     * @param interceptors             all the {@link CommandBusInterceptor}'s
+     * @param durableQueues    the underlying Durable Queues provider
+     * @param commandQueueName Set the name of the {@link DurableQueues} that will be used queuing commands sent using {@link DurableLocalCommandBus#sendAndDontWait(Object)}
+     * @param interceptors     all the {@link CommandBusInterceptor}'s
      */
     public DurableLocalCommandBus(DurableQueues durableQueues,
-                                  CommandQueueNameSelector commandQueueNameSelector,
+                                  QueueName commandQueueName,
                                   List<CommandBusInterceptor> interceptors) {
         super(new RethrowingSendAndDontWaitErrorHandler(), interceptors);
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
-        this.commandQueueNameSelector = requireNonNull(commandQueueNameSelector, "No durableQueueNameSelector provided");
+        this.commandQueueName = requireNonNull(commandQueueName, "No commandQueueName provided");
     }
 
     /**
      * Create a new {@link DurableLocalCommandBus} using defaults:
      * <ul>
-     *     <li>{@link SendAndDontWaitErrorHandler}: {@link RethrowingSendAndDontWaitErrorHandler}</li>
+     *     <li>{@link #getCommandQueueName()}: {@link #DEFAULT_COMMAND_QUEUE_NAME}</li>
+     *     <li>{@link #getCommandQueueRedeliveryPolicy()}: {@link #DEFAULT_REDELIVERY_POLICY}</li>
      * </ul>
      *
      * @param durableQueues               the underlying Durable Queues provider
@@ -200,19 +198,18 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
     /**
      * Create a new {@link DurableLocalCommandBus}
      *
-     * @param durableQueues                        the underlying Durable Queues provider
-     * @param parallelSendAndDontWaitConsumers     How many parallel {@link DurableQueues} consumers should listen for messages added using {@link #sendAndDontWait(Object)}/{@link #sendAndDontWait(Object, Duration)}
-     * @param commandQueueNameSelector             {The strategy for selecting which {@link DurableQueues}
-     *                                             {@link QueueName} to use for a given combination of command and command handler
-     * @param commandQueueRedeliveryPolicyResolver Strategy that allows the {@link DurableLocalCommandBus} to vary the {@link RedeliveryPolicy} per {@link QueueName}
-     * @param sendAndDontWaitErrorHandler          Exception handler that will handle errors that occur during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}. If this handler doesn't rethrow the exeption,
-     *                                             then the message will not be retried by the underlying {@link DurableQueues}
-     * @param interceptors                         all the {@link CommandBusInterceptor}'s
+     * @param durableQueues                    the underlying Durable Queues provider
+     * @param parallelSendAndDontWaitConsumers How many parallel {@link DurableQueues} consumers should listen for messages added using {@link #sendAndDontWait(Object)}/{@link #sendAndDontWait(Object, Duration)}
+     * @param commandQueueName                 Set the name of the {@link DurableQueues} that will be used queuing commands sent using {@link DurableLocalCommandBus#sendAndDontWait(Object)}
+     * @param commandQueueRedeliveryPolicy     Set the {@link RedeliveryPolicy} used when handling queued commnds sent using{@link DurableLocalCommandBus#sendAndDontWait(Object)}
+     * @param sendAndDontWaitErrorHandler      Exception handler that will handle errors that occur during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}. If this handler doesn't rethrow the exeption,
+     *                                         then the message will not be retried by the underlying {@link DurableQueues}
+     * @param interceptors                     all the {@link CommandBusInterceptor}'s
      */
     public DurableLocalCommandBus(DurableQueues durableQueues,
                                   int parallelSendAndDontWaitConsumers,
-                                  CommandQueueNameSelector commandQueueNameSelector,
-                                  CommandQueueRedeliveryPolicyResolver commandQueueRedeliveryPolicyResolver,
+                                  QueueName commandQueueName,
+                                  RedeliveryPolicy commandQueueRedeliveryPolicy,
                                   SendAndDontWaitErrorHandler sendAndDontWaitErrorHandler,
                                   List<CommandBusInterceptor> interceptors) {
         super(sendAndDontWaitErrorHandler,
@@ -220,39 +217,39 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
         requireTrue(parallelSendAndDontWaitConsumers >= 1, "parallelSendAndDontWaitConsumers is < 1");
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
         this.parallelSendAndDontWaitConsumers = parallelSendAndDontWaitConsumers;
-        this.commandQueueNameSelector = requireNonNull(commandQueueNameSelector, "No durableQueueNameSelector provided");
-        this.commandQueueRedeliveryPolicyResolver = requireNonNull(commandQueueRedeliveryPolicyResolver, "No commandQueueRedeliveryPolicyResolver provided");
+        this.commandQueueName = requireNonNull(commandQueueName, "No commandQueueName provided");
+        this.commandQueueRedeliveryPolicy = requireNonNull(commandQueueRedeliveryPolicy, "No commandQueueRedeliveryPolicy provided");
 
     }
 
     /**
      * Create a new {@link DurableLocalCommandBus} using defaults:
      * <ul>
-     *     <li>{@link CommandQueueRedeliveryPolicyResolver}: {@link CommandQueueRedeliveryPolicyResolver#sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy)}</li>
+     *     <li>{@link #getCommandQueueRedeliveryPolicy()}: {@link #DEFAULT_REDELIVERY_POLICY}</li>
      * </ul>
      *
      * @param durableQueues               the underlying Durable Queues provider
-     * @param commandQueueNameSelector    {The strategy for selecting which {@link DurableQueues}
+     * @param commandQueueName            {The strategy for selecting which {@link DurableQueues}
      *                                    {@link QueueName} to use for a given combination of command and command handler
      * @param sendAndDontWaitErrorHandler Exception handler that will handle errors that occur during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}. If this handler doesn't rethrow the exeption,
      *                                    then the message will not be retried by the underlying {@link DurableQueues}
      * @param interceptors                all the {@link CommandBusInterceptor}'s
      */
     public DurableLocalCommandBus(DurableQueues durableQueues,
-                                  CommandQueueNameSelector commandQueueNameSelector,
+                                  QueueName commandQueueName,
                                   SendAndDontWaitErrorHandler sendAndDontWaitErrorHandler,
                                   List<CommandBusInterceptor> interceptors) {
         super(sendAndDontWaitErrorHandler,
               interceptors);
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
-        this.commandQueueNameSelector = requireNonNull(commandQueueNameSelector, "No durableQueueNameSelector provided");
+        this.commandQueueName = requireNonNull(commandQueueName, "No commandQueueName provided");
     }
 
     /**
      * Create a new {@link DurableLocalCommandBus} using defaults:
      * <ul>
-     *     <li>{@link CommandQueueNameSelector}: {@link CommandQueueNameSelector#defaultCommandQueueForAllCommands()}</li>
-     *     <li>{@link CommandQueueRedeliveryPolicyResolver}: {@link CommandQueueRedeliveryPolicyResolver#sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy)}</li>
+     *     <li>{@link #getCommandQueueName()}: {@link #DEFAULT_COMMAND_QUEUE_NAME}</li>
+     *     <li>{@link #getCommandQueueRedeliveryPolicy()}: {@link #DEFAULT_REDELIVERY_POLICY}</li>
      *     <li>{@link SendAndDontWaitErrorHandler}: {@link RethrowingSendAndDontWaitErrorHandler}</li>
      * </ul>
      *
@@ -268,28 +265,28 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
     /**
      * Create a new {@link DurableLocalCommandBus} using defaults:
      * <ul>
-     *     <li>{@link CommandQueueRedeliveryPolicyResolver}: {@link CommandQueueRedeliveryPolicyResolver#sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy)}</li>
+     *     <li>{@link #getCommandQueueRedeliveryPolicy()}: {@link #DEFAULT_REDELIVERY_POLICY}</li>
      *     <li>{@link SendAndDontWaitErrorHandler}: {@link RethrowingSendAndDontWaitErrorHandler}</li>
      * </ul>
      *
-     * @param durableQueues            the underlying Durable Queues provider
-     * @param commandQueueNameSelector {The strategy for selecting which {@link DurableQueues}
-     *                                 {@link QueueName} to use for a given combination of command and command handler
-     * @param interceptors             all the {@link CommandBusInterceptor}'s
+     * @param durableQueues    the underlying Durable Queues provider
+     * @param commandQueueName {The strategy for selecting which {@link DurableQueues}
+     *                         {@link QueueName} to use for a given combination of command and command handler
+     * @param interceptors     all the {@link CommandBusInterceptor}'s
      */
     public DurableLocalCommandBus(DurableQueues durableQueues,
-                                  CommandQueueNameSelector commandQueueNameSelector,
+                                  QueueName commandQueueName,
                                   CommandBusInterceptor... interceptors) {
         this(durableQueues,
              List.of(interceptors));
-        this.commandQueueNameSelector = requireNonNull(commandQueueNameSelector, "No durableQueueNameSelector provided");
+        this.commandQueueName = requireNonNull(commandQueueName, "No commandQueueName provided");
     }
 
     /**
      * Create a new {@link DurableLocalCommandBus} using defaults: using defaults:
      * <ul>
-     *     <li>{@link CommandQueueNameSelector}: {@link CommandQueueNameSelector#defaultCommandQueueForAllCommands()}</li>
-     *     <li>{@link CommandQueueRedeliveryPolicyResolver}: {@link CommandQueueRedeliveryPolicyResolver#sameReliveryPolicyForAllCommandQueues(RedeliveryPolicy)}</li>
+     *     <li>{@link #getCommandQueueName()}: {@link #DEFAULT_COMMAND_QUEUE_NAME}</li>
+     *     <li>{@link #getCommandQueueRedeliveryPolicy()}: {@link #DEFAULT_REDELIVERY_POLICY}</li>
      * </ul>
      *
      * @param durableQueues               the underlying Durable Queues provider
@@ -308,30 +305,59 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
     /**
      * Create a new {@link DurableLocalCommandBus}
      *
-     * @param durableQueues                        the underlying Durable Queues provider
-     * @param parallelSendAndDontWaitConsumers     How many parallel {@link DurableQueues} consumers should listen for messages added using {@link #sendAndDontWait(Object)}/{@link #sendAndDontWait(Object, Duration)}
-     * @param commandQueueNameSelector             {The strategy for selecting which {@link DurableQueues}
-     *                                             {@link QueueName} to use for a given combination of command and command handler
-     * @param commandQueueRedeliveryPolicyResolver The strategy that allows the {@link DurableLocalCommandBus} to vary the {@link RedeliveryPolicy} per {@link QueueName}
-     * @param sendAndDontWaitErrorHandler          Exception handler that will handle errors that occur during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}. If this handler doesn't rethrow the exeption,
-     *                                             then the message will not be retried by the underlying {@link DurableQueues}
-     * @param interceptors                         all the {@link CommandBusInterceptor}'s
+     * @param durableQueues                    the underlying Durable Queues provider
+     * @param parallelSendAndDontWaitConsumers How many parallel {@link DurableQueues} consumers should listen for messages added using {@link #sendAndDontWait(Object)}/{@link #sendAndDontWait(Object, Duration)}
+     * @param commandQueueName                 Set the name of the {@link DurableQueues} that will be used queuing commands sent using {@link DurableLocalCommandBus#sendAndDontWait(Object)}
+     * @param commandQueueRedeliveryPolicy     Set the {@link RedeliveryPolicy} used when handling queued commnds sent using{@link DurableLocalCommandBus#sendAndDontWait(Object)}
+     * @param sendAndDontWaitErrorHandler      Exception handler that will handle errors that occur during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}. If this handler doesn't rethrow the exeption,
+     *                                         then the message will not be retried by the underlying {@link DurableQueues}
+     * @param interceptors                     all the {@link CommandBusInterceptor}'s
      */
     public DurableLocalCommandBus(DurableQueues durableQueues,
                                   int parallelSendAndDontWaitConsumers,
-                                  CommandQueueNameSelector commandQueueNameSelector,
-                                  CommandQueueRedeliveryPolicyResolver commandQueueRedeliveryPolicyResolver,
+                                  QueueName commandQueueName,
+                                  RedeliveryPolicy commandQueueRedeliveryPolicy,
                                   SendAndDontWaitErrorHandler sendAndDontWaitErrorHandler,
                                   CommandBusInterceptor... interceptors) {
         this(durableQueues,
              parallelSendAndDontWaitConsumers,
-             commandQueueNameSelector,
-             commandQueueRedeliveryPolicyResolver,
+             commandQueueName,
+             commandQueueRedeliveryPolicy,
              sendAndDontWaitErrorHandler,
              List.of(interceptors)
             );
     }
 
+    @Override
+    public void start() {
+        if (!started) {
+            log.info("Starting...");
+            started = true;
+            durableQueueConsumer = durableQueues.consumeFromQueue(commandQueueName,
+                                                                  commandQueueRedeliveryPolicy,
+                                                                  parallelSendAndDontWaitConsumers,
+                                                                  this::processSendAndDontWaitMessage);
+            log.info("Started");
+        }
+    }
+
+    @Override
+    public void stop() {
+        if (started) {
+            log.info("Stopping...");
+            started = false;
+            if (durableQueueConsumer != null) {
+                durableQueueConsumer.stop();
+                durableQueueConsumer = null;
+            }
+            log.info("Stopped");
+        }
+    }
+
+    @Override
+    public boolean isStarted() {
+        return started;
+    }
 
     @Override
     @SuppressWarnings("unchecked")
@@ -348,25 +374,11 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
     private <C> void _sendAndDontWait(C command, Optional<Duration> messageDeliveryDelay) {
         var commandHandler = findCommandHandlerCapableOfHandling(command);
         requireNonNull(messageDeliveryDelay, "You must provide a messageDeliveryDelay value");
-        var durableQueueName = commandQueueNameSelector.selectDurableQueueNameFor(command,
-                                                                                  commandHandler,
-                                                                                  messageDeliveryDelay);
-        if (durableQueueName == null) {
-            throw new IllegalStateException(msg("{} selected a <null> QueueName for the combination of CommandHandler: {},  messageDeliveryDelay: {}, Command: {}",
-                                                CommandQueueNameSelector.class.getSimpleName(),
-                                                commandHandler.getClass().getName(),
-                                                messageDeliveryDelay,
-                                                command));
-        }
 
-        queueConsumers.computeIfAbsent(durableQueueName, queueName -> durableQueues.consumeFromQueue(durableQueueName,
-                                                                                                     commandQueueRedeliveryPolicyResolver.resolveRedeliveryPolicyFor(durableQueueName),
-                                                                                                     parallelSendAndDontWaitConsumers,
-                                                                                                     this::processSendAndDontWaitMessage));
 
         if (messageDeliveryDelay.isPresent()) {
             log.debug("[{}] Queuing Durable delayed {} sendAndDontWait for command of type '{}' to {} '{}'. TransactionalMode: {}",
-                      durableQueueName,
+                      commandQueueName,
                       messageDeliveryDelay,
                       command.getClass().getName(),
                       CommandHandler.class.getSimpleName(),
@@ -374,7 +386,7 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
                       durableQueues.getTransactionalMode());
         } else {
             log.debug("[{}] Queuing Durable sendAndDontWait command of type '{}' to {} '{}'. TransactionalMode: {}",
-                      durableQueueName,
+                      commandQueueName,
                       command.getClass().getName(),
                       CommandHandler.class.getSimpleName(),
                       commandHandler.toString(),
@@ -385,12 +397,12 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
 
             // Allow sendAndDontWait to automatically start a new or join in an existing UnitOfWork
             durableQueues.getUnitOfWorkFactory().get().usingUnitOfWork(() -> {
-                durableQueues.queueMessage(durableQueueName,
+                durableQueues.queueMessage(commandQueueName,
                                            Message.of(command),
                                            messageDeliveryDelay);
             });
         } else {
-            durableQueues.queueMessage(durableQueueName,
+            durableQueues.queueMessage(commandQueueName,
                                        Message.of(command),
                                        messageDeliveryDelay);
         }
@@ -415,7 +427,7 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
                                                        msg -> {
                                                            try {
                                                                return commandHandler.handle(command);
-                                                           } catch (Exception e) {
+                                                           } catch (Throwable e) {
                                                                sendAndDontWaitErrorHandler.handleError(e,
                                                                                                        queuedMessage,
                                                                                                        commandHandler);
@@ -432,11 +444,11 @@ public class DurableLocalCommandBus extends AbstractCommandBus {
         return parallelSendAndDontWaitConsumers;
     }
 
-    public CommandQueueNameSelector getCommandQueueNameSelector() {
-        return commandQueueNameSelector;
+    public QueueName getCommandQueueName() {
+        return commandQueueName;
     }
 
-    public CommandQueueRedeliveryPolicyResolver getCommandQueueRedeliveryPolicyResolver() {
-        return commandQueueRedeliveryPolicyResolver;
+    public RedeliveryPolicy getCommandQueueRedeliveryPolicy() {
+        return commandQueueRedeliveryPolicy;
     }
 }

@@ -14,7 +14,7 @@ To use `Reactive` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>reactive</artifactId>
-    <version>0.9.5</version>
+    <version>0.9.6</version>
 </dependency>
 ```
 
@@ -57,7 +57,8 @@ localEventBus.publish(new OrderCreatedEvent());
 ```
 
 If you wish to colocate multiple related Event handling methods inside the same class and use it together with the 
-`LocalEventBus` then you can extend the `AnnotatedEventHandler` class:  
+`LocalEventBus` then you can extend the `AnnotatedEventHandler` class and annotate each event handler method with the
+`@Handler` annotation.
 
 ```
 public class OrderEventsHandler extends AnnotatedEventHandler {
@@ -102,7 +103,8 @@ var monoWithOptionalResult = commandBus.sendAsync(new ImbuseOrder(...))
 ```
 
 In case you need to colocate multiple related command handling methods inside a single class then you 
-should have your command handling class extend `AnnotatedCommandHandler`.  
+should have your command handling class extend `AnnotatedCommandHandler` and annotate each command handler method with either 
+the `@Handler` or `@CmdHandler` annotation.
 
 Example:  
 ```
@@ -113,7 +115,7 @@ public class OrdersCommandHandler extends AnnotatedCommandHandler {
         ...
      }
 
-     @Handler
+     @CmdHandler
      private void someMethod(ReimburseOrder cmd) {
         ...
      }

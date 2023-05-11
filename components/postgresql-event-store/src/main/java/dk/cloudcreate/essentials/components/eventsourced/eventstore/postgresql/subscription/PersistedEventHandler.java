@@ -41,6 +41,11 @@ public interface PersistedEventHandler {
      */
     default void onResetFrom(GlobalEventOrder globalEventOrder) {};
 
+    default int handleWithBackPressure(PersistedEvent event) {
+        handle(event);
+        return 1;
+    }
+
     /**
      * This method will be called in a {@link UnitOfWork} when ever a {@link PersistedEvent} is published
      *

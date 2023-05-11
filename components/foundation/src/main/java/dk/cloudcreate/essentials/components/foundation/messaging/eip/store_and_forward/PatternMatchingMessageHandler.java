@@ -162,7 +162,7 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
                     method.getParameterCount() >= 1 && method.getParameterCount() <= 2;
             if (isCandidate && method.getParameterCount() == 2) {
                 // Check that the 2nd parameter is a PersistedEvent, otherwise it's not supported
-                return Message.class.equals(method.getParameterTypes()[1]);
+                return Message.class.isAssignableFrom(method.getParameterTypes()[1]);
             }
             return isCandidate;
 

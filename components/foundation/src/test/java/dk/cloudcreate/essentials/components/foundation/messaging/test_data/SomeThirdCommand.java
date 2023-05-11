@@ -14,24 +14,12 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.jackson.model;
+package dk.cloudcreate.essentials.components.foundation.messaging.test_data;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import dk.cloudcreate.essentials.types.ZonedDateTimeType;
+public class SomeThirdCommand {
+    public final String someValue;
 
-import java.time.*;
-
-public class TransactionTime extends ZonedDateTimeType<TransactionTime> {
-    @JsonCreator
-    public TransactionTime(ZonedDateTime value) {
-        super(value);
-    }
-
-    public static TransactionTime of(ZonedDateTime value) {
-        return new TransactionTime(value);
-    }
-
-    public static TransactionTime now() {
-        return new TransactionTime(OffsetDateTime.now(ZoneId.of("UTC")).toZonedDateTime());
+    public SomeThirdCommand(String someValue) {
+        this.someValue = someValue;
     }
 }

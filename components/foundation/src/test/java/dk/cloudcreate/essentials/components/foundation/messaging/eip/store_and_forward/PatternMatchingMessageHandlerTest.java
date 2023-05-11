@@ -17,7 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.MessageHandler;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.test_data.*;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +37,10 @@ class PatternMatchingMessageHandlerTest {
         assertThat(messageHandler.someCommand).isEqualTo(someCommand);
         assertThat(messageHandler.someOtherCommand).isNull();
         assertThat(messageHandler.messageForSomeOtherCommand).isNull();
+        assertThat(messageHandler.someThirdCommand).isNull();
+        assertThat(messageHandler.messageForSomeThirdCommand).isNull();
         assertThat(messageHandler.unmatchedMessage).isNull();
+
 
         assertThat(messageHandler.handlesMessageWithPayload(someCommand.getClass())).isTrue();
     }
@@ -56,9 +59,33 @@ class PatternMatchingMessageHandlerTest {
         assertThat(messageHandler.someCommand).isNull();
         assertThat(messageHandler.someOtherCommand).isEqualTo(someOtherCommand);
         assertThat(messageHandler.messageForSomeOtherCommand).isEqualTo(message);
+        assertThat(messageHandler.someThirdCommand).isNull();
+        assertThat(messageHandler.messageForSomeThirdCommand).isNull();
+
         assertThat(messageHandler.unmatchedMessage).isNull();
 
         assertThat(messageHandler.handlesMessageWithPayload(someOtherCommand.getClass())).isTrue();
+    }
+
+    @Test
+    void test_queued_message_pattern_matching_with_OrderedMessage() {
+        // Given
+        var messageHandler   = new TestPatternMatchingMessageHandler();
+        var someThirdCommand = new SomeThirdCommand("Test");
+
+        // When
+        var message = OrderedMessage.of(someThirdCommand, "key1", 10);
+        messageHandler.accept(message);
+
+        // Then
+        assertThat(messageHandler.someCommand).isNull();
+        assertThat(messageHandler.someOtherCommand).isNull();
+        assertThat(messageHandler.someThirdCommand).isEqualTo(someThirdCommand);
+        assertThat(messageHandler.messageForSomeOtherCommand).isNull();
+        assertThat(messageHandler.messageForSomeThirdCommand).isEqualTo(message);
+        assertThat(messageHandler.unmatchedMessage).isNull();
+
+        assertThat(messageHandler.handlesMessageWithPayload(someThirdCommand.getClass())).isTrue();
     }
 
     @Test
@@ -75,6 +102,8 @@ class PatternMatchingMessageHandlerTest {
         assertThat(messageHandler.someCommand).isNull();
         assertThat(messageHandler.someOtherCommand).isNull();
         assertThat(messageHandler.messageForSomeOtherCommand).isNull();
+        assertThat(messageHandler.someThirdCommand).isNull();
+        assertThat(messageHandler.messageForSomeThirdCommand).isNull();
         assertThat(messageHandler.unmatchedMessage).isEqualTo(message);
 
         assertThat(messageHandler.handlesMessageWithPayload(someUnmatchedCommand.getClass())).isFalse();
@@ -85,6 +114,8 @@ class PatternMatchingMessageHandlerTest {
         private SomeOtherCommand someOtherCommand;
         private Message          messageForSomeOtherCommand;
         private Message          unmatchedMessage;
+        private SomeThirdCommand someThirdCommand;
+        private OrderedMessage   messageForSomeThirdCommand;
 
         @MessageHandler
         void handle(SomeCommand someCommand) {
@@ -95,6 +126,12 @@ class PatternMatchingMessageHandlerTest {
         void handle(SomeOtherCommand someOtherCommand, Message messageForSomeOtherCommand) {
             this.someOtherCommand = someOtherCommand;
             this.messageForSomeOtherCommand = messageForSomeOtherCommand;
+        }
+
+        @MessageHandler
+        void handle(SomeThirdCommand someThirdCommand, OrderedMessage messageForSomeThirdCommand) {
+            this.someThirdCommand = someThirdCommand;
+            this.messageForSomeThirdCommand = messageForSomeThirdCommand;
         }
 
         @Override
