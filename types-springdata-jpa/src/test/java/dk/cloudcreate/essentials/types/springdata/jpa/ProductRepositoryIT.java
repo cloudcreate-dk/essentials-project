@@ -18,21 +18,22 @@ package dk.cloudcreate.essentials.types.springdata.jpa;
 
 import dk.cloudcreate.essentials.types.*;
 import dk.cloudcreate.essentials.types.springdata.jpa.model.*;
+import org.assertj.core.api.SoftAssertions;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest
+@SpringBootTest
 @Testcontainers
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext
 class ProductRepositoryIT {
     @Container
     static PostgreSQLContainer postgreSQLContainer = new PostgreSQLContainer("postgres:latest")
@@ -51,6 +52,9 @@ class ProductRepositoryIT {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
     @AfterEach
     void cleanUp() {
         this.productRepository.deleteAll();
@@ -58,14 +62,39 @@ class ProductRepositoryIT {
 
     @Test
     void test_we_can_store_a_product_and_load_it_again() {
-        var storedProduct = new Product(ProductId.random(),
-                                        "Test Product",
-                                        new Price(Amount.of("100.5"), CurrencyCode.of("DKK")));
-        productRepository.save(storedProduct);
+        var storedProduct = transactionTemplate.execute(status -> productRepository.save(new Product(ProductId.random(),
+                                                                              "Test Product",
+                                                                              new Price(Amount.of("100.5"), CurrencyCode.of("DKK")))));
 
-        var loadedProduct = productRepository.findById(storedProduct.getId());
+        var jdbi = Jdbi.create(postgreSQLContainer.getJdbcUrl(), postgreSQLContainer.getUsername(), postgreSQLContainer.getPassword());
+        var rawResults = jdbi.withHandle(handle -> handle.createQuery("select * from products")
+                                                         .mapToMap()
+                                                         .list());
+        assertThat(rawResults).hasSize(1);
+        var softAssertions = new SoftAssertions();
+        rawResults.get(0).entrySet().forEach(entry -> {
+            Class<?> valueType = entry.getValue().getClass();
+            System.out.println(entry.getKey() + ": " + valueType.getName() + " with value '" + entry.getValue() + "'");
+            softAssertions.assertThat(valueType.isArray())
+                          .describedAs("key '%s' shouldn't be a an array", entry.getKey())
+                          .isFalse();
+            if (valueType.isArray()) {
+                softAssertions.assertThat(valueType.getComponentType().equals(byte.class))
+                              .describedAs("key '%s' shouldn't be a byte array", entry.getKey())
+                              .isFalse();
+            }
+        });
+        softAssertions.assertAll();
 
-        assertThat(loadedProduct).isPresent();
-        assertThat(loadedProduct.get()).isEqualTo(storedProduct);
+
+
+        transactionTemplate.execute(status -> {
+            var loadedProduct = productRepository.findById(storedProduct.getId());
+            assertThat(loadedProduct).isPresent();
+            assertThat((CharSequence) loadedProduct.get().getId()).isEqualTo(storedProduct.getId());
+            assertThat(loadedProduct.get().getId().value()).isEqualTo(storedProduct.getId().value());
+            assertThat(loadedProduct.get()).isEqualTo(storedProduct);
+            return null;
+        });
     }
 }

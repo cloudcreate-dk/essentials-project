@@ -19,12 +19,14 @@ package dk.cloudcreate.essentials.types.springdata.jpa;
 import dk.cloudcreate.essentials.types.*;
 import dk.cloudcreate.essentials.types.springdata.jpa.model.Order;
 import dk.cloudcreate.essentials.types.springdata.jpa.model.*;
+import org.assertj.core.api.SoftAssertions;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.*;
 
@@ -32,10 +34,9 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest
+@SpringBootTest
 @Testcontainers
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext
 class OrderRepositoryIT {
 
     @Container
@@ -54,6 +55,9 @@ class OrderRepositoryIT {
     @Autowired
     private OrderRepository orderRepository;
 
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
     @AfterEach
     void cleanUp() {
         this.orderRepository.deleteAll();
@@ -65,31 +69,55 @@ class OrderRepositoryIT {
         var amount       = Amount.of("123.456");
         var percentage   = Percentage.from("40.5%");
 
-        var storedOrder = orderRepository.save(new Order(OrderId.random(),
-                                                         CustomerId.random(),
-                                                         AccountId.random(),
-                                                         Map.of(ProductId.random(), Quantity.of(10),
-                                                                ProductId.random(), Quantity.of(5),
-                                                                ProductId.random(), Quantity.of(1)),
-                                                         amount,
-                                                         percentage,
-                                                         currencyCode,
-                                                         CountryCode.of("DK"),
-                                                         EmailAddress.of("john@nonexistingdomain.com"),
-                                                         new Money(amount.add(percentage.of(amount)), currencyCode),
-                                                         Created.now(),
-                                                         DueDate.now(),
-                                                         LastUpdated.now(),
-                                                         TimeOfDay.now(),
-                                                         TransactionTime.now(),
-                                                         TransferTime.now()));
+        var storedOrder = transactionTemplate.execute(status -> orderRepository.save(new Order(OrderId.random(),
+                                                                                               CustomerId.random(),
+                                                                                               AccountId.random(),
+                                                                                               Map.of(ProductId.random(), Quantity.of(10),
+                                                                                                      ProductId.random(), Quantity.of(5),
+                                                                                                      ProductId.random(), Quantity.of(1)),
+                                                                                               amount,
+                                                                                               percentage,
+                                                                                               currencyCode,
+                                                                                               CountryCode.of("DK"),
+                                                                                               EmailAddress.of("john@nonexistingdomain.com"),
+                                                                                               new Money(amount.add(percentage.of(amount)), currencyCode),
+                                                                                               Created.now(),
+                                                                                               DueDate.now(),
+                                                                                               LastUpdated.now(),
+                                                                                               TimeOfDay.now(),
+                                                                                               TransactionTime.now(),
+                                                                                               TransferTime.now())));
 
         assertThat(storedOrder.getId()).isNotNull();
 
-        var loadedOrder = orderRepository.findById(storedOrder.getId());
+        var jdbi = Jdbi.create(postgreSQLContainer.getJdbcUrl(), postgreSQLContainer.getUsername(), postgreSQLContainer.getPassword());
+        var rawResults = jdbi.withHandle(handle -> handle.createQuery("select * from orders")
+                                                         .mapToMap()
+                                                         .list());
+        assertThat(rawResults).hasSize(1);
+        var softAssertions = new SoftAssertions();
+        rawResults.get(0).entrySet().forEach(entry -> {
+            Class<?> valueType = entry.getValue().getClass();
+            System.out.println(entry.getKey() + ": " + valueType.getName() + " with value '" + entry.getValue() + "'");
+            softAssertions.assertThat(valueType.isArray())
+                          .describedAs("key '%s' shouldn't be a an array", entry.getKey())
+                          .isFalse();
+            if (valueType.isArray()) {
+                softAssertions.assertThat(valueType.getComponentType().equals(byte.class))
+                              .describedAs("key '%s' shouldn't be a byte array", entry.getKey())
+                              .isFalse();
+            }
+        });
+        softAssertions.assertAll();
 
-        assertThat(loadedOrder).isPresent();
-        assertThat(loadedOrder.get()).isEqualTo(storedOrder);
+        transactionTemplate.execute(status -> {
+            var loadedOrder = orderRepository.findById(storedOrder.getId());
+            assertThat(loadedOrder).isPresent();
+            assertThat(loadedOrder.get().getId()).isEqualTo(storedOrder.getId());
+            assertThat(loadedOrder.get().getId().value()).isEqualTo(storedOrder.getId().value());
+            assertThat(loadedOrder.get()).isEqualTo(storedOrder);
+            return null;
+        });
     }
 
 }
