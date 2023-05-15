@@ -30,9 +30,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.*;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
 @Testcontainers
@@ -113,9 +114,24 @@ class OrderRepositoryIT {
         transactionTemplate.execute(status -> {
             var loadedOrder = orderRepository.findById(storedOrder.getId());
             assertThat(loadedOrder).isPresent();
-            assertThat(loadedOrder.get().getId()).isEqualTo(storedOrder.getId());
-            assertThat(loadedOrder.get().getId().value()).isEqualTo(storedOrder.getId().value());
-            assertThat(loadedOrder.get()).isEqualTo(storedOrder);
+            var actualOrder = loadedOrder.get();
+            assertThat(actualOrder.getId()).isEqualTo(storedOrder.getId());
+            assertThat(actualOrder.getId().value()).isEqualTo(storedOrder.getId().value());
+            assertThat((CharSequence) actualOrder.getCustomerId()).isEqualTo(storedOrder.getCustomerId());
+            assertThat(actualOrder.getAccountId()).isEqualTo(storedOrder.getAccountId());
+            assertThat(actualOrder.getOrderLines()).isEqualTo(storedOrder.getOrderLines());
+            assertThat(actualOrder.getAmount()).isEqualTo(storedOrder.getAmount());
+            assertThat(actualOrder.getPercentage()).isEqualTo(storedOrder.getPercentage());
+            assertThat((CharSequence) actualOrder.getCountry()).isEqualTo(storedOrder.getCountry());
+            assertThat((CharSequence) actualOrder.getCurrency()).isEqualTo(storedOrder.getCurrency());
+            assertThat((CharSequence) actualOrder.getEmail()).isEqualTo(storedOrder.getEmail());
+            assertThat(actualOrder.getTotalPrice()).isEqualTo(storedOrder.getTotalPrice());
+            assertThat(actualOrder.getCreated().value()).isCloseTo(storedOrder.getCreated().value(), within(100, ChronoUnit.MICROS));
+            assertThat(actualOrder.getDueDate()).isEqualTo(storedOrder.getDueDate());
+            assertThat(actualOrder.getLastUpdated().value()).isCloseTo(storedOrder.getLastUpdated().value(), within(100, ChronoUnit.MICROS));
+            assertThat(actualOrder.getTimeOfDay()).isEqualTo(storedOrder.getTimeOfDay());
+            assertThat(actualOrder.getTransactionTime().value()).isCloseTo(storedOrder.getTransactionTime().value(), within(100, ChronoUnit.MICROS));;
+            assertThat(actualOrder.getTransferTime().value()).isCloseTo(storedOrder.getTransferTime().value(), within(100, ChronoUnit.MICROS));
             return null;
         });
     }

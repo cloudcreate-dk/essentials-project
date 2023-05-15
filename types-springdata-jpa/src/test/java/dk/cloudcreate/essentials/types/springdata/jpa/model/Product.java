@@ -17,7 +17,8 @@
 package dk.cloudcreate.essentials.types.springdata.jpa.model;
 
 
-import javax.persistence.*;
+import jakarta.persistence.*;
+
 import java.util.Objects;
 
 @Entity

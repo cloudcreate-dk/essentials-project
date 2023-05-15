@@ -23,9 +23,10 @@ import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.Test;
 
 import java.sql.*;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 class SingleValueTypeArgumentsTest {
     @Test
@@ -134,12 +135,12 @@ class SingleValueTypeArgumentsTest {
             assertThat(result.get("currency")).isEqualTo(currency.value());
             assertThat(result.get("email")).isEqualTo(email.value());
             assertThat(result.get("percentage")).isEqualTo(percentage.value());
-            assertThat(((Timestamp) result.get("created")).toLocalDateTime()).isEqualTo(created.value());
+            assertThat(((Timestamp) result.get("created")).toLocalDateTime()).isCloseTo(created.value(), within(100, ChronoUnit.MICROS));
             assertThat(((Date) result.get("due_date")).toLocalDate()).isEqualTo(dueDate.value());
-            assertThat(((Timestamp) result.get("last_updated")).toInstant()).isEqualTo(lastUpdated.value());
+            assertThat(((Timestamp) result.get("last_updated")).toInstant()).isCloseTo(lastUpdated.value(), within(100, ChronoUnit.MICROS));
             assertThat(((Time) result.get("time_of_day"))).isEqualTo(Time.valueOf(timeOfDay.value()));
-            assertThat(((Timestamp) result.get("transaction_time")).toInstant()).isEqualTo(transactionTime.value().toInstant());
-            assertThat(((Timestamp) result.get("transfer_time")).toInstant()).isEqualTo(transferTime.value().toInstant());
+            assertThat(((Timestamp) result.get("transaction_time")).toInstant()).isCloseTo(transactionTime.value().toInstant(), within(100, ChronoUnit.MICROS));
+            assertThat(((Timestamp) result.get("transfer_time")).toInstant()).isCloseTo(transferTime.value().toInstant(), within(100, ChronoUnit.MICROS));
 
 
             var columns = List.of(Tuple.of("id", orderId),
@@ -172,10 +173,36 @@ class SingleValueTypeArgumentsTest {
                     // Time looses precision
                     compareWithValue = TimeOfDay.of(Time.valueOf(((TimeOfDay)compareWithValue).value()).toLocalTime());
                 }
-                assertThat(columnValue.equals(compareWithValue))
-                        .describedAs("Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
-                                     column._1, column._2.getClass(), compareWithValue, columnValue, columnValue.getClass())
-                        .isTrue();
+                if (columnValue instanceof InstantType<?> c) {
+                    assertThat(c.value())
+                            .describedAs("Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
+                                         column._1, column._2.getClass(), compareWithValue, columnValue, columnValue.getClass())
+                            .isCloseTo(((InstantType<?>) compareWithValue).value(), within(100, ChronoUnit.MICROS));
+
+                } else if (columnValue instanceof LocalDateTimeType<?> c) {
+                    assertThat(c.value())
+                            .describedAs("Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
+                                         column._1, column._2.getClass(), compareWithValue, columnValue, columnValue.getClass())
+                            .isCloseTo(((LocalDateTimeType<?>) compareWithValue).value(), within(100, ChronoUnit.MICROS));
+
+                } else if (columnValue instanceof OffsetDateTimeType<?> c) {
+                    assertThat(c.value())
+                            .describedAs("Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
+                                         column._1, column._2.getClass(), compareWithValue, columnValue, columnValue.getClass())
+                            .isCloseTo(((OffsetDateTimeType<?>) compareWithValue).value(), within(100, ChronoUnit.MICROS));
+
+                } else if (columnValue instanceof ZonedDateTimeType<?> c) {
+                    assertThat(c.value())
+                            .describedAs("Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
+                                         column._1, column._2.getClass(), compareWithValue, columnValue, columnValue.getClass())
+                            .isCloseTo(((ZonedDateTimeType<?>) compareWithValue).value(), within(100, ChronoUnit.MICROS));
+
+                } else {
+                    assertThat(columnValue.equals(compareWithValue))
+                            .describedAs("Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
+                                         column._1, column._2.getClass(), compareWithValue, columnValue, columnValue.getClass())
+                            .isTrue();
+                }
             });
         });
 

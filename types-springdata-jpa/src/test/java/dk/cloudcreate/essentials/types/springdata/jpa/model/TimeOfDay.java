@@ -26,10 +26,12 @@ public class TimeOfDay extends LocalTimeType<TimeOfDay> {
     }
 
     public static TimeOfDay of(LocalTime value) {
-        return new TimeOfDay(value);
+        // Setting nanoSeconds to 0 because LocalTime is stored as hours, minutes and seconds (see https://docs.jboss.org/hibernate/orm/6.2/userguide/html_single/Hibernate_User_Guide.html#basic-temporal)
+        return new TimeOfDay(value.withNano(0));
     }
 
     public static TimeOfDay now() {
-        return new TimeOfDay(LocalTime.now());
+        // Setting nanoSeconds to 0 because LocalTime is stored as hours, minutes and seconds
+        return new TimeOfDay(LocalTime.now().withNano(0));
     }
 }

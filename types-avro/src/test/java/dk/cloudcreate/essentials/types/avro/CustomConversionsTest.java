@@ -25,9 +25,10 @@ import org.apache.avro.specific.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 public class CustomConversionsTest {
 
@@ -86,12 +87,11 @@ public class CustomConversionsTest {
         assertThat(deserializedOrder.getMapOfCurrencyValues()).isEqualTo(order.getMapOfCurrencyValues());
         assertThat((CharSequence) deserializedOrder.getOptionalCurrency()).isEqualTo(order.getOptionalCurrency());
         assertThat(deserializedOrder.getDueDate()).isEqualTo(order.getDueDate());
-        assertThat(deserializedOrder.getTimeOfDay()).isEqualTo(order.getTimeOfDay());
-        assertThat(deserializedOrder.getCreated()).isEqualTo(order.getCreated());
-        assertThat(deserializedOrder.getLastUpdated()).isEqualTo(order.getLastUpdated());
-        assertThat(deserializedOrder.getTransactionTime()).isEqualTo(order.getTransactionTime());
-        assertThat(deserializedOrder.getTransferTime()).isEqualTo(order.getTransferTime());
-        assertThat(deserializedOrder).isEqualTo(order);
+        assertThat(deserializedOrder.getTimeOfDay().value()).isCloseTo(order.getTimeOfDay().value(), within(100, ChronoUnit.MICROS));
+        assertThat(deserializedOrder.getCreated().value()).isCloseTo(order.getCreated().value(), within(100, ChronoUnit.MICROS));
+        assertThat(deserializedOrder.getLastUpdated().value()).isCloseTo(order.getLastUpdated().value(), within(100, ChronoUnit.MICROS));
+        assertThat(deserializedOrder.getTransactionTime().value()).isCloseTo(order.getTransactionTime().value(), within(100, ChronoUnit.MICROS));
+        assertThat(deserializedOrder.getTransferTime().value()).isCloseTo(order.getTransferTime().value(), within(100, ChronoUnit.MICROS));
     }
 
     @SuppressWarnings("unchecked")

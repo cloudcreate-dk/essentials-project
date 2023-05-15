@@ -19,7 +19,6 @@ package dk.cloudcreate.essentials.components.queue.springdata.mongodb;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.DistributedCompetingConsumersDurableQueuesIT;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.annotation.DirtiesContext;
@@ -30,7 +29,7 @@ import org.testcontainers.junit.jupiter.*;
 import java.time.Duration;
 
 @Testcontainers
-@DataMongoTest(excludeAutoConfiguration = EmbeddedMongoAutoConfiguration.class)
+@DataMongoTest
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class SingleOperationTransactionMongoDistributedCompetingConsumersDurableQueuesIT extends DistributedCompetingConsumersDurableQueuesIT<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
     @Container

@@ -1,7 +1,9 @@
 # Essentials Java building blocks
 
-Essentials is a set of Java version 11 (and later) building blocks built from the ground up to have no dependencies
+Essentials is a set of Java version 17 (and later) building blocks built from the ground up to have no dependencies
 on other libraries, unless explicitly mentioned.
+
+> Note: [For Java version 11 to 16 support, please use version 0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)
 
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
@@ -73,7 +75,7 @@ To use `Shared` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>shared</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 
@@ -113,7 +115,7 @@ To use `Types` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 
@@ -128,7 +130,7 @@ To use `Reactive` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>reactive</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 
@@ -206,7 +208,7 @@ To use `Immutable` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 
@@ -254,7 +256,7 @@ To use `Immutable-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable-jackson</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 
@@ -276,7 +278,7 @@ To use `Types-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jackson</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 
@@ -321,7 +323,7 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-mongo</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 
@@ -355,7 +357,7 @@ To use `Types-SpringData-JPA` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-jpa</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 
@@ -372,7 +374,7 @@ To use `Types-Spring-Web` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-spring-web</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 
@@ -444,7 +446,7 @@ To use `Types-JDBI` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jdbi</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 
@@ -458,7 +460,7 @@ To use `Types-Avro` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-avro</artifactId>
-    <version>0.9.6</version>
+    <version>0.20.0</version>
 </dependency>
 ```
 

@@ -17,8 +17,7 @@
 package dk.cloudcreate.essentials.types.springdata.jpa.converters;
 
 import dk.cloudcreate.essentials.types.springdata.jpa.model.Quantity;
-
-import javax.persistence.Converter;
+import jakarta.persistence.Converter;
 
 @Converter(autoApply = true)
 public class QuantityAttributeConverter extends BaseIntegerTypeAttributeConverter<Quantity> {
