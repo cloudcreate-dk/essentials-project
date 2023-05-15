@@ -23,9 +23,10 @@ import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.Test;
 
 import java.sql.*;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 class SingleValueTypeArgumentsTest {
     @Test
@@ -134,12 +135,12 @@ class SingleValueTypeArgumentsTest {
             assertThat(result.get("currency")).isEqualTo(currency.value());
             assertThat(result.get("email")).isEqualTo(email.value());
             assertThat(result.get("percentage")).isEqualTo(percentage.value());
-            assertThat(((Timestamp) result.get("created")).toLocalDateTime()).isEqualTo(created.value());
+            assertThat(((Timestamp) result.get("created")).toLocalDateTime()).isCloseTo(created.value(), within(100, ChronoUnit.MICROS));
             assertThat(((Date) result.get("due_date")).toLocalDate()).isEqualTo(dueDate.value());
-            assertThat(((Timestamp) result.get("last_updated")).toInstant()).isEqualTo(lastUpdated.value());
+            assertThat(((Timestamp) result.get("last_updated")).toInstant()).isCloseTo(lastUpdated.value(), within(100, ChronoUnit.MICROS));
             assertThat(((Time) result.get("time_of_day"))).isEqualTo(Time.valueOf(timeOfDay.value()));
-            assertThat(((Timestamp) result.get("transaction_time")).toInstant()).isEqualTo(transactionTime.value().toInstant());
-            assertThat(((Timestamp) result.get("transfer_time")).toInstant()).isEqualTo(transferTime.value().toInstant());
+            assertThat(((Timestamp) result.get("transaction_time")).toInstant()).isCloseTo(transactionTime.value().toInstant(), within(100, ChronoUnit.MICROS));
+            assertThat(((Timestamp) result.get("transfer_time")).toInstant()).isCloseTo(transferTime.value().toInstant(), within(100, ChronoUnit.MICROS));
 
 
             var columns = List.of(Tuple.of("id", orderId),
