@@ -17,8 +17,8 @@
 package dk.cloudcreate.essentials.types.springdata.jpa.converters;
 
 import dk.cloudcreate.essentials.types.*;
+import jakarta.persistence.AttributeConverter;
 
-import javax.persistence.AttributeConverter;
 import java.math.BigDecimal;
 
 /**
@@ -45,7 +45,7 @@ public abstract class BaseBigDecimalTypeAttributeConverter<T extends BigDecimalT
     @Override
     public T convertToEntityAttribute(Double dbData) {
         if (dbData == null) return null;
-        return SingleValueType.from(new BigDecimal(dbData), getConcreteBigDecimalType());
+        return SingleValueType.from(BigDecimal.valueOf(dbData), getConcreteBigDecimalType());
     }
 
     /**

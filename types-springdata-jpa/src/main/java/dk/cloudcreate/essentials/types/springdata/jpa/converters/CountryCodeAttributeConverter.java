@@ -17,8 +17,7 @@
 package dk.cloudcreate.essentials.types.springdata.jpa.converters;
 
 import dk.cloudcreate.essentials.types.CountryCode;
-
-import javax.persistence.Converter;
+import jakarta.persistence.Converter;
 
 @Converter(autoApply = true)
 public class CountryCodeAttributeConverter extends BaseCharSequenceTypeAttributeConverter<CountryCode> {

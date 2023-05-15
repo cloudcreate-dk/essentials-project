@@ -17,8 +17,8 @@
 package dk.cloudcreate.essentials.types.springdata.jpa.model;
 
 import dk.cloudcreate.essentials.types.*;
+import jakarta.persistence.Embeddable;
 
-import javax.persistence.Embeddable;
 import java.util.UUID;
 
 @Embeddable

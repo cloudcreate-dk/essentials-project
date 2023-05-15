@@ -17,8 +17,8 @@
 package dk.cloudcreate.essentials.types.springdata.jpa.converters;
 
 import dk.cloudcreate.essentials.types.CurrencyCode;
+import jakarta.persistence.Converter;
 
-import javax.persistence.Converter;
 
 @Converter(autoApply = true)
 public class CurrencyCodeAttributeConverter extends BaseCharSequenceTypeAttributeConverter<CurrencyCode> {

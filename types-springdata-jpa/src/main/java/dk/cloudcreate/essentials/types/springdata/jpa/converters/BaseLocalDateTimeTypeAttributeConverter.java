@@ -17,10 +17,9 @@
 package dk.cloudcreate.essentials.types.springdata.jpa.converters;
 
 import dk.cloudcreate.essentials.types.*;
+import jakarta.persistence.AttributeConverter;
 
-import javax.persistence.AttributeConverter;
-import java.sql.Timestamp;
-import java.time.LocalDate;
+import java.time.*;
 
 /**
  * Base implementation for all JPA {@link AttributeConverter}'s that can convert between a concrete {@link LocalDateTimeType} sub-class
@@ -37,16 +36,16 @@ import java.time.LocalDate;
  *
  * @param <T> the concrete type of {@link LocalDateTimeType} supported by this converter
  */
-public abstract class BaseLocalDateTimeTypeAttributeConverter<T extends LocalDateTimeType<T>> implements AttributeConverter<T, Timestamp> {
+public abstract class BaseLocalDateTimeTypeAttributeConverter<T extends LocalDateTimeType<T>> implements AttributeConverter<T, LocalDateTime> {
     @Override
-    public Timestamp convertToDatabaseColumn(T attribute) {
-        return attribute != null ? Timestamp.valueOf(attribute.value()) : null;
+    public LocalDateTime convertToDatabaseColumn(T attribute) {
+        return attribute != null ? attribute.value() : null;
     }
 
     @Override
-    public T convertToEntityAttribute(Timestamp dbData) {
+    public T convertToEntityAttribute(LocalDateTime dbData) {
         if (dbData == null) return null;
-        return SingleValueType.from(dbData.toLocalDateTime(), getConcreteLocalDateTimeType());
+        return SingleValueType.from(dbData, getConcreteLocalDateTimeType());
     }
 
     /**

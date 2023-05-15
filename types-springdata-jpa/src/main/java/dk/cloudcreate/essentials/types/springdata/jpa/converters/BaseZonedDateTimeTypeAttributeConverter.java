@@ -17,9 +17,8 @@
 package dk.cloudcreate.essentials.types.springdata.jpa.converters;
 
 import dk.cloudcreate.essentials.types.*;
+import jakarta.persistence.AttributeConverter;
 
-import javax.persistence.AttributeConverter;
-import java.sql.Timestamp;
 import java.time.*;
 
 /**
@@ -37,16 +36,16 @@ import java.time.*;
  *
  * @param <T> the concrete type of {@link ZonedDateTimeType} supported by this converter
  */
-public abstract class BaseZonedDateTimeTypeAttributeConverter<T extends ZonedDateTimeType<T>> implements AttributeConverter<T, Timestamp> {
+public abstract class BaseZonedDateTimeTypeAttributeConverter<T extends ZonedDateTimeType<T>> implements AttributeConverter<T, ZonedDateTime> {
     @Override
-    public Timestamp convertToDatabaseColumn(T attribute) {
-        return attribute != null ? Timestamp.from(attribute.value().toInstant()) : null;
+    public ZonedDateTime convertToDatabaseColumn(T attribute) {
+        return attribute != null ? attribute.value() : null;
     }
 
     @Override
-    public T convertToEntityAttribute(Timestamp dbData) {
+    public T convertToEntityAttribute(ZonedDateTime dbData) {
         if (dbData == null) return null;
-        return SingleValueType.from(dbData.toInstant().atZone(ZoneId.of("UTC")), getConcreteZonedDateTimeType());
+        return SingleValueType.from(dbData, getConcreteZonedDateTimeType());
     }
 
     /**
