@@ -550,8 +550,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             try {
                 durableSubscriptionRepository.saveResumePoints(subscribers.values()
                                                                           .stream()
-                                                                          .filter(eventStoreSubscription -> eventStoreSubscription.currentResumePoint().isPresent())
                                                                           .filter(EventStoreSubscription::isActive)
+                                                                          .filter(eventStoreSubscription -> eventStoreSubscription.currentResumePoint().isPresent())
                                                                           .map(eventStoreSubscription -> eventStoreSubscription.currentResumePoint().get())
                                                                           .collect(Collectors.toList()));
             } catch (Exception e) {
@@ -1051,7 +1051,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
 
             @Override
             public Optional<SubscriptionResumePoint> currentResumePoint() {
-                return Optional.of(resumePoint);
+                return Optional.ofNullable(resumePoint);
             }
 
             @Override
@@ -1361,7 +1361,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
 
             @Override
             public Optional<SubscriptionResumePoint> currentResumePoint() {
-                return Optional.of(resumePoint);
+                return Optional.ofNullable(resumePoint);
             }
 
             @Override
