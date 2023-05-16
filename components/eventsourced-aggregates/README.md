@@ -40,7 +40,7 @@ To use `EventSourced Aggregates` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components/groupId>
     <artifactId>eventsourced-aggregates</artifactId>
-    <version>0.9.6</version>
+    <version>0.9.7</version>
 </dependency>
 ```
 
@@ -505,6 +505,6 @@ To use `EventSourced Aggregates` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components/groupId>
     <artifactId>eventsourced-aggregates</artifactId>
-    <version>0.9.6</version>
+    <version>0.9.7</version>
 </dependency>
 ```
