@@ -37,9 +37,12 @@ public interface PersistedEventHandler {
     /**
      * This method will be called if {@link EventStoreSubscription#resetFrom(GlobalEventOrder)} is called
      *
-     * @param globalEventOrder the value provided to {@link EventStoreSubscription#resetFrom(GlobalEventOrder)}
+     * @param eventStoreSubscription           the {@link EventStoreSubscription} where {@link EventStoreSubscription#resetFrom(GlobalEventOrder)} was called (useful if a {@link PersistedEventHandler} listens to multiple streams)
+     * @param resetFromAndIncludingGlobalOrder the value provided to {@link EventStoreSubscription#resetFrom(GlobalEventOrder)}. This {@link GlobalEventOrder} will become the new starting point in the
+     *                                         EventStream associated with the {@link EventStoreSubscription#aggregateType()}
      */
-    default void onResetFrom(GlobalEventOrder globalEventOrder) {};
+    default void onResetFrom(EventStoreSubscription eventStoreSubscription, GlobalEventOrder resetFromAndIncludingGlobalOrder) {
+    }
 
     default int handleWithBackPressure(PersistedEvent event) {
         handle(event);

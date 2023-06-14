@@ -137,7 +137,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                 Optional.empty(),
                 new PersistedEventHandler() {
                     @Override
-                    public void onResetFrom(GlobalEventOrder globalEventOrder) {
+                    public void onResetFrom(EventStoreSubscription eventStoreSubscription, GlobalEventOrder globalEventOrder) {
                         throw new IllegalStateException("Method shouldn't be called");
                     }
 
@@ -157,7 +157,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                 Optional.empty(),
                 new PersistedEventHandler() {
                     @Override
-                    public void onResetFrom(GlobalEventOrder globalEventOrder) {
+                    public void onResetFrom(EventStoreSubscription eventStoreSubscription, GlobalEventOrder globalEventOrder) {
                         throw new IllegalStateException("Method shouldn't be called");
                     }
 
@@ -461,7 +461,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                 Optional.empty(),
                 new PersistedEventHandler() {
                     @Override
-                    public void onResetFrom(GlobalEventOrder globalEventOrder) {
+                    public void onResetFrom(EventStoreSubscription eventStoreSubscription, GlobalEventOrder globalEventOrder) {
                         throw new IllegalStateException("Method shouldn't be called");
                     }
 

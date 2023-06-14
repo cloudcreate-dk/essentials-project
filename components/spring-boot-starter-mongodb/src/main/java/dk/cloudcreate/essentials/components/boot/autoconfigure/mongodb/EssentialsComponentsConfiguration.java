@@ -65,8 +65,8 @@ import java.util.function.Function;
 public class EssentialsComponentsConfiguration implements ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
     public static final Logger log = LoggerFactory.getLogger(EssentialsComponentsConfiguration.class);
 
-    private ApplicationContext applicationContext;
-    private boolean closed;
+    private ApplicationContext     applicationContext;
+    private boolean                closed;
     private Map<String, Lifecycle> lifeCycleBeans;
 
     @Override
