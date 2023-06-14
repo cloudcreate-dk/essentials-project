@@ -86,6 +86,10 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                                                      "trace_id", UUID.randomUUID().toString()));
         var idMsg1 = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
 
+        assertThat(durableQueues.getQueueNameFor(idMsg1)).isEqualTo(Optional.of(queueName));
+        assertThat(durableQueues.getQueueNameFor(QueueEntryId.random())).isEmpty();
+        assertThat(durableQueues.getQueueNames()).isEqualTo(Set.of(queueName));
+
         var message2 = Message.of(new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), 2),
                                   MessageMetaData.of("correlation_id", CorrelationId.random(),
                                                      "trace_id", UUID.randomUUID().toString()));
@@ -174,6 +178,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                                   MessageMetaData.of("correlation_id", CorrelationId.random(),
                                                      "trace_id", UUID.randomUUID().toString()));
         var idMsg1 = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
+        assertThat(durableQueues.getQueueNames()).isEqualTo(Set.of(queueName));
 
         var message2 = Message.of(new OrderEvent.ProductAddedToOrder(OrderId.random(), ProductId.random(), 2),
                                   MessageMetaData.of("correlation_id", CorrelationId.random(),
@@ -185,6 +190,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         var idMsg3   = withDurableQueue(() -> durableQueues.queueMessage(queueName, message3));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(3);
+        assertThat(durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName)).isEqualTo(0);
         var recordingQueueMessageHandler = new RecordingQueuedMessageHandler();
 
         // When
@@ -198,17 +204,24 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                                                                       .setParallelConsumers(1)
                                                                       .setQueueMessageHandler(recordingQueueMessageHandler)
                                                                       .build());
+        assertThat(durableQueues.getQueueNames()).isEqualTo(Set.of(queueName));
 
         // Then
         Awaitility.waitAtMost(Duration.ofSeconds(2))
                   .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages).hasSize(3));
+        assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
+        assertThat(durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName)).isEqualTo(0);
+
 
         var messages = new ArrayList<>(recordingQueueMessageHandler.messages);
         assertThat(messages.get(0)).usingRecursiveComparison().isEqualTo(message1);
         assertThat(messages.get(1)).usingRecursiveComparison().isEqualTo(message2);
         assertThat(messages.get(2)).usingRecursiveComparison().isEqualTo(message3);
 
+        // Event when the Queue is empty DurableQueues still return queues that have an active consumer
+        assertThat(durableQueues.getQueueNames()).isEqualTo(Set.of(queueName));
         consumer.cancel();
+        assertThat(durableQueues.getQueueNames()).isEqualTo(Set.of());
     }
 
     @Test
@@ -219,11 +232,15 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234),
                                   MessageMetaData.of("correlation_id", CorrelationId.random(),
                                                      "trace_id", UUID.randomUUID().toString()));
-        usingDurableQueue(() -> durableQueues.queueMessageAsDeadLetterMessage(queueName, message1, new RuntimeException("On purpose")));
+        var idMsg1 = withDurableQueue(() -> durableQueues.queueMessageAsDeadLetterMessage(queueName, message1, new RuntimeException("On purpose")));
+        assertThat(durableQueues.getQueueNames()).isEqualTo(Set.of(queueName));
+        assertThat(durableQueues.getQueueNameFor(idMsg1)).isEqualTo(Optional.of(queueName));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
+        assertThat(durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName)).isEqualTo(1);
         var deadLetterMessages = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20);
         assertThat(deadLetterMessages).hasSize(1);
+        assertThat((CharSequence) deadLetterMessages.get(0).getId()).isEqualTo(idMsg1);
 
         // When
         var recordingQueueMessageHandler = new RecordingQueuedMessageHandler();
@@ -236,6 +253,8 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                   .until(() -> recordingQueueMessageHandler.messages.size() == 0);
 
         consumer.cancel();
+        // Even when the consumer is stopped, DurableQueues will return our queuename as it has a deadletter message
+        assertThat(durableQueues.getQueueNames()).isEqualTo(Set.of(queueName));
     }
 
     @Test

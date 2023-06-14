@@ -55,6 +55,24 @@ public class EssentialsComponentsProperties {
 
         private Duration maxPollingInterval = Duration.ofMillis(2000);
 
+        private boolean verboseTracing = false;
+
+        /**
+         * Should the Tracing produces only include all operations or only top level operations (default false)
+         * @return Should the Tracing produces only include all operations or only top level operations
+         */
+        public boolean isVerboseTracing() {
+            return verboseTracing;
+        }
+
+        /**
+         * Should the Tracing produces only include all operations or only top level operations (default false)
+         * @param verboseTracing Should the Tracing produces only include all operations or only top level operations
+         */
+        public void setVerboseTracing(boolean verboseTracing) {
+            this.verboseTracing = verboseTracing;
+        }
+
         /**
          * Get the name of the collection that will contain all messages (across all {@link QueueName}'s)<br>
          * Default is {@value MongoDurableQueues#DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}

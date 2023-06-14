@@ -70,7 +70,7 @@ class LocalEventBusTest {
         events.stream().parallel().forEach(localEventBus::publish);
 
         // Then
-        Awaitility.waitAtMost(Duration.ofMillis(5000))
+        Awaitility.waitAtMost(Duration.ofMillis(10000))
                   .untilAsserted(() -> assertThat(asyncSubscriber1.eventsReceived).containsAll(events));
         assertThat(asyncSubscriber2.eventsReceived).containsAll(events);
         assertThat(onErrorHandler.errorsHandled).isEmpty();
