@@ -1041,12 +1041,22 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             private void overrideResumePoint(GlobalEventOrder subscribeFromAndIncludingGlobalOrder) {
                 requireNonNull(subscribeFromAndIncludingGlobalOrder, "No subscribeFromAndIncludingGlobalOrder value provided");
                 // Override resume point
-                log.info("[{}-{}] Overriding resume point to start from and include globalOrder {}",
+                log.info("[{}-{}] Overriding resume point to start from-and-including-globalOrder {}",
                          subscriberId,
                          aggregateType,
                          subscribeFromAndIncludingGlobalOrder);
                 resumePoint.setResumeFromAndIncluding(subscribeFromAndIncludingGlobalOrder);
                 durableSubscriptionRepository.saveResumePoint(resumePoint);
+                try {
+                    eventHandler.onResetFrom(this, subscribeFromAndIncludingGlobalOrder);
+                } catch (Exception e) {
+                    log.info(msg("[{}-{}] Failed to reset eventHandler '{}' to use start from-and-including-globalOrder {}",
+                                 subscriberId,
+                                 aggregateType,
+                                 eventHandler,
+                                 subscribeFromAndIncludingGlobalOrder),
+                             e);
+                }
             }
 
             @Override
@@ -1351,12 +1361,22 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             private void overrideResumePoint(GlobalEventOrder subscribeFromAndIncludingGlobalOrder) {
                 requireNonNull(subscribeFromAndIncludingGlobalOrder, "No subscribeFromAndIncludingGlobalOrder value provided");
                 // Override resume point
-                log.info("[{}-{}] Overriding resume point to start from and include globalOrder {}",
+                log.info("[{}-{}] Overriding resume point to start from-and-including-globalOrder {}",
                          subscriberId,
                          aggregateType,
                          subscribeFromAndIncludingGlobalOrder);
                 resumePoint.setResumeFromAndIncluding(subscribeFromAndIncludingGlobalOrder);
                 durableSubscriptionRepository.saveResumePoint(resumePoint);
+                try {
+                    eventHandler.onResetFrom(this, subscribeFromAndIncludingGlobalOrder);
+                } catch (Exception e) {
+                    log.info(msg("[{}-{}] Failed to reset eventHandler '{}' to use start from-and-including-globalOrder {}",
+                             subscriberId,
+                             aggregateType,
+                             eventHandler,
+                             subscribeFromAndIncludingGlobalOrder),
+                             e);
+                }
             }
 
             @Override

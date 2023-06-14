@@ -50,8 +50,8 @@ public interface EventStoreSubscription extends Lifecycle, Subscription {
     /**
      * Reset the subscription point.<br>
      *
-     * @param subscribeFromAndIncludingGlobalOrder this {@link GlobalEventOrder} will become the starting point in the
-     *                                             EventStream associated with the <code>aggregateType</code>
+     * @param subscribeFromAndIncludingGlobalOrder this {@link GlobalEventOrder} will become the new starting point in the
+     *                                             EventStream associated with the {@link #aggregateType()}
      */
     void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder);
 
