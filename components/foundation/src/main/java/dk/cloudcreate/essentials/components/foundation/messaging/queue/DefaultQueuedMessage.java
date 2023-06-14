@@ -62,12 +62,6 @@ public class DefaultQueuedMessage implements QueuedMessage {
         this.redeliveryAttempts = redeliveryAttempts;
         this.isDeadLetterMessage = isDeadLetterMessage;
         this.isBeingDelivered = isBeingDelivered;
-        // To support Inbox and Outbox consumers interested in message delivery details, we enrich the MessageMetaData with details
-        message.getMetaData().put("addedTimestamp", addedTimestamp.toString());
-        message.getMetaData().put("deliveryTimestamp", deliveryTimestamp != null ? deliveryTimestamp.toString() : null);
-        message.getMetaData().put("lastDeliveryError", lastDeliveryError);
-        message.getMetaData().put("totalDeliveryAttempts", Integer.toString(totalDeliveryAttempts));
-        message.getMetaData().put("redeliveryAttempts", Integer.toString(redeliveryAttempts));
     }
 
     @Override
