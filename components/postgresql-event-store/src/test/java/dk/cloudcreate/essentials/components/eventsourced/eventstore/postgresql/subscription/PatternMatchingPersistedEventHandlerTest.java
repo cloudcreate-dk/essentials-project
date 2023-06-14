@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStoreSubscription;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.EventMetaData;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.*;
@@ -110,7 +111,7 @@ class PatternMatchingPersistedEventHandlerTest {
         private PersistedEvent                          jsonPersistedEvent;
 
         @Override
-        public void onResetFrom(GlobalEventOrder globalEventOrder) {
+        public void onResetFrom(EventStoreSubscription eventStoreSubscription, GlobalEventOrder globalEventOrder) {
 
         }
 
