@@ -208,7 +208,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
         this.transactionalMode = requireNonNull(transactionalMode, "No transactionalMode instance provided");
         if (transactionalMode == TransactionalMode.SingleOperationTransaction) {
             messageHandlingTimeoutMs = (int) requireNonNull(messageHandlingTimeout, "No messageHandlingTimeout provided").toMillis();
-            interceptors.add(new SingleOperationTransactionDurableQueuesInterceptor(unitOfWorkFactory));
+            addInterceptor(new SingleOperationTransactionDurableQueuesInterceptor(unitOfWorkFactory));
         }
 
         initializeQueueTables();
@@ -312,6 +312,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
         if (!started) {
             started = true;
             log.info("Starting");
+            interceptors.forEach(durableQueuesInterceptor -> durableQueuesInterceptor.setDurableQueues(this));
             durableQueueConsumers.values().forEach(PostgresqlDurableQueueConsumer::start);
             multiTableChangeListener.ifPresent(listener -> {
                 listener.listenToNotificationsFor(sharedQueueTableName,
@@ -378,6 +379,18 @@ public class PostgresqlDurableQueues implements DurableQueues {
     @Override
     public Optional<UnitOfWorkFactory<? extends UnitOfWork>> getUnitOfWorkFactory() {
         return Optional.ofNullable(unitOfWorkFactory);
+    }
+
+    @Override
+    public Set<QueueName> getQueueNames() {
+        var consumerQueueNames = durableQueueConsumers.keySet();
+        var dbQueueNames = unitOfWorkFactory.withUnitOfWork(handleAwareUnitOfWork -> handleAwareUnitOfWork.handle()
+                                                                                                          .createQuery(bind("SELECT distinct queue_name FROM {:tableName}",
+                                                                                                                            arg("tableName", sharedQueueTableName)))
+                                                                                                          .mapTo(QueueName.class)
+                                                                                                          .set());
+        dbQueueNames.addAll(consumerQueueNames);
+        return dbQueueNames;
     }
 
     @Override
@@ -945,6 +958,23 @@ public class PostgresqlDurableQueues implements DurableQueues {
     }
 
     @Override
+    public long getTotalDeadLetterMessagesQueuedFor(GetTotalDeadLetterMessagesQueuedFor operation) {
+        requireNonNull(operation, "You must specify a GetTotalDeadLetterMessagesQueuedFor instance");
+        return newInterceptorChainForOperation(operation,
+                                               interceptors,
+                                               (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
+                                               () -> unitOfWorkFactory.withUnitOfWork(handleAwareUnitOfWork -> handleAwareUnitOfWork.handle().createQuery(bind("SELECT count(*) FROM {:tableName} \n" +
+                                                                                                                                                                       " WHERE \n" +
+                                                                                                                                                                       "    queue_name = :queueName AND\n" +
+                                                                                                                                                                       "    is_dead_letter_message = TRUE",
+                                                                                                                                                               arg("tableName", sharedQueueTableName)))
+                                                                                                                                    .bind("queueName", operation.queueName)
+                                                                                                                                    .mapTo(Long.class)
+                                                                                                                                    .one()))
+                .proceed();
+    }
+
+    @Override
     public int purgeQueue(PurgeQueue operation) {
         requireNonNull(operation, "You must specify a PurgeQueue instance");
         return newInterceptorChainForOperation(operation,
@@ -1041,7 +1071,8 @@ public class PostgresqlDurableQueues implements DurableQueues {
     @Override
     public DurableQueues addInterceptor(DurableQueuesInterceptor interceptor) {
         requireNonNull(interceptor, "No interceptor provided");
-        log.debug("Adding interceptor: {}", interceptor);
+        log.info("Adding interceptor: {}", interceptor);
+        interceptor.setDurableQueues(this);
         interceptors.add(interceptor);
         return this;
     }
@@ -1049,9 +1080,20 @@ public class PostgresqlDurableQueues implements DurableQueues {
     @Override
     public DurableQueues removeInterceptor(DurableQueuesInterceptor interceptor) {
         requireNonNull(interceptor, "No interceptor provided");
-        log.debug("Removing interceptor: {}", interceptor);
+        log.info("Removing interceptor: {}", interceptor);
         interceptors.remove(interceptor);
         return this;
+    }
+
+    @Override
+    public Optional<QueueName> getQueueNameFor(QueueEntryId queueEntryId) {
+        return unitOfWorkFactory.withUnitOfWork(handleAwareUnitOfWork -> handleAwareUnitOfWork.handle()
+                                                                                              .createQuery(bind("SELECT queue_name FROM {:tableName} WHERE \n" +
+                                                                                                                        " id = :id",
+                                                                                                                arg("tableName", sharedQueueTableName)))
+                                                                                              .bind("id", requireNonNull(queueEntryId, "No queueEntryId provided"))
+                                                                                              .mapTo(QueueName.class)
+                                                                                              .findOne());
     }
 
     @Override
@@ -1141,9 +1183,15 @@ public class PostgresqlDurableQueues implements DurableQueues {
 
     private static class SingleOperationTransactionDurableQueuesInterceptor implements DurableQueuesInterceptor {
         private final HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory;
+        private       DurableQueues                                                 durableQueues;
 
         public SingleOperationTransactionDurableQueuesInterceptor(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory) {
             this.unitOfWorkFactory = unitOfWorkFactory;
+        }
+
+        @Override
+        public void setDurableQueues(DurableQueues durableQueues) {
+            this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
         }
 
         @Override

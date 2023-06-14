@@ -76,6 +76,15 @@ public interface DurableQueues extends Lifecycle {
     }
 
     /**
+     * Get all the {@link QueueName}'s with messages queued, dead-letter-messages/poison-messages queued or
+     * which has an active queue consumer
+     *
+     * @return all the {@link QueueName}'s with messages queued, dead-letter-messages/poison-messages queued or
+     * which has an active queue consumer
+     */
+    Set<QueueName> getQueueNames();
+
+    /**
      * Add a {@link DurableQueuesInterceptor} to this {@link DurableQueues} instance<br>
      * The {@link DurableQueuesInterceptor} allows you to intercept all high level operations
      *
@@ -104,6 +113,17 @@ public interface DurableQueues extends Lifecycle {
      * @return this {@link DurableQueues} instance
      */
     DurableQueues removeInterceptor(DurableQueuesInterceptor interceptor);
+
+    /**
+     * Get the name of the Queue where the message with <code>queueEntryId</code> is queued
+     * (either as a normal queued messages or a dead-letter/poison-message)
+     *
+     * @param queueEntryId the queue entry id of the message we want to know the {@link QueueName} for
+     * @return The {@link QueueName} wrapped in an {@link Optional}
+     * if {@link DurableQueues} contains a normal queued messages or a dead-letter/poison-message;
+     * otherwise an {@link Optional#empty()}
+     */
+    Optional<QueueName> getQueueNameFor(QueueEntryId queueEntryId);
 
     /**
      * Get a queued message that's marked as a {@link QueuedMessage#isDeadLetterMessage}
@@ -588,6 +608,24 @@ public interface DurableQueues extends Lifecycle {
      * @return the number of queued messages for the given queue
      */
     long getTotalMessagesQueuedFor(GetTotalMessagesQueuedFor operation);
+
+    /**
+     * Get the total number of dead-letter-messages/poison-messages queued for the given queue
+     *
+     * @param queueName the name of the Queue where we will query for the number of dead-letter-messages/poison-messages
+     * @return the number of queued messages for the given queue
+     */
+    default long getTotalDeadLetterMessagesQueuedFor(QueueName queueName) {
+        return getTotalDeadLetterMessagesQueuedFor(new GetTotalDeadLetterMessagesQueuedFor(queueName));
+    }
+
+    /**
+     * Get the total number of dead-letter-messages/poison-messages queued for the given queue
+     *
+     * @param operation the {@link GetTotalDeadLetterMessagesQueuedFor} operation
+     * @return the number of queued messages for the given queue
+     */
+    long getTotalDeadLetterMessagesQueuedFor(GetTotalDeadLetterMessagesQueuedFor operation);
 
     /**
      * Query Queued Messages (i.e. not including any Dead Letter Messages) for the given Queue

@@ -23,6 +23,13 @@ import java.util.*;
 
 public interface DurableQueuesInterceptor extends Interceptor {
     /**
+     * This method will be called by the {@link DurableQueues} instance that the {@link DurableQueuesInterceptor} is added to
+     *
+     * @param durableQueues the durable queue instance that this interceptor is added to
+     */
+    void setDurableQueues(DurableQueues durableQueues);
+
+    /**
      * Intercept {@link GetDeadLetterMessage} calls
      *
      * @param operation        the operation
@@ -173,6 +180,17 @@ public interface DurableQueuesInterceptor extends Interceptor {
      * @return the number of queued messages for the given queue
      */
     default long intercept(GetTotalMessagesQueuedFor operation, InterceptorChain<GetTotalMessagesQueuedFor, Long, DurableQueuesInterceptor> interceptorChain) {
+        return interceptorChain.proceed();
+    }
+
+    /**
+     * Intercept {@link GetTotalDeadLetterMessagesQueuedFor} calls
+     *
+     * @param operation        the operation
+     * @param interceptorChain the interceptor chain (call {@link InterceptorChain#proceed()} to continue the processing chain)
+     * @return the number of dead-letter-messages/poison-messages queued for the given queue
+     */
+    default long intercept(GetTotalDeadLetterMessagesQueuedFor operation, InterceptorChain<GetTotalDeadLetterMessagesQueuedFor, Long, DurableQueuesInterceptor> interceptorChain) {
         return interceptorChain.proceed();
     }
 

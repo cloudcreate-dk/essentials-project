@@ -385,6 +385,7 @@ public class MongoDurableQueues implements DurableQueues {
         if (!started) {
             started = true;
             log.info("Starting");
+            interceptors.forEach(durableQueuesInterceptor -> durableQueuesInterceptor.setDurableQueues(this));
             durableQueueConsumers.values().forEach(MongoDurableQueueConsumer::start);
             startCollectionListener();
             log.info("Started");
@@ -474,7 +475,8 @@ public class MongoDurableQueues implements DurableQueues {
     @Override
     public DurableQueues addInterceptor(DurableQueuesInterceptor interceptor) {
         requireNonNull(interceptor, "No interceptor provided");
-        log.debug("Adding interceptor: {}", interceptor);
+        log.info("Adding interceptor: {}", interceptor);
+        interceptor.setDurableQueues(this);
         interceptors.add(interceptor);
         return this;
     }
@@ -482,9 +484,22 @@ public class MongoDurableQueues implements DurableQueues {
     @Override
     public DurableQueues removeInterceptor(DurableQueuesInterceptor interceptor) {
         requireNonNull(interceptor, "No interceptor provided");
-        log.debug("Removing interceptor: {}", interceptor);
+        log.info("Removing interceptor: {}", interceptor);
         interceptors.remove(interceptor);
         return this;
+    }
+
+
+    @Override
+    public Set<QueueName> getQueueNames() {
+        var consumerQueueNames = durableQueueConsumers.keySet();
+        var dbQueueNames = new HashSet<>(mongoTemplate.findDistinct(new Query(),
+                                                                    "queueName",
+                                                                    sharedQueueCollectionName,
+                                                                    QueueName.class));
+
+        dbQueueNames.addAll(consumerQueueNames);
+        return dbQueueNames;
     }
 
     @Override
@@ -562,6 +577,16 @@ public class MongoDurableQueues implements DurableQueues {
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> getQueuedMessage(operation.queueEntryId, true))
                 .proceed();
+    }
+
+    @Override
+    public Optional<QueueName> getQueueNameFor(QueueEntryId queueEntryId) {
+        var query = new Query(where("id").is(queueEntryId.toString()));
+        return Optional.ofNullable(mongoTemplate.findOne(query,
+                                                         DurableQueuedMessage.class,
+                                                         sharedQueueCollectionName))
+                       .map(DurableQueuedMessage::getQueueName);
+
     }
 
     @Override
@@ -1086,6 +1111,18 @@ public class MongoDurableQueues implements DurableQueues {
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> mongoTemplate.count(query(where("queueName").is(operation.queueName)
                                                                                                  .and("isDeadLetterMessage").is(false)),
+                                                                         sharedQueueCollectionName))
+                .proceed();
+    }
+
+    @Override
+    public long getTotalDeadLetterMessagesQueuedFor(GetTotalDeadLetterMessagesQueuedFor operation) {
+        requireNonNull(operation, "You must specify a GetTotalDeadLetterMessagesQueuedFor instance");
+        return newInterceptorChainForOperation(operation,
+                                               interceptors,
+                                               (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
+                                               () -> mongoTemplate.count(query(where("queueName").is(operation.queueName)
+                                                                                                 .and("isDeadLetterMessage").is(true)),
                                                                          sharedQueueCollectionName))
                 .proceed();
     }
