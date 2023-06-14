@@ -50,7 +50,6 @@ import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.postgres.PostgresPlugin;
 import org.slf4j.*;
 import org.springframework.beans.BeansException;
-import org.springframework.boot.actuate.autoconfigure.metrics.export.ConditionalOnEnabledMetricsExport;
 import org.springframework.boot.actuate.autoconfigure.tracing.ConditionalOnEnabledTracing;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
@@ -94,7 +93,6 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     @Bean
-    @ConditionalOnEnabledMetricsExport(value = "durablequeues")
     public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(MeterRegistry meterRegistry) {
         return new DurableQueuesMicrometerInterceptor(meterRegistry);
     }
