@@ -29,7 +29,6 @@ import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.*;
 import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
@@ -42,16 +41,10 @@ import dk.cloudcreate.essentials.reactive.*;
 import dk.cloudcreate.essentials.reactive.command.*;
 import dk.cloudcreate.essentials.reactive.command.interceptor.CommandBusInterceptor;
 import dk.cloudcreate.essentials.reactive.spring.ReactiveHandlersBeanPostProcessor;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.observation.ObservationRegistry;
-import io.micrometer.tracing.Tracer;
-import io.micrometer.tracing.propagation.Propagator;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.postgres.PostgresPlugin;
 import org.slf4j.*;
 import org.springframework.beans.BeansException;
-import org.springframework.boot.actuate.autoconfigure.metrics.export.ConditionalOnEnabledMetricsExport;
-import org.springframework.boot.actuate.autoconfigure.tracing.ConditionalOnEnabledTracing;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -79,24 +72,6 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
-    }
-
-    @Bean
-    @ConditionalOnEnabledTracing
-    public DurableQueuesMicrometerTracingInterceptor durableQueuesMicrometerTracingInterceptor(Tracer tracer,
-                                                                                               Propagator propagator,
-                                                                                               ObservationRegistry observationRegistry,
-                                                                                               EssentialsComponentsProperties properties) {
-        return new DurableQueuesMicrometerTracingInterceptor(tracer,
-                                                             propagator,
-                                                             observationRegistry,
-                                                             properties.getDurableQueues().isVerboseTracing());
-    }
-
-    @Bean
-    @ConditionalOnEnabledMetricsExport(value = "durablequeues")
-    public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(MeterRegistry meterRegistry) {
-        return new DurableQueuesMicrometerInterceptor(meterRegistry);
     }
 
     /**
