@@ -81,6 +81,24 @@ public class EssentialsComponentsProperties {
         private Duration maxPollingInterval = Duration.ofMillis(2000);
         private TransactionalMode transactionalMode = TransactionalMode.FullyTransactional;
 
+        private boolean verboseTracing = false;
+
+        /**
+         * Should the Tracing produces only include all operations or only top level operations (default false)
+         * @return Should the Tracing produces only include all operations or only top level operations
+         */
+        public boolean isVerboseTracing() {
+            return verboseTracing;
+        }
+
+        /**
+         * Should the Tracing produces only include all operations or only top level operations (default false)
+         * @param verboseTracing Should the Tracing produces only include all operations or only top level operations
+         */
+        public void setVerboseTracing(boolean verboseTracing) {
+            this.verboseTracing = verboseTracing;
+        }
+
         /**
          * Get the transactional behaviour mode of the {@link PostgresqlDurableQueues}<br>
          * Default: {@link TransactionalMode#FullyTransactional}
