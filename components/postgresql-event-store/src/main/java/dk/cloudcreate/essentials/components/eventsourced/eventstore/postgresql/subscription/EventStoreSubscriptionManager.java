@@ -1018,19 +1018,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                              subscriberId,
                              aggregateType,
                              subscribeFromAndIncludingGlobalOrder);
-                    try {
-                        log.debug("[{}-{}] Stopping subscription flux",
-                                  subscriberId,
-                                  aggregateType);
-                        subscription.dispose();
-                    } catch (Exception e) {
-                        log.error(msg("[{}-{}] Failed to dispose subscription flux",
-                                      subscriberId,
-                                      aggregateType), e);
-                    }
-
-                    overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
                     stop();
+                    overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
                     start();
                 } else {
                     overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
@@ -1337,19 +1326,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                              subscriberId,
                              aggregateType,
                              subscribeFromAndIncludingGlobalOrder);
-                    try {
-                        log.debug("[{}-{}] Stopping subscription flux",
-                                  subscriberId,
-                                  aggregateType);
-                        subscription.dispose();
-                    } catch (Exception e) {
-                        log.error(msg("[{}-{}] Failed to dispose subscription flux",
-                                      subscriberId,
-                                      aggregateType), e);
-                    }
-
-                    overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
                     stop();
+                    overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
                     start();
                 } else {
                     overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
