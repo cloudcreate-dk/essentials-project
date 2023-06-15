@@ -1030,8 +1030,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                     }
 
                     overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
-                    started = false;
-
+                    stop();
                     start();
                 } else {
                     overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
@@ -1350,8 +1349,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                     }
 
                     overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
-                    started = false;
-
+                    stop();
                     start();
                 } else {
                     overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
