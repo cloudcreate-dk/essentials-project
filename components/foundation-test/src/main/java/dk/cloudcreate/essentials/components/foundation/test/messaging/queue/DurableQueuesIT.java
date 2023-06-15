@@ -209,7 +209,8 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         // Then
         Awaitility.waitAtMost(Duration.ofSeconds(2))
                   .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages).hasSize(3));
-        assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
+        Awaitility.waitAtMost(Duration.ofSeconds(2))
+                  .untilAsserted(() -> assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0));
         assertThat(durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName)).isEqualTo(0);
 
 

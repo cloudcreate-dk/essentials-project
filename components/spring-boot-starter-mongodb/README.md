@@ -8,7 +8,7 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-mongodb</artifactId>
-    <version>0.20.2</version>
+    <version>0.20.3</version>
 </dependency>
 ```
 

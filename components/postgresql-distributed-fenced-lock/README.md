@@ -21,7 +21,7 @@ To use `PostgreSQL Distributed Fenced Lock` just add the following Maven depende
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-distributed-fenced-lock</artifactId>
-    <version>0.20.2</version>
+    <version>0.20.3</version>
 </dependency>
 ```
 
