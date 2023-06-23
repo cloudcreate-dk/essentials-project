@@ -66,13 +66,13 @@
         <objenesis.version>3.3</objenesis.version>
         <postgresql.version>42.6.0</postgresql.version>
         <slf4j.version>2.0.7</slf4j.version>
-        <spring-boot.version>3.0.7</spring-boot.version>
+        <spring-boot.version>3.0.8</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <spring-data-mongodb.version>4.0.6</spring-data-mongodb.version>
-        <spring-data-jpa.version>3.0.6</spring-data-jpa.version>
+        <spring-data-mongodb.version>4.0.7</spring-data-mongodb.version>
+        <spring-data-jpa.version>3.0.7</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
         <assertj.version>3.24.2</assertj.version>
-        <mongodb-driver-sync.version>4.9.1</mongodb-driver-sync.version>
+        <mongodb-driver-sync.version>4.10.0</mongodb-driver-sync.version>
         <log4j-to-slf4j.version>2.20.0</log4j-to-slf4j.version>
         <snakeyaml.version>1.33</snakeyaml.version>
         <json-smart.version>2.4.11</json-smart.version>
@@ -126,7 +126,7 @@
             <dependency>
                 <groupId>org.jdbi</groupId>
                 <artifactId>jdbi3-bom</artifactId>
-                <version>3.38.3</version>
+                <version>3.39.1</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -140,21 +140,21 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-bom</artifactId>
-                <version>2022.0.7</version>
+                <version>2022.0.8</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>6.0.9</version>
+                <version>6.0.10</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-bom</artifactId>
-                <version>5.3.1</version>
+                <version>5.4.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -227,7 +227,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-clean-plugin</artifactId>
-                    <version>3.2.0</version>
+                    <version>3.3.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
