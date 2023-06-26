@@ -452,7 +452,7 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
                                            persistedEvents);
         } catch (RuntimeException e) {
             var cause = Exceptions.getRootCause(e);
-            if (cause.getMessage().contains("ERROR: duplicate key value violates unique constraint") && cause.getMessage().contains("aggregate_id_event_order_key")) {
+            if (cause.getMessage() != null && cause.getMessage().contains("ERROR: duplicate key value violates unique constraint") && cause.getMessage().contains("aggregate_id_event_order_key")) {
                 throw new OptimisticAppendToStreamException(msg("[{}] Optimistic Concurrency Exception Failed to Append {} Events to Stream related to aggregate with id '{}'. " +
                                                                         "First event was appended with eventOrder {}. Details: {}",
                                                                 configuration.aggregateType,
