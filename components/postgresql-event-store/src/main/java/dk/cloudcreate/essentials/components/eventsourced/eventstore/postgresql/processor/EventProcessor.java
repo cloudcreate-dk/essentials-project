@@ -201,7 +201,8 @@ public abstract class EventProcessor implements Lifecycle {
         patternMatchingInboxMessageHandlerDelegate = new PatternMatchingMessageHandler(this);
         patternMatchingInboxMessageHandlerDelegate.allowUnmatchedMessages();
         inboxMessageHandlerDelegate = (msg) -> {
-            if (msg instanceof OrderedMessage orderedMessage && EventReferenceOrderedMessage.isEventReference(orderedMessage)) {
+            if (EventReferenceOrderedMessage.isOrderedEventReference(msg)) {
+                var orderedMessage    = (OrderedMessage) msg;
                 var aggregateType     = (AggregateType) orderedMessage.getPayload();
                 var stringAggregateId = orderedMessage.getKey();
                 // TODO: If necessary we can introduce a generic factory to convert other values than SingleValueType's
@@ -427,9 +428,9 @@ public abstract class EventProcessor implements Lifecycle {
             }
         }
 
-        public static boolean isEventReference(OrderedMessage msg) {
+        public static boolean isOrderedEventReference(Message msg) {
             requireNonNull(msg, "No msg provided");
-            return "true".equals(msg.getMetaData().get(EVENT_REFERENCE_METADATA_KEY));
+            return msg instanceof OrderedMessage && "true".equals(msg.getMetaData().get(EVENT_REFERENCE_METADATA_KEY));
         }
 
         public static Class<? extends SingleValueType<?, ?>> getSingleValueKeyType(OrderedMessage msg) {
