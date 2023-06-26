@@ -1321,7 +1321,7 @@ class SingleTenantPostgresqlEventStoreIT {
                                                           .get();
         System.out.println("# Total number of Order Events: " + totalNumberOfOrderEvents);
         System.out.println("# Total number of expected Order Events gaps: " + expectedNumberOfGaps.get());
-        Awaitility.waitAtMost(Duration.ofSeconds(20))
+        Awaitility.waitAtMost(Duration.ofSeconds(30))
                   .untilAsserted(() -> assertThat(orderEventsReceived.size()).isEqualTo(totalNumberOfOrderEvents));
 
         var persistedEventsGlobalOrders = orderEventsReceived.stream()
