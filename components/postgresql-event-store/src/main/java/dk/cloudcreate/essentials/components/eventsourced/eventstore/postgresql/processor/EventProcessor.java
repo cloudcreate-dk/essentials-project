@@ -29,7 +29,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus;
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.reactive.Handler;
-import dk.cloudcreate.essentials.reactive.command.AnnotatedCommandHandler;
+import dk.cloudcreate.essentials.reactive.command.*;
 import dk.cloudcreate.essentials.shared.reflection.Classes;
 import dk.cloudcreate.essentials.types.*;
 import org.slf4j.*;
@@ -144,7 +144,6 @@ public abstract class EventProcessor implements Lifecycle {
     private final   Inboxes                       inboxes;
     protected final DurableLocalCommandBus        commandBus;
     private final   EventStore                    eventStore;
-    private final   boolean                       queueEventMessageReferences;
 
     private boolean                       started;
     private List<EventStoreSubscription>  eventStoreSubscriptions;
@@ -153,29 +152,45 @@ public abstract class EventProcessor implements Lifecycle {
     private Inbox                         inbox;
     private PatternMatchingMessageHandler patternMatchingInboxMessageHandlerDelegate;
 
+    /**
+     * Create a new {@link EventProcessor} instance
+     *
+     * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions
+     * @param inboxes                       the {@link Inboxes} instance used to create an {@link Inbox}, with the name returned from {@link #getProcessorName()}.
+     *                                      This {@link Inbox} is used for forwarding {@link PersistedEvent}'s received via {@link EventStoreSubscription}'s, because {@link EventStoreSubscription}'s
+     *                                      doesn't handle message retry, etc.
+     * @param commandBus                    The {@link CommandBus} where any {@link Handler} or {@link CmdHandler} annotated methods in the subclass of the {@link EventProcessor} will be registered
+     */
     protected EventProcessor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
                              Inboxes inboxes,
                              DurableLocalCommandBus commandBus) {
         this(eventStoreSubscriptionManager,
              inboxes,
              commandBus,
-             null,
-             false);
+             null);
     }
 
+    /**
+     * Create a new {@link EventProcessor} instance
+     *
+     * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions
+     * @param inboxes                       the {@link Inboxes} instance used to create an {@link Inbox}, with the name returned from {@link #getProcessorName()}.
+     *                                      This {@link Inbox} is used for forwarding {@link PersistedEvent}'s received via {@link EventStoreSubscription}'s, because {@link EventStoreSubscription}'s
+     *                                      doesn't handle message retry, etc.
+     * @param commandBus                    The {@link CommandBus} where any {@link Handler} or {@link CmdHandler} annotated methods in the subclass of the {@link EventProcessor} will be registered
+     * @param eventStore                    Optional argument. If the <code>eventStore</code> is NULL (default if you're using {@link EventProcessor#EventProcessor(EventStoreSubscriptionManager, Inboxes, DurableLocalCommandBus)})
+     *                                      then we queue the full {@link PersistedEvent}'s payload in the {@link Inbox}. If  <code>eventStore</code> is NON-NULL then we only queue a reference to
+     *                                      the {@link PersistedEvent} and before the message is forwarded to the corresponding {@link MessageHandler} then we load the {@link PersistedEvent}'s
+     *                                      payload and forward it to the {@link MessageHandler} annotated method
+     */
     protected EventProcessor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
                              Inboxes inboxes,
                              DurableLocalCommandBus commandBus,
-                             EventStore eventStore,
-                             boolean queueEventMessageReferences) {
+                             EventStore eventStore) {
         this.eventStoreSubscriptionManager = requireNonNull(eventStoreSubscriptionManager, "No eventStoreSubscriptionManager provided");
         this.inboxes = requireNonNull(inboxes, "No inboxes instance provided");
         this.commandBus = requireNonNull(commandBus, "No commandBus provided");
         this.eventStore = eventStore;
-        this.queueEventMessageReferences = queueEventMessageReferences;
-        if (queueEventMessageReferences) {
-            requireNonNull(eventStore, "An eventStore instance required when queueEventMessageReferences is true");
-        }
         setupEventAndMessageHandlers();
     }
 
@@ -187,8 +202,8 @@ public abstract class EventProcessor implements Lifecycle {
         patternMatchingInboxMessageHandlerDelegate.allowUnmatchedMessages();
         inboxMessageHandlerDelegate = (msg) -> {
             if (msg instanceof OrderedMessage orderedMessage && EventReferenceOrderedMessage.isEventReference(orderedMessage)) {
-                var aggregateType              = (AggregateType) orderedMessage.getPayload();
-                var stringAggregateId          = orderedMessage.getKey();
+                var aggregateType     = (AggregateType) orderedMessage.getPayload();
+                var stringAggregateId = orderedMessage.getKey();
                 // TODO: If necessary we can introduce a generic factory to convert other values than SingleValueType's
                 var aggregateIdSingleValueType = EventReferenceOrderedMessage.getSingleValueKeyType(orderedMessage);
                 var aggregateId = aggregateIdSingleValueType != null ?
@@ -221,9 +236,7 @@ public abstract class EventProcessor implements Lifecycle {
             } else {
                 patternMatchingInboxMessageHandlerDelegate.accept(msg);
             }
-        }
-
-        ;
+        };
     }
 
     @Override
@@ -310,7 +323,7 @@ public abstract class EventProcessor implements Lifecycle {
      */
     protected void forwardEventToInbox(PersistedEvent event, Inbox forwardToInbox) {
         if (patternMatchingInboxMessageHandlerDelegate.handlesMessageWithPayload(event.event().getEventType().get().toJavaClass())) {
-            if (queueEventMessageReferences) {
+            if (eventStore != null) {
                 forwardToInbox.addMessageReceived(new EventReferenceOrderedMessage(event.aggregateType(),
                                                                                    event.aggregateId(),
                                                                                    event.eventOrder()));
