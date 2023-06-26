@@ -176,7 +176,7 @@ public class DurableQueuesMicrometerTracingInterceptor implements DurableQueuesI
     protected void storeTraceContext(MessageMetaData messageMetaData) {
         if (messageMetaData != null) {
             var currentTraceContext = tracer.currentTraceContext();
-            if (currentTraceContext != null) {
+            if (currentTraceContext != null && currentTraceContext.context() != null) {
                 propagator.inject(currentTraceContext.context(),
                                   messageMetaData,
                                   MessageMetaData::put);
