@@ -66,7 +66,7 @@
         <objenesis.version>3.3</objenesis.version>
         <postgresql.version>42.6.0</postgresql.version>
         <slf4j.version>2.0.7</slf4j.version>
-        <spring-boot.version>3.0.8</spring-boot.version>
+        <spring-boot.version>3.0.9</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
         <spring-data-mongodb.version>4.0.8</spring-data-mongodb.version>
         <spring-data-jpa.version>3.0.8</spring-data-jpa.version>
@@ -112,14 +112,14 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.95.Final</version>
+                <version>4.1.96.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.9.3</version>
+                <version>5.10.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -133,7 +133,7 @@
             <dependency>
                 <groupId>org.jdbi</groupId>
                 <artifactId>jdbi3-bom</artifactId>
-                <version>3.39.1</version>
+                <version>3.40.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -200,7 +200,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.8</version>
+            <version>1.4.9</version>
             <scope>test</scope>
         </dependency>
         <dependency>

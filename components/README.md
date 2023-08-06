@@ -41,7 +41,6 @@ such as:
 - **Enterprise Integration Patterns**
     - `Inbox` (Store and Forward supported by a Durable Queue)
     - `Outbox` (Store and Forward supported by a Durable Queue)
-- `EventProcessor` - Event Modeling style Event Sourced Event Processor and Command Handler
 
 To use `foundation` just add the following Maven dependency:
 
@@ -232,6 +231,8 @@ It supports the [eventsourced-aggregates](eventsourced-aggregates/README.md) mod
 advanced concepts such an `EventStoreSubscriptionManager` which supports durable subscriptions, where
 the `EventStoreSubscriptionManager` keeps track of the individual subscribers `ResumePoint`'s (similar to
 how Kafka keeps track of Consumers Topic offsets).
+
+This library also provides an `EventProcessor` concept, which is an Event Modeling style Event Sourced Event Processor Event and Command message Handler.
 
 To use `Postgresql Event Store` just add the following Maven dependency:
 
