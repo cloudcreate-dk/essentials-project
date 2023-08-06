@@ -39,9 +39,9 @@ public class DurableQueuesMicrometerTracingInterceptor implements DurableQueuesI
     private       DurableQueues                  durableQueues;
 
     /**
-     * @param tracer              The {@link Tracer}
-     * @param propagator          the {@link Propagator}
-     * @param observationRegistry the {@link ObservationRegistry}
+     * @param tracer              The micrometer {@link Tracer}
+     * @param propagator          The micrometer {@link Propagator}
+     * @param observationRegistry The micrometer {@link ObservationRegistry}
      * @param verboseTracing      Should the Tracing produces only include all operations or only top level operations
      */
     public DurableQueuesMicrometerTracingInterceptor(Tracer tracer,
