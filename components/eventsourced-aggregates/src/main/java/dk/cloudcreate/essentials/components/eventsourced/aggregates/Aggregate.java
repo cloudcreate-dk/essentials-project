@@ -49,7 +49,7 @@ public interface Aggregate<ID, AGGREGATE_TYPE extends Aggregate<ID, AGGREGATE_TY
     /**
      * Get the eventOrder of the last event during aggregate hydration (using the {@link #rehydrate(AggregateEventStream)} method)
      *
-     * @return the event order of the last applied {@link Event} or {@link EventOrder#NO_EVENTS_PERSISTED} in case no
+     * @return the event order of the last applied {@link Event} or {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED} in case no
      * events has ever been applied to the aggregate
      */
     EventOrder eventOrderOfLastRehydratedEvent();

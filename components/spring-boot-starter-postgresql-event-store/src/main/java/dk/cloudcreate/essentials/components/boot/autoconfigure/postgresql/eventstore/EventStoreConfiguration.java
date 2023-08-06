@@ -22,19 +22,24 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.b
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.micrometer.MicrometerTracingEventStoreInterceptor;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.spring.SpringTransactionAwareEventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventTypeOrName;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
 import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.reactive.OnErrorHandler;
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.tracing.Tracer;
+import io.micrometer.tracing.propagation.Propagator;
 import org.jdbi.v3.core.Jdbi;
+import org.springframework.boot.actuate.autoconfigure.tracing.ConditionalOnEnabledTracing;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -140,6 +145,9 @@ public class EventStoreConfiguration {
      * @param unitOfWorkFactory               the {@link EventStoreUnitOfWorkFactory}
      * @param persistableEventMapper          the mapper from the raw Java Event's to {@link PersistableEvent}<br>
      * @param essentialComponentsObjectMapper {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
+     * @param persistableEventEnrichers       {@link PersistableEventEnricher}'s - which are called in sequence by the {@link SeparateTablePerAggregateTypePersistenceStrategy#persist(EventStoreUnitOfWork, AggregateType, Object, Optional, List)} after
+     *                                        {@link PersistableEventMapper#map(Object, AggregateEventStreamConfiguration, Object, EventOrder)}
+     *                                        has been called
      * @return the strategy for how {@link AggregateType} event-streams should be persisted
      */
     @Bean
@@ -148,17 +156,19 @@ public class EventStoreConfiguration {
                                                                                           EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
                                                                                           PersistableEventMapper persistableEventMapper,
                                                                                           ObjectMapper essentialComponentsObjectMapper,
-                                                                                          EssentialsEventStoreProperties properties) {
+                                                                                          EssentialsEventStoreProperties properties,
+                                                                                          List<PersistableEventEnricher> persistableEventEnrichers) {
         return new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                     unitOfWorkFactory,
                                                                     persistableEventMapper,
                                                                     standardSingleTenantConfigurationUsingJackson(essentialComponentsObjectMapper,
                                                                                                                   properties.getIdentifierColumnType(),
-                                                                                                                  properties.getJsonColumnType()));
+                                                                                                                  properties.getJsonColumnType()),
+                                                                    persistableEventEnrichers);
     }
 
     /**
-     * The configurable {@link EventStore} that allows us to persist and load Events associated with different {@link AggregateType}øs
+     * The configurable {@link EventStore} that allows us to persist and load Events associated with different {@link AggregateType}'s
      *
      * @param eventStoreUnitOfWorkFactory the {@link EventStoreUnitOfWorkFactory} that is required for the {@link EventStore} in order handle events associated with a given transaction
      * @param persistenceStrategy         the strategy for how {@link AggregateType} event-streams should be persisted.
@@ -180,5 +190,17 @@ public class EventStoreConfiguration {
                                                                               new NoEventStreamGapHandler<>());
         configurableEventStore.addEventStoreInterceptors(eventStoreInterceptors);
         return configurableEventStore;
+    }
+
+    @Bean
+    @ConditionalOnEnabledTracing
+    public MicrometerTracingEventStoreInterceptor micrometerTracingEventStoreInterceptor(Tracer tracer,
+                                                                                         Propagator propagator,
+                                                                                         ObservationRegistry observationRegistry,
+                                                                                         EssentialsEventStoreProperties essentialsComponentsProperties) {
+        return new MicrometerTracingEventStoreInterceptor(tracer,
+                                                          propagator,
+                                                          observationRegistry,
+                                                          essentialsComponentsProperties.isVerboseTracing());
     }
 }

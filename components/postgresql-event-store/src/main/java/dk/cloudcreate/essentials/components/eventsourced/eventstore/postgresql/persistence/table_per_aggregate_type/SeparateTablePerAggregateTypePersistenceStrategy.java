@@ -72,6 +72,37 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
     private final AggregateEventStreamConfigurationFactory<SeparateTablePerAggregateEventStreamConfiguration> aggregateEventStreamConfigurationFactory;
     private final Optional<PostgresqlEventStreamListener>                                                     postgresEventStreamListener;
     private final Jdbi                                                                                        jdbi;
+    private final List<PersistableEventEnricher>                                                              persistableEventEnrichers;
+
+    /**
+     * Create a new {@link SeparateTablePerAggregateTypePersistenceStrategy} using the specified {@link PersistableEventMapper}
+     *
+     * @param jdbi                                     The jdbi instance
+     * @param unitOfWorkFactory                        the {@link EventStoreUnitOfWorkFactory}
+     * @param eventMapper                              the mapper from the raw Java Event's to {@link PersistableEvent}<br>
+     *                                                 The {@link PersistableEventMapper} controls meta-data, correlation id, tenant id, etc. at a cross-functional level
+     * @param aggregateEventStreamConfigurationFactory The {@link AggregateEventStreamConfigurationFactory} that provides the default {@link AggregateEventStreamConfiguration} when using
+     *                                                 e.g. {@link #addAggregateEventStreamConfiguration(AggregateType, Class)} and {@link #addAggregateEventStreamConfiguration(AggregateType, AggregateIdSerializer)}<br>
+     *                                                 See {@link SeparateTablePerAggregateTypeEventStreamConfigurationFactory}
+     * @param aggregateTypeConfigurations              {@link AggregateEventStreamConfiguration}'s that should be added immediately
+     * @param persistableEventEnrichers                {@link PersistableEventEnricher}'s - which are called in sequence by the {@link SeparateTablePerAggregateTypePersistenceStrategy#persist(EventStoreUnitOfWork, AggregateType, Object, Optional, List)} after
+     *                                                 {@link PersistableEventMapper#map(Object, AggregateEventStreamConfiguration, Object, EventOrder)}
+     *                                                 has been called
+     */
+    public SeparateTablePerAggregateTypePersistenceStrategy(Jdbi jdbi,
+                                                            EventStoreUnitOfWorkFactory unitOfWorkFactory,
+                                                            PersistableEventMapper eventMapper,
+                                                            AggregateEventStreamConfigurationFactory<SeparateTablePerAggregateEventStreamConfiguration> aggregateEventStreamConfigurationFactory,
+                                                            List<SeparateTablePerAggregateEventStreamConfiguration> aggregateTypeConfigurations,
+                                                            List<PersistableEventEnricher> persistableEventEnrichers) {
+        this(jdbi,
+             unitOfWorkFactory,
+             eventMapper,
+             aggregateEventStreamConfigurationFactory,
+             aggregateTypeConfigurations,
+             null,
+             persistableEventEnrichers);
+    }
 
     /**
      * Create a new {@link SeparateTablePerAggregateTypePersistenceStrategy} using the specified {@link PersistableEventMapper}
@@ -95,7 +126,38 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
              eventMapper,
              aggregateEventStreamConfigurationFactory,
              aggregateTypeConfigurations,
-             null);
+             null,
+             List.of());
+    }
+
+    /**
+     * Create a new {@link SeparateTablePerAggregateTypePersistenceStrategy} using the specified {@link PersistableEventMapper}
+     *
+     * @param jdbi                                     The jdbi instance
+     * @param unitOfWorkFactory                        the {@link EventStoreUnitOfWorkFactory}
+     * @param eventMapper                              the mapper from the raw Java Event's to {@link PersistableEvent}<br>
+     *                                                 The {@link PersistableEventMapper} controls meta-data, correlation id, tenant id, etc. at a cross-functional level
+     * @param aggregateEventStreamConfigurationFactory The {@link AggregateEventStreamConfigurationFactory} that provides the default {@link AggregateEventStreamConfiguration} when using
+     *                                                 e.g. {@link #addAggregateEventStreamConfiguration(AggregateType, Class)} and {@link #addAggregateEventStreamConfiguration(AggregateType, AggregateIdSerializer)}<br>
+     *                                                 See {@link SeparateTablePerAggregateTypeEventStreamConfigurationFactory}
+     * @param persistableEventEnrichers                {@link PersistableEventEnricher}'s - which are called in sequence by the {@link SeparateTablePerAggregateTypePersistenceStrategy#persist(EventStoreUnitOfWork, AggregateType, Object, Optional, List)} after
+     *                                                 {@link PersistableEventMapper#map(Object, AggregateEventStreamConfiguration, Object, EventOrder)}
+     *                                                 has been called
+     * @param aggregateTypeConfigurations              {@link AggregateEventStreamConfiguration}'s that should be added immediately
+     */
+    public SeparateTablePerAggregateTypePersistenceStrategy(Jdbi jdbi,
+                                                            EventStoreUnitOfWorkFactory unitOfWorkFactory,
+                                                            PersistableEventMapper eventMapper,
+                                                            AggregateEventStreamConfigurationFactory<SeparateTablePerAggregateEventStreamConfiguration> aggregateEventStreamConfigurationFactory,
+                                                            List<PersistableEventEnricher> persistableEventEnrichers,
+                                                            SeparateTablePerAggregateEventStreamConfiguration... aggregateTypeConfigurations) {
+        this(jdbi,
+             unitOfWorkFactory,
+             eventMapper,
+             aggregateEventStreamConfigurationFactory,
+             List.of(aggregateTypeConfigurations),
+             null,
+             persistableEventEnrichers);
     }
 
     /**
@@ -120,7 +182,8 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
              eventMapper,
              aggregateEventStreamConfigurationFactory,
              List.of(aggregateTypeConfigurations),
-             null);
+             null,
+             List.of());
     }
 
     /**
@@ -135,18 +198,23 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
      *                                                 See {@link SeparateTablePerAggregateTypeEventStreamConfigurationFactory}
      * @param aggregateTypeConfigurations              {@link AggregateEventStreamConfiguration}'s that should be added immediately
      * @param postgresqlEventStreamListener            the {@link PostgresqlEventStreamListener} which supports the postgresql PUBLISH/NOTIFY pattern
+     * @param persistableEventEnrichers                {@link PersistableEventEnricher}'s - which are called in sequence by the {@link SeparateTablePerAggregateTypePersistenceStrategy#persist(EventStoreUnitOfWork, AggregateType, Object, Optional, List)} after
+     *                                                 {@link PersistableEventMapper#map(Object, AggregateEventStreamConfiguration, Object, EventOrder)}
+     *                                                 has been called
      */
     private SeparateTablePerAggregateTypePersistenceStrategy(Jdbi jdbi,
                                                              EventStoreUnitOfWorkFactory unitOfWorkFactory,
                                                              PersistableEventMapper eventMapper,
                                                              AggregateEventStreamConfigurationFactory<SeparateTablePerAggregateEventStreamConfiguration> aggregateEventStreamConfigurationFactory,
                                                              List<SeparateTablePerAggregateEventStreamConfiguration> aggregateTypeConfigurations,
-                                                             PostgresqlEventStreamListener postgresqlEventStreamListener) {
+                                                             PostgresqlEventStreamListener postgresqlEventStreamListener,
+                                                             List<PersistableEventEnricher> persistableEventEnrichers) {
         this.jdbi = requireNonNull(jdbi, "No jdbi instance provided");
         this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory);
         this.eventMapper = requireNonNull(eventMapper, "No event mapper provided");
         this.aggregateEventStreamConfigurationFactory = requireNonNull(aggregateEventStreamConfigurationFactory, "No aggregateEventStreamConfigurationFactory provided");
         this.postgresEventStreamListener = Optional.ofNullable(postgresqlEventStreamListener);
+        this.persistableEventEnrichers = requireNonNull(persistableEventEnrichers, "persistableEventEnrichers is null");
 
         jdbi.registerArgument(new CorrelationIdArgumentFactory());
         jdbi.registerColumnMapper(new CorrelationIdColumnMapper());
@@ -411,7 +479,7 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
         if (persistableEvents.isEmpty()) {
             return AggregateEventStream.of(configuration,
                                            aggregateId,
-                                           LongRange.only(EventOrder.NO_EVENTS_PERSISTED.longValue()),
+                                           LongRange.only(EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED.longValue()),
                                            Stream.empty());
         }
 
@@ -422,11 +490,23 @@ public class SeparateTablePerAggregateTypePersistenceStrategy implements Aggrega
                                                                                                                     aggregateType,
                                                                                                                     aggregateId)
                 .map(PersistedEvent::eventOrder)
-                .orElse(EventOrder.NO_EVENTS_PERSISTED)
+                .orElse(EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED)
                 .longValue()));
         var initialEventOrder = eventOrder.get();
         var jdbiPersistableEvents = persistableEvents.stream()
                                                      .map(rawPersistableEvent -> eventMapper.map(aggregateId, configuration, rawPersistableEvent, EventOrder.of(eventOrder.incrementAndGet())))
+                                                     .map(mappedPersistableEvent -> {
+                                                         PersistableEvent enrichedPersistableEvent = mappedPersistableEvent;
+                                                         for (var enricher : persistableEventEnrichers) {
+                                                             enrichedPersistableEvent = enricher.enrich(enrichedPersistableEvent);
+                                                             if (enrichedPersistableEvent == null) {
+                                                                 throw new IllegalStateException(msg("{} returned null",
+                                                                                                     PersistableEventEnricher.class.getSimpleName()
+                                                                                                    ));
+                                                             }
+                                                         }
+                                                         return enrichedPersistableEvent;
+                                                     })
                                                      .map(persistableEvent -> addEventToPersistenceBatch(configuration, batch, persistableEvent))
                                                      .collect(Collectors.toList());
 

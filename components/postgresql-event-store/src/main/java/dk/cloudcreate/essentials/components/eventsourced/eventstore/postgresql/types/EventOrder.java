@@ -32,11 +32,11 @@ public class EventOrder extends LongType<EventOrder> {
     /**
      * Special value that signifies the no previous events have been persisted in relation to a given aggregate
      */
-    public static final EventOrder NO_EVENTS_PERSISTED = EventOrder.of(-1);
+    public static final EventOrder NO_EVENTS_PREVIOUSLY_PERSISTED = EventOrder.of(-1);
     /**
      * Special value that contains the {@link EventOrder} of the FIRST Event persisted in context of a given aggregate id
      */
-    public static final EventOrder FIRST_EVENT_ORDER   = EventOrder.of(0);
+    public static final EventOrder FIRST_EVENT_ORDER              = EventOrder.of(0);
     /**
      * Special value that contains the maximum allowed {@link EventOrder} value
      */

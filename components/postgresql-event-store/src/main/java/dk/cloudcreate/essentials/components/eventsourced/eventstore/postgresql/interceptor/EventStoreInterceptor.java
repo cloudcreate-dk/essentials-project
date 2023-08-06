@@ -20,7 +20,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.operations.*;
 
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -31,7 +31,7 @@ import java.util.stream.Stream;
 public interface EventStoreInterceptor {
 
     /**
-     * Intercept the {@link AppendToStream} operation
+     * Intercept the {@link AppendToStream} operation (which includes {@link EventStore#startStream(AggregateType, Object, List)}/{@link EventStore#appendToStream(AppendToStream)})
      *
      * @param operation                  the operation instance
      * @param eventStoreInterceptorChain the interceptor chain

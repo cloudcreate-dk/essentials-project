@@ -57,7 +57,7 @@ public class AppendToStreamBuilder<ID> {
     /**
      * @param appendEventsAfterEventOrder append the {@link #setEventsToAppend(List)}  after this event order, i.e. the first event in the {@link #setEventsToAppend(List)}  list
      *                                    will receive an {@link PersistedEvent#eventOrder()} which is <code>appendEventsAfterEventOrder +  1</code><br>
-     *                                    If it's the very first event to be appended, then you can provide {@link EventOrder#NO_EVENTS_PERSISTED}<br>
+     *                                    If it's the very first event to be appended, then you can provide {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}<br>
      *                                    If <code>appendEventsAfterEventOrder</code> is {@link Optional#empty()} then the {@link EventStore}
      *                                    will call {@link EventStore#loadLastPersistedEventRelatedTo(AggregateType, Object)}
      *                                    to resolve the {@link EventOrder} of the last persisted event for this aggregate instance.
@@ -71,7 +71,7 @@ public class AppendToStreamBuilder<ID> {
     /**
      * @param appendEventsAfterEventOrder append the {@link #setEventsToAppend(List)}  after this event order, i.e. the first event in the {@link #setEventsToAppend(List)}  list
      *                                    will receive an {@link PersistedEvent#eventOrder()} which is <code>appendEventsAfterEventOrder +  1</code><br>
-     *                                    If it's the very first event to be appended, then you can provide {@link EventOrder#NO_EVENTS_PERSISTED}<br>
+     *                                    If it's the very first event to be appended, then you can provide {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}<br>
      *                                    If <code>appendEventsAfterEventOrder</code> is <code>null</code> then the {@link EventStore}
      *                                    will call {@link EventStore#loadLastPersistedEventRelatedTo(AggregateType, Object)}
      *                                    to resolve the {@link EventOrder} of the last persisted event for this aggregate instance.
@@ -83,9 +83,23 @@ public class AppendToStreamBuilder<ID> {
     }
 
     /**
+     * @param appendEventsAfterEventOrder append the {@link #setEventsToAppend(List)}  after this event order, i.e. the first event in the {@link #setEventsToAppend(List)}  list
+     *                                    will receive an {@link PersistedEvent#eventOrder()} which is <code>appendEventsAfterEventOrder +  1</code><br>
+     *                                    If it's the very first event to be appended, then you can provide {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}<br>
+     *                                    If <code>appendEventsAfterEventOrder</code> is <code>null</code> then the {@link EventStore}
+     *                                    will call {@link EventStore#loadLastPersistedEventRelatedTo(AggregateType, Object)}
+     *                                    to resolve the {@link EventOrder} of the last persisted event for this aggregate instance.
+     * @return this builder instance
+     */
+    public AppendToStreamBuilder<ID> setAppendEventsAfterEventOrder(EventOrder appendEventsAfterEventOrder) {
+        this.appendEventsAfterEventOrder = Optional.ofNullable(appendEventsAfterEventOrder).map(NumberType::longValue);
+        return this;
+    }
+
+    /**
      * @param appendEventsAfterEventOrder append the {@link #setEventsToAppend(List)}  after this event order, i.e. the first event in the {@link #setEventsToAppend(List)} list
      *                                    will receive an {@link PersistedEvent#eventOrder()} which is <code>appendEventsAfterEventOrder +  1</code><br>
-     *                                    If it's the very first event to be appended, then you can provide {@link EventOrder#NO_EVENTS_PERSISTED}<br>
+     *                                    If it's the very first event to be appended, then you can provide {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}<br>
      *                                    If <code>appendEventsAfterEventOrder</code> is <code>null</code> then the {@link EventStore}
      *                                    will call {@link EventStore#loadLastPersistedEventRelatedTo(AggregateType, Object)}
      *                                    to resolve the {@link EventOrder} of the last persisted event for this aggregate instance.
@@ -106,7 +120,17 @@ public class AppendToStreamBuilder<ID> {
     }
 
     /**
+     * @param eventsToAppend the events to persist/append
+     * @return this builder instance
+     */
+    public AppendToStreamBuilder<ID> setEventsToAppend(Object... eventsToAppend) {
+        this.eventsToAppend = List.of(eventsToAppend);
+        return this;
+    }
+
+    /**
      * Builder an {@link AppendToStream} instance from the builder properties
+     *
      * @return the {@link AppendToStream} instance
      */
     public AppendToStream<ID> build() {
