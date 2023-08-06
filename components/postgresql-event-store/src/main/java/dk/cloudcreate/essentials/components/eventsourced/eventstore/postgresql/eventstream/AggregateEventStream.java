@@ -134,6 +134,24 @@ public interface AggregateEventStream<AGGREGATE_ID> {
      */
     List<PersistedEvent> eventList();
 
+    /**
+     * Get the last event in the fetched event stream
+     * This method can be called multiple times, as long as the {@link #events()}
+     * stream hasn't been used.
+     *
+     * @return the last event in the {@link #eventList()}
+     */
+    PersistedEvent lastEvent();
+
+    /**
+     * Get the first event in the fetched event stream
+     * This method can be called multiple times, as long as the {@link #events()}
+     * stream hasn't been used.
+     *
+     * @return the first event in the {@link #eventList()}
+     */
+    PersistedEvent firstEvent();
+
     class DefaultAggregateEventStream<AGGREGATE_ID> implements AggregateEventStream<AGGREGATE_ID> {
 
         private final AggregateEventStreamConfiguration configuration;
@@ -189,6 +207,22 @@ public interface AggregateEventStream<AGGREGATE_ID> {
                 stream = null;
             }
             return eventList;
+        }
+
+        @Override
+        public PersistedEvent lastEvent() {
+            if (eventList().isEmpty()) {
+                throw new IllegalStateException("Cannot return lastEvent from an empty AggregateEventStream");
+            }
+            return eventList().get(eventList.size() - 1);
+        }
+
+        @Override
+        public PersistedEvent firstEvent() {
+            if (eventList().isEmpty()) {
+                throw new IllegalStateException("Cannot return firstEvent from an empty AggregateEventStream");
+            }
+            return eventList().get(0);
         }
     }
 }

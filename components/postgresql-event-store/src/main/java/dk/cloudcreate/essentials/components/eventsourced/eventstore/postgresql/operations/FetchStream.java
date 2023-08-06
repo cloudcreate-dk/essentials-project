@@ -107,22 +107,25 @@ class FetchStream<ID> {
     /**
      * @param eventOrderRange the range of {@link EventOrder}'s to include in the {@link AggregateEventStream}
      */
-    public void setEventOrderRange(LongRange eventOrderRange) {
+    public FetchStream setEventOrderRange(LongRange eventOrderRange) {
         this.eventOrderRange = requireNonNull(eventOrderRange, "No eventOrderRange provided");
+        return this;
     }
 
     /**
      * @param tenant only return events belonging to the specified tenant (if {@link Optional#isPresent()})
      */
-    public void setTenant(Optional<Tenant> tenant) {
+    public FetchStream setTenant(Optional<Tenant> tenant) {
         this.tenant = requireNonNull(tenant, "No tenant provided");
+        return this;
     }
 
     /**
      * @param tenant only return events belonging to the specified tenant (if {@link Optional#isPresent()})
      */
-    public void setTenant(Tenant tenant) {
+    public FetchStream setTenant(Tenant tenant) {
         this.tenant = Optional.ofNullable(tenant);
+        return this;
     }
 
     @Override
