@@ -417,6 +417,8 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         var deadLetterMessage = withDurableQueue(() -> durableQueues.getDeadLetterMessage(message1Id));
         assertThat(deadLetterMessage).isPresent();
         assertThat(deadLetterMessage.get().getMessage()).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(deadLetterMessage.get().getTotalDeliveryAttempts()).isEqualTo(6); // 1 initial delivery and 5 redeliveries
+        assertThat(deadLetterMessage.get().getRedeliveryAttempts()).isEqualTo(5);
         var firstDeadLetterMessage = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20).get(0);
         assertThat(deadLetterMessage.get()).usingRecursiveComparison().isEqualTo(firstDeadLetterMessage);
 

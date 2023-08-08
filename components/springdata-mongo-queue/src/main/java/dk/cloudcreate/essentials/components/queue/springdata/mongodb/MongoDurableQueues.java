@@ -755,8 +755,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                    var findMessageToMarkAsDeadLetterMessage = query(where("id").is(queueEntryId)
                                                                                                                .and("isBeingDelivered").is(true));
 
-                                                   var update = new Update().inc("redeliveryAttempts", 1)
-                                                                            .set("isBeingDelivered", false)
+                                                   var update = new Update().set("isBeingDelivered", false)
                                                                             .set("deliveryTimestamp", null)
                                                                             .set("isDeadLetterMessage", true)
                                                                             .set("lastDeliveryError", Exceptions.getStackTrace(operation.getCauseForBeingMarkedAsDeadLetter()));
