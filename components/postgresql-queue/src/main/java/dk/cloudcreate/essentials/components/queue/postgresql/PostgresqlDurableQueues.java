@@ -733,7 +733,6 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                    var result = unitOfWorkFactory.getRequiredUnitOfWork().handle().createQuery(bind("UPDATE {:tableName} SET\n" +
                                                                                                                                             "     next_delivery_ts = NULL,\n" +
                                                                                                                                             "     last_delivery_error = :lastDeliveryError,\n" +
-                                                                                                                                            "     redelivery_attempts = redelivery_attempts + 1,\n" +
                                                                                                                                             "     is_dead_letter_message = TRUE,\n" +
                                                                                                                                             "     is_being_delivered = FALSE,\n" +
                                                                                                                                             "     delivery_ts = NULL\n" +
