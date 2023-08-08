@@ -308,8 +308,12 @@ public final class PatternMatchingMethodInvoker<ARGUMENT_COMMON_ROOT_TYPE> {
                                 .stream()
                                 .filter(cls -> cls.isAssignableFrom(concreteArgumentType))
                                 .max(Classes::compareTypeSpecificity)
-                                .orElse(null));
-        return mostSpecificMatchingArgumentType;
+                                .orElse(Void.class)); // Void is used to cache the lookup as null wont be cached
+        if (mostSpecificMatchingArgumentType != Void.class) {
+            return mostSpecificMatchingArgumentType;
+        } else {
+            return null;
+        }
     }
 
     /**
