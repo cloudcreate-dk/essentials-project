@@ -1081,7 +1081,10 @@ public class MongoDurableQueues implements DurableQueues {
                                                                  .and("deliveryTimestamp").lte(now.minusMillis(messageHandlingTimeoutMs)));
 
                 var update = new Update()
+                        .inc("redeliveryAttempts", 1)
+                        .set("lastDeliveryError", "Handler Processing of the Message was determined to have Timed Out")
                         .set("isBeingDelivered", false)
+                        .set("nextDeliveryTimestamp", now)
                         .set("deliveryTimestamp", null);
 
                 var updateResult = mongoTemplate.updateMulti(stuckMessagesQuery,
