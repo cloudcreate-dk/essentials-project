@@ -917,11 +917,14 @@ public class PostgresqlDurableQueues implements DurableQueues {
                 var numberOfChanges = unitOfWorkFactory.getRequiredUnitOfWork().handle().createUpdate(bind("UPDATE {:tableName} SET\n" +
                                                                                                                    "     is_being_delivered = FALSE,\n" +
                                                                                                                    "     delivery_ts = NULL,\n" +
-                                                                                                                   "     next_delivery_ts = :now\n" +
+                                                                                                                   "     redelivery_attempts = redelivery_attempts + 1,\n" +
+                                                                                                                   "     next_delivery_ts = :now,\n" +
+                                                                                                                   "     last_delivery_error = :error\n" +
                                                                                                                    " WHERE is_being_delivered = TRUE\n" +
                                                                                                                    " AND delivery_ts <= :threshold\n",
                                                                                                            arg("tableName", sharedQueueTableName)))
                                                        .bind("threshold", now.minusMillis(messageHandlingTimeoutMs))
+                                                       .bind("error", "Handler Processing of the Message was determined to have Timed Out")
                                                        .bind("now", now)
                                                        .execute();
                 if (numberOfChanges > 0) {
