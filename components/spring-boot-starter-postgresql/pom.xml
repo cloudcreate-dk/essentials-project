@@ -53,7 +53,7 @@
             <version>${spring-boot.version}</version>
             <optional>true</optional>
         </dependency>
-
+        <!-- Micrometer -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-actuator-autoconfigure</artifactId>

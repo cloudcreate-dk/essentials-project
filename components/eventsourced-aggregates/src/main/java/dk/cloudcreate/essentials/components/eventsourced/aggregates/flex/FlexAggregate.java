@@ -241,7 +241,7 @@ public abstract class FlexAggregate<ID, AGGREGATE_TYPE extends FlexAggregate<ID,
         requireNonNull(persistedEvents, "You must provide a list of persisted events");
 
         // Must be initialized here to ensure any eventOrderOfLastAppliedHistoricEvent++ will set the correct event order
-        eventOrderOfLastRehydratedEvent = EventOrder.NO_EVENTS_PERSISTED;
+        eventOrderOfLastRehydratedEvent = EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED;
         persistedEvents.forEach(this::rehydrateEvent);
 
         return (AGGREGATE_TYPE) this;
@@ -337,13 +337,13 @@ public abstract class FlexAggregate<ID, AGGREGATE_TYPE extends FlexAggregate<ID,
      * <li>{@link #rehydrate(Object, List)}</li>
      * </ul>
      *
-     * @return the event order of the last applied {@link Event} or {@link EventOrder#NO_EVENTS_PERSISTED} in case no
+     * @return the event order of the last applied {@link Event} or {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED} in case no
      * events has ever been applied to the aggregate
      */
     public final EventOrder eventOrderOfLastRehydratedEvent() {
         if (eventOrderOfLastRehydratedEvent == null) {
             // This constructor is needed to work well with Objenesis where constructors and fields are not called when an object instance is created
-            eventOrderOfLastRehydratedEvent = EventOrder.NO_EVENTS_PERSISTED;
+            eventOrderOfLastRehydratedEvent = EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED;
         }
         return eventOrderOfLastRehydratedEvent;
     }

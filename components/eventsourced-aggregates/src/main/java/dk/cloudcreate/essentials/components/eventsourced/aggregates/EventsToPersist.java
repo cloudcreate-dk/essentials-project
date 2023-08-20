@@ -42,7 +42,7 @@ public class EventsToPersist<ID, EVENT_TYPE> {
     public final ID               aggregateId;
     /**
      * (Zero based event order) contains the eventOrder for the last (previous/historic) event applied during {@link AggregateRoot#rehydrate(AggregateEventStream)}/{@link FlexAggregate#rehydrate(AggregateEventStream)}.
-     * See {@link EventOrder#NO_EVENTS_PERSISTED}<br>
+     * See {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}<br>
      */
     public final EventOrder       eventOrderOfLastRehydratedEvent;
     public final List<EVENT_TYPE> events;
@@ -51,7 +51,7 @@ public class EventsToPersist<ID, EVENT_TYPE> {
     /**
      * @param aggregateId                     the aggregate id this relates to
      * @param eventOrderOfLastRehydratedEvent (Zero based event order) contains the eventOrder for the last (previous/historic) event applied during {@link AggregateRoot#rehydrate(AggregateEventStream)}/{@link FlexAggregate#rehydrate(AggregateEventStream)}.
-     *                                        See {@link EventOrder#NO_EVENTS_PERSISTED}<br>
+     *                                        See {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}<br>
      * @param events                          the events to persist, which will be the result/side-effect of a command method invocation in an {@link FlexAggregate}).
      */
     public EventsToPersist(ID aggregateId,
@@ -65,7 +65,7 @@ public class EventsToPersist<ID, EVENT_TYPE> {
     /**
      * @param aggregateId                     the aggregate id this relates to
      * @param eventOrderOfLastRehydratedEvent (Zero based event order) contains the eventOrder for the last (previous/historic) event applied during {@link AggregateRoot#rehydrate(AggregateEventStream)}/{@link FlexAggregate#rehydrate(AggregateEventStream)}.
-     *                                        See {@link EventOrder#NO_EVENTS_PERSISTED}<br>
+     *                                        See {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}<br>
      * @param events                          the events to persist, which will be the result/side-effect of a command method invocation in an {@link FlexAggregate}).
      */
     public EventsToPersist(ID aggregateId,
@@ -88,7 +88,7 @@ public class EventsToPersist<ID, EVENT_TYPE> {
                                                                                           EVENT_TYPE... eventsToPersist) {
         requireNonNull(aggregateId, "You must supply an aggregateId");
         return new EventsToPersist<>(aggregateId,
-                                     EventOrder.NO_EVENTS_PERSISTED,
+                                     EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED,
                                      List.of(eventsToPersist));
     }
 
@@ -97,7 +97,7 @@ public class EventsToPersist<ID, EVENT_TYPE> {
      *
      * @param aggregateId                     the aggregate id this relates to
      * @param eventOrderOfLastRehydratedEvent (Zero based event order) contains the eventOrder for the last (previous/historic) event applied during {@link AggregateRoot#rehydrate(AggregateEventStream)}/{@link FlexAggregate#rehydrate(AggregateEventStream)}.
-     *                                        See {@link EventOrder#NO_EVENTS_PERSISTED}<br>
+     *                                        See {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}<br>
      * @param eventsToPersist                 the events to persist, which will be the result/side-effect of a command method invocation in an {@link FlexAggregate}).
      *                                        May be empty if the command method invocation didn't result in any events (e.g. due to idempotency checks)
      * @param <ID>                            the aggregate id type

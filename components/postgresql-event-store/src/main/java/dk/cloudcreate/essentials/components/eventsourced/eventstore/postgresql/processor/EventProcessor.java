@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
@@ -43,8 +43,19 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
- * Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing Command {@link Handler} as well as {@link MessageHandler}
- * annotated methods.<br>
+ * Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing {@link CmdHandler} as well as {@link MessageHandler}
+ * annotated event handling methods.<br>
+ * The {@link EventProcessor} simplifies building event projections or process automations.<br>
+ * <br>
+ * An {@link EventProcessor} can subscribe to multiple {@link EventStore} Event Streams (e.g. a stream of Order events or a stream of Product events).<br>
+ * To ensure efficient processing and prevent conflicts, only a single instance of a concrete {@link EventProcessor} in a cluster can have an active Event Stream subscription at a time (using the {@link FencedLockManager}).
+ * <br>
+ * To enhance throughput, you can control the number of parallel threads utilized for handling messages. Consequently, events associated with different aggregate instances within an EventStream can be concurrently processed.
+ * <br>
+ * The {@link EventProcessor} also ensures ordered handling of events, partitioned by aggregate id. I.e. events related to a specific aggregate id will always be processed in the exact order they were originally added to the {@link EventStore}.<br>
+ * This guarantees the preservation of the chronological sequence of events for each individual aggregate, maintaining data integrity and consistency, even during event redelivery/poison-message handling.<br>
+ * <br>
+ * Details:<br>
  * Instead of manually subscribing to the underlying {@link EventStore} using the {@link EventStoreSubscriptionManager}, which requires you to provide your own error and retry handling,
  * you can use the {@link EventProcessor} to subscribe to one or more {@link EventStore} event streams, while providing you with error and retry handling using the common {@link RedeliveryPolicy} concept
  * <p>
@@ -230,14 +241,17 @@ public abstract class EventProcessor implements Lifecycle {
                                                            aggregateId,
                                                            eventOrder));
                 }
-                patternMatchingInboxMessageHandlerDelegate.accept(OrderedMessage.of(events.get(0).event().deserialize(),
+                var persistedEvent = events.get(0);
+                patternMatchingInboxMessageHandlerDelegate.accept(OrderedMessage.of(persistedEvent.event().deserialize(),
                                                                                     aggregateId.toString(),
-                                                                                    eventOrder));
+                                                                                    eventOrder,
+                                                                                    msg.getMetaData()));
             } else {
                 patternMatchingInboxMessageHandlerDelegate.accept(msg);
             }
         };
     }
+
 
     @Override
     public void start() {
@@ -326,11 +340,13 @@ public abstract class EventProcessor implements Lifecycle {
             if (eventStore != null) {
                 forwardToInbox.addMessageReceived(new EventReferenceOrderedMessage(event.aggregateType(),
                                                                                    event.aggregateId(),
-                                                                                   event.eventOrder()));
+                                                                                   event.eventOrder(),
+                                                                                   new MessageMetaData(event.metaData().deserialize())));
             } else {
                 forwardToInbox.addMessageReceived(OrderedMessage.of(event.event().getJsonDeserialized().get(),
                                                                     event.aggregateId().toString(),
-                                                                    event.eventOrder().longValue()));
+                                                                    event.eventOrder().longValue(),
+                                                                    new MessageMetaData(event.metaData().deserialize())));
             }
         }
     }

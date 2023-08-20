@@ -442,7 +442,7 @@ var productsSubscription = eventStoreSubscriptionManager.exclusivelySubscribeToA
         },
         new PersistedEventHandler() {
             @Override
-            public void onResetFrom(GlobalEventOrder globalEventOrder) {
+            public void onResetFrom(EventStoreSubscription eventStoreSubscription, GlobalEventOrder globalEventOrder) {
               // You can reset the Resume Point using the resetFrom(..) method after which this method will be called
               // and the Resume Point in the EventStoreSubscriptionManager will be reset to the same value
               // and the event stream will start streaming events from the new Resume Point       
@@ -478,7 +478,7 @@ The methods can have any accessibility (private, public, etc.), they just have t
 public class MyEventHandler extends PatternMatchingPersistedEventHandler {
 
         @Override
-        public void onResetFrom(GlobalEventOrder globalEventOrder) {
+        public void onResetFrom(EventStoreSubscription eventStoreSubscription, GlobalEventOrder globalEventOrder) {
 
         }
 
@@ -504,6 +504,24 @@ public class MyEventHandler extends PatternMatchingPersistedEventHandler {
 
 }
 ```
+### EventProcessor
+
+The easiest way to asynchronously subscribe to Events from one or more AggregatesTypes/EventStreams is to use the EventProcessor.  
+An `EventProcessor` can subscribe to multiple `EventStore` Event Streams (e.g. a stream of Order events or a stream of Product events).  
+To ensure efficient processing and prevent conflicts, only a single instance of a concrete `EventProcessor` in a cluster can have an active Event Stream subscription at a time (using Fenced Locking).   
+
+To enhance throughput, you can control the number of parallel threads utilized for handling messages.  
+Consequently, events associated with different aggregate instances within an EventStream can be concurrently processed.  
+
+The `EventProcessor` also ensures ordered handling of events, partitioned by aggregate id. I.e. events related to a specific aggregate id will always be processed in the exact order they were originally added to the `EventStore`.  
+This guarantees the preservation of the chronological sequence of events for each individual aggregate, maintaining data integrity and consistency, even during event redelivery/poison-message handling.  
+
+Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing `@CmdHandler` as well as `@MessageHandler` annotated event handling methods.    
+Instead of manually subscribing to the underlying `EventStore` using the `EventStoreSubscriptionManager`, which requires you to provide your own error and retry handling, you can use the `EventProcessor` 
+to subscribe to one or more `EventStore` event streams, while providing you with error and retry handling using the common `RedeliveryPolicy` concept.  
+You must override `reactsToEventsRelatedToAggregateTypes()` to specify which EventSourced `AggregateType` event-streams the `EventProcessor` should subscribe to.  
+The `EventProcessor` will set up an exclusive asynchronous `EventStoreSubscription` for each AggregateType and will forward any `PersistedEvent`'s as `OrderedMessage`'s IF and ONLY IF the concrete `EventProcessor` 
+subclass contains a corresponding `@MessageHandler` annotated method matching the `PersistedEvent.event()`'s `EventJSON.getEventType()`'s `EventType.toJavaClass()` matches that first argument type.
 
 #### Example subscribing for AggregateEvent and publishing an External Event to Kafka using the `EventProcessor`
 ```java
@@ -673,6 +691,6 @@ To use `Postgresql Event Store` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-event-store</artifactId>
-    <version>0.20.4</version>
+    <version>0.20.5</version>
 </dependency>
 ```

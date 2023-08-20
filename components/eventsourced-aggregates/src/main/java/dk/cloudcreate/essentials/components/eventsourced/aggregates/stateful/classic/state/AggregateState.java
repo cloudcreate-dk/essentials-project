@@ -160,7 +160,7 @@ public abstract class AggregateState<ID, EVENT_TYPE extends Event<ID>> {
      * Get the {@link Event#eventOrder() of the last {}@link Event} that was applied to the {@link AggregateRoot}
      * (either using {@link #rehydrate(Stream)} or using {@link #apply(Event)}
      *
-     * @return the event order of the last applied {@link Event} or {@link EventOrder#NO_EVENTS_PERSISTED} in case no
+     * @return the event order of the last applied {@link Event} or {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED} in case no
      * events has ever been applied to the aggregate
      */
     public final EventOrder eventOrderOfLastAppliedEvent() {
@@ -168,7 +168,7 @@ public abstract class AggregateState<ID, EVENT_TYPE extends Event<ID>> {
             // Since the aggregate instance MAY have been created using Objenesis (which doesn't
             // initialize fields nor calls a constructor) we have to be defensive and lazy way initialize
             // the eventOrderOfLastAppliedEvent
-            eventOrderOfLastAppliedEvent = EventOrder.NO_EVENTS_PERSISTED;
+            eventOrderOfLastAppliedEvent = EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED;
         }
         return eventOrderOfLastAppliedEvent;
     }
