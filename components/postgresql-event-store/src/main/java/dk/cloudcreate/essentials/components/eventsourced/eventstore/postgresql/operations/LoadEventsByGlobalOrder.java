@@ -110,22 +110,25 @@ class LoadEventsByGlobalOrder {
      * @param includeAdditionalGlobalOrders a list of additional global orders (typically outside the <code>globalOrderRange</code>) that you want to include additionally<br>
      *                                      May be null or empty if no additional events should be loaded outside the <code>globalOrderRange</code>
      */
-    public void setIncludeAdditionalGlobalOrders(List<GlobalEventOrder> includeAdditionalGlobalOrders) {
+    public LoadEventsByGlobalOrder setIncludeAdditionalGlobalOrders(List<GlobalEventOrder> includeAdditionalGlobalOrders) {
         this.includeAdditionalGlobalOrders = includeAdditionalGlobalOrders;
+        return this;
     }
 
     /**
      * @param onlyIncludeEventIfItBelongsToTenant if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
      */
-    public void setOnlyIncludeEventIfItBelongsToTenant(Optional<Tenant> onlyIncludeEventIfItBelongsToTenant) {
+    public LoadEventsByGlobalOrder setOnlyIncludeEventIfItBelongsToTenant(Optional<Tenant> onlyIncludeEventIfItBelongsToTenant) {
         this.onlyIncludeEventIfItBelongsToTenant = requireNonNull(onlyIncludeEventIfItBelongsToTenant, "No onlyIncludeEventIfItBelongsToTenant option provided");
+        return this;
     }
 
     /**
      * @param onlyIncludeEventIfItBelongsToTenant if non-null then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
      */
-    public void setOnlyIncludeEventIfItBelongsToTenant(Tenant onlyIncludeEventIfItBelongsToTenant) {
+    public LoadEventsByGlobalOrder setOnlyIncludeEventIfItBelongsToTenant(Tenant onlyIncludeEventIfItBelongsToTenant) {
         this.onlyIncludeEventIfItBelongsToTenant = Optional.ofNullable(onlyIncludeEventIfItBelongsToTenant);
+        return this;
     }
 
     @Override

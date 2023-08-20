@@ -98,7 +98,7 @@ public class FlexAggregateTest {
 
         // Then
         assertThat(aggregate.aggregateId().toString()).isEqualTo(orderId.toString());
-        assertThat(aggregate.eventOrderOfLastRehydratedEvent()).isEqualTo(EventOrder.NO_EVENTS_PERSISTED);
+        assertThat(aggregate.eventOrderOfLastRehydratedEvent()).isEqualTo(EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED);
         assertThat(aggregate.hasBeenRehydrated()).isEqualTo(false);
         assertThat(aggregate.isAccepted()).isEqualTo(false);
     }

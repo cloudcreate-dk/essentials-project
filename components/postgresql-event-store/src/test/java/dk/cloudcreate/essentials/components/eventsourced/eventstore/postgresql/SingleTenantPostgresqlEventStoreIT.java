@@ -129,16 +129,16 @@ class SingleTenantPostgresqlEventStoreIT {
         var persistableEventsOrder1 = List.of(new OrderEvent.OrderAdded(orderId1,
                                                                         customerId1,
                                                                         orderNumber1));
-        var order1AggregateStream = eventStore.appendToStream(aggregateType,
-                                                              orderId1,
-                                                              persistableEventsOrder1);
+        var order1AggregateStream = eventStore.startStream(aggregateType,
+                                                           orderId1,
+                                                           persistableEventsOrder1);
 
         var persistableEventsOrder2 = List.of(new OrderEvent.OrderAdded(orderId2,
                                                                         customerId2,
                                                                         orderNumber2));
-        var order2AggregateStream = eventStore.appendToStream(aggregateType,
-                                                              orderId2,
-                                                              persistableEventsOrder2);
+        var order2AggregateStream = eventStore.startStream(aggregateType,
+                                                           orderId2,
+                                                           persistableEventsOrder2);
         unitOfWork.commit();
 
         // Then
@@ -211,9 +211,9 @@ class SingleTenantPostgresqlEventStoreIT {
         var persistableEvents = List.of(new OrderEvent.OrderAdded(orderId,
                                                                   customerId,
                                                                   1234));
-        eventStore.appendToStream(aggregateType,
-                                  orderId,
-                                  persistableEvents);
+        eventStore.startStream(aggregateType,
+                               orderId,
+                               persistableEvents);
 
         // Then
         var lastPersistedEvent = eventStore.loadLastPersistedEventRelatedTo(aggregateType, orderId);
@@ -746,7 +746,7 @@ class SingleTenantPostgresqlEventStoreIT {
                                                                           ProductId.of("ProductId-1")));
         assertThatThrownBy(() -> eventStore.appendToStream(aggregateType,
                                                            orderId,
-                                                           EventOrder.NO_EVENTS_PERSISTED, // -1
+                                                           EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED, // -1
                                                            appendEvents))
                 .isExactlyInstanceOf(OptimisticAppendToStreamException.class);
         unitOfWork.rollback();
@@ -1467,7 +1467,7 @@ class SingleTenantPostgresqlEventStoreIT {
 
         @Override
         public void handle(Object event) {
-            var persistedEvents = (PersistedEvents)event;
+            var persistedEvents = (PersistedEvents) event;
             if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
                 beforeCommitPersistedEvents.addAll(persistedEvents.events);
             } else if (persistedEvents.commitStage == CommitStage.AfterCommit) {

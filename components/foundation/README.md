@@ -27,7 +27,6 @@ This library focuses purely on providing common types and foundational patterns,
 - **Enterprise Integration Patterns**
     - `Inbox` (Store and Forward supported by a Durable Queue)
     - `Outbox` (Store and Forward supported by a Durable Queue)
-- `EventProcessor` - Event Modeling style Event Sourced Event Processor and Command Handler
 
 To use `foundation` just add the following Maven dependency:
 
@@ -36,105 +35,9 @@ To use `foundation` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>foundation</artifactId>
-    <version>0.9.10</version>
+    <version>0.9.11</version>
 </dependency>
 ```
-
-## EventProcessor
-
-Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing Command `@Handler`, as well as `@MessageHandler` annotated methods.  
-Instead of manually subscribing to the underlying `EventStore` using the `EventStoreSubscriptionManager`, 
-which requires you to provide your own error and retry handling, you can use the `EventProcessor` to subscribe to one or more EventStore event streams, while providing you with error and retry handling using the common `RedeliveryPolicy` concept.  
-
-You must override `reactsToEventsRelatedToAggregateTypes()` to specify which EventSourced `AggregateType` event-streams the `EventProcessor` should subscribe to. 
-The `EventProcessor` will set up an exclusive asynchronous `EventStoreSubscription` for each 
-`AggregateType` and will forward any `PersistedEvent`'s as `OrderedMessage`'s IF and ONLY IF the concrete `EventProcessor` subclass contains a corresponding `@MessageHandler` annotated method matching the 
-`PersistedEvent.event().getEventType().EventType.toJavaClass()` 
-matches that first argument type.
-
-```java
-@Service
-@Slf4j
-public class TransferMoneyProcessor extends EventProcessor {
-    private final Accounts                accounts;
-    private final IntraBankMoneyTransfers intraBankMoneyTransfers;
-
-    public TransferMoneyProcessor(@NonNull Accounts accounts,
-                                  @NonNull IntraBankMoneyTransfers intraBankMoneyTransfers,
-                                  @NonNull EventStoreSubscriptionManager eventStoreSubscriptionManager,
-                                  @NonNull Inboxes inboxes,
-                                  @NonNull DurableLocalCommandBus commandBus) {
-        super(eventStoreSubscriptionManager,
-              inboxes,
-              commandBus);
-        this.accounts = accounts;
-        this.intraBankMoneyTransfers = intraBankMoneyTransfers;
-    }
-
-    @Override
-    public String getProcessorName() {
-        return "TransferMoneyProcessor";
-    }
-
-    @Override
-    protected List<AggregateType> reactsToEventsRelatedToAggregateTypes() {
-        return List.of(Accounts.AGGREGATE_TYPE,
-                       IntraBankMoneyTransfers.AGGREGATE_TYPE);
-    }
-
-    @Handler
-    public void handle(@NonNull RequestIntraBankMoneyTransfer cmd) {
-        if (accounts.isAccountMissing(cmd.fromAccount)) {
-            throw new TransactionException(msg("Couldn't find fromAccount with id '{}'", cmd.fromAccount));
-        }
-        if (accounts.isAccountMissing(cmd.toAccount)) {
-            throw new TransactionException(msg("Couldn't find toAccount with id '{}'", cmd.toAccount));
-        }
-
-        var existingTransfer = intraBankMoneyTransfers.findTransfer(cmd.transactionId);
-        if (existingTransfer.isEmpty()) {
-            log.debug("===> Requesting New Transfer '{}'", cmd.transactionId);
-            intraBankMoneyTransfers.requestNewTransfer(new IntraBankMoneyTransfer(cmd));
-        }
-    }
-
-    @MessageHandler
-    void handle(IntraBankMoneyTransferRequested e) {
-        var transfer = intraBankMoneyTransfers.getTransfer(e.transactionId);
-        accounts.getAccount(transfer.getFromAccount())
-                .withdrawToday(transfer.getAmount(),
-                               transfer.aggregateId(),
-                               AllowOverdrawingBalance.NO);
-    }
-
-    @MessageHandler
-    void handle(IntraBankMoneyTransferStatusChanged e) {
-        var transfer = intraBankMoneyTransfers.getTransfer(e.transactionId);
-        if (transfer.getStatus() == TransferLifeCycleStatus.FROM_ACCOUNT_WITHDRAWN) {
-            accounts.getAccount(transfer.getToAccount())
-                    .depositToday(transfer.getAmount(),
-                                  transfer.aggregateId());
-        }
-    }
-
-    @MessageHandler
-    void handle(AccountWithdrawn e) {
-        var matchingTransfer = intraBankMoneyTransfers.findTransfer(e.transactionId);
-
-        matchingTransfer.ifPresent(transfer -> {
-            transfer.markFromAccountAsWithdrawn();
-        });
-    }
-
-    @MessageHandler
-    void handle(AccountDeposited e) {
-        var matchingTransfer = intraBankMoneyTransfers.findTransfer(e.transactionId);
-        matchingTransfer.ifPresent(transfer -> {
-            transfer.markToAccountAsDeposited();
-        });
-    }
-}
- ```
 
 ## DurableQueues
 
@@ -257,7 +160,7 @@ To use `PostgresqlDurableQueues` you must include dependency
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-queue</artifactId>
-    <version>0.9.10</version>
+    <version>0.9.11</version>
 </dependency>
 ```
 
@@ -305,7 +208,7 @@ To use `MongoDurableQueues` you must include dependency
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>springdata-mongo-queue</artifactId>
-    <version>0.9.10</version>
+    <version>0.9.11</version>
 </dependency>
 ```
 
@@ -817,7 +720,7 @@ To use `PostgreSQL Distributed Fenced Lock` just add the following Maven depende
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-distributed-fenced-lock</artifactId>
-    <version>0.9.10</version>
+    <version>0.9.11</version>
 </dependency>
 ```
 

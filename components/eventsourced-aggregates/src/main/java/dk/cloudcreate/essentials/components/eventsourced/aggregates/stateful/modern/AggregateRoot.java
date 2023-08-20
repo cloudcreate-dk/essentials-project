@@ -118,7 +118,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE>> implements StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_TYPE> {
     private transient PatternMatchingMethodInvoker<Object>           invoker;
     private           ID                                             aggregateId;
-    private           EventOrder                                     eventOrderOfLastAppliedEvent = EventOrder.NO_EVENTS_PERSISTED;
+    private           EventOrder                                     eventOrderOfLastAppliedEvent = EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED;
     private           List<EVENT_TYPE>                               uncommittedEvents;
     private           EventOrder                                     eventOrderOfLastRehydratedEvent;
     private           boolean                                        hasBeenRehydrated;
@@ -322,7 +322,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends Aggre
             // Since the aggregate instance MAY have been created using Objenesis (which doesn't
             // initialize fields nor calls a constructor) we have to be defensive and lazy way initialize
             // the eventOrderOfLastAppliedEvent
-            eventOrderOfLastAppliedEvent = EventOrder.NO_EVENTS_PERSISTED;
+            eventOrderOfLastAppliedEvent = EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED;
         }
         return eventOrderOfLastAppliedEvent;
     }

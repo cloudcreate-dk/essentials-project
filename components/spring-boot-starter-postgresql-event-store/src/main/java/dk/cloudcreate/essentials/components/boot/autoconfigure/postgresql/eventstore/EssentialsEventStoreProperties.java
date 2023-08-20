@@ -34,8 +34,26 @@ public class EssentialsEventStoreProperties {
     private IdentifierColumnType identifierColumnType     = IdentifierColumnType.TEXT;
     private JSONColumnType       jsonColumnType           = JSONColumnType.JSONB;
     private boolean              useEventStreamGapHandler = true;
+    private boolean verboseTracing = false;
 
     private final EventStoreSubscriptionManagerProperties subscriptionManager = new EventStoreSubscriptionManagerProperties();
+
+
+    /**
+     * Should the Tracing produces only include all operations or only top level operations (default false)
+     * @return Should the Tracing produces only include all operations or only top level operations
+     */
+    public boolean isVerboseTracing() {
+        return verboseTracing;
+    }
+
+    /**
+     * Should the Tracing produces only include all operations or only top level operations (default false)
+     * @param verboseTracing Should the Tracing produces only include all operations or only top level operations
+     */
+    public void setVerboseTracing(boolean verboseTracing) {
+        this.verboseTracing = verboseTracing;
+    }
 
     /**
      * The {@link IdentifierColumnType} used for all Aggregate-Ids

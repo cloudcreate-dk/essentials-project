@@ -92,13 +92,78 @@ public interface EventStore {
 
     /**
      * Append the <code>eventsToAppend</code> to the {@link AggregateEventStream} related to the aggregate with id <code>aggregateId</code> and which
+     * is associated with the <code>aggregateType</code>. <br>
+     * This method will call {@link #loadLastPersistedEventRelatedTo(AggregateType, Object)}
+     * to resolve the {@link EventOrder} of the last persisted event for this aggregate instance.<br>
+     * If you know the {@link EventOrder} of the last persisted event, then please use either {@link #appendToStream(AggregateType, Object, Optional, List)}
+     * or {@link #appendToStream(AggregateType, Object, EventOrder, List)} as this involves one less event store query
+     *
+     * @param aggregateType  the aggregate type that the underlying {@link AggregateEventStream} is associated with
+     * @param aggregateId    the identifier of the aggregate we want to persist eventsToAppend related to
+     * @param eventsToAppend the eventsToAppend to persist
+     * @param <ID>           the id type for the aggregate
+     * @return an {@link AggregateEventStream} instance containing the {@link PersistedEvent}'s that correspond to the provided <code>eventsToAppend</code>
+     */
+    default <ID> AggregateEventStream<ID> appendToStream(AggregateType aggregateType,
+                                                         ID aggregateId,
+                                                         Object... eventsToAppend) {
+        return appendToStream(aggregateType,
+                              aggregateId,
+                              Optional.empty(),
+                              List.of(eventsToAppend));
+    }
+
+    /**
+     * Start a new {@link AggregateEventStream}, related to the aggregate with id <code>aggregateId</code> and associated with the <code>aggregateType</code>,
+     * and append the <code>eventsToAppend</code> to it.<br>
+     * <br>
+     * This is a shorthand to calling {@link #appendToStream(AggregateType, Object, EventOrder, List)} using {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}
+     *
+     * @param aggregateType  the aggregate type that the underlying {@link AggregateEventStream} is associated with
+     * @param aggregateId    the identifier of the aggregate we want to persist eventsToAppend related to
+     * @param eventsToAppend the eventsToAppend to persist
+     * @param <ID>           the id type for the aggregate
+     * @return an {@link AggregateEventStream} instance containing the {@link PersistedEvent}'s that correspond to the provided <code>eventsToAppend</code>
+     */
+    default <ID> AggregateEventStream<ID> startStream(AggregateType aggregateType,
+                                                      ID aggregateId,
+                                                      List<?> eventsToAppend) {
+        return appendToStream(aggregateType,
+                              aggregateId,
+                              Optional.empty(),
+                              eventsToAppend);
+    }
+
+    /**
+     * Start a new {@link AggregateEventStream}, related to the aggregate with id <code>aggregateId</code> and associated with the <code>aggregateType</code>,
+     * and append the <code>eventsToAppend</code> to it.<br>
+     * <br>
+     * This is a shorthand to calling {@link #appendToStream(AggregateType, Object, EventOrder, List)} using {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}
+     *
+     * @param aggregateType  the aggregate type that the underlying {@link AggregateEventStream} is associated with
+     * @param aggregateId    the identifier of the aggregate we want to persist eventsToAppend related to
+     * @param eventsToAppend the eventsToAppend to persist
+     * @param <ID>           the id type for the aggregate
+     * @return an {@link AggregateEventStream} instance containing the {@link PersistedEvent}'s that correspond to the provided <code>eventsToAppend</code>
+     */
+    default <ID> AggregateEventStream<ID> startStream(AggregateType aggregateType,
+                                                      ID aggregateId,
+                                                      Object... eventsToAppend) {
+        return appendToStream(aggregateType,
+                              aggregateId,
+                              Optional.empty(),
+                              List.of(eventsToAppend));
+    }
+
+    /**
+     * Append the <code>eventsToAppend</code> to the {@link AggregateEventStream} related to the aggregate with id <code>aggregateId</code> and which
      * is associated with the <code>aggregateType</code>
      *
      * @param aggregateType               the aggregate type that the underlying {@link AggregateEventStream} is associated with
      * @param aggregateId                 the identifier of the aggregate we want to persist eventsToAppend related to
      * @param appendEventsAfterEventOrder append the <code>eventsToAppend</code> after this event order, i.e. the first event in the <code>eventsToAppend</code> list
      *                                    will receive an {@link PersistedEvent#eventOrder()} which is <code>appendEventsAfterEventOrder +  1</code><br>
-     *                                    If it's the very first event to be appended, then you can provide {@link EventOrder#NO_EVENTS_PERSISTED}
+     *                                    If it's the very first event to be appended, then you can provide {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}
      * @param eventsToAppend              the eventsToAppend to persist
      * @param <ID>                        the id type for the aggregate
      * @return an {@link AggregateEventStream} instance containing the {@link PersistedEvent}'s that correspond to the provided <code>eventsToAppend</code>
@@ -120,8 +185,31 @@ public interface EventStore {
      * @param aggregateType               the aggregate type that the underlying {@link AggregateEventStream} is associated with
      * @param aggregateId                 the identifier of the aggregate we want to persist eventsToAppend related to
      * @param appendEventsAfterEventOrder append the <code>eventsToAppend</code> after this event order, i.e. the first event in the <code>eventsToAppend</code> list
+     *                                    will receive an {@link PersistedEvent#eventOrder()} which is <code>appendEventsAfterEventOrder +  1</code><br>
+     *                                    If it's the very first event to be appended, then you can provide {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED}
+     * @param eventsToAppend              the eventsToAppend to persist
+     * @param <ID>                        the id type for the aggregate
+     * @return an {@link AggregateEventStream} instance containing the {@link PersistedEvent}'s that correspond to the provided <code>eventsToAppend</code>
+     */
+    default <ID> AggregateEventStream<ID> appendToStream(AggregateType aggregateType,
+                                                         ID aggregateId,
+                                                         EventOrder appendEventsAfterEventOrder,
+                                                         Object... eventsToAppend) {
+        return appendToStream(aggregateType,
+                              aggregateId,
+                              Optional.ofNullable(appendEventsAfterEventOrder).map(NumberType::longValue),
+                              List.of(eventsToAppend));
+    }
+
+    /**
+     * Append the <code>eventsToAppend</code> to the {@link AggregateEventStream} related to the aggregate with id <code>aggregateId</code> and which
+     * is associated with the <code>aggregateType</code>
+     *
+     * @param aggregateType               the aggregate type that the underlying {@link AggregateEventStream} is associated with
+     * @param aggregateId                 the identifier of the aggregate we want to persist eventsToAppend related to
+     * @param appendEventsAfterEventOrder append the <code>eventsToAppend</code> after this event order, i.e. the first event in the <code>eventsToAppend</code> list
      *                                    will receive {@link PersistedEvent#eventOrder()} which is <code>appendEventsAfterEventOrder +  1</code><br>
-     *                                    Use the value of {@link EventOrder#NO_EVENTS_PERSISTED} in case no eventsToAppend have been persisted for this aggregate instance yet<br>
+     *                                    Use the value of {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED} in case no eventsToAppend have been persisted for this aggregate instance yet<br>
      *                                    Note: If the <code>appendEventsAfterEventOrder</code> is null then the implementation will call
      *                                    {@link #loadLastPersistedEventRelatedTo(AggregateType, Object)}
      *                                    to resolve the {@link EventOrder} of the last persisted event for this aggregate instance.
@@ -147,7 +235,7 @@ public interface EventStore {
      * @param aggregateId                 the identifier of the aggregate we want to persist eventsToAppend related to
      * @param appendEventsAfterEventOrder append the <code>eventsToAppend</code> after this event order, i.e. the first event in the <code>eventsToAppend</code> list
      *                                    will receive {@link PersistedEvent#eventOrder()} which is <code>appendEventsAfterEventOrder +  1</code><br>
-     *                                    Use the value of {@link EventOrder#NO_EVENTS_PERSISTED} in case no eventsToAppend have been persisted for this aggregate instance yet<br>
+     *                                    Use the value of {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED} in case no eventsToAppend have been persisted for this aggregate instance yet<br>
      *                                    Note: If the <code>appendEventsAfterEventOrder</code> is {@link Optional#empty()} then the implementation will call
      *                                    {@link #loadLastPersistedEventRelatedTo(AggregateType, Object)}
      *                                    to resolve the {@link EventOrder} of the last persisted event for this aggregate instance.
@@ -159,6 +247,32 @@ public interface EventStore {
                                                          ID aggregateId,
                                                          Optional<Long> appendEventsAfterEventOrder,
                                                          List<?> eventsToAppend) {
+        return appendToStream(new AppendToStream<>(aggregateType,
+                                                   aggregateId,
+                                                   appendEventsAfterEventOrder,
+                                                   eventsToAppend));
+    }
+
+    /**
+     * Append the <code>eventsToAppend</code> to the {@link AggregateEventStream} related to the aggregate with id <code>aggregateId</code> and which
+     * is associated with the <code>aggregateType</code>
+     *
+     * @param aggregateType               the aggregate type that the underlying {@link AggregateEventStream} is associated with
+     * @param aggregateId                 the identifier of the aggregate we want to persist eventsToAppend related to
+     * @param appendEventsAfterEventOrder append the <code>eventsToAppend</code> after this event order, i.e. the first event in the <code>eventsToAppend</code> list
+     *                                    will receive {@link PersistedEvent#eventOrder()} which is <code>appendEventsAfterEventOrder +  1</code><br>
+     *                                    Use the value of {@link EventOrder#NO_EVENTS_PREVIOUSLY_PERSISTED} in case no eventsToAppend have been persisted for this aggregate instance yet<br>
+     *                                    Note: If the <code>appendEventsAfterEventOrder</code> is {@link Optional#empty()} then the implementation will call
+     *                                    {@link #loadLastPersistedEventRelatedTo(AggregateType, Object)}
+     *                                    to resolve the {@link EventOrder} of the last persisted event for this aggregate instance.
+     * @param eventsToAppend              the eventsToAppend to persist
+     * @param <ID>                        the id type for the aggregate
+     * @return an {@link AggregateEventStream} instance containing the {@link PersistedEvent}'s that correspond to the provided <code>eventsToAppend</code>
+     */
+    default <ID> AggregateEventStream<ID> appendToStream(AggregateType aggregateType,
+                                                         ID aggregateId,
+                                                         Optional<Long> appendEventsAfterEventOrder,
+                                                         Object... eventsToAppend) {
         return appendToStream(new AppendToStream<>(aggregateType,
                                                    aggregateId,
                                                    appendEventsAfterEventOrder,
@@ -219,6 +333,56 @@ public interface EventStore {
      * @return an {@link Optional} with the {@link PersistedEvent} or {@link Optional#empty()} if the event couldn't be found
      */
     Optional<PersistedEvent> loadEvent(LoadEvent operation);
+
+    /**
+     * Check if the {@link EventStore} has an {@link AggregateEventStream} for an Aggregate with type <code>aggregateType</code> and id <code>aggregateId</code><br>
+     * Uses {@link #fetchStream(FetchStream)} internally
+     *
+     * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream} is associated with
+     * @param aggregateId   the identifier of the aggregate we want to fetch the {@link AggregateEventStream} for
+     * @param <ID>          the id type for the aggregate
+     * @return true if the {@link EventStore} has an {@link AggregateEventStream} for an Aggregate with type <code>aggregateType</code> and id <code>aggregateId</code>,
+     * otherwise false
+     */
+    default <ID> boolean hasEventStream(AggregateType aggregateType,
+                                        ID aggregateId) {
+        requireNonNull(aggregateType, "No aggregateType is provided");
+        requireNonNull(aggregateId, "No aggregateId is provided");
+
+        return fetchStream(FetchStream.builder()
+                                      .setAggregateType(aggregateType)
+                                      .setAggregateId(aggregateId)
+                                      .setEventOrderRange(LongRange.only(EventOrder.FIRST_EVENT_ORDER.value()))
+                                      .build())
+                .isPresent();
+    }
+
+    /**
+     * Check if the {@link EventStore} has an {@link AggregateEventStream} for an Aggregate with type <code>aggregateType</code> and id <code>aggregateId</code><br>
+     * Uses {@link #fetchStream(FetchStream)} internally
+     *
+     * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream} is associated with
+     * @param aggregateId   the identifier of the aggregate we want to fetch the {@link AggregateEventStream} for
+     * @param tenant        the tenant that the  {@link AggregateEventStream} is belongs to
+     * @param <ID>          the id type for the aggregate
+     * @return true if the {@link EventStore} has an {@link AggregateEventStream} for an Aggregate with type <code>aggregateType</code> and id <code>aggregateId</code>,
+     * otherwise false
+     */
+    default <ID> boolean hasEventStream(AggregateType aggregateType,
+                                        ID aggregateId,
+                                        Tenant tenant) {
+        requireNonNull(aggregateType, "No aggregateType is provided");
+        requireNonNull(aggregateId, "No aggregateId is provided");
+        requireNonNull(tenant, "No tenant is provided");
+
+        return fetchStream(FetchStream.builder()
+                                      .setAggregateType(aggregateType)
+                                      .setAggregateId(aggregateId)
+                                      .setEventOrderRange(LongRange.only(EventOrder.FIRST_EVENT_ORDER.value()))
+                                      .setTenant(tenant)
+                                      .build())
+                .isPresent();
+    }
 
     /**
      * Fetch the {@link AggregateEventStream} related to the aggregate with id <code>aggregateId</code> and which

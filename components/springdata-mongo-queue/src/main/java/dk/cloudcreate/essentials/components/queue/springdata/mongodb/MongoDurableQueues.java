@@ -755,8 +755,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                    var findMessageToMarkAsDeadLetterMessage = query(where("id").is(queueEntryId)
                                                                                                                .and("isBeingDelivered").is(true));
 
-                                                   var update = new Update().inc("redeliveryAttempts", 1)
-                                                                            .set("isBeingDelivered", false)
+                                                   var update = new Update().set("isBeingDelivered", false)
                                                                             .set("deliveryTimestamp", null)
                                                                             .set("isDeadLetterMessage", true)
                                                                             .set("lastDeliveryError", Exceptions.getStackTrace(operation.getCauseForBeingMarkedAsDeadLetter()));
@@ -1082,7 +1081,10 @@ public class MongoDurableQueues implements DurableQueues {
                                                                  .and("deliveryTimestamp").lte(now.minusMillis(messageHandlingTimeoutMs)));
 
                 var update = new Update()
+                        .inc("redeliveryAttempts", 1)
+                        .set("lastDeliveryError", "Handler Processing of the Message was determined to have Timed Out")
                         .set("isBeingDelivered", false)
+                        .set("nextDeliveryTimestamp", now)
                         .set("deliveryTimestamp", null);
 
                 var updateResult = mongoTemplate.updateMulti(stuckMessagesQuery,

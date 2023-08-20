@@ -28,7 +28,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.spring.SpringTransactionAwareEventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventTypeOrName;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
 import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
@@ -140,6 +140,9 @@ public class EventStoreConfiguration {
      * @param unitOfWorkFactory               the {@link EventStoreUnitOfWorkFactory}
      * @param persistableEventMapper          the mapper from the raw Java Event's to {@link PersistableEvent}<br>
      * @param essentialComponentsObjectMapper {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
+     * @param persistableEventEnrichers       {@link PersistableEventEnricher}'s - which are called in sequence by the {@link SeparateTablePerAggregateTypePersistenceStrategy#persist(EventStoreUnitOfWork, AggregateType, Object, Optional, List)} after
+     *                                        {@link PersistableEventMapper#map(Object, AggregateEventStreamConfiguration, Object, EventOrder)}
+     *                                        has been called
      * @return the strategy for how {@link AggregateType} event-streams should be persisted
      */
     @Bean
@@ -148,17 +151,19 @@ public class EventStoreConfiguration {
                                                                                           EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
                                                                                           PersistableEventMapper persistableEventMapper,
                                                                                           ObjectMapper essentialComponentsObjectMapper,
-                                                                                          EssentialsEventStoreProperties properties) {
+                                                                                          EssentialsEventStoreProperties properties,
+                                                                                          List<PersistableEventEnricher> persistableEventEnrichers) {
         return new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                     unitOfWorkFactory,
                                                                     persistableEventMapper,
                                                                     standardSingleTenantConfigurationUsingJackson(essentialComponentsObjectMapper,
                                                                                                                   properties.getIdentifierColumnType(),
-                                                                                                                  properties.getJsonColumnType()));
+                                                                                                                  properties.getJsonColumnType()),
+                                                                    persistableEventEnrichers);
     }
 
     /**
-     * The configurable {@link EventStore} that allows us to persist and load Events associated with different {@link AggregateType}øs
+     * The configurable {@link EventStore} that allows us to persist and load Events associated with different {@link AggregateType}'s
      *
      * @param eventStoreUnitOfWorkFactory the {@link EventStoreUnitOfWorkFactory} that is required for the {@link EventStore} in order handle events associated with a given transaction
      * @param persistenceStrategy         the strategy for how {@link AggregateType} event-streams should be persisted.

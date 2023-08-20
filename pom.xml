@@ -67,18 +67,18 @@
         <objenesis.version>3.3</objenesis.version>
         <postgresql.version>42.6.0</postgresql.version>
         <slf4j.version>1.7.36</slf4j.version>
-        <spring-boot.version>2.7.13</spring-boot.version>
+        <spring-boot.version>2.7.14</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <spring-data-mongodb.version>3.4.13</spring-data-mongodb.version>
-        <spring-data-jpa.version>2.7.13</spring-data-jpa.version>
+        <spring-data-mongodb.version>3.4.15</spring-data-mongodb.version>
+        <spring-data-jpa.version>2.7.15</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
         <assertj.version>3.24.2</assertj.version>
-        <mongodb-driver-sync.version>4.10.1</mongodb-driver-sync.version>
+        <mongodb-driver-sync.version>4.10.2</mongodb-driver-sync.version>
         <log4j-to-slf4j.version>2.20.0</log4j-to-slf4j.version>
         <snakeyaml.version>1.33</snakeyaml.version>
-        <json-smart.version>2.4.11</json-smart.version>
-        <micrometer.version>1.11.1</micrometer.version>
-        <micrometer-tracing.version>1.1.2</micrometer-tracing.version>
+        <json-smart.version>2.5.0</json-smart.version>
+        <micrometer.version>1.11.3</micrometer.version>
+        <micrometer-tracing.version>1.1.4</micrometer-tracing.version>
     </properties>
 
     <modules>
@@ -113,14 +113,14 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.94.Final</version>
+                <version>4.1.96.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.9.3</version>
+                <version>5.10.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -134,7 +134,7 @@
             <dependency>
                 <groupId>org.jdbi</groupId>
                 <artifactId>jdbi3-bom</artifactId>
-                <version>3.39.1</version>
+                <version>3.41.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -148,14 +148,14 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-bom</artifactId>
-                <version>2020.0.33</version>
+                <version>2020.0.35</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>5.3.28</version>
+                <version>5.3.29</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -271,6 +271,17 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>3.5.0</version>
+                    <configuration>
+                        <doclint>none</doclint>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -350,7 +361,7 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>8.3.1</version>
+                <version>8.4.0</version>
                 <configuration>
                     <skipTestScope>false</skipTestScope>
                     <failBuildOnCVSS>0</failBuildOnCVSS>
@@ -458,7 +469,8 @@
                     </plugin>
                 </plugins>
             </build>
-        </profile><profile>
+        </profile>
+        <profile>
             <id>test-release</id>
             <build>
                 <plugins>
