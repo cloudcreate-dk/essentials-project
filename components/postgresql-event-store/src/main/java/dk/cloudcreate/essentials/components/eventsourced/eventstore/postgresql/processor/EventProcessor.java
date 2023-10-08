@@ -112,7 +112,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  *     }
  *
  *     @MessageHandler
- *     void handle(IntraBankMoneyTransferRequested e) {
+ *     void handle(IntraBankMoneyTransferRequested e, OrderedMessage eventMessage) {
  *         var transfer = intraBankMoneyTransfers.getTransfer(e.transactionId);
  *         accounts.getAccount(transfer.getFromAccount())
  *                 .withdrawToday(transfer.getAmount(),
@@ -140,7 +140,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  *     }
  *
  *     @MessageHandler
- *     void handle(AccountDeposited e) {
+ *     void handle(AccountDeposited e, OrderedMessage eventMessage) {
  *         var matchingTransfer = intraBankMoneyTransfers.findTransfer(e.transactionId);
  *         matchingTransfer.ifPresent(transfer -> {
  *             transfer.markToAccountAsDeposited();
