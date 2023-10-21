@@ -24,6 +24,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.o
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.reactive.EventBus;
 import dk.cloudcreate.essentials.shared.Exceptions;
@@ -47,7 +48,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
  * Postgresql specific {@link EventStore} implementation
- *
+ * <p>
  * Relevant logger names:
  * <ul>
  *     <li>dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore</li>
@@ -262,6 +263,12 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                                                                                              operation.getEventOrderRange(),
                                                                                              operation.getTenant()))
                 .proceed();
+    }
+
+    @Override
+    public Optional<GlobalEventOrder> findHighestGlobalEventOrderPersisted(AggregateType aggregateType) {
+        return persistenceStrategy.findHighestGlobalEventOrderPersisted(unitOfWorkFactory.getRequiredUnitOfWork(),
+                                                                        aggregateType);
     }
 
     @Override
@@ -629,8 +636,8 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
             eventStoreStreamLog.debug("[{}] Polling worker - Started with initial demand for events {}",
                                       eventStreamLogName,
                                       demandForEvents);
-            var pollingSleep                                 = pollingInterval.orElse(Duration.ofMillis(DEFAULT_POLLING_INTERVAL_MILLISECONDS)).toMillis();
-            var remainingDemandForEvents                     = demandForEvents;
+            var pollingSleep             = pollingInterval.orElse(Duration.ofMillis(DEFAULT_POLLING_INTERVAL_MILLISECONDS)).toMillis();
+            var remainingDemandForEvents = demandForEvents;
             while (remainingDemandForEvents > 0 && !sink.isCancelled()) {
                 var numberOfEventsPublished = pollForEvents(remainingDemandForEvents);
                 remainingDemandForEvents -= numberOfEventsPublished;
