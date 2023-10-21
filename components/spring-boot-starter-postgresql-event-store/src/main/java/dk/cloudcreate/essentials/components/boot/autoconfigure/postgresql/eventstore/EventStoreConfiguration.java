@@ -134,7 +134,7 @@ public class EventStoreConfiguration {
     }
 
     /**
-     * Setup the strategy for how {@link AggregateType} event-streams should be persisted.
+     * Set up the strategy for how {@link AggregateType} event-streams should be persisted.
      *
      * @param jdbi                            the jdbi instance
      * @param unitOfWorkFactory               the {@link EventStoreUnitOfWorkFactory}
@@ -147,12 +147,12 @@ public class EventStoreConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public SeparateTablePerAggregateTypePersistenceStrategy eventStorePersistenceStrategy(Jdbi jdbi,
-                                                                                          EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
-                                                                                          PersistableEventMapper persistableEventMapper,
-                                                                                          ObjectMapper essentialComponentsObjectMapper,
-                                                                                          EssentialsEventStoreProperties properties,
-                                                                                          List<PersistableEventEnricher> persistableEventEnrichers) {
+    public AggregateEventStreamPersistenceStrategy<SeparateTablePerAggregateEventStreamConfiguration> eventStorePersistenceStrategy(Jdbi jdbi,
+                                                                                                                                    EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
+                                                                                                                                    PersistableEventMapper persistableEventMapper,
+                                                                                                                                    ObjectMapper essentialComponentsObjectMapper,
+                                                                                                                                    EssentialsEventStoreProperties properties,
+                                                                                                                                    List<PersistableEventEnricher> persistableEventEnrichers) {
         return new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                     unitOfWorkFactory,
                                                                     persistableEventMapper,
