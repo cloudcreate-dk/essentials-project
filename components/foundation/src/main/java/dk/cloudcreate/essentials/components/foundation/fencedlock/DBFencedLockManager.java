@@ -87,7 +87,7 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
 
         this.lockStorage = requireNonNull(lockStorage, "No lockStorage provided");
         this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "No unitOfWorkFactory provided");
-        this.lockManagerInstanceId = lockManagerInstanceId.orElseGet(Network::hostName);
+        this.lockManagerInstanceId = requireNonNull(lockManagerInstanceId.orElseGet(Network::hostName), "Couldn't resolve a LockManager instanceId");
         this.lockTimeOut = requireNonNull(lockTimeOut, "No lockTimeOut value provided");
         this.lockConfirmationInterval = requireNonNull(lockConfirmationInterval, "No lockConfirmationInterval value provided");
         if (lockConfirmationInterval.compareTo(lockTimeOut) >= 1) {
@@ -178,6 +178,10 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
         var confirmedTimestamp = OffsetDateTime.now(Clock.systemUTC());
         unitOfWorkFactory.usingUnitOfWork(uow -> {
             locksAcquiredByThisLockManager.forEach((lockName, fencedLock) -> {
+                if (fencedLock.getLockedByLockManagerInstanceId() == null) {
+                    log.debug("[{}] Skipping confirming lock '{}' since lockedByLockManagerInstanceId is NULL: {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
+                    return;
+                }
                 try {
                     log.trace("[{}] Attempting to confirm lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
                     boolean confirmedWithSuccess = false;
@@ -220,25 +224,24 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
      * @param lock the lock to be released
      */
     protected void releaseLock(LOCK lock) {
-        if (!lock.isLockedByThisLockManagerInstance()) {
-            throw new IllegalArgumentException(msg("[{}] Cannot release Lock '{}' since it isn't locked by the current Lock Manager Node. Details: {}",
-                                                   lockManagerInstanceId, lock.getName(), lock));
-        }
-        var releaseWithSuccess = unitOfWorkFactory.withUnitOfWork(uow -> lockStorage.releaseLockInDB(this, uow, lock));
-        lock.markAsReleased();
-        locksAcquiredByThisLockManager.remove(lock.getName());
-        notify(new LockReleased(lock, this));
-
-        if (releaseWithSuccess) {
-            log.debug("[{}] Released Lock '{}': {}", lockManagerInstanceId, lock.getName(), lock);
-        } else {
-            // We didn't release the lock after all, someone else acquired the lock in the meantime
-            unitOfWorkFactory.usingUnitOfWork(uow -> {
-                lockStorage.lookupLockInDB(this, uow, lock.getName()).ifPresent(lockAcquiredByAnotherLockManager -> {
-                    log.debug("[{}] Couldn't release Lock '{}' as it was already acquired by another JVM Node: {}", lockManagerInstanceId, lock.getName(), lockAcquiredByAnotherLockManager.getLockedByLockManagerInstanceId());
+        requireNonNull(lock, "No lock was provided");
+        if (locksAcquiredByThisLockManager.containsKey(lock.getName())) {
+            lock.markAsReleased();
+            locksAcquiredByThisLockManager.remove(lock.getName());
+            var releaseWithSuccess = unitOfWorkFactory.withUnitOfWork(uow -> lockStorage.releaseLockInDB(this, uow, lock));
+            notify(new LockReleased(lock, this));
+            if (releaseWithSuccess) {
+                log.debug("[{}] Released Lock '{}': {}", lockManagerInstanceId, lock.getName(), lock);
+            } else {
+                // We didn't release the lock after all, someone else acquired the lock in the meantime
+                unitOfWorkFactory.usingUnitOfWork(uow -> {
+                    lockStorage.lookupLockInDB(this, uow, lock.getName()).ifPresent(lockAcquiredByAnotherLockManager -> {
+                        log.debug("[{}] Couldn't release Lock '{}' as it was already acquired by another JVM Node: {}", lockManagerInstanceId, lock.getName(), lockAcquiredByAnotherLockManager.getLockedByLockManagerInstanceId());
+                    });
                 });
-            });
+            }
         }
+
     }
 
     @Override
@@ -323,8 +326,12 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
         log.debug("[{}] Attempting to acquire lock '{}'", lockManagerInstanceId, lockName);
         var alreadyAcquiredLock = locksAcquiredByThisLockManager.get(lockName);
         if (alreadyAcquiredLock != null && alreadyAcquiredLock.isLocked() && !isLockTimedOut(alreadyAcquiredLock)) {
-            log.debug("[{}] Returned cached locally acquired lock '{}", lockManagerInstanceId, lockName);
-            return Mono.just(alreadyAcquiredLock);
+            if (alreadyAcquiredLock.isLockedByThisLockManagerInstance()) {
+                log.debug("[{}] Returned cached locally acquired lock '{}", lockManagerInstanceId, lockName);
+                return Mono.just(alreadyAcquiredLock);
+            } else {
+                releaseLock(alreadyAcquiredLock);
+            }
         }
         return unitOfWorkFactory.withUnitOfWork(uow -> {
             var lock = lockStorage.lookupLockInDB(this, uow, lockName)
@@ -534,8 +541,8 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
         if (scheduledFuture != null) {
             log.debug("[{}] Canceling async Lock acquiring for lock '{}'", lockManagerInstanceId, lockName);
             scheduledFuture.cancel(true);
-            var acquiredLock = locksAcquiredByThisLockManager.remove(lockName);
-            if (acquiredLock != null && acquiredLock.isLockedByThisLockManagerInstance()) {
+            var acquiredLock = locksAcquiredByThisLockManager.get(lockName);
+            if (acquiredLock != null) {
                 log.debug("[{}] Releasing Lock due to cancelling the lock acquiring '{}'", lockManagerInstanceId, lockName);
                 acquiredLock.release();
             }
