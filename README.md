@@ -3,7 +3,12 @@
 Essentials is a set of Java version 17 (and later) building blocks built from the ground up to have no dependencies
 on other libraries, unless explicitly mentioned.
 
-> Note: [For Java version 11 to 16 support, please use version 0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)
+
+| Essentials version                                                                   | Java compatibility | Spring Boot compatibility |
+|--------------------------------------------------------------------------------------|--------------------|---------------------------|
+| [0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)            | 11-16              | 2.7.x                     |
+| [0.20.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_0_x) | 17+                | 3.0.x                     |
+| [0.30.*](https://github.com/cloudcreate-dk/essentials-project/tree/main)             | 17+                | 3.1.x                     |
 
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
