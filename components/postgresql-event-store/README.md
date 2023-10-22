@@ -691,6 +691,6 @@ To use `Postgresql Event Store` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-event-store</artifactId>
-    <version>0.20.5</version>
+    <version>0.20.6</version>
 </dependency>
 ```
