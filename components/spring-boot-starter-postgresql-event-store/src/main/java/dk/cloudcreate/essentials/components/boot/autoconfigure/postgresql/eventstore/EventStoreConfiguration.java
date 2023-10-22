@@ -173,7 +173,7 @@ public class EventStoreConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ConfigurableEventStore<SeparateTablePerAggregateEventStreamConfiguration> eventStore(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
-                                                                                                SeparateTablePerAggregateTypePersistenceStrategy persistenceStrategy,
+                                                                                                AggregateEventStreamPersistenceStrategy<SeparateTablePerAggregateEventStreamConfiguration> persistenceStrategy,
                                                                                                 EventStoreEventBus eventStoreLocalEventBus,
                                                                                                 EssentialsEventStoreProperties essentialsComponentsProperties,
                                                                                                 List<EventStoreInterceptor> eventStoreInterceptors) {
