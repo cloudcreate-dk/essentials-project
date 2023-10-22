@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.mongodb.MongoInterruptedException;
+import com.mongodb.*;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
@@ -933,6 +933,9 @@ public class MongoDurableQueues implements DurableQueues {
                                                            return Optional.<QueuedMessage>empty();
                                                        } else if (e instanceof UncategorizedMongoDbException && e.getCause() instanceof MongoInterruptedException) {
                                                            log.trace("[{}] MongoInterruptedException", queueName);
+                                                           return Optional.<QueuedMessage>empty();
+                                                       } else if (e instanceof MongoSocketReadException) {
+                                                           log.trace("[{}] MongoSocketReadException", queueName);
                                                            return Optional.<QueuedMessage>empty();
                                                        }
                                                        throw new DurableQueueException(msg("Failed to perform getNextMessageReadyForDelivery for queue '{}'", queueName), e, queueName);
