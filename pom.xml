@@ -66,18 +66,18 @@
         <objenesis.version>3.3</objenesis.version>
         <postgresql.version>42.6.0</postgresql.version>
         <slf4j.version>2.0.9</slf4j.version>
-        <spring-boot.version>3.0.11</spring-boot.version>
+        <spring-boot.version>3.0.12</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <spring-data-mongodb.version>4.0.10</spring-data-mongodb.version>
-        <spring-data-jpa.version>3.0.10</spring-data-jpa.version>
+        <spring-data-mongodb.version>4.0.11</spring-data-mongodb.version>
+        <spring-data-jpa.version>3.0.11</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
         <assertj.version>3.24.2</assertj.version>
-        <mongodb-driver-sync.version>4.10.2</mongodb-driver-sync.version>
-        <log4j-to-slf4j.version>2.20.0</log4j-to-slf4j.version>
+        <mongodb-driver-sync.version>4.11.0</mongodb-driver-sync.version>
+        <log4j-to-slf4j.version>2.21.0</log4j-to-slf4j.version>
         <snakeyaml.version>1.33</snakeyaml.version>
         <json-smart.version>2.5.0</json-smart.version>
-        <micrometer.version>1.11.4</micrometer.version>
-        <micrometer-tracing.version>1.1.5</micrometer-tracing.version>
+        <micrometer.version>1.11.5</micrometer.version>
+        <micrometer-tracing.version>1.1.6</micrometer-tracing.version>
     </properties>
 
     <modules>
@@ -112,7 +112,7 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.99.Final</version>
+                <version>4.1.100.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -140,21 +140,21 @@
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
-                <version>2.15.2</version>
+                <version>2.15.3</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-bom</artifactId>
-                <version>2022.0.11</version>
+                <version>2022.0.12</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>6.0.12</version>
+                <version>6.0.13</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -364,7 +364,7 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>8.4.0</version>
+                <version>8.4.1</version>
                 <configuration>
                     <skipTestScope>false</skipTestScope>
                     <failBuildOnCVSS>0</failBuildOnCVSS>
