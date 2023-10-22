@@ -17,11 +17,11 @@
 package dk.cloudcreate.essentials.components.foundation.fencedlock;
 
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.shared.FailFast;
 
 import java.time.*;
 import java.util.*;
 
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 public class DBFencedLock implements FencedLock {
@@ -107,9 +107,7 @@ public class DBFencedLock implements FencedLock {
 
     @Override
     public void release() {
-        if (isLockedByThisLockManagerInstance()) {
-            fencedLockManager.releaseLock(this);
-        }
+        fencedLockManager.releaseLock(this);
     }
 
     @Override
@@ -132,24 +130,24 @@ public class DBFencedLock implements FencedLock {
     }
 
     public Duration getDurationSinceLastConfirmation() {
-        FailFast.requireNonNull(lockLastConfirmedTimestamp, msg("FencedLock '{}' doesn't have a lockLastConfirmedTimestamp", getName()));
+        requireNonNull(lockLastConfirmedTimestamp, msg("FencedLock '{}' doesn't have a lockLastConfirmedTimestamp", getName()));
         return Duration.between(lockLastConfirmedTimestamp, ZonedDateTime.now()).abs();
     }
 
     public void markAsReleased() {
-        lockedByLockManagerInstanceId = null;
         lockCallbacks.forEach(lockCallback -> lockCallback.lockReleased(this));
+        lockedByLockManagerInstanceId = null;
     }
 
     DBFencedLock markAsConfirmed(OffsetDateTime confirmedTimestamp) {
-        lockLastConfirmedTimestamp = confirmedTimestamp;
+        lockLastConfirmedTimestamp = requireNonNull(confirmedTimestamp, "confirmedTimestamp is null");;
         return this;
     }
 
     public DBFencedLock markAsLocked(OffsetDateTime lockTime, String lockedByLockManagerInstanceId, long currentToken) {
-        this.lockAcquiredTimestamp = lockTime;
-        this.lockLastConfirmedTimestamp = lockTime;
-        this.lockedByLockManagerInstanceId = lockedByLockManagerInstanceId;
+        this.lockAcquiredTimestamp = requireNonNull(lockTime, "lockTime is null");
+        this.lockLastConfirmedTimestamp = requireNonNull(lockTime, "lockTime is null");
+        this.lockedByLockManagerInstanceId = requireNonNull(lockedByLockManagerInstanceId, "lockedByLockManagerInstanceId is null");
         this.currentToken = currentToken;
         lockCallbacks.forEach(lockCallback -> lockCallback.lockAcquired(this));
         return this;
