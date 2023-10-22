@@ -736,4 +736,12 @@ public interface EventStore {
                                                 Optional<Duration> pollingInterval,
                                                 Optional<Tenant> onlyIncludeEventIfItBelongsToTenant,
                                                 Optional<SubscriberId> subscriptionId);
+
+    /**
+     * Find the highest {@link GlobalEventOrder} persisted in relation to the given aggregateType
+     *
+     * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream} is associated with
+     * @return an {@link Optional} with the {@link GlobalEventOrder} persisted or {@link Optional#empty()} if no events have been persisted
+     */
+    Optional<GlobalEventOrder> findHighestGlobalEventOrderPersisted(AggregateType aggregateType);
 }

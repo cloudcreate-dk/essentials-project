@@ -1281,6 +1281,14 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                              n);
                     return;
                 }
+                if (subscription == null) {
+                    log.info("[{}-{}] Cannot request {} event(s) as the subscriber is null - the exclusive subscription is shutting down",
+                             subscriberId,
+                             aggregateType,
+                             n);
+                    return;
+                }
+
                 log.trace("[{}-{}] Requesting {} event(s)",
                          subscriberId,
                          aggregateType,

@@ -215,12 +215,12 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
                                               String lockedByLockManagerInstanceId,
                                               OffsetDateTime lockAcquiredTimestamp,
                                               OffsetDateTime lockLastConfirmedTimestamp) {
-        return new DBFencedLock(lockManager,
-                                name,
+        return new DBFencedLock(requireNonNull(lockManager, "lockManager is null"),
+                                requireNonNull(name, "name is null"),
                                 currentToken,
-                                lockedByLockManagerInstanceId,
-                                lockAcquiredTimestamp,
-                                lockLastConfirmedTimestamp);
+                                requireNonNull(lockedByLockManagerInstanceId, "lockedByLockManagerInstanceId is null"),
+                                requireNonNull(lockAcquiredTimestamp, "lockAcquiredTimestamp is null"),
+                                requireNonNull(lockLastConfirmedTimestamp, "lockLastConfirmedTimestamp is null"));
     }
 
     @Override
