@@ -66,10 +66,10 @@
         <objenesis.version>3.3</objenesis.version>
         <postgresql.version>42.6.0</postgresql.version>
         <slf4j.version>2.0.9</slf4j.version>
-        <spring-boot.version>3.0.12</spring-boot.version>
+        <spring-boot.version>3.1.5</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <spring-data-mongodb.version>4.0.11</spring-data-mongodb.version>
-        <spring-data-jpa.version>3.0.11</spring-data-jpa.version>
+        <spring-data-mongodb.version>4.1.5</spring-data-mongodb.version>
+        <spring-data-jpa.version>3.1.5</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
         <assertj.version>3.24.2</assertj.version>
         <mongodb-driver-sync.version>4.11.0</mongodb-driver-sync.version>
