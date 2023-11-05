@@ -93,6 +93,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     @Bean
+    @ConditionalOnEnabledTracing
     public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(MeterRegistry meterRegistry) {
         return new DurableQueuesMicrometerInterceptor(meterRegistry);
     }
@@ -271,7 +272,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
      */
     @Bean
     @ConditionalOnMissingBean
-    public Inboxes inboxes(DurableQueues durableQueues, FencedLockManager fencedLockManager) {
+    public Inboxes inboxes(DurableQueues durableQueues,
+                           FencedLockManager fencedLockManager) {
         return Inboxes.durableQueueBasedInboxes(durableQueues,
                                                 fencedLockManager);
     }
@@ -285,7 +287,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
      */
     @Bean
     @ConditionalOnMissingBean
-    public Outboxes outboxes(DurableQueues durableQueues, FencedLockManager fencedLockManager) {
+    public Outboxes outboxes(DurableQueues durableQueues,
+                             FencedLockManager fencedLockManager) {
         return Outboxes.durableQueueBasedOutboxes(durableQueues,
                                                   fencedLockManager);
     }
