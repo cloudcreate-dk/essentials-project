@@ -319,7 +319,7 @@
         <notes><![CDATA[
    See https://github.com/jeremylong/DependencyCheck/issues/5912
    ]]></notes>
-        <packageUrl regex="true">^pkg:maven/io\.netty/netty-handler@.*$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/io\.netty/*.*$</packageUrl>
         <cve>CVE-2023-4586</cve>
     </suppress>
 </suppressions>
