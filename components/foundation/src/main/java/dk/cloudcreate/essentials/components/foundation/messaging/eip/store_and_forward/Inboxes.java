@@ -170,7 +170,7 @@ public interface Inboxes {
 
             @Override
             public Inbox startConsuming() {
-                if (this.messageConsumer != null) {
+                if (this.messageConsumer == null) {
                     throw new IllegalStateException("No message consumer specified. Please call #setMessageConsumer");
                 }
                 switch (config.messageConsumptionMode) {

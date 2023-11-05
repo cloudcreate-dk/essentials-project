@@ -179,6 +179,9 @@ public interface Outboxes {
 
             @Override
             public Outbox startConsuming() {
+                if (this.messageConsumer == null) {
+                    throw new IllegalStateException("No message consumer specified. Please call #setMessageConsumer");
+                }
                 switch (config.messageConsumptionMode) {
                     case SingleGlobalConsumer:
                         fencedLockManager.acquireLockAsync(config.outboxName.asLockName(),
