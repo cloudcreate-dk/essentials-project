@@ -16,12 +16,14 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
+import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
+import dk.cloudcreate.essentials.components.foundation.reactive.command.UnitOfWorkControllingCommandBusInterceptor;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
 /**
- * The transactional behaviour mode of a {@link DurableQueues}
+ * The transactional behaviour mode of a {@link DurableQueues}. The recommended value is {@link #SingleOperationTransaction} (see the description)
  * <p>
  * The normal message processing flow looks like this:
  * <pre>{@code
@@ -51,7 +53,9 @@ public enum TransactionalMode {
      * {@link Outbox} pattern, which benefits from including queueing/de-queueing together with other database entity modifying operations.<br>
      * When changing an entity and queueing/de-queueing happens in ONE shared transaction (NOTE this requires that the entity storage and the queue storage
      * to use the same database - e.g. Postgresql or MongoDB) then the shared database transaction guarantees that all the data storage operations
-     * are committed or rollback as one
+     * are committed or rollback as one<br>
+     * The disadvantage of this is that any explicit {@link UnitOfWork#markAsRollbackOnly()}/{@link UnitOfWork#markAsRollbackOnly(Exception)}, either directly our through e.g. {@link UnitOfWorkControllingCommandBusInterceptor},
+     * will cause the message handling to rollback and the message will retry indefinitely without any delay (i.e. the {@link RedeliveryPolicy} is ignored because message handling is rolledback)
      */
     FullyTransactional,
     /**
@@ -59,7 +63,10 @@ public enum TransactionalMode {
      * (such as {@link DurableQueues#getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery)} , {@link DurableQueues#deleteMessage(DeleteMessage)} , etc.)
      * as well as for certain NoSQL databases, such as MongoDB/DocumentDB, that have limitations when performing multiple data storage operations within a transaction.<br>
      * For these cases you can configure the {@link TransactionalMode} as {@link #SingleOperationTransaction} where queueing and de-queueing are performed using separate (single document)
-     * transactions and where acknowledging/retry is performed as a separate transaction.
+     * transactions and where acknowledging/retry is performed as a separate transaction.<br>
+     * During queueing if there is an existing {@link UnitOfWork} in progress, then the queue operation will join the existing {@link UnitOfWork}<br>
+     * The advantage of this transactional mode is that any explicit {@link UnitOfWork#markAsRollbackOnly()}/{@link UnitOfWork#markAsRollbackOnly(Exception)}, either directly our through e.g. {@link UnitOfWorkControllingCommandBusInterceptor},
+     * will NOT cause any message handling rollback, instead the normal {@link RedeliveryPolicy} will take effect as expected.
      */
     SingleOperationTransaction
 }

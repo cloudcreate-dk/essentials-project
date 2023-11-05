@@ -151,11 +151,37 @@ public interface Outboxes {
             }
 
             @Override
+            public Outbox setMessageConsumer(Consumer<Message> messageConsumer) {
+                this.messageConsumer = requireNonNull(messageConsumer, "No messageConsumer provided");
+                return this;
+            }
+
+            @Override
             public Outbox consume(Consumer<Message> messageConsumer) {
                 if (this.messageConsumer != null) {
                     throw new IllegalStateException("Outbox already has a message consumer");
                 }
-                this.messageConsumer = requireNonNull(messageConsumer, "No messageConsumer provided");
+                setMessageConsumer(messageConsumer);
+                startConsuming();
+                return this;
+            }
+
+            @Override
+            public boolean hasAMessageConsumer() {
+                return messageConsumer != null;
+            }
+
+            @Override
+            public boolean isConsumingMessages() {
+                return durableQueueConsumer != null;
+            }
+
+
+            @Override
+            public Outbox startConsuming() {
+                if (this.messageConsumer == null) {
+                    throw new IllegalStateException("No message consumer specified. Please call #setMessageConsumer");
+                }
                 switch (config.messageConsumptionMode) {
                     case SingleGlobalConsumer:
                         fencedLockManager.acquireLockAsync(config.outboxName.asLockName(),
@@ -174,33 +200,25 @@ public interface Outboxes {
             }
 
             @Override
-            public boolean hasAMessageConsumer() {
-                return messageConsumer != null;
-            }
+            public Outbox stopConsuming() {
+                if (messageConsumer != null) {
 
-            @Override
-            public boolean isConsumingMessages() {
-                return durableQueueConsumer != null;
-            }
-
-            @Override
-            public void stopConsuming() {
-                if (messageConsumer == null) return;
-
-                switch (config.messageConsumptionMode) {
-                    case SingleGlobalConsumer:
-                        fencedLockManager.cancelAsyncLockAcquiring(config.outboxName.asLockName());
-                        break;
-                    case GlobalCompetingConsumers:
-                        if (durableQueueConsumer != null) {
-                            durableQueueConsumer.cancel();
-                            durableQueueConsumer = null;
-                        }
-                        break;
-                    default:
-                        throw new IllegalStateException("Unexpected messageConsumptionMode: " + config.messageConsumptionMode);
+                    switch (config.messageConsumptionMode) {
+                        case SingleGlobalConsumer:
+                            fencedLockManager.cancelAsyncLockAcquiring(config.outboxName.asLockName());
+                            break;
+                        case GlobalCompetingConsumers:
+                            if (durableQueueConsumer != null) {
+                                durableQueueConsumer.cancel();
+                                durableQueueConsumer = null;
+                            }
+                            break;
+                        default:
+                            throw new IllegalStateException("Unexpected messageConsumptionMode: " + config.messageConsumptionMode);
+                    }
+                    messageConsumer = null;
                 }
-                messageConsumer = null;
+                return this;
             }
 
             @Override
@@ -209,9 +227,10 @@ public interface Outboxes {
             }
 
             @Override
-            public void sendMessage(Message payload) {
+            public Outbox sendMessage(Message payload) {
                 durableQueues.queueMessage(outboxQueueName,
                                            payload);
+                return this;
             }
 
             private DurableQueueConsumer consumeFromDurableQueue(FencedLock lock) {
@@ -240,12 +259,11 @@ public interface Outboxes {
             @Override
             public String toString() {
                 return "DurableQueueBasedOutbox{" +
-                        "outboxName=" + config.outboxName +
-                        ", outboxQueueName=" + outboxQueueName +
-                        ", messageConsumptionMode=" + config.messageConsumptionMode +
-                        ", numberOfParallelMessageConsumers=" + config.numberOfParallelMessageConsumers +
+                        "config=" + config + ", " +
+                        "outboxQueueName=" + outboxQueueName +
                         '}';
             }
+
         }
     }
 }

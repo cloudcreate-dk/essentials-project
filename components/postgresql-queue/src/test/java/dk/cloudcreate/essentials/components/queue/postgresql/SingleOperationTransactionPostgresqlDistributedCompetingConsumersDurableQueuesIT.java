@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.queue.postgresql;
 
 import com.zaxxer.hikari.HikariDataSource;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.DistributedCompetingConsumersDurableQueuesIT;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 import org.jdbi.v3.core.Jdbi;
@@ -38,6 +39,7 @@ class SingleOperationTransactionPostgresqlDistributedCompetingConsumersDurableQu
         return PostgresqlDurableQueues.builder()
                                       .setUnitOfWorkFactory(unitOfWorkFactory)
                                       .setMessageHandlingTimeout(Duration.ofSeconds(5))
+                                      .setTransactionalMode(TransactionalMode.SingleOperationTransaction)
                                       .build();
     }
 
