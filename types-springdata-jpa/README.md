@@ -3,8 +3,6 @@
 Essentials is a set of Java version 17 (and later) building blocks built from the ground up to have no dependencies
 on other libraries, unless explicitly mentioned.
 
-> Note: [For Java version 11 to 16 support, please use version 0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)
-
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
 many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
@@ -14,12 +12,14 @@ many of the most popular libraries and frameworks such as Jackson, Spring Boot, 
 This library focuses purely on providing [Spring Data JPA](https://spring.io/projects/spring-data-jpa) persistence support for the **types** defined in the
 Essentials `types` library.
 
+> Warning: Not ready for production use !!!
+
 To use `Types-SpringData-JPA` just add the following Maven dependency:
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-jpa</artifactId>
-    <version>0.30.0</version>
+    <version>0.30.1</version>
 </dependency>
 ```
 
@@ -32,7 +32,7 @@ To use `Types-SpringData-JPA` just add the following Maven dependency:
 <dependency>
     <groupId>jakarta.persistence</groupId>
     <artifactId>jakarta.persistence-api</artifactId>
-    <version>2.2.3</version>
+    <version>3.1.0</version>
 </dependency>
 ```
 

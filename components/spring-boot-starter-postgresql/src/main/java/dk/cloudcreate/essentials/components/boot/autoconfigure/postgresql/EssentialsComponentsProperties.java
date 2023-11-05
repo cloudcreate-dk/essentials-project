@@ -79,7 +79,8 @@ public class EssentialsComponentsProperties {
         private Double pollingDelayIntervalIncrementFactor = 0.5d;
 
         private Duration maxPollingInterval = Duration.ofMillis(2000);
-        private TransactionalMode transactionalMode = TransactionalMode.FullyTransactional;
+        private TransactionalMode transactionalMode = TransactionalMode.SingleOperationTransaction;
+        private Duration messageHandlingTimeout = Duration.ofSeconds(30);
 
         private boolean verboseTracing = false;
 
@@ -101,7 +102,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * Get the transactional behaviour mode of the {@link PostgresqlDurableQueues}<br>
-         * Default: {@link TransactionalMode#FullyTransactional}
+         * Default: {@link TransactionalMode#SingleOperationTransaction}
          *
          * @return the transactional behaviour mode of the {@link PostgresqlDurableQueues}
          */
@@ -111,12 +112,36 @@ public class EssentialsComponentsProperties {
 
         /**
          * Set the transactional behaviour mode of the {@link PostgresqlDurableQueues}
-         * Default: {@link TransactionalMode#FullyTransactional}
+         * Default: {@link TransactionalMode#SingleOperationTransaction}
          *
          * @param transactionalMode the transactional behaviour mode of the {@link PostgresqlDurableQueues}
          */
         public void setTransactionalMode(TransactionalMode transactionalMode) {
             this.transactionalMode = transactionalMode;
+        }
+
+        /**
+         * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#SingleOperationTransaction}<br>
+         * The Message Handling timeout defines the timeout for messages being delivered, but haven't yet been acknowledged.
+         * After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
+         * Default is 30 seconds
+         *
+         * @return the Message Handling timeout
+         */
+        public Duration getMessageHandlingTimeout() {
+            return messageHandlingTimeout;
+        }
+
+        /**
+         * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#SingleOperationTransaction}<br>
+         * The Message Handling timeout defines the timeout for messages being delivered, but haven't yet been acknowledged.
+         * After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
+         * Default is 30 seconds
+         *
+         * @param messageHandlingTimeout the Message Handling timeout
+         */
+        public void setMessageHandlingTimeout(Duration messageHandlingTimeout) {
+            this.messageHandlingTimeout = messageHandlingTimeout;
         }
 
         /**

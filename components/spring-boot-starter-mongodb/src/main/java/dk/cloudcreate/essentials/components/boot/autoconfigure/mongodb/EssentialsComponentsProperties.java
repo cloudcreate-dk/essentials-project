@@ -47,9 +47,9 @@ public class EssentialsComponentsProperties {
     public static class DurableQueues {
         private String sharedQueueCollectionName = MongoDurableQueues.DEFAULT_DURABLE_QUEUES_COLLECTION_NAME;
 
-        private TransactionalMode transactionalMode = TransactionalMode.FullyTransactional;
+        private TransactionalMode transactionalMode = TransactionalMode.SingleOperationTransaction;
 
-        private Duration messageHandlingTimeout = Duration.ofSeconds(15);
+        private Duration messageHandlingTimeout = Duration.ofSeconds(30);
 
         private Double pollingDelayIntervalIncrementFactor = 0.5d;
 
@@ -95,7 +95,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * Get the transactional behaviour mode of the {@link MongoDurableQueues}<br>
-         * Default: {@link TransactionalMode#FullyTransactional}
+         * Default: {@link TransactionalMode#SingleOperationTransaction}
          *
          * @return the transactional behaviour mode of the {@link MongoDurableQueues}
          */
@@ -105,7 +105,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * Set the transactional behaviour mode of the {@link MongoDurableQueues}
-         * Default: {@link TransactionalMode#FullyTransactional}
+         * Default: {@link TransactionalMode#SingleOperationTransaction}
          *
          * @param transactionalMode the transactional behaviour mode of the {@link MongoDurableQueues}
          */
@@ -117,7 +117,7 @@ public class EssentialsComponentsProperties {
          * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#SingleOperationTransaction}<br>
          * The Message Handling timeout defines the timeout for messages being delivered, but haven't yet been acknowledged.
          * After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
-         * Default 15 seconds
+         * Default is 30 seconds
          *
          * @return the Message Handling timeout
          */
@@ -129,7 +129,7 @@ public class EssentialsComponentsProperties {
          * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#SingleOperationTransaction}<br>
          * The Message Handling timeout defines the timeout for messages being delivered, but haven't yet been acknowledged.
          * After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
-         * Default 15 seconds
+         * Default is 30 seconds
          *
          * @param messageHandlingTimeout the Message Handling timeout
          */

@@ -42,7 +42,8 @@ import java.util.function.Consumer;
 public interface Outbox {
     /**
      * Start consuming messages from the Outbox using the provided message consumer.<br>
-     * Only needs to be called if the instance was created without a message consumer
+     * This is the same as calling {@link #setMessageConsumer(Consumer)} followed by {@link #startConsuming()}<br>
+     * Only needs to be called if the instance was created without a message consumer such as via {@link Outboxes#getOrCreateOutbox(OutboxConfig)}
      * <p>
      * If an {@link OrderedMessage} is delivered via an {@link Outbox} using a {@link FencedLock} (such as
      * the {@link Outboxes#durableQueueBasedOutboxes(DurableQueues, FencedLockManager)})
@@ -55,10 +56,31 @@ public interface Outbox {
     Outbox consume(Consumer<Message> messageConsumer);
 
     /**
+     * Set the message consumer. To start consuming call {@link #startConsuming()}
+     *
+     * @param messageConsumer the message consumer. See {@link PatternMatchingMessageHandler}
+     * @return this outbox instance
+     */
+    Outbox setMessageConsumer(Consumer<Message> messageConsumer);
+
+    /**
+     * Start consuming messages from the {@link Outbox}. Requires calling {@link #setMessageConsumer(Consumer)} first<br>
+     * If an {@link OrderedMessage} is delivered via an {@link Outbox} using a {@link FencedLock}
+     * (such as {@link Outboxes#durableQueueBasedOutboxes(DurableQueues, FencedLockManager)}
+     * to coordinate message consumption, then you can find the {@link FencedLock#getCurrentToken()}
+     * of the consumer in the {@link Message#getMetaData()} under key {@link MessageMetaData#FENCED_LOCK_TOKEN}
+     *
+     * @return this outbox instance
+     */
+    Outbox startConsuming();
+
+    /**
      * Stop consuming messages from the {@link Outbox}. Calling this method will remove the message consumer
      * and to resume message consumption you need to call {@link #consume(Consumer)}
+     *
+     * @return this outbox instance
      */
-    void stopConsuming();
+    Outbox stopConsuming();
 
     /**
      * Has the instance been created with a Message consumer or has {@link #consume(Consumer)} been called
@@ -87,9 +109,10 @@ public interface Outbox {
      * The message will be delivered asynchronously to the message consumer
      *
      * @param payload the message payload
+     * @return this outbox instance
      */
-    default void sendMessage(Object payload) {
-        sendMessage(new Message(payload));
+    default Outbox sendMessage(Object payload) {
+        return sendMessage(new Message(payload));
     }
 
     /**
@@ -99,9 +122,10 @@ public interface Outbox {
      *
      * @param payload  the message payload
      * @param metaData the message meta-data
+     * @return this outbox instance
      */
-    default void sendMessage(Object payload, MessageMetaData metaData) {
-        sendMessage(new Message(payload, metaData));
+    default Outbox sendMessage(Object payload, MessageMetaData metaData) {
+        return sendMessage(new Message(payload, metaData));
     }
 
     /**
@@ -110,9 +134,10 @@ public interface Outbox {
      * The message will be delivered asynchronously to the message consumer
      *
      * @param message the message
+     * @return this outbox instance
      * @see OrderedMessage
      */
-    void sendMessage(Message message);
+    Outbox sendMessage(Message message);
 
     /**
      * Get the number of message in the outbox that haven't been sent yet
