@@ -1,6 +1,6 @@
 # Essentials Java building blocks
 
-Essentials is a set of Java version 11 (and later) building blocks built from the ground up to have no dependencies on other libraries, unless explicitly mentioned.
+Essentials is a set of Java version 17 (and later) building blocks built from the ground up to have no dependencies on other libraries, unless explicitly mentioned.
 
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and strongly typed code, which doesn't depend on other libraries or frameworks, but
 instead allows easy integrations with many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
@@ -14,7 +14,7 @@ To use `Types-Avro` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-avro</artifactId>
-    <version>0.20.6</version>
+    <version>0.20.7</version>
 </dependency>
 ```
 
