@@ -155,9 +155,24 @@ public interface Inboxes {
             @Override
             public Inbox consume(Consumer<Message> messageConsumer) {
                 if (this.messageConsumer != null) {
-                    throw new IllegalStateException("Outbox already has a message consumer");
+                    throw new IllegalStateException("Inbox already has a message consumer");
                 }
+                setMessageConsumer(messageConsumer);
+                startConsuming();
+                return this;
+            }
+
+            @Override
+            public Inbox setMessageConsumer(Consumer<Message> messageConsumer) {
                 this.messageConsumer = requireNonNull(messageConsumer, "No messageConsumer provided");
+                return this;
+            }
+
+            @Override
+            public Inbox startConsuming() {
+                if (this.messageConsumer == null) {
+                    throw new IllegalStateException("No message consumer specified. Please call #setMessageConsumer");
+                }
                 switch (config.messageConsumptionMode) {
                     case SingleGlobalConsumer:
                         fencedLockManager.acquireLockAsync(config.inboxName.asLockName(),
@@ -186,23 +201,25 @@ public interface Inboxes {
             }
 
             @Override
-            public void stopConsuming() {
-                if (messageConsumer == null) return;
+            public Inbox stopConsuming() {
+                if (messageConsumer != null) {
 
-                switch (config.messageConsumptionMode) {
-                    case SingleGlobalConsumer:
-                        fencedLockManager.cancelAsyncLockAcquiring(config.inboxName.asLockName());
-                        break;
-                    case GlobalCompetingConsumers:
-                        if (durableQueueConsumer != null) {
-                            durableQueueConsumer.cancel();
-                            durableQueueConsumer = null;
-                        }
-                        break;
-                    default:
-                        throw new IllegalStateException("Unexpected messageConsumptionMode: " + config.messageConsumptionMode);
+                    switch (config.messageConsumptionMode) {
+                        case SingleGlobalConsumer:
+                            fencedLockManager.cancelAsyncLockAcquiring(config.inboxName.asLockName());
+                            break;
+                        case GlobalCompetingConsumers:
+                            if (durableQueueConsumer != null) {
+                                durableQueueConsumer.cancel();
+                                durableQueueConsumer = null;
+                            }
+                            break;
+                        default:
+                            throw new IllegalStateException("Unexpected messageConsumptionMode: " + config.messageConsumptionMode);
+                    }
+                    messageConsumer = null;
                 }
-                messageConsumer = null;
+                return this;
             }
 
             @Override
@@ -211,7 +228,7 @@ public interface Inboxes {
             }
 
             @Override
-            public void addMessageReceived(Message message) {
+            public Inbox addMessageReceived(Message message) {
                 // An Inbox is usually used to bridge receiving messages from a Messaging system
                 // In these cases we rarely have other business logic that's already started a Transaction/UnitOfWork.
                 // So to simplify using the Inbox we allow adding a message to start a UnitOfWork if none exists
@@ -226,6 +243,7 @@ public interface Inboxes {
                     durableQueues.queueMessage(inboxQueueName,
                                                message);
                 }
+                return this;
             }
 
             private DurableQueueConsumer consumeFromDurableQueue(FencedLock lock) {

@@ -504,75 +504,82 @@ public class PostgresqlDurableQueues implements DurableQueues {
         } catch (JSONSerializationException e) {
             throw new DurableQueueException(msg("Failed to serialize message payload of type", message.getPayload().getClass().getName()), e, queueName);
         }
+
+        if (transactionalMode == TransactionalMode.FullyTransactional) {
+            unitOfWorkFactory.getRequiredUnitOfWork();
+        }
+
         // TODO: Future improvement: If queueing an OrderedMessage check if another OrderMessage related to the same key and a lower order is already marked as a dead letter message,
         //  in which case this message can be queued directly as a dead letter message
-        var update = unitOfWorkFactory.getRequiredUnitOfWork().handle().createUpdate(bind("INSERT INTO {:tableName} (\n" +
-                                                                                                  "       id,\n" +
-                                                                                                  "       queue_name,\n" +
-                                                                                                  "       message_payload,\n" +
-                                                                                                  "       message_payload_type,\n" +
-                                                                                                  "       added_ts,\n" +
-                                                                                                  "       next_delivery_ts,\n" +
-                                                                                                  "       last_delivery_error,\n" +
-                                                                                                  "       is_dead_letter_message,\n" +
-                                                                                                  "       meta_data,\n" +
-                                                                                                  "       delivery_mode,\n" +
-                                                                                                  "       key,\n" +
-                                                                                                  "       key_order\n" +
-                                                                                                  "   ) VALUES (\n" +
-                                                                                                  "       :id,\n" +
-                                                                                                  "       :queueName,\n" +
-                                                                                                  "       :message_payload::jsonb,\n" +
-                                                                                                  "       :message_payload_type,\n" +
-                                                                                                  "       :addedTimestamp,\n" +
-                                                                                                  "       :nextDeliveryTimestamp,\n" +
-                                                                                                  "       :lastDeliveryError,\n" +
-                                                                                                  "       :isDeadLetterMessage,\n" +
-                                                                                                  "       :metaData::jsonb,\n" +
-                                                                                                  "       :deliveryMode,\n" +
-                                                                                                  "       :key,\n" +
-                                                                                                  "       :order\n" +
-                                                                                                  "   )",
-                                                                                          arg("tableName", sharedQueueTableName)))
-                                      .bind("id", queueEntryId)
-                                      .bind("queueName", queueName)
-                                      .bind("message_payload", jsonPayload)
-                                      .bind("message_payload_type", message.getPayload().getClass().getName())
-                                      .bind("addedTimestamp", addedTimestamp)
-                                      .bind("nextDeliveryTimestamp", nextDeliveryTimestamp)
-                                      .bind("isDeadLetterMessage", isDeadLetterMessage);
+        unitOfWorkFactory.usingUnitOfWork(unitOfWork -> {
+            var update = unitOfWork.handle().createUpdate(bind("INSERT INTO {:tableName} (\n" +
+                                                                       "       id,\n" +
+                                                                       "       queue_name,\n" +
+                                                                       "       message_payload,\n" +
+                                                                       "       message_payload_type,\n" +
+                                                                       "       added_ts,\n" +
+                                                                       "       next_delivery_ts,\n" +
+                                                                       "       last_delivery_error,\n" +
+                                                                       "       is_dead_letter_message,\n" +
+                                                                       "       meta_data,\n" +
+                                                                       "       delivery_mode,\n" +
+                                                                       "       key,\n" +
+                                                                       "       key_order\n" +
+                                                                       "   ) VALUES (\n" +
+                                                                       "       :id,\n" +
+                                                                       "       :queueName,\n" +
+                                                                       "       :message_payload::jsonb,\n" +
+                                                                       "       :message_payload_type,\n" +
+                                                                       "       :addedTimestamp,\n" +
+                                                                       "       :nextDeliveryTimestamp,\n" +
+                                                                       "       :lastDeliveryError,\n" +
+                                                                       "       :isDeadLetterMessage,\n" +
+                                                                       "       :metaData::jsonb,\n" +
+                                                                       "       :deliveryMode,\n" +
+                                                                       "       :key,\n" +
+                                                                       "       :order\n" +
+                                                                       "   )",
+                                                               arg("tableName", sharedQueueTableName)))
+                                   .bind("id", queueEntryId)
+                                   .bind("queueName", queueName)
+                                   .bind("message_payload", jsonPayload)
+                                   .bind("message_payload_type", message.getPayload().getClass().getName())
+                                   .bind("addedTimestamp", addedTimestamp)
+                                   .bind("nextDeliveryTimestamp", nextDeliveryTimestamp)
+                                   .bind("isDeadLetterMessage", isDeadLetterMessage);
 
-        if (message instanceof OrderedMessage) {
-            var orderedMessage = (OrderedMessage) message;
-            requireNonNull(orderedMessage.getKey(), "An OrderedMessage requires a non null key");
-            requireTrue(orderedMessage.getOrder() >= 0, "An OrderedMessage requires an order >= 0");
-            update.bind("deliveryMode", QueuedMessage.DeliveryMode.IN_ORDER)
-                  .bind("key", orderedMessage.getKey())
-                  .bind("order", orderedMessage.getOrder());
-        } else {
-            update.bind("deliveryMode", QueuedMessage.DeliveryMode.NORMAL)
-                  .bindNull("key", Types.VARCHAR)
-                  .bind("order", -1L);
+            if (message instanceof OrderedMessage) {
+                var orderedMessage = (OrderedMessage) message;
+                requireNonNull(orderedMessage.getKey(), "An OrderedMessage requires a non null key");
+                requireTrue(orderedMessage.getOrder() >= 0, "An OrderedMessage requires an order >= 0");
+                update.bind("deliveryMode", QueuedMessage.DeliveryMode.IN_ORDER)
+                      .bind("key", orderedMessage.getKey())
+                      .bind("order", orderedMessage.getOrder());
+            } else {
+                update.bind("deliveryMode", QueuedMessage.DeliveryMode.NORMAL)
+                      .bindNull("key", Types.VARCHAR)
+                      .bind("order", -1L);
 
-        }
+            }
 
-        try {
-            var jsonMetaData = jsonSerializer.serialize(message.getMetaData());
-            update.bind("metaData", jsonMetaData);
-        } catch (JSONSerializationException e) {
-            throw new DurableQueueException("Failed to serialize message meta-data", e, queueName);
-        }
+            try {
+                var jsonMetaData = jsonSerializer.serialize(message.getMetaData());
+                update.bind("metaData", jsonMetaData);
+            } catch (JSONSerializationException e) {
+                throw new DurableQueueException("Failed to serialize message meta-data", e, queueName);
+            }
 
-        if (causeOfEnqueuing.isPresent()) {
-            update.bind("lastDeliveryError", causeOfEnqueuing.map(Exceptions::getStackTrace).get());
-        } else {
-            update.bindNull("lastDeliveryError", Types.VARCHAR);
-        }
+            if (causeOfEnqueuing.isPresent()) {
+                update.bind("lastDeliveryError", causeOfEnqueuing.map(Exceptions::getStackTrace).get());
+            } else {
+                update.bindNull("lastDeliveryError", Types.VARCHAR);
+            }
 
-        var numberOfRowsUpdated = update.execute();
-        if (numberOfRowsUpdated == 0) {
-            throw new DurableQueueException("Failed to insert message", queueName);
-        }
+            var numberOfRowsUpdated = update.execute();
+            if (numberOfRowsUpdated == 0) {
+                throw new DurableQueueException("Failed to insert message", queueName);
+            }
+        });
         log.debug("[{}:{}] Queued {}{}message{} with nextDeliveryTimestamp {}",
                   queueName,
                   queueEntryId,

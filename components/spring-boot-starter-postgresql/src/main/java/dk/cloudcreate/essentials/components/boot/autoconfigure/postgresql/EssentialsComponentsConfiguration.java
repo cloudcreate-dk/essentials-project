@@ -200,6 +200,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                        List<DurableQueuesInterceptor> durableQueuesInterceptors) {
         var durableQueues = PostgresqlDurableQueues.builder()
                                                    .setUnitOfWorkFactory(unitOfWorkFactory)
+                                                   .setMessageHandlingTimeout(properties.getDurableQueues().getMessageHandlingTimeout())
                                                    .setTransactionalMode(properties.getDurableQueues().getTransactionalMode())
                                                    .setJsonSerializer(jsonSerializer)
                                                    .setSharedQueueTableName(properties.getDurableQueues().getSharedQueueTableName())
@@ -237,7 +238,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
      */
     @Bean
     @ConditionalOnMissingBean
-    public Inboxes inboxes(DurableQueues durableQueues, FencedLockManager fencedLockManager) {
+    public Inboxes inboxes(DurableQueues durableQueues,
+                           FencedLockManager fencedLockManager) {
         return Inboxes.durableQueueBasedInboxes(durableQueues,
                                                 fencedLockManager);
     }
@@ -251,7 +253,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
      */
     @Bean
     @ConditionalOnMissingBean
-    public Outboxes outboxes(DurableQueues durableQueues, FencedLockManager fencedLockManager) {
+    public Outboxes outboxes(DurableQueues durableQueues,
+                             FencedLockManager fencedLockManager) {
         return Outboxes.durableQueueBasedOutboxes(durableQueues,
                                                   fencedLockManager);
     }
