@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.queue.postgresql;
 
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
 import dk.cloudcreate.essentials.components.foundation.test.reactive.command.AbstractDurableLocalCommandBusIT;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 import org.jdbi.v3.core.Jdbi;
@@ -37,6 +38,7 @@ public class DurableLocalCommandBus_withSingleOperationTransactionIT extends Abs
         return PostgresqlDurableQueues.builder()
                                       .setUnitOfWorkFactory(unitOfWorkFactory)
                                       .setMessageHandlingTimeout(Duration.ofSeconds(1))
+                                      .setTransactionalMode(TransactionalMode.SingleOperationTransaction)
                                       .build();
     }
 

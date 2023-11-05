@@ -43,6 +43,7 @@ class SingleOperationTransactionPostgresqlDurableQueuesIT extends DurableQueuesI
     protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory) {
         return PostgresqlDurableQueues.builder()
                                       .setUnitOfWorkFactory(unitOfWorkFactory)
+                                      .setTransactionalMode(TransactionalMode.SingleOperationTransaction)
                                       .setMessageHandlingTimeout(Duration.ofSeconds(5))
                                       .build();
     }
