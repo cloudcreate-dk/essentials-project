@@ -124,4 +124,16 @@ public interface MessageDeliveryErrorHandler {
             return "AlwaysRetry";
         }
     }
+
+    class NeverRetry implements MessageDeliveryErrorHandler {
+        @Override
+        public boolean isPermanentError(QueuedMessage queuedMessage, Exception error) {
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return "NeverRetry";
+        }
+    }
 }
