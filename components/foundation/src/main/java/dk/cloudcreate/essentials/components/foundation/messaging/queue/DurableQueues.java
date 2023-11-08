@@ -177,7 +177,12 @@ public interface DurableQueues extends Lifecycle {
 
     /**
      * Start an asynchronous message consumer.<br>
-     * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance
+     * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance<br>
+     * Log levels of interest:
+     * <pre>{@code
+     * dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer
+     * dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer.MessageHandlingFailures
+     * }</pre>
      *
      * @param consumerName        the name of the consumer (for logging purposes)
      * @param queueName           the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
@@ -202,7 +207,12 @@ public interface DurableQueues extends Lifecycle {
 
     /**
      * Start an asynchronous message consumer.<br>
-     * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance
+     * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance<br>
+     * Log levels of interest:
+     * <pre>{@code
+     * dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer
+     * dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer.MessageHandlingFailures
+     * }</pre>
      *
      * @param queueName           the name of the queue that the consumer will be listening for queued messages ready to be delivered to the {@link QueuedMessageHandler} provided
      * @param redeliveryPolicy    the redelivery policy in case the handling of a message fails
@@ -224,7 +234,12 @@ public interface DurableQueues extends Lifecycle {
 
     /**
      * Start an asynchronous message consumer.<br>
-     * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance
+     * Note: There can only be one {@link DurableQueueConsumer} per {@link QueueName} per {@link DurableQueues} instance<br>
+     * Log levels of interest:
+     * <pre>{@code
+     * dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer
+     * dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer.MessageHandlingFailures
+     * }</pre>
      *
      * @param operation The {@link ConsumeFromQueue} operation
      * @return the queue consumer
