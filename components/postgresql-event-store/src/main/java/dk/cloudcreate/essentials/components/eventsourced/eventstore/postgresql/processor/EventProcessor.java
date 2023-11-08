@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
@@ -30,8 +31,7 @@ import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableL
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.reactive.Handler;
 import dk.cloudcreate.essentials.reactive.command.*;
-import dk.cloudcreate.essentials.shared.reflection.Classes;
-import dk.cloudcreate.essentials.types.*;
+import dk.cloudcreate.essentials.types.LongRange;
 import org.slf4j.*;
 
 import java.time.Duration;
@@ -166,7 +166,10 @@ public abstract class EventProcessor implements Lifecycle {
     /**
      * Create a new {@link EventProcessor} instance
      *
-     * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions
+     * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions<br>
+     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only queue a reference to
+     *                                      the {@link PersistedEvent} and before the message is forwarded to the corresponding {@link MessageHandler} then we load the {@link PersistedEvent}'s
+     *                                      payload and forward it to the {@link MessageHandler} annotated method
      * @param inboxes                       the {@link Inboxes} instance used to create an {@link Inbox}, with the name returned from {@link #getProcessorName()}.
      *                                      This {@link Inbox} is used for forwarding {@link PersistedEvent}'s received via {@link EventStoreSubscription}'s, because {@link EventStoreSubscription}'s
      *                                      doesn't handle message retry, etc.
@@ -175,33 +178,10 @@ public abstract class EventProcessor implements Lifecycle {
     protected EventProcessor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
                              Inboxes inboxes,
                              DurableLocalCommandBus commandBus) {
-        this(eventStoreSubscriptionManager,
-             inboxes,
-             commandBus,
-             null);
-    }
-
-    /**
-     * Create a new {@link EventProcessor} instance
-     *
-     * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions
-     * @param inboxes                       the {@link Inboxes} instance used to create an {@link Inbox}, with the name returned from {@link #getProcessorName()}.
-     *                                      This {@link Inbox} is used for forwarding {@link PersistedEvent}'s received via {@link EventStoreSubscription}'s, because {@link EventStoreSubscription}'s
-     *                                      doesn't handle message retry, etc.
-     * @param commandBus                    The {@link CommandBus} where any {@link Handler} or {@link CmdHandler} annotated methods in the subclass of the {@link EventProcessor} will be registered
-     * @param eventStore                    Optional argument. If the <code>eventStore</code> is NULL (default if you're using {@link EventProcessor#EventProcessor(EventStoreSubscriptionManager, Inboxes, DurableLocalCommandBus)})
-     *                                      then we queue the full {@link PersistedEvent}'s payload in the {@link Inbox}. If  <code>eventStore</code> is NON-NULL then we only queue a reference to
-     *                                      the {@link PersistedEvent} and before the message is forwarded to the corresponding {@link MessageHandler} then we load the {@link PersistedEvent}'s
-     *                                      payload and forward it to the {@link MessageHandler} annotated method
-     */
-    protected EventProcessor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
-                             Inboxes inboxes,
-                             DurableLocalCommandBus commandBus,
-                             EventStore eventStore) {
         this.eventStoreSubscriptionManager = requireNonNull(eventStoreSubscriptionManager, "No eventStoreSubscriptionManager provided");
         this.inboxes = requireNonNull(inboxes, "No inboxes instance provided");
         this.commandBus = requireNonNull(commandBus, "No commandBus provided");
-        this.eventStore = eventStore;
+        this.eventStore = requireNonNull(eventStoreSubscriptionManager.getEventStore(), "No eventStore is associated with the eventStoreSubscriptionManager provided");
         setupEventAndMessageHandlers();
     }
 
@@ -212,16 +192,12 @@ public abstract class EventProcessor implements Lifecycle {
         patternMatchingInboxMessageHandlerDelegate = new PatternMatchingMessageHandler(this);
         patternMatchingInboxMessageHandlerDelegate.allowUnmatchedMessages();
         inboxMessageHandlerDelegate = (msg) -> {
-            if (EventReferenceOrderedMessage.isOrderedEventReference(msg)) {
-                var orderedMessage    = (OrderedMessage) msg;
-                var aggregateType     = (AggregateType) orderedMessage.getPayload();
+            if (msg instanceof OrderedMessage orderedMessage && EventReferenceOrderedMessage.isEventReference(orderedMessage)) {
+                var aggregateType         = (AggregateType) orderedMessage.getPayload();
+                var aggregateIdSerializer = resolveAggregateIdSerializer(aggregateType);
+
                 var stringAggregateId = orderedMessage.getKey();
-                // TODO: If necessary we can introduce a generic factory to convert other values than SingleValueType's
-                var aggregateIdSingleValueType = EventReferenceOrderedMessage.getSingleValueKeyType(orderedMessage);
-                var aggregateId = aggregateIdSingleValueType != null ?
-                                  SingleValueType.fromObject(stringAggregateId,
-                                                             aggregateIdSingleValueType) :
-                                  stringAggregateId;
+                var aggregateId       = aggregateIdSerializer.deserialize(stringAggregateId);
 
                 var eventOrder = orderedMessage.order;
                 log.trace("Looking up event for aggregate '{}' with id '{}' and event-order {}",
@@ -244,7 +220,7 @@ public abstract class EventProcessor implements Lifecycle {
                 }
                 var persistedEvent = events.get(0);
                 patternMatchingInboxMessageHandlerDelegate.accept(OrderedMessage.of(persistedEvent.event().deserialize(),
-                                                                                    aggregateId.toString(),
+                                                                                    stringAggregateId,
                                                                                     eventOrder,
                                                                                     msg.getMetaData()));
             } else {
@@ -338,18 +314,18 @@ public abstract class EventProcessor implements Lifecycle {
      */
     protected void forwardEventToInbox(PersistedEvent event, Inbox forwardToInbox) {
         if (patternMatchingInboxMessageHandlerDelegate.handlesMessageWithPayload(event.event().getEventType().get().toJavaClass())) {
-            if (eventStore != null) {
-                forwardToInbox.addMessageReceived(new EventReferenceOrderedMessage(event.aggregateType(),
-                                                                                   event.aggregateId(),
-                                                                                   event.eventOrder(),
-                                                                                   new MessageMetaData(event.metaData().deserialize())));
-            } else {
-                forwardToInbox.addMessageReceived(OrderedMessage.of(event.event().getJsonDeserialized().get(),
-                                                                    event.aggregateId().toString(),
-                                                                    event.eventOrder().longValue(),
-                                                                    new MessageMetaData(event.metaData().deserialize())));
-            }
+            var aggregateType         = event.aggregateType();
+            var aggregateIdSerializer = resolveAggregateIdSerializer(aggregateType);
+
+            forwardToInbox.addMessageReceived(new EventReferenceOrderedMessage(aggregateType,
+                                                                               aggregateIdSerializer.serialize(event.aggregateId()),
+                                                                               event.eventOrder(),
+                                                                               new MessageMetaData(event.metaData().deserialize())));
         }
+    }
+
+    private AggregateIdSerializer resolveAggregateIdSerializer(AggregateType aggregateType) {
+        return ((ConfigurableEventStore<?>) eventStore).getAggregateEventStreamConfiguration(aggregateType).aggregateIdSerializer;
     }
 
     /**
@@ -414,6 +390,18 @@ public abstract class EventProcessor implements Lifecycle {
                 " }";
     }
 
+    protected final Inbox getInbox() {
+        return inbox;
+    }
+
+    protected final EventStore getEventStore() {
+        return eventStore;
+    }
+
+    protected final DurableLocalCommandBus getCommandBus() {
+        return commandBus;
+    }
+
     /**
      * Variant of {@link OrderedMessage} that stores the {@link AggregateType} associated with the Message as the payload,
      * the {@link PersistedEvent#aggregateId()} as the {@link OrderedMessage#getKey()} and
@@ -425,12 +413,6 @@ public abstract class EventProcessor implements Lifecycle {
          * that an {@link OrderedMessage} is an {@link EventReferenceOrderedMessage}
          */
         public static final String EVENT_REFERENCE_METADATA_KEY = "EVENT_REFERENCE";
-        /**
-         * {@link MessageMetaData} key, that's stored the Fully Qualified Class Name
-         * of the {@link OrderedMessage#getKey()} such that it can be converted back
-         * to a {@link dk.cloudcreate.essentials.types.SingleValueType}
-         */
-        public static final String SINGLE_VALUE_KEY_TYPE_KEY    = "SINGLE_VALUE_KEY_TYPE";
 
         public EventReferenceOrderedMessage(AggregateType aggregateType, Object aggregateId, EventOrder eventOrder) {
             this(aggregateType, aggregateId, eventOrder, MessageMetaData.of());
@@ -439,23 +421,11 @@ public abstract class EventProcessor implements Lifecycle {
         public EventReferenceOrderedMessage(AggregateType aggregateType, Object aggregateId, EventOrder eventOrder, MessageMetaData metaData) {
             super(aggregateType, aggregateId.toString(), eventOrder.longValue(), metaData);
             metaData.put(EVENT_REFERENCE_METADATA_KEY, "true");
-            if (aggregateId instanceof SingleValueType<?, ?>) {
-                metaData.put(SINGLE_VALUE_KEY_TYPE_KEY, aggregateId.getClass().getName());
-            }
         }
 
-        public static boolean isOrderedEventReference(Message msg) {
+        public static boolean isEventReference(OrderedMessage msg) {
             requireNonNull(msg, "No msg provided");
-            return msg instanceof OrderedMessage && "true".equals(msg.getMetaData().get(EVENT_REFERENCE_METADATA_KEY));
-        }
-
-        public static Class<? extends SingleValueType<?, ?>> getSingleValueKeyType(OrderedMessage msg) {
-            requireNonNull(msg, "No msg provided");
-            var singleValueType = msg.getMetaData().get(SINGLE_VALUE_KEY_TYPE_KEY);
-            if (singleValueType != null) {
-                return (Class<? extends SingleValueType<?, ?>>) Classes.forName(singleValueType);
-            }
-            return null;
+            return "true".equals(msg.getMetaData().get(EVENT_REFERENCE_METADATA_KEY));
         }
     }
 }
