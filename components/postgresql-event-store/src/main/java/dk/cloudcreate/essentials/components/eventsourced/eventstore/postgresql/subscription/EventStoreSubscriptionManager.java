@@ -55,6 +55,12 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 public interface EventStoreSubscriptionManager extends Lifecycle {
 
     /**
+     * The {@link EventStore} associated with the {@link EventStoreSubscriptionManager}
+     * @return the {@link EventStore} associated with the {@link EventStoreSubscriptionManager
+     */
+    EventStore getEventStore();
+
+    /**
      * Create a builder for the {@link EventStoreSubscriptionManager}
      *
      * @return a builder for the {@link EventStoreSubscriptionManager}
@@ -541,6 +547,11 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         @Override
         public boolean isStarted() {
             return started;
+        }
+
+        @Override
+        public EventStore getEventStore() {
+            return eventStore;
         }
 
         private void saveResumePointsForAllSubscribers() {
