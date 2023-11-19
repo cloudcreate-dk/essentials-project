@@ -499,17 +499,18 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
                                                                                   return;
                                                                               }
 
-                                                                              Optional<FencedLock> lock = null;
+                                                                              Optional<FencedLock> lock;
                                                                               try {
                                                                                   lock = tryAcquireLock(lockName);
                                                                               } catch (Exception e) {
                                                                                   log.error(msg("[{}] Technical error while performing tryAcquireLock for lock '{}'", lockManagerInstanceId, lockName), e);
+                                                                                  return;
                                                                               }
                                                                               if (lock.isPresent()) {
                                                                                   log.debug("[{}] Async Acquired lock '{}'", lockManagerInstanceId, lockName);
-                                                                                  var fencedLock = (LOCK) lock.get();
+                                                                                  var fencedLock = lock.get();
                                                                                   fencedLock.registerCallback(lockCallback);
-                                                                                  locksAcquiredByThisLockManager.put(lockName, fencedLock);
+                                                                                  locksAcquiredByThisLockManager.put(lockName, (LOCK) fencedLock);
                                                                                   lockCallback.lockAcquired(lock.get());
                                                                               } else {
                                                                                   if (log.isTraceEnabled()) {
