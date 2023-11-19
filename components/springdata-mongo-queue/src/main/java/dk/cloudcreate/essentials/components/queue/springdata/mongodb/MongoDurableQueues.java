@@ -937,6 +937,9 @@ public class MongoDurableQueues implements DurableQueues {
                                                        } else if (e instanceof MongoSocketReadException) {
                                                            log.trace("[{}] MongoSocketReadException", queueName);
                                                            return Optional.<QueuedMessage>empty();
+                                                       } else if (e instanceof IllegalStateException && Objects.equals(e.getMessage(), "state should be: open")) {
+                                                           log.trace("[{}] Mongo Session is not open", queueName);
+                                                           return Optional.<QueuedMessage>empty();
                                                        }
                                                        throw new DurableQueueException(msg("Failed to perform getNextMessageReadyForDelivery for queue '{}'", queueName), e, queueName);
                                                    } finally {
