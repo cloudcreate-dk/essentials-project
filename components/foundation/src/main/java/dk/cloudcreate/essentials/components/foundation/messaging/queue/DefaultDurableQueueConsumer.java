@@ -23,6 +23,7 @@ import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.slf4j.*;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -119,7 +120,8 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                         // As there are multiple parallel consumers, ensure they don't trigger at the exact same time
                         Thread.sleep(10);
                     } catch (InterruptedException e) {
-                        // Do nothing
+                        // Ignore
+                        Thread.currentThread().interrupt();
                     }
                 }
                 scheduler.scheduleAtFixedRate(this::pollQueue,
@@ -191,41 +193,20 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                     throw new DurableQueueException(msg("[{}] {} - Previous UnitOfWork isn't completed/removed: {}",
                                                         queueName,
                                                         consumeFromQueue.consumerName,
-                                                        unitOfWorkFactory.getCurrentUnitOfWork().get()), queueName);
+                                                        unitOfWorkFactory.getCurrentUnitOfWork().get()),
+                                                    queueName);
                 }
 
                 try {
                     postTransactionalSideEffect = unitOfWorkFactory.withUnitOfWork(handleAwareUnitOfWork -> processNextMessageReadyForDelivery());
                 } catch (Exception e) {
-                    var rootCause = Exceptions.getRootCause(e);
-                    if (e.getMessage().contains("has been closed") || e.getMessage().contains("Connection is closed") ||
-                            rootCause.getClass().getSimpleName().equals("EOFException") || rootCause.getClass().getSimpleName().equals("ConnectionException") ||
-                            rootCause.getClass().getSimpleName().equals("MongoSocketReadException")) {
-                        LOG.trace(msg("[{}] {} - Experienced a Connection issue, will retry later",
-                                      queueName,
-                                      consumeFromQueue.consumerName), e);
-                    } else {
-                        LOG.error(msg("[{}] {} - Experienced an error",
-                                      queueName,
-                                      consumeFromQueue.consumerName), e);
-                    }
+                    handleProcessNextMessageReadyForDeliveryException(e);
                 }
             } else {
                 try {
                     postTransactionalSideEffect = processNextMessageReadyForDelivery();
                 } catch (Exception e) {
-                    var rootCause = Exceptions.getRootCause(e);
-                    if (e.getMessage().contains("has been closed") || e.getMessage().contains("Connection is closed") ||
-                            rootCause.getClass().getSimpleName().equals("EOFException") || rootCause.getClass().getSimpleName().equals("ConnectionException") ||
-                            rootCause.getClass().getSimpleName().equals("MongoSocketReadException")) {
-                        LOG.trace(msg("[{}] {} - Experienced a Connection issue, will retry later",
-                                      queueName,
-                                      consumeFromQueue.consumerName), e);
-                    } else {
-                        LOG.error(msg("[{}] {} - Experienced an error",
-                                      queueName,
-                                      consumeFromQueue.consumerName), e);
-                    }
+                    handleProcessNextMessageReadyForDeliveryException(e);
                 }
             }
 
@@ -236,6 +217,21 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
             LOG.error(msg("[{}] {} - Failed to poll queue",
                           consumeFromQueue.consumerName,
                           queueName), e);
+        }
+    }
+
+    private void handleProcessNextMessageReadyForDeliveryException(Exception e) {
+        var rootCause = Exceptions.getRootCause(e);
+        if (e.getMessage().contains("has been closed") || e.getMessage().contains("Connection is closed") ||
+                rootCause instanceof IOException || rootCause.getClass().getSimpleName().equals("ConnectionException") ||
+                rootCause.getClass().getSimpleName().equals("MongoSocketReadException")) {
+            LOG.trace(msg("[{}] {} - Experienced a Connection issue, will retry later",
+                          queueName,
+                          consumeFromQueue.consumerName), e);
+        } else {
+            LOG.error(msg("[{}] {} - Experienced an error, will retry later",
+                          queueName,
+                          consumeFromQueue.consumerName), e);
         }
     }
 
