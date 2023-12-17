@@ -144,6 +144,7 @@ class PostgresqlEventStreamGapHandlerIT {
                 log.info("*** Waiting for Event 1 to be persisted and committed to the event store");
                 firstEventPersisted.await();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
             // Persist events (1 based) number 2-4 AFTER event number 1 has been persisted.
@@ -173,6 +174,7 @@ class PostgresqlEventStreamGapHandlerIT {
                 log.info("*** Waiting for Events 6-7 to be persisted and committed to the event store");
                 eventsSixAndSevenPersisted.await();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
 
@@ -197,6 +199,7 @@ class PostgresqlEventStreamGapHandlerIT {
                 log.info("*** Waiting for Events 2-4 to be persisted to the event store");
                 eventsTwoToFourPersisted.await();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
             // Append event 5 but rollback it back to create a permanent gap
@@ -222,6 +225,7 @@ class PostgresqlEventStreamGapHandlerIT {
                 log.info("*** Waiting for Event 5 to be appended and rolled back");
                 eventsFiveRolledBack.await();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
             // Persist events (1 based) number events 6-7
