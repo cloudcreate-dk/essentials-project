@@ -13,6 +13,9 @@ This library supports multiple flavours of Aggregate design such as:
 - The *classic* with separate state
   object `dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.classic.state.AggregateRootWithState`
 - The **functional** `dk.cloudcreate.essentials.components.eventsourced.aggregates.flex.FlexAggregate`
+- The **Decider** pattern `dk.cloudcreate.essentials.components.eventsourced.aggregates.decider.Decider` 
+  - See `dk.cloudcreate.essentials.components.eventsourced.aggregates.decider.DeciderTest`
+  - and `dk.cloudcreate.essentials.components.eventsourced.aggregates.decider.DeciderBasedCommandHandlerIT`
 
 The **modern** `AggregateRoot`, *classic* `AggregateRoot` and *classic* `AggregateRootWithState` are all examples of a
 mutable `StatefulAggregate` design.
@@ -40,7 +43,7 @@ To use `EventSourced Aggregates` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components/groupId>
     <artifactId>eventsourced-aggregates</artifactId>
-    <version>0.9.13</version>
+    <version>0.9.14</version>
 </dependency>
 ```
 
@@ -505,6 +508,6 @@ To use `EventSourced Aggregates` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components/groupId>
     <artifactId>eventsourced-aggregates</artifactId>
-    <version>0.9.13</version>
+    <version>0.9.14</version>
 </dependency>
 ```
