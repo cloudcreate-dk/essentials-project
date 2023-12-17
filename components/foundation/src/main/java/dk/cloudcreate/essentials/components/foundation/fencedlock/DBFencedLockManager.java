@@ -306,15 +306,11 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
     @Override
     public Optional<FencedLock> tryAcquireLock(LockName lockName, Duration timeout) {
         requireNonNull(timeout, "No timeout value provided");
-        return Optional.ofNullable(_tryAcquireLock(lockName)
-                                           .repeatWhenEmpty(longFlux -> longFlux.doOnNext(aLong -> {
-                                               try {
-                                                   Thread.sleep(syncAcquireLockPauseIntervalMs);
-                                               } catch (InterruptedException e) {
-                                                   // Ignore
-                                               }
-                                           }))
-                                           .block(timeout));
+        return Optional.ofNullable(
+                _tryAcquireLock(lockName)
+                        .repeatWhenEmpty(longFlux -> longFlux.delayElements(Duration.ofMillis(syncAcquireLockPauseIntervalMs)))
+                        .onErrorReturn(null)
+                        .block(timeout));
     }
 
     private Mono<LOCK> _tryAcquireLock(LockName lockName) {
@@ -443,13 +439,8 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
     @Override
     public FencedLock acquireLock(LockName lockName) {
         return _tryAcquireLock(lockName)
-                .repeatWhenEmpty(longFlux -> longFlux.doOnNext(aLong -> {
-                    try {
-                        Thread.sleep(syncAcquireLockPauseIntervalMs);
-                    } catch (InterruptedException e) {
-                        // Ignore
-                    }
-                }))
+                .repeatWhenEmpty(longFlux -> longFlux.delayElements(Duration.ofMillis(syncAcquireLockPauseIntervalMs)))
+                .onErrorStop()
                 .block();
     }
 

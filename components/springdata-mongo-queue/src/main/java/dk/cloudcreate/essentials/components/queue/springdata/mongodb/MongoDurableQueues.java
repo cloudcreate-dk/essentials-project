@@ -880,6 +880,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                            return Optional.<QueuedMessage>empty();
                                                        }
                                                    } catch (InterruptedException e) {
+                                                       Thread.currentThread().interrupt();
                                                        return Optional.<QueuedMessage>empty();
                                                    }
                                                    try {

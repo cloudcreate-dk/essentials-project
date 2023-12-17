@@ -998,6 +998,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                         Thread.sleep(500);
                     } catch (InterruptedException e) {
                         // Ignore
+                        Thread.currentThread().interrupt();
                     }
                     // Save resume point to be the next global order event
                     log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
@@ -1253,6 +1254,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                 Thread.sleep(500);
                             } catch (InterruptedException e) {
                                 // Ignore
+                                Thread.currentThread().interrupt();
                             }
 
                             // Save resume point to be the next global order event AFTER the one we know we just handled
