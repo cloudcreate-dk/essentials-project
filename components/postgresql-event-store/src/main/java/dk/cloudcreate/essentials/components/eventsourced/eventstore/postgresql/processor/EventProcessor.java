@@ -192,14 +192,14 @@ public abstract class EventProcessor implements Lifecycle {
         patternMatchingInboxMessageHandlerDelegate = new PatternMatchingMessageHandler(this);
         patternMatchingInboxMessageHandlerDelegate.allowUnmatchedMessages();
         inboxMessageHandlerDelegate = (msg) -> {
-            if (msg instanceof OrderedMessage orderedMessage && EventReferenceOrderedMessage.isEventReference(orderedMessage)) {
-                var aggregateType         = (AggregateType) orderedMessage.getPayload();
+            if (msg instanceof OrderedMessage && EventReferenceOrderedMessage.isEventReference((OrderedMessage) msg)) {
+                var aggregateType         = (AggregateType) msg.getPayload();
                 var aggregateIdSerializer = resolveAggregateIdSerializer(aggregateType);
 
-                var stringAggregateId = orderedMessage.getKey();
+                var stringAggregateId = ((OrderedMessage)msg).getKey();
                 var aggregateId       = aggregateIdSerializer.deserialize(stringAggregateId);
 
-                var eventOrder = orderedMessage.order;
+                var eventOrder = ((OrderedMessage)msg).order;
                 log.trace("Looking up event for aggregate '{}' with id '{}' and event-order {}",
                           aggregateType,
                           aggregateId,
