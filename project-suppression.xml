@@ -254,4 +254,19 @@
         <packageUrl regex="true">^pkg:maven/org\.testcontainers/mongodb@.*$</packageUrl>
         <cpe>cpe:/a:mongodb:mongodb</cpe>
     </suppress>
+  
+      <suppress>
+        <notes><![CDATA[
+        springdata-mongo-distributed-fenced-lock-?.?.?.jar dependency isn't the same as mongodb:mongodb
+   ]]></notes>
+        <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/springdata-mongo-distributed-fenced-lock@.*$</packageUrl>
+        <cpe>cpe:/a:mongodb:mongodb</cpe>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+        springdata-mongo-queue-?.?.?.jar dependency isn't the same as mongodb:mongodb
+   ]]></notes>
+        <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/springdata-mongo-queue@.*$</packageUrl>
+        <cpe>cpe:/a:mongodb:mongodb</cpe>
+    </suppress>
 </suppressions>
