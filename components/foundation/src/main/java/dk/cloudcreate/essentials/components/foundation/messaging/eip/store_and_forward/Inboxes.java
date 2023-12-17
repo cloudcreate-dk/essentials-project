@@ -261,7 +261,12 @@ public interface Inboxes {
 
             @SuppressWarnings("unchecked")
             private void handleMessage(QueuedMessage queuedMessage) {
-                messageConsumer.accept(queuedMessage.getMessage());
+                if (durableQueues.getUnitOfWorkFactory().isPresent()) {
+                    durableQueues.getUnitOfWorkFactory().get()
+                                 .usingUnitOfWork(() -> messageConsumer.accept(queuedMessage.getMessage()));
+                } else {
+                    messageConsumer.accept(queuedMessage.getMessage());
+                }
             }
 
             @Override

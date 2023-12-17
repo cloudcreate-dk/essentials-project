@@ -34,7 +34,7 @@ import org.slf4j.*;
 import reactor.core.publisher.*;
 import reactor.core.scheduler.Schedulers;
 
-import java.io.EOFException;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -649,6 +649,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                     Thread.sleep(pollingSleep);
                 } catch (InterruptedException e) {
                     // Ignore
+                    Thread.currentThread().interrupt();
                 }
             }
             eventStoreStreamLog.debug("[{}] Polling worker - Completed with remaining demand for events {}. Is Cancelled: {}",
@@ -672,14 +673,15 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                 unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
             } catch (Exception e) {
                 var rootCause = Exceptions.getRootCause(e);
-                if (e.getMessage().contains("has been closed") || rootCause instanceof EOFException || rootCause instanceof ConnectionException) {
-                    eventStoreStreamLog.debug(msg("[{}] Polling worker - Experienced a Postgresql Connection issue, will return an empty Flux",
+                if (e.getMessage().contains("has been closed") || rootCause instanceof IOException || rootCause instanceof ConnectionException) {
+                    eventStoreStreamLog.debug(msg("[{}] Polling worker - Experienced a Postgresql Connection issue while creating a UnitOfWork",
                                                   eventStreamLogName), e);
-                    return 0;
                 } else {
-                    throw new EventStoreException(msg("[{}] Polling worker - Experienced an issue",
-                                                      eventStreamLogName), e);
+                    log.error(msg("[{}] Polling worker - Experienced an error while creating a UnitOfWork",
+                                  eventStreamLogName), e);
+                    sink.error(e);
                 }
+                return 0;
             }
 
             try {
@@ -763,8 +765,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                                               transientGapsToIncludeInQuery);
                     return 0;
                 }
-            } catch (
-                    RuntimeException e) {
+            } catch (RuntimeException e) {
                 log.error(msg("[{}] Polling worker - Polling failed", eventStreamLogName), e);
                 if (unitOfWork != null) {
                     try {
