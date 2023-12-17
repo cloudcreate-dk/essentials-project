@@ -322,4 +322,12 @@
         <packageUrl regex="true">^pkg:maven/io\.netty/*.*$</packageUrl>
         <cve>CVE-2023-4586</cve>
     </suppress>
+    <suppress>
+        <notes><![CDATA[
+        TestContainers mongodb dependency isn't the same as mongodb:mongodb
+   file name: mongodb-1.19.3.jar
+   ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.testcontainers/mongodb@.*$</packageUrl>
+        <cpe>cpe:/a:mongodb:mongodb</cpe>
+    </suppress>
 </suppressions>
