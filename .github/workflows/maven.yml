@@ -5,9 +5,9 @@ name: Java CI with Maven
 
 on:
   push:
-    branches: [ springboot_3_1_x ]
+    branches: [ main ]
   pull_request:
-    branches: [ springboot_3_1_x ]
+    branches: [ main ]
 
 jobs:
   build:
@@ -20,7 +20,6 @@ jobs:
       uses: actions/setup-java@v4
       with:
         java-version: '17'
-        maven-version: '3.9.6'
         distribution: 'temurin'
         cache: maven
     - name: Build with Maven
