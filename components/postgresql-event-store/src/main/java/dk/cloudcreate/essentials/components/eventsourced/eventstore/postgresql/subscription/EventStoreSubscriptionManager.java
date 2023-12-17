@@ -55,6 +55,12 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 public interface EventStoreSubscriptionManager extends Lifecycle {
 
     /**
+     * The {@link EventStore} associated with the {@link EventStoreSubscriptionManager}
+     * @return the {@link EventStore} associated with the {@link EventStoreSubscriptionManager
+     */
+    EventStore getEventStore();
+
+    /**
      * Create a builder for the {@link EventStoreSubscriptionManager}
      *
      * @return a builder for the {@link EventStoreSubscriptionManager}
@@ -543,6 +549,11 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             return started;
         }
 
+        @Override
+        public EventStore getEventStore() {
+            return eventStore;
+        }
+
         private void saveResumePointsForAllSubscribers() {
             // TODO: Filter out active subscribers and decide if we can increment the global event order like when the subscriber stops.
             //   Current approach is safe with regards to reset of resume-points, but it will result in one overlapping event during resubscription
@@ -987,6 +998,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                         Thread.sleep(500);
                     } catch (InterruptedException e) {
                         // Ignore
+                        Thread.currentThread().interrupt();
                     }
                     // Save resume point to be the next global order event
                     log.debug("[{}-{}] Storing ResumePoint with resumeFromAndIncluding {}",
@@ -1242,6 +1254,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                 Thread.sleep(500);
                             } catch (InterruptedException e) {
                                 // Ignore
+                                Thread.currentThread().interrupt();
                             }
 
                             // Save resume point to be the next global order event AFTER the one we know we just handled

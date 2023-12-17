@@ -57,12 +57,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.yaml</groupId>
-            <artifactId>snakeyaml</artifactId>
-           <version>${snakeyaml.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.jdbi</groupId>
             <artifactId>jdbi3-postgres</artifactId>
             <scope>provided</scope>
@@ -98,6 +92,12 @@
                     <artifactId>json-smart</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>${snakeyaml.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>net.minidev</groupId>

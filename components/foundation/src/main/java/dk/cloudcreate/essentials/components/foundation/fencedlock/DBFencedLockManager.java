@@ -306,15 +306,11 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
     @Override
     public Optional<FencedLock> tryAcquireLock(LockName lockName, Duration timeout) {
         requireNonNull(timeout, "No timeout value provided");
-        return Optional.ofNullable(_tryAcquireLock(lockName)
-                                           .repeatWhenEmpty(longFlux -> longFlux.doOnNext(aLong -> {
-                                               try {
-                                                   Thread.sleep(syncAcquireLockPauseIntervalMs);
-                                               } catch (InterruptedException e) {
-                                                   // Ignore
-                                               }
-                                           }))
-                                           .block(timeout));
+        return Optional.ofNullable(
+                _tryAcquireLock(lockName)
+                        .repeatWhenEmpty(longFlux -> longFlux.delayElements(Duration.ofMillis(syncAcquireLockPauseIntervalMs)))
+                        .onErrorReturn(null)
+                        .block(timeout));
     }
 
     private Mono<LOCK> _tryAcquireLock(LockName lockName) {
@@ -443,13 +439,8 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
     @Override
     public FencedLock acquireLock(LockName lockName) {
         return _tryAcquireLock(lockName)
-                .repeatWhenEmpty(longFlux -> longFlux.doOnNext(aLong -> {
-                    try {
-                        Thread.sleep(syncAcquireLockPauseIntervalMs);
-                    } catch (InterruptedException e) {
-                        // Ignore
-                    }
-                }))
+                .repeatWhenEmpty(longFlux -> longFlux.delayElements(Duration.ofMillis(syncAcquireLockPauseIntervalMs)))
+                .onErrorStop()
                 .block();
     }
 
@@ -499,17 +490,18 @@ public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLo
                                                                                   return;
                                                                               }
 
-                                                                              Optional<FencedLock> lock = null;
+                                                                              Optional<FencedLock> lock;
                                                                               try {
                                                                                   lock = tryAcquireLock(lockName);
                                                                               } catch (Exception e) {
                                                                                   log.error(msg("[{}] Technical error while performing tryAcquireLock for lock '{}'", lockManagerInstanceId, lockName), e);
+                                                                                  return;
                                                                               }
                                                                               if (lock.isPresent()) {
                                                                                   log.debug("[{}] Async Acquired lock '{}'", lockManagerInstanceId, lockName);
-                                                                                  var fencedLock = (LOCK) lock.get();
+                                                                                  var fencedLock = lock.get();
                                                                                   fencedLock.registerCallback(lockCallback);
-                                                                                  locksAcquiredByThisLockManager.put(lockName, fencedLock);
+                                                                                  locksAcquiredByThisLockManager.put(lockName, (LOCK) fencedLock);
                                                                                   lockCallback.lockAcquired(lock.get());
                                                                               } else {
                                                                                   if (log.isTraceEnabled()) {
