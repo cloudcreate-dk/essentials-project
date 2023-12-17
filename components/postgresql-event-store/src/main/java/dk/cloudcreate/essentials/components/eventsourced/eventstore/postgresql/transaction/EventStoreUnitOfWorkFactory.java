@@ -20,6 +20,11 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.e
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWorkFactory;
 
+/**
+ * A {@link UnitOfWorkFactory} that works with {@link EventStoreUnitOfWork}
+ *
+ * @param <UOW> the concrete type of {@link EventStoreUnitOfWork}
+ */
 public interface EventStoreUnitOfWorkFactory<UOW extends EventStoreUnitOfWork> extends HandleAwareUnitOfWorkFactory<UOW> {
     /**
      * Register a {@link UnitOfWork} callback that will be called with any persisted {@link PersistedEvent}'s during the
