@@ -42,6 +42,36 @@ import static dk.cloudcreate.essentials.shared.FailFast.*;
  * Successfully guessing the secret before reaching the limit results in {@link GuessingGameEvent.GameWon},
  * while exceeding the allowed guesses leads to {@link GuessingGameEvent.GameLost}.
  *
+ * <p>
+ * Note:<br>
+ * This example/test is inspired by this <a href="https://dev.to/jakub_zalas/functional-event-sourcing-example-in-kotlin-3245">article</a>.<br>
+ * The examples in the referenced article and its code <a href="https://github.com/jakzal/mastermind/tree/main">MasterMind</a>
+ * are released under <a href="https://github.com/jakzal/mastermind/blob/main/LICENSE">MIT license</a>:
+ * <pre>
+ * Copyright (c) 2015 Jakub Zalas <jakub@zalas.pl>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ * </pre>
+ *
  * @see DeciderBasedCommandHandlerIT
  */
 class DeciderTest {
@@ -182,11 +212,12 @@ class DeciderTest {
     }
 
     // -------------------------- State --------------------------
-    public sealed interface GuessingGameState extends Handler<GuessingGameCommand, GuessingGameEvent, GuessingGameError, GuessingGameState>, StateEvolver<GuessingGameState, GuessingGameEvent> {
-        record NotStartedGame() implements GuessingGameState {
+    public interface GuessingGameState extends Handler<GuessingGameCommand, GuessingGameEvent, GuessingGameError, GuessingGameState>, StateEvolver<GuessingGameState, GuessingGameEvent> {
+        class NotStartedGame implements GuessingGameState {
             @Override
             public HandlerResult<GuessingGameError, GuessingGameEvent> handle(GuessingGameCommand cmd, GuessingGameState game) {
-                if (cmd instanceof GuessingGameCommand.JoinGame joinGame) {
+                if (cmd instanceof GuessingGameCommand.JoinGame) {
+                    var joinGame = (GuessingGameCommand.JoinGame) cmd;
                     return events(new GuessingGameEvent.GameStarted(joinGame.gameId,
                                                                     joinGame.secret,
                                                                     joinGame.maxAttempts,
@@ -197,7 +228,8 @@ class DeciderTest {
 
             @Override
             public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
-                if (gameEvent instanceof GuessingGameEvent.GameStarted gameStarted) {
+                if (gameEvent instanceof GuessingGameEvent.GameStarted) {
+                    var gameStarted = (GuessingGameEvent.GameStarted) gameEvent;
                     return new StartedGameState(gameStarted.secret,
                                                 gameStarted.allowedDigits,
                                                 gameStarted.maxAttempts);
@@ -238,12 +270,13 @@ class DeciderTest {
                                                               DigitPair::new)
                               .filter(DigitPair::matches)
                               .map(DigitPair::guess)
-                              .toList();
+                              .collect(Collectors.toList());
             }
 
             @Override
             public HandlerResult<GuessingGameError, GuessingGameEvent> handle(GuessingGameCommand cmd, GuessingGameState game) {
-                if (cmd instanceof GuessingGameCommand.MakeGuess makeGuess) {
+                if (cmd instanceof GuessingGameCommand.MakeGuess) {
+                    var makeGuess = (GuessingGameCommand.MakeGuess) cmd;
                     if (isGuessTooShort(makeGuess.guess)) {
                         return error(new GuessingGameError.GuessError.GuessTooShort(makeGuess.gameId, makeGuess.guess, secret.length()));
                     }
@@ -284,7 +317,16 @@ class DeciderTest {
             }
         }
 
-        record GameWonState(Secret secret, int maxAttempts, int attempts) implements GuessingGameState {
+        class GameWonState implements GuessingGameState {
+            public final Secret secret;
+            public final int    maxAttempts;
+            public final int    attempts;
+
+            public GameWonState(Secret secret, int maxAttempts, int attempts) {
+                this.secret = secret;
+                this.maxAttempts = maxAttempts;
+                this.attempts = attempts;
+            }
 
             @Override
             public HandlerResult<GuessingGameError, GuessingGameEvent> handle(GuessingGameCommand cmd, GuessingGameState game) {
@@ -297,7 +339,15 @@ class DeciderTest {
             }
         }
 
-        record GameLostState(Secret secret, int maxAttempts) implements GuessingGameState {
+        class GameLostState implements GuessingGameState {
+            public final Secret secret;
+            public final int    maxAttempts;
+
+            public GameLostState(Secret secret, int maxAttempts) {
+                this.secret = secret;
+                this.maxAttempts = maxAttempts;
+            }
+
             @Override
             public HandlerResult<GuessingGameError, GuessingGameEvent> handle(GuessingGameCommand cmd, GuessingGameState game) {
                 return error(new GuessingGameError.GameFinishedError.GameAlreadyLost(cmd.gameId()));
@@ -311,84 +361,447 @@ class DeciderTest {
     }
 
     // -------------------------- Commands --------------------------
-    public sealed interface GuessingGameCommand {
+    public interface GuessingGameCommand {
         GuessingGameId gameId();
 
-        record JoinGame(GuessingGameId gameId,
-                        Secret secret,
-                        int maxAttempts,
-                        Set<Digit> allowedDigits) implements GuessingGameCommand {
+        final class JoinGame implements GuessingGameCommand {
+            public final GuessingGameId gameId;
+            public final Secret         secret;
+            public final int            maxAttempts;
+            public final Set<Digit>     allowedDigits;
 
-            public JoinGame {
-                requireNonNull(gameId, "No gameId provided");
-                requireNonNull(secret, "No secret provided");
+            public JoinGame(GuessingGameId gameId,
+                            Secret secret,
+                            int maxAttempts,
+                            Set<Digit> allowedDigits) {
+                this.gameId = requireNonNull(gameId, "No gameId provided");
+                this.secret = requireNonNull(secret, "No secret provided");
+                this.maxAttempts = maxAttempts;
                 requireTrue(maxAttempts > 0, "You must specify > 0 maxAttempts");
-                requireNonEmpty(allowedDigits, "No allowedDigits provided");
+                this.allowedDigits = requireNonEmpty(allowedDigits, "No allowedDigits provided");
+            }
+
+            @Override
+            public GuessingGameId gameId() {
+                return gameId;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (!(o instanceof JoinGame)) return false;
+                JoinGame joinGame = (JoinGame) o;
+                return maxAttempts == joinGame.maxAttempts && Objects.equals(gameId, joinGame.gameId) && Objects.equals(secret, joinGame.secret) && Objects.equals(allowedDigits, joinGame.allowedDigits);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(gameId, secret, maxAttempts, allowedDigits);
+            }
+
+            @Override
+            public String toString() {
+                return "JoinGame{" +
+                        "gameId=" + gameId +
+                        ", secret=" + secret +
+                        ", maxAttempts=" + maxAttempts +
+                        ", allowedDigits=" + allowedDigits +
+                        '}';
             }
         }
 
-        record MakeGuess(GuessingGameId gameId,
-                         Guess guess) implements GuessingGameCommand {
+        final class MakeGuess implements GuessingGameCommand {
+            public final GuessingGameId gameId;
+            public final Guess          guess;
 
-            public MakeGuess {
-                requireNonNull(gameId, "No gameId provided");
-                requireNonNull(guess, "No guess provided");
+            public MakeGuess(GuessingGameId gameId,
+                             Guess guess) {
+                this.gameId = requireNonNull(gameId, "No gameId provided");
+                this.guess = requireNonNull(guess, "No guess provided");
+            }
+
+            @Override
+            public GuessingGameId gameId() {
+                return gameId;
+            }
+
+
+            public Guess guess() {
+                return guess;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (!(o instanceof MakeGuess)) return false;
+                MakeGuess makeGuess = (MakeGuess) o;
+                return Objects.equals(gameId, makeGuess.gameId) && Objects.equals(guess, makeGuess.guess);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(gameId, guess);
+            }
+
+            @Override
+            public String toString() {
+                return "MakeGuess{" +
+                        "gameId=" + gameId +
+                        ", guess=" + guess +
+                        '}';
             }
         }
     }
 
     // -------------------------- Events --------------------------
-    public sealed interface GuessingGameEvent {
+    public interface GuessingGameEvent {
         GuessingGameId gameId();
 
-        record GameStarted(GuessingGameId gameId,
-                           Secret secret,
-                           int maxAttempts,
-                           Set<Digit> allowedDigits) implements GuessingGameEvent {
+        final class GameStarted implements GuessingGameEvent {
+            public final GuessingGameId gameId;
+            public final Secret         secret;
+            public final int            maxAttempts;
+            public final Set<Digit>     allowedDigits;
+
+            public GameStarted(GuessingGameId gameId,
+                               Secret secret,
+                               int maxAttempts,
+                               Set<Digit> allowedDigits) {
+
+                this.gameId = gameId;
+                this.secret = secret;
+                this.maxAttempts = maxAttempts;
+                this.allowedDigits = allowedDigits;
+            }
+
+            @Override
+            public GuessingGameId gameId() {
+                return gameId;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (!(o instanceof GameStarted)) return false;
+                GameStarted that = (GameStarted) o;
+                return maxAttempts == that.maxAttempts && Objects.equals(gameId, that.gameId) && Objects.equals(secret, that.secret) && Objects.equals(allowedDigits, that.allowedDigits);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(gameId, secret, maxAttempts, allowedDigits);
+            }
+
+            @Override
+            public String toString() {
+                return "GameStarted{" +
+                        "gameId=" + gameId +
+                        ", secret=" + secret +
+                        ", maxAttempts=" + maxAttempts +
+                        ", allowedDigits=" + allowedDigits +
+                        '}';
+            }
         }
 
-        record GuessMade(GuessingGameId gameId,
-                         Guess guess,
-                         int attempt) implements GuessingGameEvent {
+        final class GuessMade implements GuessingGameEvent {
+            public final GuessingGameId gameId;
+            public final Guess          guess;
+            public final int            attempt;
+
+            public GuessMade(GuessingGameId gameId,
+                             Guess guess,
+                             int attempt) {
+                this.gameId = gameId;
+                this.guess = guess;
+                this.attempt = attempt;
+            }
+
+            @Override
+            public GuessingGameId gameId() {
+                return gameId;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (!(o instanceof GuessMade)) return false;
+                GuessMade guessMade = (GuessMade) o;
+                return attempt == guessMade.attempt && Objects.equals(gameId, guessMade.gameId) && Objects.equals(guess, guessMade.guess);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(gameId, guess, attempt);
+            }
+
+            @Override
+            public String toString() {
+                return "GuessMade{" +
+                        "gameId=" + gameId +
+                        ", guess=" + guess +
+                        ", attempt=" + attempt +
+                        '}';
+            }
         }
 
-        record GameWon(GuessingGameId gameId, int numberOfAttempts) implements GuessingGameEvent {
+        final class GameWon implements GuessingGameEvent {
+            public final GuessingGameId gameId;
+            public final int            numberOfAttempts;
+
+            public GameWon(GuessingGameId gameId, int numberOfAttempts) {
+                this.gameId = gameId;
+                this.numberOfAttempts = numberOfAttempts;
+            }
+
+            @Override
+            public GuessingGameId gameId() {
+                return gameId;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (!(o instanceof GameWon)) return false;
+                GameWon gameWon = (GameWon) o;
+                return numberOfAttempts == gameWon.numberOfAttempts && Objects.equals(gameId, gameWon.gameId);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(gameId, numberOfAttempts);
+            }
+
+            @Override
+            public String toString() {
+                return "GameWon{" +
+                        "gameId=" + gameId +
+                        ", numberOfAttempts=" + numberOfAttempts +
+                        '}';
+            }
         }
 
-        record GameLost(GuessingGameId gameId, int maxAttempts) implements GuessingGameEvent {
+        final class GameLost implements GuessingGameEvent {
+            public final GuessingGameId gameId;
+            public final int            maxAttempts;
+
+            public GameLost(GuessingGameId gameId, int maxAttempts) {
+                this.gameId = gameId;
+                this.maxAttempts = maxAttempts;
+            }
+
+            @Override
+            public GuessingGameId gameId() {
+                return gameId;
+            }
         }
 
     }
 
     // -------------------------- Errors --------------------------
-    public sealed interface GuessingGameError {
+    public interface GuessingGameError {
         GuessingGameId gameId();
 
-        sealed interface GameFinishedError extends GuessingGameError {
-            record GameAlreadyWon(GuessingGameId gameId) implements GameFinishedError {
+        interface GameFinishedError extends GuessingGameError {
+            final class GameAlreadyWon implements GameFinishedError {
+                public final GuessingGameId gameId;
+
+                public GameAlreadyWon(GuessingGameId gameId) {
+                    this.gameId = gameId;
+                }
+
+                @Override
+                public GuessingGameId gameId() {
+                    return gameId;
+                }
+
+                @Override
+                public boolean equals(Object o) {
+                    if (this == o) return true;
+                    if (!(o instanceof GameAlreadyWon)) return false;
+                    GameAlreadyWon that = (GameAlreadyWon) o;
+                    return Objects.equals(gameId, that.gameId);
+                }
+
+                @Override
+                public int hashCode() {
+                    return Objects.hash(gameId);
+                }
+
+                @Override
+                public String toString() {
+                    return "GameAlreadyWon{" +
+                            "gameId=" + gameId +
+                            '}';
+                }
             }
 
-            record GameAlreadyLost(GuessingGameId gameId) implements GameFinishedError {
+            final class GameAlreadyLost implements GameFinishedError {
+                public final GuessingGameId gameId;
+
+                public GameAlreadyLost(GuessingGameId gameId) {
+                    this.gameId = gameId;
+                }
+
+                @Override
+                public GuessingGameId gameId() {
+                    return gameId;
+                }
+
+                @Override
+                public boolean equals(Object o) {
+                    if (this == o) return true;
+                    if (!(o instanceof GameAlreadyLost)) return false;
+                    GameAlreadyLost that = (GameAlreadyLost) o;
+                    return Objects.equals(gameId, that.gameId);
+                }
+
+                @Override
+                public int hashCode() {
+                    return Objects.hash(gameId);
+                }
+
+                @Override
+                public String toString() {
+                    return "GameAlreadyLost{" +
+                            "gameId=" + gameId +
+                            '}';
+                }
             }
         }
 
-        sealed interface GuessError extends GuessingGameError {
-            record GameNotStarted(GuessingGameId gameId) implements GuessError {
+        interface GuessError extends GuessingGameError {
+            final class GameNotStarted implements GuessError {
+                public final GuessingGameId gameId;
+
+                public GameNotStarted(GuessingGameId gameId) {
+                    this.gameId = gameId;
+                }
+
+                @Override
+                public GuessingGameId gameId() {
+                    return gameId;
+                }
+
+                @Override
+                public boolean equals(Object o) {
+                    if (this == o) return true;
+                    if (!(o instanceof GameNotStarted)) return false;
+                    GameNotStarted that = (GameNotStarted) o;
+                    return Objects.equals(gameId, that.gameId);
+                }
+
+                @Override
+                public int hashCode() {
+                    return Objects.hash(gameId);
+                }
+
+                @Override
+                public String toString() {
+                    return "GameNotStarted{" +
+                            "gameId=" + gameId +
+                            '}';
+                }
             }
 
-            record GuessTooShort(GuessingGameId gameId,
-                                 Guess guess,
-                                 int requiredLength) implements GuessError {
+            final class GuessTooShort implements GuessError {
+                public final GuessingGameId gameId;
+                public final Guess          guess;
+                public final int            requiredLength;
+
+                public GuessTooShort(GuessingGameId gameId,
+                                     Guess guess,
+                                     int requiredLength) {
+                    this.gameId = gameId;
+                    this.guess = guess;
+                    this.requiredLength = requiredLength;
+                }
+
+                @Override
+                public GuessingGameId gameId() {
+                    return gameId;
+                }
+
+                @Override
+                public boolean equals(Object o) {
+                    if (this == o) return true;
+                    if (!(o instanceof GuessTooShort)) return false;
+                    GuessTooShort that = (GuessTooShort) o;
+                    return requiredLength == that.requiredLength && Objects.equals(gameId, that.gameId) && Objects.equals(guess, that.guess);
+                }
+
+                @Override
+                public int hashCode() {
+                    return Objects.hash(gameId, guess, requiredLength);
+                }
+
+                @Override
+                public String toString() {
+                    return "GuessTooShort{" +
+                            "gameId=" + gameId +
+                            ", guess=" + guess +
+                            ", requiredLength=" + requiredLength +
+                            '}';
+                }
             }
 
-            record GuessTooLong(GuessingGameId gameId,
-                                Guess guess,
-                                int requiredLength) implements GuessError {
+            final class GuessTooLong implements GuessError {
+                public final GuessingGameId gameId;
+                public final Guess          guess;
+                public final int            requiredLength;
+
+                public GuessTooLong(GuessingGameId gameId,
+                                    Guess guess,
+                                    int requiredLength) {
+                    this.gameId = gameId;
+                    this.guess = guess;
+                    this.requiredLength = requiredLength;
+                }
+
+                @Override
+                public GuessingGameId gameId() {
+                    return gameId;
+                }
+
+                @Override
+                public boolean equals(Object o) {
+                    if (this == o) return true;
+                    if (!(o instanceof GuessTooLong)) return false;
+                    GuessTooLong that = (GuessTooLong) o;
+                    return requiredLength == that.requiredLength && Objects.equals(gameId, that.gameId) && Objects.equals(guess, that.guess);
+                }
+
+                @Override
+                public int hashCode() {
+                    return Objects.hash(gameId, guess, requiredLength);
+                }
+
+                @Override
+                public String toString() {
+                    return "GuessTooLong{" +
+                            "gameId=" + gameId +
+                            ", guess=" + guess +
+                            ", requiredLength=" + requiredLength +
+                            '}';
+                }
             }
 
-            record InvalidDigitInGuess(GuessingGameId gameId,
-                                       Guess guess,
-                                       Set<Digit> allowedDigits) implements GuessError {
+            final class InvalidDigitInGuess implements GuessError {
+                public final GuessingGameId gameId;
+                public final Guess          guess;
+                public final Set<Digit>     allowedDigits;
+
+                public InvalidDigitInGuess(GuessingGameId gameId,
+                                           Guess guess,
+                                           Set<Digit> allowedDigits) {
+                    this.gameId = gameId;
+                    this.guess = guess;
+                    this.allowedDigits = allowedDigits;
+                }
+
+                @Override
+                public GuessingGameId gameId() {
+                    return gameId;
+                }
             }
         }
     }
@@ -409,13 +822,16 @@ class DeciderTest {
         }
     }
 
-    public record Guess(List<Digit> digits) {
-        public Guess {
+    public static class Guess {
+        private final List<Digit> digits;
+
+        public Guess(List<Digit> digits) {
+            this.digits = digits;
             requireNonEmpty(digits, "No digits provided");
         }
 
         public Guess(int... digits) {
-            this(Arrays.stream(digits).mapToObj(Digit::of).toList());
+            this(Arrays.stream(digits).mapToObj(Digit::of).collect(Collectors.toList()));
         }
 
         public Guess(Digit... digits) {
@@ -425,15 +841,22 @@ class DeciderTest {
         public int length() {
             return digits.size();
         }
+
+        public List<Digit> digits() {
+            return digits;
+        }
     }
 
-    public record Secret(List<Digit> digits) {
-        public Secret {
+    public static class Secret {
+        private final List<Digit> digits;
+
+        public Secret(List<Digit> digits) {
+            this.digits = digits;
             requireNonEmpty(digits, "No digits provided");
         }
 
         public Secret(int... digits) {
-            this(Arrays.stream(digits).mapToObj(Digit::of).toList());
+            this(Arrays.stream(digits).mapToObj(Digit::of).collect(Collectors.toList()));
         }
 
         public Secret(Digit... digits) {
@@ -446,6 +869,10 @@ class DeciderTest {
 
         public Guess toGuess() {
             return new Guess(digits);
+        }
+
+        public List<Digit> digits() {
+            return digits;
         }
     }
 
@@ -460,9 +887,26 @@ class DeciderTest {
         }
     }
 
-    public record DigitPair(Digit secret, Digit guess) {
+    public static class DigitPair {
+        private final Digit secret;
+        private final Digit guess;
+
+        public DigitPair(Digit secret, Digit guess) {
+
+            this.secret = secret;
+            this.guess = guess;
+        }
+
         boolean matches() {
             return secret.equals(guess);
+        }
+
+        public Digit secret() {
+            return secret;
+        }
+
+        public Digit guess() {
+            return guess;
         }
     }
 }

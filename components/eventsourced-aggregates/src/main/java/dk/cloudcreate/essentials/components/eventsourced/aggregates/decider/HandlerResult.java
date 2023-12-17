@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * @param <EVENT> The type of Events that can be returned by {@link Handler#handle(Object, Object)} and applied in the {@link StateEvolver#applyEvent(Object, Object)}
  * @param <ERROR> The type of Error that can be returned by the {@link Handler#handle(Object, Object)} method
  */
-public sealed interface HandlerResult<ERROR, EVENT> {
+public interface HandlerResult<ERROR, EVENT> {
     /**
      * Did the command handling result in an error?
      *
@@ -121,34 +121,51 @@ public sealed interface HandlerResult<ERROR, EVENT> {
         }
     }
 
+
     /**
      * Error variant of the {@link HandlerResult}
      *
-     * @param error   the error (non-null) that the {@link Handler#handle(Object, Object)} resulted in
      * @param <ERROR> the type of Error supported by the {@link Handler}
      * @param <EVENT> the type of Events supported by the {@link Handler}
      */
-    record Error<ERROR, EVENT>(ERROR error) implements HandlerResult<ERROR, EVENT> {
-        public Error {
-            requireNonNull(error, "No error provided");
+    class Error<ERROR, EVENT> implements HandlerResult<ERROR, EVENT> {
+        private final ERROR error;
+
+        /**
+         * Create an Error variant of the {@link HandlerResult}
+         *
+         * @param error the error (non-null) that the {@link Handler#handle(Object, Object)} resulted in
+         */
+        public Error(ERROR error) {
+            this.error = requireNonNull(error, "No error provided");
         }
 
         @Override
         public boolean isError() {
             return true;
         }
+
+        public ERROR error() {
+            return error;
+        }
     }
 
     /**
      * Success variant of the {@link HandlerResult}
      *
-     * @param events  the (non-null) events that the {@link Handler#handle(Object, Object)} resulted in. Is allowed to be empty
      * @param <ERROR> the type of Error supported by the {@link Handler}
      * @param <EVENT> the type of Events supported by the {@link Handler}
      */
-    record Success<ERROR, EVENT>(List<EVENT> events) implements HandlerResult<ERROR, EVENT> {
-        public Success {
-            requireNonNull(events, "events list was null");
+    class Success<ERROR, EVENT> implements HandlerResult<ERROR, EVENT> {
+        private final List<EVENT> events;
+
+        /**
+         * Create a Success variant of the {@link HandlerResult}
+         *
+         * @param events  the (non-null) events that the {@link Handler#handle(Object, Object)} resulted in. Is allowed to be empty
+         */
+        public Success(List<EVENT> events)  {
+            this.events = requireNonNull(events, "events list was null");
         }
 
         public Success(EVENT... events) {
@@ -158,6 +175,10 @@ public sealed interface HandlerResult<ERROR, EVENT> {
         @Override
         public boolean isError() {
             return false;
+        }
+
+        public List<EVENT> events() {
+            return events;
         }
     }
 

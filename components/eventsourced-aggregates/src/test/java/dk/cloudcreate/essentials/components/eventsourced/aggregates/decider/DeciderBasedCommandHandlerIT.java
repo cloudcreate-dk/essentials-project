@@ -61,6 +61,36 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The goal is to strategically decipher the secret code within a set maximum number of guesses.<br>
  * Successfully guessing the secret before reaching the limit results in {@link GuessingGameEvent.GameWon},
  * while exceeding the allowed guesses leads to {@link GuessingGameEvent.GameLost}.
+ * <p>
+ *
+ * Note:<br>
+ * This example/test is inspired by this <a href="https://dev.to/jakub_zalas/functional-event-sourcing-example-in-kotlin-3245">article</a>.<br>
+ * The examples in the referenced article and its code <a href="https://github.com/jakzal/mastermind/tree/main">MasterMind</a>
+ * are released under <a href="https://github.com/jakzal/mastermind/blob/main/LICENSE">MIT license</a>:
+ * <pre>
+ * Copyright (c) 2015 Jakub Zalas <jakub@zalas.pl>
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ * </pre>
  *
  * @see DeciderTest
  */

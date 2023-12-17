@@ -28,6 +28,7 @@ import org.slf4j.*;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -105,7 +106,7 @@ public interface CommandHandler<COMMAND, EVENT, ERROR> {
         var optionalAggregateSnapshotRepository = Optional.ofNullable(aggregateSnapshotRepository);
 
         return new CommandHandler<COMMAND, EVENT, ERROR>() {
-            private static final Logger log = LoggerFactory.getLogger(CommandHandler.class);
+            private final Logger log = LoggerFactory.getLogger(CommandHandler.class);
 
             @Override
             public HandlerResult<ERROR, EVENT> handle(COMMAND cmd) {
@@ -182,7 +183,7 @@ public interface CommandHandler<COMMAND, EVENT, ERROR> {
                                   stateType.getName(),
                                   optionalAggregateId,
                                   events.size(),
-                                  events.stream().map(event -> event.getClass().getSimpleName()).toList());
+                                  events.stream().map(event -> event.getClass().getSimpleName()).collect(Collectors.toList()));
                         var firstEvent = events.get(0);
                         var aggregateId = optionalAggregateId.orElseGet(() -> {
                             var resolvesAggregateIdFromFirstEvent = aggregateIdFromEventResolver.resolveFrom(firstEvent)
@@ -290,12 +291,44 @@ public interface CommandHandler<COMMAND, EVENT, ERROR> {
             }
 
 
-            record EventsToAppendToStream<ID, EVENT, STATE>(
-                    STATE state,
-                    AggregateType aggregateType,
-                    ID aggregateId,
-                    EventOrder eventOrderOfLastRehydratedEvent,
-                    List<EVENT> events) {
+            class EventsToAppendToStream<ID, EVENT, STATE> {
+                private final STATE         state;
+                private final AggregateType aggregateType;
+                private final ID            aggregateId;
+                private final EventOrder    eventOrderOfLastRehydratedEvent;
+                private final List<EVENT>   events;
+
+                public EventsToAppendToStream(STATE state,
+                                              AggregateType aggregateType,
+                                              ID aggregateId,
+                                              EventOrder eventOrderOfLastRehydratedEvent,
+                                              List<EVENT> events) {
+                    this.state = state;
+                    this.aggregateType = aggregateType;
+                    this.aggregateId = aggregateId;
+                    this.eventOrderOfLastRehydratedEvent = eventOrderOfLastRehydratedEvent;
+                    this.events = events;
+                }
+
+                public STATE state() {
+                    return state;
+                }
+
+                public AggregateType aggregateType() {
+                    return aggregateType;
+                }
+
+                public ID aggregateId() {
+                    return aggregateId;
+                }
+
+                public EventOrder eventOrderOfLastRehydratedEvent() {
+                    return eventOrderOfLastRehydratedEvent;
+                }
+
+                public List<EVENT> events() {
+                    return events;
+                }
             }
         };
     }
