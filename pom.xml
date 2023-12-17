@@ -64,20 +64,20 @@
         <revision>DEV-SNAPSHOT</revision>
 
         <objenesis.version>3.3</objenesis.version>
-        <postgresql.version>42.6.0</postgresql.version>
+        <postgresql.version>42.7.1</postgresql.version>
         <slf4j.version>2.0.9</slf4j.version>
-        <spring-boot.version>3.1.5</spring-boot.version>
+        <spring-boot.version>3.1.6</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <spring-data-mongodb.version>4.1.5</spring-data-mongodb.version>
-        <spring-data-jpa.version>3.1.5</spring-data-jpa.version>
+        <spring-data-mongodb.version>4.1.7</spring-data-mongodb.version>
+        <spring-data-jpa.version>3.1.7</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
         <assertj.version>3.24.2</assertj.version>
-        <mongodb-driver-sync.version>4.11.0</mongodb-driver-sync.version>
-        <log4j-to-slf4j.version>2.21.1</log4j-to-slf4j.version>
-        <snakeyaml.version>1.33</snakeyaml.version>
+        <mongodb-driver-sync.version>4.11.1</mongodb-driver-sync.version>
+        <log4j-to-slf4j.version>2.22.0</log4j-to-slf4j.version>
         <json-smart.version>2.5.0</json-smart.version>
-        <micrometer.version>1.11.5</micrometer.version>
-        <micrometer-tracing.version>1.1.6</micrometer-tracing.version>
+        <snakeyaml.version>2.2</snakeyaml.version>
+        <micrometer.version>1.12.1</micrometer.version>
+        <micrometer-tracing.version>1.2.1</micrometer-tracing.version>
     </properties>
 
     <modules>
@@ -112,56 +112,56 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.100.Final</version>
+                <version>4.1.104.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.10.0</version>
+                <version>5.10.1</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
-                <version>1.19.1</version>
+                <version>1.19.3</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.jdbi</groupId>
                 <artifactId>jdbi3-bom</artifactId>
-                <version>3.41.3</version>
+                <version>3.42.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
-                <version>2.15.3</version>
+                <version>2.16.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-bom</artifactId>
-                <version>2022.0.12</version>
+                <version>2023.0.1</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>6.0.13</version>
+                <version>6.0.15</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-bom</artifactId>
-                <version>5.7.0</version>
+                <version>5.8.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -200,7 +200,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.11</version>
+            <version>1.4.14</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -229,7 +229,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-project-info-reports-plugin</artifactId>
-                    <version>3.4.5</version>
+                    <version>3.5.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -269,7 +269,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.6.0</version>
+                    <version>3.6.3</version>
                     <configuration>
                         <doclint>none</doclint>
                     </configuration>
@@ -285,12 +285,12 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>3.2.1</version>
+                    <version>3.2.3</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.2.1</version>
+                    <version>3.2.3</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -304,7 +304,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>versions-maven-plugin</artifactId>
-                    <version>2.16.1</version>
+                    <version>2.16.2</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -338,10 +338,10 @@
                         <configuration>
                             <rules>
                                 <requireMavenVersion>
-                                    <version>3.8.1</version>
+                                    <version>3.9.0</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
-                                    <version>17</version>
+                                    <version>${java.version}</version>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>
@@ -364,7 +364,7 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>8.4.2</version>
+                <version>9.0.6</version>
                 <configuration>
                     <skipTestScope>false</skipTestScope>
                     <failBuildOnCVSS>0</failBuildOnCVSS>
