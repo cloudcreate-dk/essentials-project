@@ -19,7 +19,7 @@ To use `Types-JDBI` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jdbi</artifactId>
-    <version>0.30.2</version>
+    <version>0.40.0</version>
 </dependency>
 ```
 
