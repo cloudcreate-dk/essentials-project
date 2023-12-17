@@ -1191,6 +1191,7 @@ class SingleTenantPostgresqlEventStoreIT {
                         System.out.println("----> Pause during persist events");
                         Thread.sleep(5000);
                     } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         throw new RuntimeException(e);
                     }
                 }
