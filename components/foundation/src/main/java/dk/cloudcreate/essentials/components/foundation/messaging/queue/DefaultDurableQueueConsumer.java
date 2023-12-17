@@ -23,6 +23,7 @@ import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.slf4j.*;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -33,7 +34,12 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
  * The default {@link DurableQueueConsumer} which provides basic implementation (including retrying messages
- * in case of failure, polling interval optimization, etc.)
+ * in case of failure, polling interval optimization, etc.)<br>
+ * Log levels of interest:
+ * <pre>{@code
+ * dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer
+ * dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer.MessageHandlingFailures
+ * }</pre>
  *
  * @param <DURABLE_QUEUES> the concrete type of {@link DurableQueues} implementation
  * @param <UOW>            the {@link UnitOfWork} type
@@ -41,8 +47,9 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>>
         implements DurableQueueConsumer, DurableQueueConsumerNotifications {
-    private static final Logger   log                                          = LoggerFactory.getLogger(DefaultDurableQueueConsumer.class);
-    public static final  Runnable NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE = () -> {
+    public static final Logger   LOG                                          = LoggerFactory.getLogger(DurableQueueConsumer.class);
+    public static final Logger   MESSAGE_HANDLING_FAILURE_LOG                 = LoggerFactory.getLogger(DurableQueueConsumer.class + ".MessageHandlingFailures");
+    public static final Runnable NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE = () -> {
     };
 
     public final     QueueName                             queueName;
@@ -102,7 +109,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
     public void start() {
         if (!started) {
 
-            log.info("[{}] {} - Starting {} DurableQueueConsumer threads with polling interval {} ms",
+            LOG.info("[{}] {} - Starting {} DurableQueueConsumer threads with polling interval {} ms",
                      queueName,
                      consumeFromQueue.consumerName,
                      consumeFromQueue.getParallelConsumers(),
@@ -113,7 +120,8 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                         // As there are multiple parallel consumers, ensure they don't trigger at the exact same time
                         Thread.sleep(10);
                     } catch (InterruptedException e) {
-                        // Do nothing
+                        // Ignore
+                        Thread.currentThread().interrupt();
                     }
                 }
                 scheduler.scheduleAtFixedRate(this::pollQueue,
@@ -128,7 +136,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
     @Override
     public void stop() {
         if (started) {
-            log.info("[{}] {} - Stopping DurableQueueConsumer",
+            LOG.info("[{}] {} - Stopping DurableQueueConsumer",
                      queueName,
                      consumeFromQueue.consumerName);
             started = false;
@@ -136,7 +144,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                 scheduler.shutdownNow();
             } finally {
                 removeDurableQueueConsumer.accept(this);
-                log.info("[{}] {} - DurableQueueConsumer stopped",
+                LOG.info("[{}] {} - DurableQueueConsumer stopped",
                          queueName,
                          consumeFromQueue.consumerName);
             }
@@ -161,7 +169,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
 
     private void pollQueue() {
         if (!started) {
-            log.trace("[{}] {} - Skipping Polling Queue as the consumer is not started",
+            LOG.trace("[{}] {} - Skipping Polling Queue as the consumer is not started",
                       queueName,
                       consumeFromQueue.consumerName);
             return;
@@ -169,13 +177,13 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
 
         try {
             if (queuePollingOptimizer.shouldSkipPolling()) {
-                log.trace("[{}] {} - Skipping polling",
+                LOG.trace("[{}] {} - Skipping polling",
                           queueName,
                           consumeFromQueue.consumerName);
                 return;
             }
 
-            log.trace("[{}] {} - Polling Queue for the next message ready for delivery. Transactional mode: {}",
+            LOG.trace("[{}] {} - Polling Queue for the next message ready for delivery. Transactional mode: {}",
                       queueName,
                       consumeFromQueue.consumerName,
                       durableQueues.getTransactionalMode());
@@ -185,41 +193,20 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                     throw new DurableQueueException(msg("[{}] {} - Previous UnitOfWork isn't completed/removed: {}",
                                                         queueName,
                                                         consumeFromQueue.consumerName,
-                                                        unitOfWorkFactory.getCurrentUnitOfWork().get()), queueName);
+                                                        unitOfWorkFactory.getCurrentUnitOfWork().get()),
+                                                    queueName);
                 }
 
                 try {
                     postTransactionalSideEffect = unitOfWorkFactory.withUnitOfWork(handleAwareUnitOfWork -> processNextMessageReadyForDelivery());
                 } catch (Exception e) {
-                    var rootCause = Exceptions.getRootCause(e);
-                    if (e.getMessage().contains("has been closed") || e.getMessage().contains("Connection is closed") ||
-                            rootCause.getClass().getSimpleName().equals("EOFException") || rootCause.getClass().getSimpleName().equals("ConnectionException") ||
-                            rootCause.getClass().getSimpleName().equals("MongoSocketReadException")) {
-                        log.trace(msg("[{}] {} - Experienced a Connection issue, will retry later",
-                                      queueName,
-                                      consumeFromQueue.consumerName), e);
-                    } else {
-                        log.error(msg("[{}] {} - Experienced an error",
-                                      queueName,
-                                      consumeFromQueue.consumerName), e);
-                    }
+                    handleProcessNextMessageReadyForDeliveryException(e);
                 }
             } else {
                 try {
                     postTransactionalSideEffect = processNextMessageReadyForDelivery();
                 } catch (Exception e) {
-                    var rootCause = Exceptions.getRootCause(e);
-                    if (e.getMessage().contains("has been closed") || e.getMessage().contains("Connection is closed") ||
-                            rootCause.getClass().getSimpleName().equals("EOFException") || rootCause.getClass().getSimpleName().equals("ConnectionException") ||
-                            rootCause.getClass().getSimpleName().equals("MongoSocketReadException")) {
-                        log.trace(msg("[{}] {} - Experienced a Connection issue, will retry later",
-                                      queueName,
-                                      consumeFromQueue.consumerName), e);
-                    } else {
-                        log.error(msg("[{}] {} - Experienced an error",
-                                      queueName,
-                                      consumeFromQueue.consumerName), e);
-                    }
+                    handleProcessNextMessageReadyForDeliveryException(e);
                 }
             }
 
@@ -227,9 +214,24 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                 postTransactionalSideEffect.run();
             }
         } catch (DurableQueueException e) {
-            log.error(msg("[{}] {} - Failed to poll queue",
+            LOG.error(msg("[{}] {} - Failed to poll queue",
                           consumeFromQueue.consumerName,
                           queueName), e);
+        }
+    }
+
+    private void handleProcessNextMessageReadyForDeliveryException(Exception e) {
+        var rootCause = Exceptions.getRootCause(e);
+        if (e.getMessage().contains("has been closed") || e.getMessage().contains("Connection is closed") ||
+                rootCause instanceof IOException || rootCause.getClass().getSimpleName().equals("ConnectionException") ||
+                rootCause.getClass().getSimpleName().equals("MongoSocketReadException")) {
+            LOG.trace(msg("[{}] {} - Experienced a Connection issue, will retry later",
+                          queueName,
+                          consumeFromQueue.consumerName), e);
+        } else {
+            LOG.error(msg("[{}] {} - Experienced an error, will retry later",
+                          queueName,
+                          consumeFromQueue.consumerName), e);
         }
     }
 
@@ -248,7 +250,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                 return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
             }
         } catch (Exception e) {
-            log.error(msg("[{}] Error Polling Queue", queueName), e);
+            LOG.error(msg("[{}] Error Polling Queue", queueName), e);
             return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
         }
     }
@@ -265,7 +267,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
 
     private Runnable handleMessage(QueuedMessage queuedMessage) {
         var isOrderedMessage = queuedMessage.getMessage() instanceof OrderedMessage;
-        log.debug("[{}:{}] {} - Delivering {}message{}. Total attempts: {}, Redelivery Attempts: {}",
+        LOG.debug("[{}:{}] {} - Delivering {}message{}. Total attempts: {}, Redelivery Attempts: {}",
                   queueName,
                   queuedMessage.getId(),
                   consumeFromQueue.consumerName,
@@ -279,7 +281,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
         }
         try {
             consumeFromQueue.queueMessageHandler.handle(queuedMessage);
-            log.debug("[{}:{}] {} - Message handled successfully. Deleting the message in the Queue Store message. Total attempts: {}, Redelivery Attempts: {}",
+            LOG.debug("[{}:{}] {} - Message handled successfully. Deleting the message in the Queue Store message. Total attempts: {}, Redelivery Attempts: {}",
                       queueName,
                       queuedMessage.getId(),
                       consumeFromQueue.consumerName,
@@ -289,44 +291,44 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
             orderedMessageDeliveryThreads.remove(Thread.currentThread());
             return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
         } catch (Exception e) {
-            log.debug(msg("[{}:{}] {} - QueueMessageHandler for failed to handle message: {}",
-                          queueName,
-                          queuedMessage.getId(),
-                          consumeFromQueue.consumerName,
-                          queuedMessage), e);
+            MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - QueueMessageHandler for failed to handle message: {}",
+                                                   queueName,
+                                                   queuedMessage.getId(),
+                                                   consumeFromQueue.consumerName,
+                                                   queuedMessage), e);
             var isPermanentError = consumeFromQueue.getRedeliveryPolicy().isPermanentError(queuedMessage, e);
             if (isPermanentError || queuedMessage.getTotalDeliveryAttempts() >= consumeFromQueue.getRedeliveryPolicy().maximumNumberOfRedeliveries + 1) {
                 // Dead letter
-                log.debug("[{}:{}] {} - Marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
-                          queueName,
-                          queuedMessage.getId(),
-                          consumeFromQueue.consumerName,
-                          isPermanentError,
-                          queuedMessage);
+                MESSAGE_HANDLING_FAILURE_LOG.debug("[{}:{}] {} - Marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
+                                                   queueName,
+                                                   queuedMessage.getId(),
+                                                   consumeFromQueue.consumerName,
+                                                   isPermanentError,
+                                                   queuedMessage);
                 try {
                     durableQueues.markAsDeadLetterMessage(queuedMessage.getId(), e);
                     orderedMessageDeliveryThreads.remove(Thread.currentThread());
                     return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
                 } catch (Exception ex) {
-                    log.error(msg("[{}:{}] {} - Failed to mark the Message as a Dead Letter Message. Details: Is Permanent Error: {}. Message: {}",
-                                  queueName,
-                                  queuedMessage.getId(),
-                                  consumeFromQueue.consumerName,
-                                  isPermanentError,
-                                  queuedMessage), ex);
+                    MESSAGE_HANDLING_FAILURE_LOG.error(msg("[{}:{}] {} - Failed to mark the Message as a Dead Letter Message. Details: Is Permanent Error: {}. Message: {}",
+                                                           queueName,
+                                                           queuedMessage.getId(),
+                                                           consumeFromQueue.consumerName,
+                                                           isPermanentError,
+                                                           queuedMessage), ex);
                     // Note: Don't clean up orderedMessageDeliveryThreads yet
                     return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
                 }
             } else {
                 // Redeliver later
                 var redeliveryDelay = consumeFromQueue.getRedeliveryPolicy().calculateNextRedeliveryDelay(queuedMessage.getRedeliveryAttempts());
-                log.debug(msg("[{}:{}] {} - Using redeliveryDelay '{}' for QueueEntryId '{}' due to: {}",
-                              queueName,
-                              queuedMessage.getId(),
-                              consumeFromQueue.consumerName,
-                              redeliveryDelay,
-                              queuedMessage.getId(),
-                              e.getMessage()));
+                MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Using redeliveryDelay '{}' for QueueEntryId '{}' due to: {}",
+                                                       queueName,
+                                                       queuedMessage.getId(),
+                                                       consumeFromQueue.consumerName,
+                                                       redeliveryDelay,
+                                                       queuedMessage.getId(),
+                                                       e.getMessage()));
                 try {
                     // Don't update the polling optimizer as the message stays in the queue
                     durableQueues.retryMessage(queuedMessage.getId(),
@@ -337,16 +339,16 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                 } catch (Exception ex) {
                     if (ex.getMessage().contains("Interrupted waiting for lock")) {
                         // Usually happening when SpringBoot is performing an unclean shutdown
-                        log.debug(msg("[{}:{}] {} - Failed to register the message for retry.",
-                                      queueName,
-                                      queuedMessage.getId(),
-                                      consumeFromQueue.consumerName), ex);
+                        MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Failed to register the message for retry.",
+                                                               queueName,
+                                                               queuedMessage.getId(),
+                                                               consumeFromQueue.consumerName), ex);
 
                     } else {
-                        log.error(msg("[{}:{}] {} - Failed to register the message for retry.",
-                                      queueName,
-                                      queuedMessage.getId(),
-                                      consumeFromQueue.consumerName), ex);
+                        MESSAGE_HANDLING_FAILURE_LOG.error(msg("[{}:{}] {} - Failed to register the message for retry.",
+                                                               queueName,
+                                                               queuedMessage.getId(),
+                                                               consumeFromQueue.consumerName), ex);
                     }
                     // Note: Don't clean up orderedMessageDeliveryThreads yet
                     return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;

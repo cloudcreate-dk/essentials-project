@@ -116,6 +116,11 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
         return new SingleValueTypeRandomIdGenerator();
     }
 
+    /**
+     * Registers <code>new SingleValueTypeConverter(LockName.class, QueueEntryId.class, QueueName.class)))</code> with the {@link MongoCustomConversions}
+     * as {@link LockName}, {@link QueueEntryId} and {@link QueueName} are required by {@link FencedLockManager} and {@link DurableQueues}
+     * @return the {@link MongoCustomConversions}
+     */
     @Bean
     @ConditionalOnMissingBean
     public MongoCustomConversions mongoCustomConversions() {
