@@ -41,6 +41,7 @@ import dk.cloudcreate.essentials.reactive.*;
 import dk.cloudcreate.essentials.reactive.command.*;
 import dk.cloudcreate.essentials.reactive.command.interceptor.CommandBusInterceptor;
 import dk.cloudcreate.essentials.reactive.spring.ReactiveHandlersBeanPostProcessor;
+import dk.cloudcreate.essentials.types.CharSequenceType;
 import dk.cloudcreate.essentials.types.springdata.mongo.*;
 import org.slf4j.*;
 import org.springframework.beans.BeansException;
@@ -50,6 +51,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.event.*;
+import org.springframework.core.convert.converter.*;
 import org.springframework.data.mongodb.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.convert.*;
@@ -106,7 +108,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @Bean
     @ConditionalOnClass(name = "org.objenesis.ObjenesisStd")
     @ConditionalOnMissingBean
-    public com.fasterxml.jackson.databind.Module essentialsImmutableJacksonModule() {
+    public EssentialsImmutableJacksonModule essentialsImmutableJacksonModule() {
         return new EssentialsImmutableJacksonModule();
     }
 
@@ -117,15 +119,32 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     /**
+     * Creates a {@link MongoCustomConversions} bean  (using <code>SpringDataJavaTimeCodecs</code>)
+     * with optional additional char sequence types supported and generic converters.<br>
      * Registers <code>new SingleValueTypeConverter(LockName.class, QueueEntryId.class, QueueName.class)))</code> with the {@link MongoCustomConversions}
      * as {@link LockName}, {@link QueueEntryId} and {@link QueueName} are required by {@link FencedLockManager} and {@link DurableQueues}
+     * and any additional {@link CharSequenceType}'s provided in the optional {@link AdditionalCharSequenceTypesSupported} parameter.<br>
+     * Through the optional {@link AdditionalConverters} parameter it supports easily registration of additional {@link Converter}/{@link GenericConverter}'s/etc
+     *
+     * @param optionalAdditionalCharSequenceTypesSupported An optional additional concrete {@link CharSequenceType}'s that will be registered with the {@link SingleValueTypeConverter}
+     *                                                     being added to the returned {@link MongoCustomConversions}
+     * @param optionalAdditionalGenericConverters          An optional additional {@link Converter}/{@link GenericConverter}'s/etc. that will be
+     *                                                     added to the returned  {@link MongoCustomConversions}
      * @return the {@link MongoCustomConversions}
      */
     @Bean
     @ConditionalOnMissingBean
-    public MongoCustomConversions mongoCustomConversions() {
-        return new MongoCustomConversions(List.of(
-                new SingleValueTypeConverter(LockName.class, QueueEntryId.class, QueueName.class)));
+    public MongoCustomConversions mongoCustomConversions(Optional<AdditionalCharSequenceTypesSupported> optionalAdditionalCharSequenceTypesSupported,
+                                                         Optional<AdditionalConverters> optionalAdditionalGenericConverters) {
+        return MongoCustomConversions.create(mongoConverterConfigurationAdapter -> {
+            mongoConverterConfigurationAdapter.useSpringDataJavaTimeCodecs();
+            List<Class<? extends CharSequenceType<?>>> allCharSequenceTypesSupported = new ArrayList<>(List.of(LockName.class, QueueEntryId.class, QueueName.class));
+            optionalAdditionalCharSequenceTypesSupported.ifPresent(additionalCharSequenceTypesSupported -> allCharSequenceTypesSupported.addAll(additionalCharSequenceTypesSupported.charSequenceTypes));
+
+            List<Object> allGenericConverters = new ArrayList<>(List.of(new SingleValueTypeConverter(allCharSequenceTypesSupported)));
+            optionalAdditionalGenericConverters.ifPresent(additionalGenericConverters -> allGenericConverters.addAll(additionalGenericConverters.converters));
+            mongoConverterConfigurationAdapter.registerConverters(allGenericConverters);
+        });
     }
 
     /**
@@ -307,28 +326,32 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     /**
      * {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
      *
+     * @param optionalEssentialsImmutableJacksonModule the optional {@link EssentialsImmutableJacksonModule}
      * @return the {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
      */
     @Bean
     @ConditionalOnMissingBean
-    public ObjectMapper essentialComponentsObjectMapper() {
-        var objectMapper = JsonMapper.builder()
-                                     .disable(MapperFeature.AUTO_DETECT_GETTERS)
-                                     .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
-                                     .disable(MapperFeature.AUTO_DETECT_SETTERS)
-                                     .disable(MapperFeature.DEFAULT_VIEW_INCLUSION)
-                                     .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                                     .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                                     .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                                     .enable(MapperFeature.AUTO_DETECT_CREATORS)
-                                     .enable(MapperFeature.AUTO_DETECT_FIELDS)
-                                     .enable(MapperFeature.PROPAGATE_TRANSIENT_MARKER)
-                                     .addModule(new Jdk8Module())
-                                     .addModule(new JavaTimeModule())
-                                     .addModule(new EssentialTypesJacksonModule())
-                                     .addModule(new EssentialsImmutableJacksonModule())
-                                     .build();
+    public ObjectMapper essentialComponentsObjectMapper(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule) {
+        var objectMapperBuilder = JsonMapper.builder()
+                                            .disable(MapperFeature.AUTO_DETECT_GETTERS)
+                                            .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
+                                            .disable(MapperFeature.AUTO_DETECT_SETTERS)
+                                            .disable(MapperFeature.DEFAULT_VIEW_INCLUSION)
+                                            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                                            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                                            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                                            .enable(MapperFeature.AUTO_DETECT_CREATORS)
+                                            .enable(MapperFeature.AUTO_DETECT_FIELDS)
+                                            .enable(MapperFeature.PROPAGATE_TRANSIENT_MARKER)
+                                            .addModule(new Jdk8Module())
+                                            .addModule(new JavaTimeModule())
+                                            .addModule(new EssentialTypesJacksonModule());
 
+        optionalEssentialsImmutableJacksonModule.ifPresent(essentialsImmutableJacksonModule -> {
+            objectMapperBuilder.addModule(new EssentialsImmutableJacksonModule());
+        });
+
+        var objectMapper = objectMapperBuilder.build();
         objectMapper.setVisibility(objectMapper.getSerializationConfig().getDefaultVisibilityChecker()
                                                .withGetterVisibility(JsonAutoDetect.Visibility.NONE)
                                                .withSetterVisibility(JsonAutoDetect.Visibility.NONE)
