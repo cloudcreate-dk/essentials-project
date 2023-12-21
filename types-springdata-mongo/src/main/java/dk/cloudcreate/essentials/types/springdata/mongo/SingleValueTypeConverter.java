@@ -135,13 +135,13 @@ public class SingleValueTypeConverter implements GenericConverter {
         if (source instanceof CharSequenceType && ObjectId.class.isAssignableFrom(targetType.getType()) && ObjectId.isValid(source.toString())) {
             return new ObjectId(source.toString());
         } else if (LocalDateTimeType.class.isAssignableFrom(targetType.getType())) {
-            return LocalDateTime.ofInstant(((Date) source).toInstant(), ZoneId.of("UTC"));
+            return SingleValueType.fromObject(LocalDateTime.ofInstant(((Date) source).toInstant(), ZoneId.of("UTC")), (Class<SingleValueType<?, ?>>) targetType.getType());
         } else if (LocalDateType.class.isAssignableFrom(targetType.getType())) {
-            return LocalDate.ofInstant(((Date) source).toInstant(), ZoneId.of("UTC"));
+            return SingleValueType.fromObject(LocalDate.ofInstant(((Date) source).toInstant(), ZoneId.of("UTC")), (Class<SingleValueType<?, ?>>) targetType.getType());
         } else if (InstantType.class.isAssignableFrom(targetType.getType())) {
-            return ((Date) source).toInstant();
+            return SingleValueType.fromObject(((Date) source).toInstant(), (Class<SingleValueType<?, ?>>) targetType.getType());
         } else if (LocalTimeType.class.isAssignableFrom(targetType.getType())) {
-            return LocalTime.ofInstant(((Date) source).toInstant(), ZoneId.of("UTC"));
+            return SingleValueType.fromObject(LocalTime.ofInstant(((Date) source).toInstant(), ZoneId.of("UTC")), (Class<SingleValueType<?, ?>>) targetType.getType());
         } else if (source instanceof SingleValueType) {
             return ((SingleValueType<?, ?>) source).value();
         } else if (source instanceof ObjectId) {
