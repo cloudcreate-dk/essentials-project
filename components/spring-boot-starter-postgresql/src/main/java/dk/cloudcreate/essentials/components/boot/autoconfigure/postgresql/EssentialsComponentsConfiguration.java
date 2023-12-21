@@ -106,7 +106,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @Bean
     @ConditionalOnClass(name = "org.objenesis.ObjenesisStd")
     @ConditionalOnMissingBean
-    public com.fasterxml.jackson.databind.Module essentialsImmutableJacksonModule() {
+    public EssentialsImmutableJacksonModule essentialsImmutableJacksonModule() {
         return new EssentialsImmutableJacksonModule();
     }
 
@@ -295,28 +295,32 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     /**
      * {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
      *
+     * @param optionalEssentialsImmutableJacksonModule the optional {@link EssentialsImmutableJacksonModule}
      * @return the {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
      */
     @Bean
     @ConditionalOnMissingBean
-    public ObjectMapper essentialComponentsObjectMapper() {
-        var objectMapper = JsonMapper.builder()
-                                     .disable(MapperFeature.AUTO_DETECT_GETTERS)
-                                     .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
-                                     .disable(MapperFeature.AUTO_DETECT_SETTERS)
-                                     .disable(MapperFeature.DEFAULT_VIEW_INCLUSION)
-                                     .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                                     .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                                     .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                                     .enable(MapperFeature.AUTO_DETECT_CREATORS)
-                                     .enable(MapperFeature.AUTO_DETECT_FIELDS)
-                                     .enable(MapperFeature.PROPAGATE_TRANSIENT_MARKER)
-                                     .addModule(new Jdk8Module())
-                                     .addModule(new JavaTimeModule())
-                                     .addModule(new EssentialTypesJacksonModule())
-                                     .addModule(new EssentialsImmutableJacksonModule())
-                                     .build();
+    public ObjectMapper essentialComponentsObjectMapper(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule) {
+        var objectMapperBuilder = JsonMapper.builder()
+                                            .disable(MapperFeature.AUTO_DETECT_GETTERS)
+                                            .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
+                                            .disable(MapperFeature.AUTO_DETECT_SETTERS)
+                                            .disable(MapperFeature.DEFAULT_VIEW_INCLUSION)
+                                            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                                            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                                            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                                            .enable(MapperFeature.AUTO_DETECT_CREATORS)
+                                            .enable(MapperFeature.AUTO_DETECT_FIELDS)
+                                            .enable(MapperFeature.PROPAGATE_TRANSIENT_MARKER)
+                                            .addModule(new Jdk8Module())
+                                            .addModule(new JavaTimeModule())
+                                            .addModule(new EssentialTypesJacksonModule());
 
+        optionalEssentialsImmutableJacksonModule.ifPresent(essentialsImmutableJacksonModule -> {
+            objectMapperBuilder.addModule(new EssentialsImmutableJacksonModule());
+        });
+
+        var objectMapper = objectMapperBuilder.build();
         objectMapper.setVisibility(objectMapper.getSerializationConfig().getDefaultVisibilityChecker()
                                                .withGetterVisibility(JsonAutoDetect.Visibility.NONE)
                                                .withSetterVisibility(JsonAutoDetect.Visibility.NONE)
