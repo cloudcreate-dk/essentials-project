@@ -100,6 +100,15 @@ See [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
 
 # Essentials Postgresql Event Store: Spring Boot starter
 
+To use `spring-boot-starter-postgresql-event-store` to add the following dependency:
+```
+<dependency>
+    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
+    <version>0.40.0</version>
+</dependency>
+```
+
 Auto configures everything from [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
 as well as the `EventStore`.
 
