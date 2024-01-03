@@ -189,7 +189,7 @@ public abstract class EventProcessor implements Lifecycle {
         commandBusHandlerDelegate = new AnnotatedCommandHandler(this);
         commandBus.addCommandHandler(commandBusHandlerDelegate);
 
-        patternMatchingInboxMessageHandlerDelegate = new PatternMatchingMessageHandler(this);
+        patternMatchingInboxMessageHandlerDelegate = new PatternMatchingMessageHandler(this, getMessageHandlerInterceptors());
         patternMatchingInboxMessageHandlerDelegate.allowUnmatchedMessages();
         inboxMessageHandlerDelegate = (msg) -> {
             if (msg instanceof OrderedMessage orderedMessage && EventReferenceOrderedMessage.isEventReference(orderedMessage)) {
@@ -227,6 +227,15 @@ public abstract class EventProcessor implements Lifecycle {
                 patternMatchingInboxMessageHandlerDelegate.accept(msg);
             }
         };
+    }
+
+    /**
+     * Override {@link MessageHandlerInterceptor}'s that should be used when calling {@link MessageHandler} annotated methods
+     *
+     * @return
+     */
+    protected List<MessageHandlerInterceptor> getMessageHandlerInterceptors() {
+        return List.of();
     }
 
 

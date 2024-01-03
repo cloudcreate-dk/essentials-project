@@ -17,14 +17,19 @@
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.MessageHandler;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.operation.InvokeMessageHandlerMethod;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
+import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
+import dk.cloudcreate.essentials.shared.reflection.ReflectionException;
 import dk.cloudcreate.essentials.shared.reflection.invocation.*;
 
 import java.lang.reflect.Method;
+import java.util.*;
 import java.util.function.Consumer;
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
+import static dk.cloudcreate.essentials.shared.interceptor.InterceptorChain.newInterceptorChainForOperation;
 
 /**
  * Pattern matching {@literal Consumer<Message>} for use with {@link Inboxes}/{@link Inbox} or {@link Outboxes}/{@link Outbox}<br>
@@ -53,6 +58,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 public class PatternMatchingMessageHandler implements Consumer<Message> {
     private final PatternMatchingMethodInvoker<Object> invoker;
     private final Object                               invokeMessageHandlerMethodsOn;
+    private final List<MessageHandlerInterceptor>      interceptors;
     private       boolean                              allowUnmatchedMessages = false;
 
     /**
@@ -62,7 +68,19 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
      * @param invokeMessageHandlerMethodsOn the object that contains the {@literal @MessageHandler} annotated methods
      */
     public PatternMatchingMessageHandler(Object invokeMessageHandlerMethodsOn) {
+        this(invokeMessageHandlerMethodsOn, List.of());
+    }
+
+    /**
+     * Create an {@link PatternMatchingMessageHandler} that can resolve and invoke message handler methods, i.e. methods
+     * annotated with {@literal @MessageHandler}, on another object
+     *
+     * @param invokeMessageHandlerMethodsOn the object that contains the {@literal @MessageHandler} annotated methods
+     * @param interceptors                  message handler interceptors
+     */
+    public PatternMatchingMessageHandler(Object invokeMessageHandlerMethodsOn, List<MessageHandlerInterceptor> interceptors) {
         this.invokeMessageHandlerMethodsOn = requireNonNull(invokeMessageHandlerMethodsOn, "No invokeMessageHandlerMethodsOn provided");
+        this.interceptors = new ArrayList<>(requireNonNull(interceptors, "No interceptors provided"));
         invoker = createMethodInvoker();
     }
 
@@ -71,7 +89,16 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
      * annotated with {@literal @MessageHandler}, on this concrete subclass of {@link PatternMatchingMessageHandler}
      */
     public PatternMatchingMessageHandler() {
+        this(List.of());
+    }
+
+    /**
+     * Create an {@link PatternMatchingMessageHandler} that can resolve and invoke message handler methods, i.e. methods
+     * annotated with {@literal @MessageHandler}, on this concrete subclass of {@link PatternMatchingMessageHandler}
+     */
+    public PatternMatchingMessageHandler(List<MessageHandlerInterceptor> interceptors) {
         this.invokeMessageHandlerMethodsOn = this;
+        this.interceptors = new ArrayList<>(requireNonNull(interceptors, "No interceptors provided"));
         invoker = createMethodInvoker();
     }
 
@@ -79,6 +106,18 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
         return new PatternMatchingMethodInvoker<>(invokeMessageHandlerMethodsOn,
                                                   new MessageHandlerMethodPatternMatcher(),
                                                   InvocationStrategy.InvokeMostSpecificTypeMatched);
+    }
+
+    public PatternMatchingMessageHandler addInterceptor(MessageHandlerInterceptor interceptor) {
+        requireNonNull(interceptor, "No interceptor provided");
+        interceptors.add(interceptor);
+        return this;
+    }
+
+    public PatternMatchingMessageHandler removeInterceptor(MessageHandlerInterceptor interceptor) {
+        requireNonNull(interceptor, "No interceptor provided");
+        interceptors.remove(interceptor);
+        return this;
     }
 
     /**
@@ -153,7 +192,7 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
         return invoker.hasMatchingMethod(payloadType);
     }
 
-    private static class MessageHandlerMethodPatternMatcher implements MethodPatternMatcher<Object> {
+    private class MessageHandlerMethodPatternMatcher implements MethodPatternMatcher<Object> {
 
         @Override
         public boolean isInvokableMethod(Method method) {
@@ -195,11 +234,34 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
 
             var message = (Message) argument;
             var payload = message.getPayload();
-            if (methodToInvoke.getParameterCount() == 1) {
-                methodToInvoke.invoke(invokeMethodOn, payload);
-            } else {
-                methodToInvoke.invoke(invokeMethodOn, payload, message);
-            }
+
+            var operation = new InvokeMessageHandlerMethod(methodToInvoke,
+                                                           message,
+                                                           payload,
+                                                           invokeMethodOn,
+                                                           resolvedInvokeMethodWithArgumentOfType);
+
+            InterceptorChain<InvokeMessageHandlerMethod, Void, MessageHandlerInterceptor> operationresultinterceptorTypeInterceptorChain
+                    = newInterceptorChainForOperation(operation,
+                                                      interceptors,
+                                                      (interceptor, interceptorChain) -> {
+                                                          interceptor.intercept(operation, interceptorChain);
+                                                          return null;
+                                                      },
+                                                      () -> {
+                                                          try {
+                                                              if (methodToInvoke.getParameterCount() == 1) {
+                                                                  methodToInvoke.invoke(invokeMethodOn, payload);
+                                                              } else {
+                                                                  methodToInvoke.invoke(invokeMethodOn, payload, message);
+                                                              }
+                                                              return null;
+                                                          } catch (Exception e) {
+                                                              throw new ReflectionException(msg("Failed to invoke method - {}",
+                                                                                                operation), e);
+                                                          }
+                                                      });
+            operationresultinterceptorTypeInterceptorChain.proceed();
         }
     }
 }
