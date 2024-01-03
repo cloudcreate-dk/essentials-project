@@ -148,7 +148,21 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
      * Registers <code>new SingleValueTypeConverter(LockName.class, QueueEntryId.class, QueueName.class)))</code> with the {@link MongoCustomConversions}
      * as {@link LockName}, {@link QueueEntryId} and {@link QueueName} are required by {@link FencedLockManager} and {@link DurableQueues}
      * and any additional {@link CharSequenceType}'s provided in the optional {@link AdditionalCharSequenceTypesSupported} parameter.<br>
-     * Through the optional {@link AdditionalConverters} parameter it supports easily registration of additional {@link Converter}/{@link GenericConverter}'s/etc
+     * Through the optional {@link AdditionalConverters} parameter it supports easily registration of additional {@link Converter}/{@link GenericConverter}'s/etc<br>
+     * <br>
+     * Example Spring Config:
+     * <pre>{@code
+     * @Bean
+     * AdditionalCharSequenceTypesSupported additionalCharSequenceTypesSupported() {
+     *     return new AdditionalCharSequenceTypesSupported(OrderId.class);
+     * }
+     *
+     * @Bean
+     * AdditionalConverters additionalGenericConverters() {
+     *     return new AdditionalConverters(Jsr310Converters.StringToDurationConverter.INSTANCE,
+     *                                     Jsr310Converters.DurationToStringConverter.INSTANCE);
+     * }
+     * }</pre>
      *
      * @param optionalAdditionalCharSequenceTypesSupported An optional additional concrete {@link CharSequenceType}'s that will be registered with the {@link SingleValueTypeConverter}
      *                                                     being added to the returned {@link MongoCustomConversions}
