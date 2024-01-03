@@ -206,8 +206,8 @@ class DeciderTest {
         }
 
         @Override
-        public GuessingGameState applyEvent(GuessingGameState gameState, GuessingGameEvent gameEvent) {
-            return gameState.applyEvent(gameState, gameEvent);
+        public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState gameState) {
+            return gameState.applyEvent(gameEvent, gameState);
         }
     }
 
@@ -302,7 +302,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 if (gameEvent instanceof GuessingGameEvent.GuessMade) {
                     attempts++;
                 } else if (gameEvent instanceof GuessingGameEvent.GameWon) {
@@ -334,7 +334,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 return game;
             }
         }
@@ -354,7 +354,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 return game;
             }
         }
