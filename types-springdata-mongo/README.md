@@ -99,6 +99,7 @@ public MongoCustomConversions mongoCustomConversions() {
 ### JSR 310 Semantic Types
 
 This library also supports for the following `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+
 | `JSR310SingleValueType` specialization | Value Type |
 |----------------------------------|-------------------------|
 | `InstantType`                    | `Instant`               |

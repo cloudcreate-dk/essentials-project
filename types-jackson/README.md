@@ -72,6 +72,7 @@ ObjectMapper objectMapper = EssentialTypesJacksonModule.createObjectMapper(new E
 ### JSR 310 Semantic Types
 
 This library also supports `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+
 | `JSR310SingleValueType` specialization | Value Type |
 |----------------------------------|-------------------------|
 | `InstantType`                    | `Instant`               |

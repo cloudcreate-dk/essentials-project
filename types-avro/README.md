@@ -130,6 +130,7 @@ public class Order extends org.apache.avro.specific.SpecificRecordBase implement
 ### JSR 310 Semantic Types
 
 This library also supports Logical-Types for all `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+
 | `JSR310SingleValueType` specialization | Value Type |
 |----------------------------------|-------------------------|
 | `InstantType`                    | `Instant`               |
