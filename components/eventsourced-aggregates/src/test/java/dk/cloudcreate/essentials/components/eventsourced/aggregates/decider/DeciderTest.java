@@ -202,7 +202,7 @@ class DeciderTest {
 
         @Override
         public GuessingGameState initialState() {
-            return new GuessingGameState.NotStartedGame();
+            return new GuessingGameState.GameNotStartedState();
         }
 
         @Override
@@ -227,7 +227,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 if (gameEvent instanceof GuessingGameEvent.GameStarted) {
                     var gameStarted = (GuessingGameEvent.GameStarted) gameEvent;
                     return new StartedGameState(gameStarted.secret,
@@ -238,13 +238,13 @@ class DeciderTest {
             }
         }
 
-        final class StartedGameState implements GuessingGameState {
+        final class GameStartedState implements GuessingGameState {
             private final Secret     secret;
             private final Set<Digit> allowedDigits;
             private final int        maxAttempts;
             int attempts;
 
-            public StartedGameState(Secret secret,
+            public GameStartedState(Secret secret,
                                     Set<Digit> allowedDigits,
                                     int maxAttempts) {
                 this.secret = secret;
