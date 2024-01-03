@@ -153,7 +153,7 @@ public interface CommandHandler<COMMAND, EVENT, ERROR> {
                                                              .reduce(initialStateAndEventStream._1,
                                                                      (deltaState, event) -> {
                                                                          eventOrderOfLastRehydratedEvent.set(event.eventOrder());
-                                                                         return decider.applyEvent(deltaState, event.event().deserialize());
+                                                                         return decider.applyEvent(event.event().deserialize(), deltaState);
                                                                      },
                                                                      (deltaState, deltaState2) -> deltaState2);
 
@@ -176,7 +176,7 @@ public interface CommandHandler<COMMAND, EVENT, ERROR> {
                 if (result.isSuccess()) {
                     var events = result.asSuccess().events();
                     if (!events.isEmpty()) {
-                        log.debug("[{}] Successfully handled command '{}' against '{}' with  associated aggregateId '{}'. Resulted in {} events of type {}",
+                        log.debug("[{}] Successfully handled command '{}' against state '{}' associated with aggregateId '{}'. Resulted in {} events of type {}",
                                   aggregateType,
                                   cmd.getClass().getName(),
                                   stateType.getName(),
@@ -209,14 +209,14 @@ public interface CommandHandler<COMMAND, EVENT, ERROR> {
                                                                                                                                              events),
                                                                                                 new DeciderUnitOfWorkLifecycleCallback());
                                   }, () -> {
-                                      log.debug("[{}] !!! No active UnitOfWork so will NOT persist {} events associated with '{}' with aggregateId '{}'",
+                                      log.debug("[{}] !!! No active UnitOfWork so will NOT persist {} events associated withﬁ '{}' with aggregateId '{}'",
                                                 aggregateType,
                                                 events.size(),
                                                 stateType.getName(),
                                                 aggregateId);
                                   });
                     } else {
-                        log.debug("[{}] Successfully handled command '{}' against '{}' with associated aggregateId '{}', but it didn't result in any events",
+                        log.debug("[{}] Successfully handled command '{}' against state '{}' associated with aggregateId '{}', but it didn't result in any events",
                                   aggregateType,
                                   cmd.getClass().getName(),
                                   stateType.getName(),
