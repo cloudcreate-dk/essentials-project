@@ -203,7 +203,7 @@ class DeciderTest {
 
         @Override
         public GuessingGameState initialState() {
-            return new GuessingGameState.NotStartedGame();
+            return new GuessingGameState.GameNotStartedState();
         }
 
         @Override
@@ -214,7 +214,7 @@ class DeciderTest {
 
     // -------------------------- State --------------------------
     public sealed interface GuessingGameState extends Handler<GuessingGameCommand, GuessingGameEvent, GuessingGameError, GuessingGameState>, StateEvolver<GuessingGameEvent, GuessingGameState> {
-        record NotStartedGame() implements GuessingGameState {
+        record GameNotStartedState() implements GuessingGameState {
             @Override
             public HandlerResult<GuessingGameError, GuessingGameEvent> handle(GuessingGameCommand cmd, GuessingGameState game) {
                 if (cmd instanceof GuessingGameCommand.JoinGame joinGame) {
@@ -229,7 +229,7 @@ class DeciderTest {
             @Override
             public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 if (gameEvent instanceof GuessingGameEvent.GameStarted gameStarted) {
-                    return new StartedGameState(gameStarted.secret,
+                    return new GameStartedState(gameStarted.secret,
                                                 gameStarted.allowedDigits,
                                                 gameStarted.maxAttempts);
                 }
@@ -237,13 +237,13 @@ class DeciderTest {
             }
         }
 
-        final class StartedGameState implements GuessingGameState {
+        final class GameStartedState implements GuessingGameState {
             private final Secret     secret;
             private final Set<Digit> allowedDigits;
             private final int        maxAttempts;
             int attempts;
 
-            public StartedGameState(Secret secret,
+            public GameStartedState(Secret secret,
                                     Set<Digit> allowedDigits,
                                     int maxAttempts) {
                 this.secret = secret;
