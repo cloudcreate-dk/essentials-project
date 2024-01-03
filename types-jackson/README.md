@@ -20,7 +20,7 @@ To use `Types-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jackson</artifactId>
-    <version>0.30.2</version>
+    <version>0.30.3</version>
 </dependency>
 ```
 
@@ -72,6 +72,7 @@ ObjectMapper objectMapper = EssentialTypesJacksonModule.createObjectMapper(new E
 ### JSR 310 Semantic Types
 
 This library also supports `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+
 | `JSR310SingleValueType` specialization | Value Type |
 |----------------------------------|-------------------------|
 | `InstantType`                    | `Instant`               |
