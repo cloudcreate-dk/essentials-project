@@ -27,16 +27,16 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * @param <STATE> The type of <i>aggregate/projection/view</i> <code>STATE</code> that {@link #applyEvent(Object, Object)} supports
  */
 @FunctionalInterface
-public interface StateEvolver<STATE, EVENT> {
+public interface StateEvolver<EVENT, STATE> {
     /**
      * Apply the <code>EVENT</code> to the <i>aggregate/projection/view</i> <code>STATE</code> instance<br>
      * <b>Note: This method is called <code>evolve</code> in the decider pattern</b><br>
      *
-     * @param state the current <code>STATE</code> of the <i>aggregate/projection/view</i>
      * @param event the <code>EVENT</code> to be applied / projected onto the current <i>aggregate/projection/view</i> <code>STATE</code>
+     * @param state the current <code>STATE</code> of the <i>aggregate/projection/view</i>
      * @return the new <i>aggregate/projection/view</i> <code>STATE</code> (after the <code>EVENT</code> has been applied / projected onto the current <i>aggregate/projection/view</i> <code>STATE</code>)
      */
-    STATE applyEvent(STATE state, EVENT event);
+    STATE applyEvent(EVENT event, STATE state);
 
     /**
      * Perform a left-fold over the <code>eventStream</code> using the <code>initialState</code> as the initial state<br>
@@ -48,13 +48,13 @@ public interface StateEvolver<STATE, EVENT> {
      * @param <STATE>      The type of <i>aggregate/projection/view</i> <code>STATE</code> that {@link #applyEvent(Object, Object)} supports
      * @return the initial state with all events applied to it
      */
-    static <STATE, EVENT> STATE applyEvents(StateEvolver<STATE, EVENT> stateEvolver,
+    static <STATE, EVENT> STATE applyEvents(StateEvolver<EVENT, STATE> stateEvolver,
                                             STATE initialState,
                                             Stream<EVENT> eventStream) {
         requireNonNull(initialState, "No initialState provided");
         return requireNonNull(eventStream, "No eventStream provided")
                 .reduce(initialState,
-                        stateEvolver::applyEvent,
+                        (state, event) -> stateEvolver.applyEvent(event, state),
                         (deltaState, deltaState2) -> deltaState2);
     }
 }
