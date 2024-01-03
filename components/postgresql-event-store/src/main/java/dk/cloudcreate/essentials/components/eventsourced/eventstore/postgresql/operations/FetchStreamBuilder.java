@@ -32,7 +32,7 @@ public class FetchStreamBuilder<ID> {
     private AggregateType    aggregateType;
     private ID               aggregateId;
     private LongRange        eventOrderRange;
-    private Optional<Tenant> tenant;
+    private Optional<Tenant> tenant = Optional.empty();
 
     /**
      * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream} is associated with
