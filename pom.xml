@@ -69,7 +69,7 @@
         <spring-boot.version>3.0.13</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
         <spring-data-mongodb.version>4.0.12</spring-data-mongodb.version>
-        <spring-data-jpa.version>3.0.13</spring-data-jpa.version>
+        <spring-data-jpa.version>3.0.12</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
         <assertj.version>3.25.1</assertj.version>
         <mongodb-driver-sync.version>4.11.1</mongodb-driver-sync.version>
