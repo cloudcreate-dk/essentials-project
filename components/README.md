@@ -99,6 +99,15 @@ See [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
 
 # Essentials Postgresql Event Store: Spring Boot starter
 
+To use `spring-boot-starter-postgresql-event-store` to add the following dependency:
+```
+<dependency>
+    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
+    <version>0.40.0</version>
+</dependency>
+```
+
 Auto configures everything from [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
 as well as the `EventStore`.
 
@@ -230,6 +239,8 @@ It supports the [eventsourced-aggregates](eventsourced-aggregates/README.md) mod
 advanced concepts such an `EventStoreSubscriptionManager` which supports durable subscriptions, where
 the `EventStoreSubscriptionManager` keeps track of the individual subscribers `ResumePoint`'s (similar to
 how Kafka keeps track of Consumers Topic offsets).
+
+This library also provides an `EventProcessor` concept, which is an Event Modeling style Event Sourced Event Processor Event and Command message Handler.
 
 To use `Postgresql Event Store` just add the following Maven dependency:
 
