@@ -203,18 +203,18 @@ class DeciderTest {
 
         @Override
         public GuessingGameState initialState() {
-            return new GuessingGameState.NotStartedGame();
+            return new GuessingGameState.GameNotStartedState();
         }
 
         @Override
-        public GuessingGameState applyEvent(GuessingGameState gameState, GuessingGameEvent gameEvent) {
-            return gameState.applyEvent(gameState, gameEvent);
+        public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState gameState) {
+            return gameState.applyEvent(gameEvent, gameState);
         }
     }
 
     // -------------------------- State --------------------------
-    public sealed interface GuessingGameState extends Handler<GuessingGameCommand, GuessingGameEvent, GuessingGameError, GuessingGameState>, StateEvolver<GuessingGameState, GuessingGameEvent> {
-        record NotStartedGame() implements GuessingGameState {
+    public sealed interface GuessingGameState extends Handler<GuessingGameCommand, GuessingGameEvent, GuessingGameError, GuessingGameState>, StateEvolver<GuessingGameEvent, GuessingGameState> {
+        record GameNotStartedState() implements GuessingGameState {
             @Override
             public HandlerResult<GuessingGameError, GuessingGameEvent> handle(GuessingGameCommand cmd, GuessingGameState game) {
                 if (cmd instanceof GuessingGameCommand.JoinGame joinGame) {
@@ -227,9 +227,9 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 if (gameEvent instanceof GuessingGameEvent.GameStarted gameStarted) {
-                    return new StartedGameState(gameStarted.secret,
+                    return new GameStartedState(gameStarted.secret,
                                                 gameStarted.allowedDigits,
                                                 gameStarted.maxAttempts);
                 }
@@ -237,13 +237,13 @@ class DeciderTest {
             }
         }
 
-        final class StartedGameState implements GuessingGameState {
+        final class GameStartedState implements GuessingGameState {
             private final Secret     secret;
             private final Set<Digit> allowedDigits;
             private final int        maxAttempts;
             int attempts;
 
-            public StartedGameState(Secret secret,
+            public GameStartedState(Secret secret,
                                     Set<Digit> allowedDigits,
                                     int maxAttempts) {
                 this.secret = secret;
@@ -300,7 +300,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 if (gameEvent instanceof GuessingGameEvent.GuessMade) {
                     attempts++;
                 } else if (gameEvent instanceof GuessingGameEvent.GameWon) {
@@ -323,7 +323,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 return game;
             }
         }
@@ -335,7 +335,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 return game;
             }
         }

@@ -268,4 +268,13 @@
         <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/springdata-mongo-queue@.*$</packageUrl>
         <cpe>cpe:/a:mongodb:mongodb</cpe>
     </suppress>
+    <suppress>
+        <notes><![CDATA[
+   file name: json-path-2.8.0.jar
+   Under review - see https://github.com/json-path/JsonPath/issues/973 for details
+   Ignoring as json-path is included under test scope which means it won't be parsing user provided input
+   ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.jayway\.jsonpath/json\-path@.*$</packageUrl>
+        <vulnerabilityName>CVE-2023-51074</vulnerabilityName>
+    </suppress>
 </suppressions>

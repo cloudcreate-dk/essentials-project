@@ -88,7 +88,7 @@ public abstract class GenericType<T> {
      * <code>{@literal class AggregateRoot<ID, AGGREGATE_TYPE extends AggregateRoot<ID, AGGREGATE_TYPE>> implements Aggregate<ID>}</code><br>
      * <br>
      * <b>And sub/concrete class:</b><br>
-     * <code>{@literal class Order extends AggregateRoot<OrderId, Order>}</code>br>
+     * <code>{@literal class Order extends AggregateRoot<OrderId, Order>}</code><br>
      * <br>
      * <b>Then:</b><br>
      * <code>GenericType.resolveGenericType(Order.class, 0)</code> will return <code>OrderId.class</code><br>
