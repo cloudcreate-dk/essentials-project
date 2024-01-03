@@ -207,13 +207,13 @@ class DeciderTest {
         }
 
         @Override
-        public GuessingGameState applyEvent(GuessingGameState gameState, GuessingGameEvent gameEvent) {
-            return gameState.applyEvent(gameState, gameEvent);
+        public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState gameState) {
+            return gameState.applyEvent(gameEvent, gameState);
         }
     }
 
     // -------------------------- State --------------------------
-    public sealed interface GuessingGameState extends Handler<GuessingGameCommand, GuessingGameEvent, GuessingGameError, GuessingGameState>, StateEvolver<GuessingGameState, GuessingGameEvent> {
+    public sealed interface GuessingGameState extends Handler<GuessingGameCommand, GuessingGameEvent, GuessingGameError, GuessingGameState>, StateEvolver<GuessingGameEvent, GuessingGameState> {
         record NotStartedGame() implements GuessingGameState {
             @Override
             public HandlerResult<GuessingGameError, GuessingGameEvent> handle(GuessingGameCommand cmd, GuessingGameState game) {
@@ -227,7 +227,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 if (gameEvent instanceof GuessingGameEvent.GameStarted gameStarted) {
                     return new StartedGameState(gameStarted.secret,
                                                 gameStarted.allowedDigits,
@@ -300,7 +300,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 if (gameEvent instanceof GuessingGameEvent.GuessMade) {
                     attempts++;
                 } else if (gameEvent instanceof GuessingGameEvent.GameWon) {
@@ -323,7 +323,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 return game;
             }
         }
@@ -335,7 +335,7 @@ class DeciderTest {
             }
 
             @Override
-            public GuessingGameState applyEvent(GuessingGameState game, GuessingGameEvent gameEvent) {
+            public GuessingGameState applyEvent(GuessingGameEvent gameEvent, GuessingGameState game) {
                 return game;
             }
         }

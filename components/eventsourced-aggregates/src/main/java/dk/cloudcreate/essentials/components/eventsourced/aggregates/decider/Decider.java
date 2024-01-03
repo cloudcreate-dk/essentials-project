@@ -27,7 +27,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * @param <ERROR>   The type of Error that can be returned by the {@link #handle(Object, Object)} method
  * @param <STATE>   The type of Aggregate State that this {@link Decider} works with in {@link #handle(Object, Object)}, {@link #initialState()}, {@link #applyEvent(Object, Object)} and {@link #isFinal(Object)}
  */
-public interface Decider<COMMAND, EVENT, ERROR, STATE> extends Handler<COMMAND, EVENT, ERROR, STATE>, StateEvolver<STATE, EVENT>, InitialStateProvider<STATE>, IsStateFinalResolver<STATE> {
+public interface Decider<COMMAND, EVENT, ERROR, STATE> extends Handler<COMMAND, EVENT, ERROR, STATE>, StateEvolver<EVENT, STATE>, InitialStateProvider<STATE>, IsStateFinalResolver<STATE> {
     /**
      * Factory method for creating a {@link Decider} instance from instances of the various {@link Decider} related interfaces
      *
@@ -43,7 +43,7 @@ public interface Decider<COMMAND, EVENT, ERROR, STATE> extends Handler<COMMAND, 
      */
     static <COMMAND, EVENT, ERROR, STATE> Decider<COMMAND, EVENT, ERROR, STATE> decider(Handler<COMMAND, EVENT, ERROR, STATE> handler,
                                                                                         InitialStateProvider<STATE> initialStateProvider,
-                                                                                        StateEvolver<STATE, EVENT> stateEvolver,
+                                                                                        StateEvolver<EVENT, STATE> stateEvolver,
                                                                                         IsStateFinalResolver<STATE> stateIsStateFinalResolver) {
         requireNonNull(handler, "No handler provided");
         requireNonNull(initialStateProvider, "No initialStateProvider provided");
@@ -51,8 +51,8 @@ public interface Decider<COMMAND, EVENT, ERROR, STATE> extends Handler<COMMAND, 
         requireNonNull(stateIsStateFinalResolver, "No stateIsStateFinalResolver provided");
         return new Decider<>() {
             @Override
-            public STATE applyEvent(STATE state, EVENT event) {
-                return stateEvolver.applyEvent(state, event);
+            public STATE applyEvent(EVENT event, STATE state) {
+                return stateEvolver.applyEvent(event, state);
             }
 
             @Override
