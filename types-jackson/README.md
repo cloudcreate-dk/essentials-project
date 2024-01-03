@@ -3,6 +3,8 @@
 Essentials is a set of Java version 17 (and later) building blocks built from the ground up to have no dependencies
 on other libraries, unless explicitly mentioned.
 
+> Note: [For Java version 11 to 16 support, please use version 0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)
+
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
 many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
@@ -70,6 +72,7 @@ ObjectMapper objectMapper = EssentialTypesJacksonModule.createObjectMapper(new E
 ### JSR 310 Semantic Types
 
 This library also supports `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+
 | `JSR310SingleValueType` specialization | Value Type |
 |----------------------------------|-------------------------|
 | `InstantType`                    | `Instant`               |
