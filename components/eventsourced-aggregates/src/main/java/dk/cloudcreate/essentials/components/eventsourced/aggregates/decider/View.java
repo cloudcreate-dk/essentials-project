@@ -22,6 +22,6 @@ package dk.cloudcreate.essentials.components.eventsourced.aggregates.decider;
  * @param <EVENT> The type of Events that can be applied in the {@link #applyEvent(Object, Object)}
  * @param <STATE> The type of <i>projection/view</i> <code>STATE</code> that {@link #applyEvent(Object, Object)} supports
  */
-public interface View<STATE, EVENT> extends StateEvolver<STATE, EVENT>, InitialStateProvider<STATE> {
+public interface View<EVENT, STATE> extends StateEvolver<EVENT, STATE>, InitialStateProvider<STATE> {
 
 }

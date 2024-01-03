@@ -8,7 +8,7 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-mongodb</artifactId>
-    <version>0.9.14</version>
+    <version>0.9.15</version>
 </dependency>
 ```
 
@@ -32,34 +32,57 @@ The `EssentialsComponentsConfiguration` auto-configures:
   - Supports additional properties:
   - ```
     essentials.durable-queues.shared-queue-collection-name=durable_queues
-    essentials.durable-queues.transactional-mode=fullytransactional
+    essentials.durable-queues.transactional-mode=fullytransactional or singleoperationtransaction (default)
     essentials.durable-queues.polling-delay-interval-increment-factor=0.5
     essentials.durable-queues.max-polling-interval=2s
     essentials.durable-queues.verbose-tracing=false
     # Only relevant if transactional-mode=singleoperationtransaction
-    # essentials.durable-queues.message-handling-timeout=5s
+    essentials.durable-queues.message-handling-timeout=5s
     ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `MongoDurableQueues`
 - `LocalEventBus` with bus-name `default` and Bean name `eventBus`
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
 
+## Spring Data Mongo converters
+**Converter**'s for core semantic types (`LockName`, `QueueEntryId` and `QueueName`) are automatically registered by the `EssentialsComponentsConfiguration` during its configuration of the
+`MongoCustomConversions` Bean (you can choose to provide your own Bean).
+
+You can add support for additional concrete `CharSequenceType`'s by providing a Bean of type `AdditionalCharSequenceTypesSupported`:
+```java
+@Bean
+AdditionalCharSequenceTypesSupported additionalCharSequenceTypesSupported() {
+    return new AdditionalCharSequenceTypesSupported(OrderId.class);
+}
+```
+
+Similarly, you can add additional `Converter`/`GenericConverter`/etc by providing a Bean of type `AdditionalConverters`:
+
+```java
+@Bean
+AdditionalConverters additionalGenericConverters() {
+    return new AdditionalConverters(Jsr310Converters.StringToDurationConverter.INSTANCE,
+                                    Jsr310Converters.DurationToStringConverter.INSTANCE);
+}
+```
   
-Full configuration:
+## Full configuration override:
 
 Optional overriding of values in `src/main/resources/application.properties`:
 ```
 essentials.durable-queues.shared-queue-collection-name=durable_queues
-essentials.durable-queues.transactional-mode=fullytransactional
-# Only relevant if transactional-mode=singleoperationtransaction
-# essentials.durable-queues.message-handling-timeout=5s
+essentials.durable-queues.message-handling-timeout=5s
+essentials.durable-queues.polling-delay-interval-increment-factor=0.5
+essentials.durable-queues.max-polling-interval=2s
+essentials.durable-queues.verbose-tracing=false
+essentials.durable-queues.transactional-mode=singleoperationtransaction
 
 essentials.fenced-lock-manager.fenced-locks-collection-name=fenced_locks
 essentials.fenced-lock-manager.lock-confirmation-interval=5s
 essentials.fenced-lock-manager.lock-time-out=12s
 ```
 
-`pom.xml` dependencies:
+## `pom.xml` dependencies:
 ```
 <dependencies>
     <dependency>

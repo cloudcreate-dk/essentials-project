@@ -8,7 +8,7 @@ To use `spring-boot-starter-postgresql-event-store` to add the following depende
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
-    <version>0.9.14</version>
+    <version>0.9.15</version>
 </dependency>
 ```
 
@@ -33,10 +33,12 @@ This will ensure to include the `spring-boot-starter-postgresql` starter, so you
   - Supports additional properties:
   - ```
     essentials.durable-queues.shared-queue-table-name=durable_queues
+    essentials.durable-queues.transactional-mode=fullytransactional or singleoperationtransaction (default)
     essentials.durable-queues.polling-delay-interval-increment-factor=0.5
     essentials.durable-queues.max-polling-interval=2s
+    essentials.durable-queues.verbose-tracing=false
     # Only relevant if transactional-mode=singleoperationtransaction
-    # essentials.durable-queues.message-handling-timeout=5s
+    essentials.durable-queues.message-handling-timeout=5s
     ```
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `PostgresqlDurableQueues`
 - `LocalEventBus` with bus-name `default` and Bean name `eventBus`

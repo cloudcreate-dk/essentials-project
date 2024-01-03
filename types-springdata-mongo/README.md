@@ -17,7 +17,7 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-mongo</artifactId>
-    <version>0.9.14</version>
+    <version>0.9.15</version>
 </dependency>
 ```
 
@@ -97,6 +97,7 @@ public MongoCustomConversions mongoCustomConversions() {
 ### JSR 310 Semantic Types
 
 This library also supports for the following `JSR310SingleValueType` which wraps existing JSR-310 types (java.time):
+
 | `JSR310SingleValueType` specialization | Value Type |
 |----------------------------------|-------------------------|
 | `InstantType`                    | `Instant`               |

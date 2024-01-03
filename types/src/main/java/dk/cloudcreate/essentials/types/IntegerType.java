@@ -43,6 +43,14 @@ public abstract class IntegerType<CONCRETE_TYPE extends IntegerType<CONCRETE_TYP
         super(value);
     }
 
+    public CONCRETE_TYPE increment() {
+        return  (CONCRETE_TYPE) SingleValueType.from(this.getValue()+1, this.getClass());
+    }
+
+    public CONCRETE_TYPE decrement() {
+        return  (CONCRETE_TYPE) SingleValueType.from(this.getValue()-1, this.getClass());
+    }
+
     @Override
     public int compareTo(CONCRETE_TYPE o) {
         return value.compareTo(o.intValue());
