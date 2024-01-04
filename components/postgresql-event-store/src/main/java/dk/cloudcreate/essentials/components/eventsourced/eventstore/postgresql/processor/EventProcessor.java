@@ -188,7 +188,7 @@ public abstract class EventProcessor implements Lifecycle {
         this.commandBus = requireNonNull(commandBus, "No commandBus provided");
         this.eventStore = requireNonNull(eventStoreSubscriptionManager.getEventStore(), "No eventStore is associated with the eventStoreSubscriptionManager provided");
         this.messageHandlerInterceptors = requireNonNull(messageHandlerInterceptors, "No messageHandlerInterceptors list provided");
-        setupEventAndMessageHandlers();
+        setupCommandHandler();
     }
 
     /**
@@ -213,10 +213,15 @@ public abstract class EventProcessor implements Lifecycle {
              List.of());
     }
 
-    private void setupEventAndMessageHandlers() {
+    private void setupCommandHandler() {
         commandBusHandlerDelegate = new AnnotatedCommandHandler(this);
         commandBus.addCommandHandler(commandBusHandlerDelegate);
+    }
 
+    private void setupMessageHandlerDelegate() {
+        if (patternMatchingInboxMessageHandlerDelegate != null) {
+            return;
+        }
         patternMatchingInboxMessageHandlerDelegate = new PatternMatchingMessageHandler(this, getMessageHandlerInterceptors());
         patternMatchingInboxMessageHandlerDelegate.allowUnmatchedMessages();
         inboxMessageHandlerDelegate = (msg) -> {
@@ -260,7 +265,7 @@ public abstract class EventProcessor implements Lifecycle {
     /**
      * Default: The {@link MessageHandlerInterceptor}'s provided in the {@link EventProcessor#EventProcessor(EventStoreSubscriptionManager, Inboxes, DurableLocalCommandBus, List)} constructor<br>
      * You can also override this method to provide your own {@link MessageHandlerInterceptor}'s that should be used when calling {@link MessageHandler} annotated methods<br>
-     * but note that the method is called during {@link EventProcessor} construction time (i.e. when the super constructor is called)
+     * This method will be called during {@link EventProcessor#start()} time
      *
      * @return the {@link MessageHandlerInterceptor}'s that should be used when calling {@link MessageHandler} annotated methods
      */
@@ -278,6 +283,7 @@ public abstract class EventProcessor implements Lifecycle {
                      processorName,
                      subscribeToEventsRelatedTo);
 
+            setupMessageHandlerDelegate();
             inbox = inboxes.getOrCreateInbox(InboxConfig.builder()
                                                         .inboxName(InboxName.of(processorName))
                                                         .messageConsumptionMode(getInboxMessageConsumptionMode())
