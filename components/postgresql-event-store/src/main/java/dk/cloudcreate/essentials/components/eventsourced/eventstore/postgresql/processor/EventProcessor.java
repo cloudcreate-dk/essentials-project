@@ -156,15 +156,44 @@ public abstract class EventProcessor implements Lifecycle {
     protected final DurableLocalCommandBus        commandBus;
     private final   EventStore                    eventStore;
 
-    private boolean                       started;
-    private List<EventStoreSubscription>  eventStoreSubscriptions;
-    private Consumer<Message>             inboxMessageHandlerDelegate;
-    private AnnotatedCommandHandler       commandBusHandlerDelegate;
-    private Inbox                         inbox;
-    private PatternMatchingMessageHandler patternMatchingInboxMessageHandlerDelegate;
+    private boolean                         started;
+    private List<EventStoreSubscription>    eventStoreSubscriptions;
+    private Consumer<Message>               inboxMessageHandlerDelegate;
+    private AnnotatedCommandHandler         commandBusHandlerDelegate;
+    private Inbox                           inbox;
+    private PatternMatchingMessageHandler   patternMatchingInboxMessageHandlerDelegate;
+    private List<MessageHandlerInterceptor> messageHandlerInterceptors;
+
 
     /**
      * Create a new {@link EventProcessor} instance
+     *
+     * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions<br>
+     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only queue a reference to
+     *                                      the {@link PersistedEvent} and before the message is forwarded to the corresponding {@link MessageHandler} then we load the {@link PersistedEvent}'s
+     *                                      payload and forward it to the {@link MessageHandler} annotated method
+     * @param inboxes                       the {@link Inboxes} instance used to create an {@link Inbox}, with the name returned from {@link #getProcessorName()}.
+     *                                      This {@link Inbox} is used for forwarding {@link PersistedEvent}'s received via {@link EventStoreSubscription}'s, because {@link EventStoreSubscription}'s
+     *                                      doesn't handle message retry, etc.
+     * @param commandBus                    The {@link CommandBus} where any {@link Handler} or {@link CmdHandler} annotated methods in the subclass of the {@link EventProcessor} will be registered
+     * @param messageHandlerInterceptors    The {@link MessageHandlerInterceptor}'s that will intercept calls to the {@link MessageHandler} annotated methods.<br>
+     *                                      Unless you override {@link #getMessageHandlerInterceptors()} then these are the {@link MessageHandlerInterceptor}'s that will be used.
+     */
+    protected EventProcessor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
+                             Inboxes inboxes,
+                             DurableLocalCommandBus commandBus,
+                             List<MessageHandlerInterceptor> messageHandlerInterceptors) {
+        this.eventStoreSubscriptionManager = requireNonNull(eventStoreSubscriptionManager, "No eventStoreSubscriptionManager provided");
+        this.inboxes = requireNonNull(inboxes, "No inboxes instance provided");
+        this.commandBus = requireNonNull(commandBus, "No commandBus provided");
+        this.eventStore = requireNonNull(eventStoreSubscriptionManager.getEventStore(), "No eventStore is associated with the eventStoreSubscriptionManager provided");
+        this.messageHandlerInterceptors = requireNonNull(messageHandlerInterceptors, "No messageHandlerInterceptors list provided");
+        setupEventAndMessageHandlers();
+    }
+
+    /**
+     * Create a new {@link EventProcessor} instance without any {@link MessageHandlerInterceptor}'s (you can override {@link #getMessageHandlerInterceptors()}
+     * to provide custom interceptors, or you can use the {@link EventProcessor#EventProcessor(EventStoreSubscriptionManager, Inboxes, DurableLocalCommandBus, List)} constructor)
      *
      * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions<br>
      *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only queue a reference to
@@ -178,11 +207,10 @@ public abstract class EventProcessor implements Lifecycle {
     protected EventProcessor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
                              Inboxes inboxes,
                              DurableLocalCommandBus commandBus) {
-        this.eventStoreSubscriptionManager = requireNonNull(eventStoreSubscriptionManager, "No eventStoreSubscriptionManager provided");
-        this.inboxes = requireNonNull(inboxes, "No inboxes instance provided");
-        this.commandBus = requireNonNull(commandBus, "No commandBus provided");
-        this.eventStore = requireNonNull(eventStoreSubscriptionManager.getEventStore(), "No eventStore is associated with the eventStoreSubscriptionManager provided");
-        setupEventAndMessageHandlers();
+        this(eventStoreSubscriptionManager,
+             inboxes,
+             commandBus,
+             List.of());
     }
 
     private void setupEventAndMessageHandlers() {
@@ -230,14 +258,15 @@ public abstract class EventProcessor implements Lifecycle {
     }
 
     /**
-     * Override {@link MessageHandlerInterceptor}'s that should be used when calling {@link MessageHandler} annotated methods
+     * Default: The {@link MessageHandlerInterceptor}'s provided in the {@link EventProcessor#EventProcessor(EventStoreSubscriptionManager, Inboxes, DurableLocalCommandBus, List)} constructor<br>
+     * You can also override this method to provide your own {@link MessageHandlerInterceptor}'s that should be used when calling {@link MessageHandler} annotated methods<br>
+     * but note that the method is called during {@link EventProcessor} construction time (i.e. when the super constructor is called)
      *
-     * @return
+     * @return the {@link MessageHandlerInterceptor}'s that should be used when calling {@link MessageHandler} annotated methods
      */
     protected List<MessageHandlerInterceptor> getMessageHandlerInterceptors() {
-        return List.of();
+        return messageHandlerInterceptors;
     }
-
 
     @Override
     public void start() {
