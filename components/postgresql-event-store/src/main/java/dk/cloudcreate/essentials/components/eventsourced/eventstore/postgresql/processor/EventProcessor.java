@@ -35,8 +35,8 @@ import dk.cloudcreate.essentials.types.LongRange;
 import org.slf4j.*;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.function.Consumer;
+import java.util.*;
+import java.util.function.*;
 import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -345,6 +345,58 @@ public abstract class EventProcessor implements Lifecycle {
     @Override
     public boolean isStarted() {
         return started;
+    }
+
+    /**
+     * Resets all {@link AggregateType} subscriptions fromAndIncluding {@link GlobalEventOrder#FIRST_GLOBAL_EVENT_ORDER}<br>
+     * {@link #onSubscriptionsReset(AggregateType, GlobalEventOrder)} will be called for each {@link AggregateType}
+     */
+    public void resetAllSubscriptions() {
+        resetSubscriptions(eventStoreSubscriptions.stream()
+                                                  .map(EventStoreSubscription::aggregateType)
+                                                  .collect(Collectors.toMap(Function.identity(), aggregateType -> GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER)));
+    }
+
+    /**
+     * Reset the specific {@link AggregateType} fromAndIncluding the specified {@link GlobalEventOrder}<br>
+     * {@link #onSubscriptionsReset(AggregateType, GlobalEventOrder)} will be called for each {@link AggregateType}
+     *
+     * @param resetAggregateSubscriptionsFromAndIncluding a map of {@link AggregateType} and reset-fromAndIncluding {@link GlobalEventOrder}
+     */
+    public void resetSubscriptions(Map<AggregateType, GlobalEventOrder> resetAggregateSubscriptionsFromAndIncluding) {
+        requireNonNull(resetAggregateSubscriptionsFromAndIncluding, "resetAggregateSubscriptionsFromAndIncluding is null");
+        resetAggregateSubscriptionsFromAndIncluding.keySet().forEach(aggregateType -> {
+            var matchingSubscription = eventStoreSubscriptions.stream().filter(eventStoreSubscription -> eventStoreSubscription.aggregateType().equals(aggregateType)).findFirst();
+            matchingSubscription.ifPresentOrElse(eventStoreSubscription -> {
+                                                     var resubscribeFromAndIncluding = resetAggregateSubscriptionsFromAndIncluding.get(aggregateType);
+                                                     log.info("[{}] Resetting subscription for '{}' restartingFromAndIncluding globalEventOrder '{}'",
+                                                              getProcessorName(),
+                                                              eventStoreSubscription.subscriberId(),
+                                                              resubscribeFromAndIncluding);
+
+                                                     onSubscriptionsReset(aggregateType, resubscribeFromAndIncluding);
+                                                     eventStoreSubscription.resetFrom(resubscribeFromAndIncluding);
+                                                 },
+                                                 () -> {
+                                                     throw new IllegalArgumentException(msg("[{}] Cannot reset subscription for {} '{}' since the {} doesn't subscribe to events for this aggregate type",
+                                                                                            getProcessorName(),
+                                                                                            AggregateType.class.getSimpleName(),
+                                                                                            aggregateType,
+                                                                                            EventProcessor.class.getSimpleName()));
+                                                 });
+
+
+        });
+    }
+
+    /**
+     * Will be called when {@link #resetAllSubscriptions()} or {@link #resetSubscriptions(Map)} - override this method
+     * perform any reset related side effects that may be required (e.g. resetting a view)
+     *
+     * @param aggregateType               the {@link AggregateType} for which the subscription is being reset
+     * @param resubscribeFromAndIncluding the {@link GlobalEventOrder} that the subscription will restart from and including
+     */
+    protected void onSubscriptionsReset(AggregateType aggregateType, GlobalEventOrder resubscribeFromAndIncluding) {
     }
 
     /**
