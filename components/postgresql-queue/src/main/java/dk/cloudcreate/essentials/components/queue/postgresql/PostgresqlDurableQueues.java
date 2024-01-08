@@ -283,9 +283,13 @@ public class PostgresqlDurableQueues implements DurableQueues {
                         handleAwareUnitOfWork.handle());
             createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_is_dead_letter_message ON {:tableName} (is_dead_letter_message)",
                         handleAwareUnitOfWork.handle());
-            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_key_key_order ON {:tableName} (key, key_order)",
-                        handleAwareUnitOfWork.handle());
+            dropIndex("DROP INDEX IF EXISTS idx_{:tableName}_key_key_order",
+                      handleAwareUnitOfWork.handle());
             createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_is_being_delivered ON {:tableName} (is_being_delivered)",
+                        handleAwareUnitOfWork.handle());
+            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_ordered_msg ON {:tableName} (queue_name, key, key_order)",
+                        handleAwareUnitOfWork.handle());
+            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_next_msg ON {:tableName} (queue_name, is_dead_letter_message, is_being_delivered, next_delivery_ts)",
                         handleAwareUnitOfWork.handle());
 
             multiTableChangeListener.ifPresent(listener -> {
@@ -298,6 +302,12 @@ public class PostgresqlDurableQueues implements DurableQueues {
     }
 
     private void createIndex(String indexStatement, Handle handle) {
+        handle.execute(bind(indexStatement,
+                            arg("tableName", sharedQueueTableName))
+                      );
+    }
+
+    private void dropIndex(String indexStatement, Handle handle) {
         handle.execute(bind(indexStatement,
                             arg("tableName", sharedQueueTableName))
                       );
