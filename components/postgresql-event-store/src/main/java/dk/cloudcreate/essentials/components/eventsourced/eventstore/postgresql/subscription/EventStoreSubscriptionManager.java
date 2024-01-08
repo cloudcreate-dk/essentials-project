@@ -56,6 +56,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
 
     /**
      * The {@link EventStore} associated with the {@link EventStoreSubscriptionManager}
+     *
      * @return the {@link EventStore} associated with the {@link EventStoreSubscriptionManager
      */
     EventStore getEventStore();
@@ -957,9 +958,9 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                     return;
                 }
                 log.trace("[{}-{}] Requesting {} event(s)",
-                         subscriberId,
-                         aggregateType,
-                         n);
+                          subscriberId,
+                          aggregateType,
+                          n);
                 subscription.request(n);
             }
 
@@ -1303,9 +1304,9 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                 }
 
                 log.trace("[{}-{}] Requesting {} event(s)",
-                         subscriberId,
-                         aggregateType,
-                         n);
+                          subscriberId,
+                          aggregateType,
+                          n);
                 subscription.request(n);
             }
 
@@ -1342,7 +1343,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
 
             @Override
             public void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder) {
-                if (started) {
+                if (isStarted() && isActive()) {
                     log.info("[{}-{}] Resetting resume point and re-starts the subscriber from and including globalOrder {}",
                              subscriberId,
                              aggregateType,
@@ -1351,7 +1352,13 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                     overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
                     start();
                 } else {
-                    overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
+                    log.info("[{}-{}] Cannot reset resume point to fromAndIncluding {} because the underlying lock hasn't been acquired. isStarted: {}, isActive (is-lock-acquired): {}",
+                             subscriberId,
+                             aggregateType,
+                             subscribeFromAndIncludingGlobalOrder,
+                             isStarted(),
+                             isActive());
+
                 }
             }
 
@@ -1368,10 +1375,10 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                     eventHandler.onResetFrom(this, subscribeFromAndIncludingGlobalOrder);
                 } catch (Exception e) {
                     log.info(msg("[{}-{}] Failed to reset eventHandler '{}' to use start from-and-including-globalOrder {}",
-                             subscriberId,
-                             aggregateType,
-                             eventHandler,
-                             subscribeFromAndIncludingGlobalOrder),
+                                 subscriberId,
+                                 aggregateType,
+                                 eventHandler,
+                                 subscribeFromAndIncludingGlobalOrder),
                              e);
                 }
             }
