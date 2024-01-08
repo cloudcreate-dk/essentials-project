@@ -8,7 +8,7 @@ To use `spring-boot-starter-postgresql-event-store` to add the following depende
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
-    <version>0.9.16</version>
+    <version>0.9.17</version>
 </dependency>
 ```
 
