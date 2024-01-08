@@ -18,7 +18,7 @@ To use `Immutable` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable</artifactId>
-    <version>0.30.4</version>
+    <version>0.30.5</version>
 </dependency>
 ```
 
