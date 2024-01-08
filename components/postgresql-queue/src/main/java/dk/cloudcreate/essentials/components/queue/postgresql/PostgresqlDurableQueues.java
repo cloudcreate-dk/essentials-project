@@ -856,7 +856,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                           "        is_dead_letter_message = FALSE AND\n" +
                                                                           "        is_being_delivered = FALSE AND\n" +
                                                                           "        next_delivery_ts <= :now AND\n" +
-                                                                          "        NOT EXISTS (SELECT 1 FROM {:tableName} q2 WHERE q2.key = q1.key AND q2.key_order < q1.key_order)\n" +
+                                                                          "        NOT EXISTS (SELECT 1 FROM {:tableName} q2 WHERE q2.key = q1.key AND q2.queue_name = q1.queue_name AND q2.key_order < q1.key_order)\n" +
                                                                           excludeKeysLimitSql +
                                                                           "    ORDER BY key_order ASC, next_delivery_ts ASC\n" + // TODO: Future improvement: Allow the user to specify if key_order or next_delivery_ts should have the highest priority
                                                                           "    LIMIT 1\n" +
