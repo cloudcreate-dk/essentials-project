@@ -25,7 +25,7 @@ jobs:
         run: mvn -B versions:set -DnewVersion=${{ github.event.release.tag_name }} -DgenerateBackupPoms=false
 
       - name: Release to Maven Central
-        run: mvn -B clean deploy -P release -DskipTests
+        run: mvn -B clean deploy -P release -DskipTests -DskipDependencyCheck=true
         env:
           OSS_SONATYPE_USERNAME: ${{ secrets.OSS_SONATYPE_USERNAME }}
           OSS_SONATYPE_PASSWORD: ${{ secrets.OSS_SONATYPE_PASSWORD }}

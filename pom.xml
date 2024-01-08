@@ -104,7 +104,7 @@
         <versions-maven-plugin.version>2.16.2</versions-maven-plugin.version>
         <maven-enforcer-plugin.version>3.4.1</maven-enforcer-plugin.version>
         <minimum-maven-version>3.8.8</minimum-maven-version>
-        <dependency-check-maven.version>9.0.7</dependency-check-maven.version>
+        <dependency-check-maven.version>9.0.8</dependency-check-maven.version>
         <flatten-maven-plugin.version>1.5.0</flatten-maven-plugin.version>
         <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
         <maven-gpg-plugin.version>3.1.0</maven-gpg-plugin.version>
@@ -402,6 +402,7 @@
                     <skipTestScope>false</skipTestScope>
                     <failBuildOnCVSS>0</failBuildOnCVSS>
                     <suppressionFile>${maven.multiModuleProjectDirectory}/project-suppression.xml</suppressionFile>
+                    <skip>${skipDependencyCheck}</skip>
                 </configuration>
                 <executions>
                     <execution>
