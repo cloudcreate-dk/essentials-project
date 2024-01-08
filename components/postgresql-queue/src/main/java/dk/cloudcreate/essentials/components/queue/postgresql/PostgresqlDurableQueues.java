@@ -283,9 +283,13 @@ public class PostgresqlDurableQueues implements DurableQueues {
                         handleAwareUnitOfWork.handle());
             createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_is_dead_letter_message ON {:tableName} (is_dead_letter_message)",
                         handleAwareUnitOfWork.handle());
-            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_key_key_order ON {:tableName} (key, key_order)",
-                        handleAwareUnitOfWork.handle());
+            dropIndex("DROP INDEX IF EXISTS idx_{:tableName}_key_key_order",
+                      handleAwareUnitOfWork.handle());
             createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_is_being_delivered ON {:tableName} (is_being_delivered)",
+                        handleAwareUnitOfWork.handle());
+            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_ordered_msg ON {:tableName} (queue_name, key, key_order)",
+                        handleAwareUnitOfWork.handle());
+            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_next_msg ON {:tableName} (queue_name, is_dead_letter_message, is_being_delivered, next_delivery_ts)",
                         handleAwareUnitOfWork.handle());
 
             multiTableChangeListener.ifPresent(listener -> {
@@ -298,6 +302,12 @@ public class PostgresqlDurableQueues implements DurableQueues {
     }
 
     private void createIndex(String indexStatement, Handle handle) {
+        handle.execute(bind(indexStatement,
+                            arg("tableName", sharedQueueTableName))
+                      );
+    }
+
+    private void dropIndex(String indexStatement, Handle handle) {
         handle.execute(bind(indexStatement,
                             arg("tableName", sharedQueueTableName))
                       );
@@ -856,7 +866,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                                           "        is_dead_letter_message = FALSE AND\n" +
                                                                           "        is_being_delivered = FALSE AND\n" +
                                                                           "        next_delivery_ts <= :now AND\n" +
-                                                                          "        NOT EXISTS (SELECT 1 FROM {:tableName} q2 WHERE q2.key = q1.key AND q2.key_order < q1.key_order)\n" +
+                                                                          "        NOT EXISTS (SELECT 1 FROM {:tableName} q2 WHERE q2.key = q1.key AND q2.queue_name = q1.queue_name AND q2.key_order < q1.key_order)\n" +
                                                                           excludeKeysLimitSql +
                                                                           "    ORDER BY key_order ASC, next_delivery_ts ASC\n" + // TODO: Future improvement: Allow the user to specify if key_order or next_delivery_ts should have the highest priority
                                                                           "    LIMIT 1\n" +
