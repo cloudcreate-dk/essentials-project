@@ -118,9 +118,9 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE>> implements StatefulAggregate<ID, EVENT_TYPE, AGGREGATE_TYPE> {
     private transient PatternMatchingMethodInvoker<Object>           invoker;
     private           ID                                             aggregateId;
-    private           EventOrder                                     eventOrderOfLastAppliedEvent = EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED;
+    private           EventOrder                                     eventOrderOfLastAppliedEvent    = EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED;
     private           List<EVENT_TYPE>                               uncommittedEvents;
-    private           EventOrder                                     eventOrderOfLastRehydratedEvent;
+    private           EventOrder                                     eventOrderOfLastRehydratedEvent = EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED;
     private           boolean                                        hasBeenRehydrated;
     private           boolean                                        isRehydrating;
     private           AggregateState<ID, EVENT_TYPE, AGGREGATE_TYPE> state;
@@ -161,6 +161,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE, AGGREGATE_TYPE extends Aggre
     @Override
     public void markChangesAsCommitted() {
         uncommittedEvents = new ArrayList<>();
+        eventOrderOfLastRehydratedEvent = null;
     }
 
     @Override
