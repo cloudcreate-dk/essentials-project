@@ -839,7 +839,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
                                                        log.debug("Deleted Message with id '{}'", operation.queueEntryId);
                                                        return true;
                                                    } else {
-                                                       log.error("Failed to Delete Message with id '{}'", operation.queueEntryId);
+                                                       log.error("Couldn't Delete Message with id '{}' - it may already have been deleted", operation.queueEntryId);
                                                        return false;
                                                    }
                                                }).proceed();
