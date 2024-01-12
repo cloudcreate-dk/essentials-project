@@ -435,9 +435,6 @@ public class DurableLocalCommandBus extends AbstractCommandBus implements Lifecy
                                                            }
                                                        })
                                   .proceed();
-        if (durableQueues.getTransactionalMode() == TransactionalMode.SingleOperationTransaction) {
-            durableQueues.acknowledgeMessageAsHandled(queuedMessage.getId());
-        }
     }
 
     public int getParallelSendAndDontWaitConsumers() {
