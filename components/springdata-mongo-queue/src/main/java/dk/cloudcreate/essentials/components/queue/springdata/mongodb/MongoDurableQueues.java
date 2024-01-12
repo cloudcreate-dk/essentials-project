@@ -853,7 +853,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                        log.debug("Deleted Message with id '{}'", queueEntryId);
                                                        return true;
                                                    } else {
-                                                       log.error("Failed to Delete Message with id '{}'", queueEntryId);
+                                                       log.error("Couldn't Delete Message with id '{}' - it may already have been deleted", queueEntryId);
                                                        return false;
                                                    }
                                                }).proceed();
