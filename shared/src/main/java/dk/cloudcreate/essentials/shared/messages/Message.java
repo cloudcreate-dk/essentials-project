@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.shared.messages;
 
 import java.io.Serializable;
 import java.text.MessageFormat;
-import java.util.List;
+import java.util.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -60,7 +60,7 @@ public class Message implements Serializable {
      */
     public Message(MessageTemplate template, Object... parameters) {
         this.template = requireNonNull(template, "No template provided");
-        this.parameters = List.of(requireNonNull(parameters, "No parameters provided"));
+        this.parameters = Arrays.asList(requireNonNull(parameters, "No parameters provided"));
         this.message = MessageFormat.format(template.getDefaultMessage(),
                                             parameters);
     }
