@@ -39,7 +39,6 @@ import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
 import org.jdbi.v3.core.Jdbi;
-import org.springframework.boot.actuate.autoconfigure.tracing.ConditionalOnEnabledTracing;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -193,14 +192,14 @@ public class EventStoreConfiguration {
     }
 
     @Bean
-    @ConditionalOnEnabledTracing
-    public MicrometerTracingEventStoreInterceptor micrometerTracingEventStoreInterceptor(Tracer tracer,
-                                                                                         Propagator propagator,
-                                                                                         ObservationRegistry observationRegistry,
+    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
+    public MicrometerTracingEventStoreInterceptor micrometerTracingEventStoreInterceptor(Optional<Tracer> tracer,
+                                                                                         Optional<Propagator> propagator,
+                                                                                         Optional<ObservationRegistry> observationRegistry,
                                                                                          EssentialsEventStoreProperties essentialsComponentsProperties) {
-        return new MicrometerTracingEventStoreInterceptor(tracer,
-                                                          propagator,
-                                                          observationRegistry,
+        return new MicrometerTracingEventStoreInterceptor(tracer.get(),
+                                                          propagator.get(),
+                                                          observationRegistry.get(),
                                                           essentialsComponentsProperties.isVerboseTracing());
     }
 }
