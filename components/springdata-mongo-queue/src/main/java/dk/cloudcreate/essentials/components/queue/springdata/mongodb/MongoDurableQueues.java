@@ -56,6 +56,7 @@ import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
+import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.sortInterceptorsByOrder;
 import static dk.cloudcreate.essentials.shared.interceptor.InterceptorChain.newInterceptorChainForOperation;
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
@@ -386,6 +387,7 @@ public class MongoDurableQueues implements DurableQueues {
             started = true;
             log.info("Starting");
             interceptors.forEach(durableQueuesInterceptor -> durableQueuesInterceptor.setDurableQueues(this));
+            sortInterceptorsByOrder(interceptors);
             durableQueueConsumers.values().forEach(MongoDurableQueueConsumer::start);
             startCollectionListener();
             log.info("Started");
@@ -478,6 +480,7 @@ public class MongoDurableQueues implements DurableQueues {
         log.info("Adding interceptor: {}", interceptor);
         interceptor.setDurableQueues(this);
         interceptors.add(interceptor);
+        sortInterceptorsByOrder(interceptors);
         return this;
     }
 
@@ -486,6 +489,7 @@ public class MongoDurableQueues implements DurableQueues {
         requireNonNull(interceptor, "No interceptor provided");
         log.info("Removing interceptor: {}", interceptor);
         interceptors.remove(interceptor);
+        sortInterceptorsByOrder(interceptors);
         return this;
     }
 
