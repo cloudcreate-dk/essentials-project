@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.boot.autoconfigure.mongodb;
 
 
 import com.fasterxml.jackson.annotation.*;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
@@ -50,7 +51,6 @@ import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
 import org.slf4j.*;
 import org.springframework.beans.BeansException;
-import org.springframework.boot.actuate.autoconfigure.tracing.ConditionalOnEnabledTracing;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -83,21 +83,21 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     @Bean
-    @ConditionalOnEnabledTracing
-    public DurableQueuesMicrometerTracingInterceptor durableQueuesMicrometerTracingInterceptor(Tracer tracer,
-                                                                                               Propagator propagator,
-                                                                                               ObservationRegistry observationRegistry,
+    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
+    public DurableQueuesMicrometerTracingInterceptor durableQueuesMicrometerTracingInterceptor(Optional<Tracer> tracer,
+                                                                                               Optional<Propagator> propagator,
+                                                                                               Optional<ObservationRegistry> observationRegistry,
                                                                                                EssentialsComponentsProperties properties) {
-        return new DurableQueuesMicrometerTracingInterceptor(tracer,
-                                                             propagator,
-                                                             observationRegistry,
+        return new DurableQueuesMicrometerTracingInterceptor(tracer.get(),
+                                                             propagator.get(),
+                                                             observationRegistry.get(),
                                                              properties.getDurableQueues().isVerboseTracing());
     }
 
     @Bean
-    @ConditionalOnEnabledTracing
-    public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(MeterRegistry meterRegistry) {
-        return new DurableQueuesMicrometerInterceptor(meterRegistry);
+    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
+    public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(Optional<MeterRegistry> meterRegistry) {
+        return new DurableQueuesMicrometerInterceptor(meterRegistry.get());
     }
 
     /**
@@ -367,11 +367,13 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
      * {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
      *
      * @param optionalEssentialsImmutableJacksonModule the optional {@link EssentialsImmutableJacksonModule}
+     * @param additionalModules additional {@link Module}'s found in the {@link ApplicationContext}
      * @return the {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
      */
     @Bean
     @ConditionalOnMissingBean
-    public ObjectMapper essentialComponentsObjectMapper(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule) {
+    public ObjectMapper essentialComponentsObjectMapper(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule,
+                                                        List<Module> additionalModules) {
         var objectMapperBuilder = JsonMapper.builder()
                                             .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                             .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
@@ -386,6 +388,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                             .addModule(new Jdk8Module())
                                             .addModule(new JavaTimeModule())
                                             .addModule(new EssentialTypesJacksonModule());
+
+        additionalModules.forEach(objectMapperBuilder::addModule);
 
         optionalEssentialsImmutableJacksonModule.ifPresent(essentialsImmutableJacksonModule -> {
             objectMapperBuilder.addModule(new EssentialsImmutableJacksonModule());
