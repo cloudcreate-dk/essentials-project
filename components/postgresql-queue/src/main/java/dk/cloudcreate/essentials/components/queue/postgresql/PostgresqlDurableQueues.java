@@ -50,6 +50,7 @@ import java.util.stream.Collectors;
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.NamedArgumentBinding.arg;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.*;
+import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.sortInterceptorsByOrder;
 import static dk.cloudcreate.essentials.shared.interceptor.InterceptorChain.newInterceptorChainForOperation;
 
 /**
@@ -323,6 +324,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
             started = true;
             log.info("Starting");
             interceptors.forEach(durableQueuesInterceptor -> durableQueuesInterceptor.setDurableQueues(this));
+            sortInterceptorsByOrder(interceptors);
             durableQueueConsumers.values().forEach(PostgresqlDurableQueueConsumer::start);
             multiTableChangeListener.ifPresent(listener -> {
                 listener.listenToNotificationsFor(sharedQueueTableName,
@@ -1093,6 +1095,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
         log.info("Adding interceptor: {}", interceptor);
         interceptor.setDurableQueues(this);
         interceptors.add(interceptor);
+        sortInterceptorsByOrder(interceptors);
         return this;
     }
 
@@ -1101,6 +1104,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
         requireNonNull(interceptor, "No interceptor provided");
         log.info("Removing interceptor: {}", interceptor);
         interceptors.remove(interceptor);
+        sortInterceptorsByOrder(interceptors);
         return this;
     }
 
