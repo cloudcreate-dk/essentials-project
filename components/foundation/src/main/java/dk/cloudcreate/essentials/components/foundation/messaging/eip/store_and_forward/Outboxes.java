@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.reactive.EventHandler;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -230,6 +231,14 @@ public interface Outboxes {
             public Outbox sendMessage(Message payload) {
                 durableQueues.queueMessage(outboxQueueName,
                                            payload);
+                return this;
+            }
+
+            @Override
+            public Outbox sendMessage(Message payload, Duration deliveryDelay) {
+                durableQueues.queueMessage(outboxQueueName,
+                                           payload,
+                                           deliveryDelay);
                 return this;
             }
 
