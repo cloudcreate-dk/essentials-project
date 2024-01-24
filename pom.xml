@@ -61,6 +61,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>17</java.version>
+        <kotlin.version>1.9.22</kotlin.version>
         <revision>DEV-SNAPSHOT</revision>
         <skipDependencyCheck>false</skipDependencyCheck>
 
@@ -135,6 +136,7 @@
         <module>components/spring-postgresql-event-store</module>
         <module>components/springdata-mongo-distributed-fenced-lock</module>
         <module>components/springdata-mongo-queue</module>
+        <module>components/kotlin-eventsourcing</module>
     </modules>
 
 
