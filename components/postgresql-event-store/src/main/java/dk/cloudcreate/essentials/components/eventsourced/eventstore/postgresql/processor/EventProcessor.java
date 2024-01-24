@@ -24,6 +24,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
 import dk.cloudcreate.essentials.components.foundation.messaging.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
@@ -252,10 +253,15 @@ public abstract class EventProcessor implements Lifecycle {
                                                            eventOrder));
                 }
                 var persistedEvent = events.get(0);
-                patternMatchingInboxMessageHandlerDelegate.accept(OrderedMessage.of(persistedEvent.event().deserialize(),
-                                                                                    stringAggregateId,
-                                                                                    eventOrder,
-                                                                                    msg.getMetaData()));
+                try {
+                    patternMatchingInboxMessageHandlerDelegate.accept(OrderedMessage.of(persistedEvent.event().deserialize(),
+                                                                                        stringAggregateId,
+                                                                                        eventOrder,
+                                                                                        msg.getMetaData()));
+                } catch (JSONDeserializationException e) {
+                    log.error("Failed to deserialize PersistedEvent '{}'", persistedEvent.event().getEventTypeOrNamePersistenceValue(), e);
+                    throw e;
+                }
             } else {
                 patternMatchingInboxMessageHandlerDelegate.accept(msg);
             }
