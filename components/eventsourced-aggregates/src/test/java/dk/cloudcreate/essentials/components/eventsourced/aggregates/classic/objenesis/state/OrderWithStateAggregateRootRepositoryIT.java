@@ -30,6 +30,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.b
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JacksonJSONEventSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
@@ -50,7 +51,6 @@ import java.time.*;
 import java.util.*;
 
 import static dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.StatefulAggregateInstanceFactory.objenesisAggregateRootFactory;
-import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("Objenesis OrderWithStateAggregateRootRepositoryTest")
@@ -90,9 +90,9 @@ class OrderWithStateAggregateRootRepositoryIT {
                                                 new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                                                      unitOfWorkFactory,
                                                                                                      eventMapper,
-                                                                                                     standardSingleTenantConfigurationUsingJackson(createObjectMapper(),
-                                                                                                                                                   IdentifierColumnType.UUID,
-                                                                                                                                                   JSONColumnType.JSONB)));
+                                                                                                     SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfiguration(new JacksonJSONEventSerializer(createObjectMapper()),
+                                                                                                                                                                                                    IdentifierColumnType.UUID,
+                                                                                                                                                                                                    JSONColumnType.JSONB)));
         eventStore.addAggregateEventStreamConfiguration(ORDERS,
                                                         OrderId.class);
         recordingLocalEventBusConsumer = new RecordingLocalEventBusConsumer();
