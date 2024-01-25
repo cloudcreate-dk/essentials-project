@@ -25,23 +25,29 @@ import java.util.Objects;
 @Table(name = "products")
 public class Product {
     @EmbeddedId
+    @Column(name = "product_id")  // Aligned with the generated column name from the embeddable id
     private ProductId id;
     private String    name;
     @Embedded
     private Price     price;
+    private OrderId   orderId;
 
     public Product() {
     }
 
-    public Product(ProductId id, String name, Price price) {
+    public Product(ProductId id, String name, Price price, OrderId orderId) {
         this.id = id;
         this.name = name;
         this.price = price;
+        this.orderId = orderId;
     }
 
-    public Product(String name, Price price) {
-        this.name = name;
-        this.price = price;
+    public OrderId getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(OrderId orderId) {
+        this.orderId = orderId;
     }
 
     public ProductId getId() {
@@ -67,13 +73,12 @@ public class Product {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Product product = (Product) o;
-        return Objects.equals(id, product.id) && Objects.equals(name, product.name) && Objects.equals(price, product.price);
+        if (!(o instanceof Product product)) return false;
+        return Objects.equals(id, product.id) && Objects.equals(name, product.name) && Objects.equals(price, product.price) && Objects.equals(orderId, product.orderId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, price);
+        return Objects.hash(id, name, price, orderId);
     }
 }

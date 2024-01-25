@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.types.springdata.jpa.model;
 
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface OrderRepository extends CrudRepository<Order, OrderId> {
+public interface OrderRepository extends JpaRepository<Order, OrderId> {
 }
