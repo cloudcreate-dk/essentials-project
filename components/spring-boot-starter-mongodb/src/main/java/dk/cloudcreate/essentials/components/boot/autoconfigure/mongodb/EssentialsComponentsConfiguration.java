@@ -136,6 +136,17 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
         return new EssentialsImmutableJacksonModule();
     }
 
+    /**
+     * Essential Jackson module which adds support for serializing and deserializing objects with semantic types
+     *
+     * @return the Essential Jackson module which adds support for serializing and deserializing objects with semantic types
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EssentialTypesJacksonModule essentialsJacksonModule() {
+        return new EssentialTypesJacksonModule();
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public SingleValueTypeRandomIdGenerator registerIdGenerator() {
@@ -247,18 +258,6 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
 
 
     /**
-     * The {@link JSONSerializer} that handles {@link DurableQueues} message payload serialization and deserialization
-     *
-     * @param essentialComponentsObjectMapper the {@link ObjectMapper} responsible for serializing Messages
-     * @return the {@link JSONSerializer}
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public JSONSerializer jsonSerializer(ObjectMapper essentialComponentsObjectMapper) {
-        return new JacksonJSONSerializer(essentialComponentsObjectMapper);
-    }
-
-    /**
      * The {@link MongoDurableQueues} that handles messaging and supports the {@link Inboxes}/{@link Outboxes} implementations
      *
      * @param mongoTemplate     the {@link MongoTemplate}
@@ -364,16 +363,18 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     /**
-     * {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
+     * {@link JSONSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
+     * (including handling {@link DurableQueues} message payload serialization and deserialization)
      *
      * @param optionalEssentialsImmutableJacksonModule the optional {@link EssentialsImmutableJacksonModule}
-     * @param additionalModules additional {@link Module}'s found in the {@link ApplicationContext}
-     * @return the {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
+     * @param additionalModules                        additional {@link Module}'s found in the {@link ApplicationContext}
+     * @return the {@link JSONSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
      */
     @Bean
+    @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JSONEventSerializer")
     @ConditionalOnMissingBean
-    public ObjectMapper essentialComponentsObjectMapper(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule,
-                                                        List<Module> additionalModules) {
+    public JSONSerializer jsonSerializer(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule,
+                                         List<Module> additionalModules) {
         var objectMapperBuilder = JsonMapper.builder()
                                             .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                             .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
@@ -386,14 +387,11 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                             .enable(MapperFeature.AUTO_DETECT_FIELDS)
                                             .enable(MapperFeature.PROPAGATE_TRANSIENT_MARKER)
                                             .addModule(new Jdk8Module())
-                                            .addModule(new JavaTimeModule())
-                                            .addModule(new EssentialTypesJacksonModule());
+                                            .addModule(new JavaTimeModule());
 
         additionalModules.forEach(objectMapperBuilder::addModule);
 
-        optionalEssentialsImmutableJacksonModule.ifPresent(essentialsImmutableJacksonModule -> {
-            objectMapperBuilder.addModule(new EssentialsImmutableJacksonModule());
-        });
+        optionalEssentialsImmutableJacksonModule.ifPresent(objectMapperBuilder::addModule);
 
         var objectMapper = objectMapperBuilder.build();
         objectMapper.setVisibility(objectMapper.getSerializationConfig().getDefaultVisibilityChecker()
@@ -401,7 +399,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                                .withSetterVisibility(JsonAutoDetect.Visibility.NONE)
                                                .withFieldVisibility(JsonAutoDetect.Visibility.ANY)
                                                .withCreatorVisibility(JsonAutoDetect.Visibility.ANY));
-        return objectMapper;
+
+        return new JacksonJSONSerializer(objectMapper);
     }
 
     /**

@@ -41,9 +41,9 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * FlexAggregateRepository<OrderId, Order> repository =
  *      FlexAggregateRepository.from(
  *                eventStores,
- *                standardSingleTenantConfigurationUsingJackson(
+ *                standardSingleTenantConfiguration(
  *                     AggregateType.of("Orders"),
- *                     createObjectMapper(),
+ *                     new JacksonJSONEventSericreateObjectMapper(),
  *                     AggregateIdSerializer.serializerFor(OrderId.class),
  *                     IdentifierColumnType.UUID,
  *                     JSONColumnType.JSONB),

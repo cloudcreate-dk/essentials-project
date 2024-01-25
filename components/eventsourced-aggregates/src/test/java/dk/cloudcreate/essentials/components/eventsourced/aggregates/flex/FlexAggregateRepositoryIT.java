@@ -27,6 +27,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.b
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JacksonJSONEventSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
@@ -84,9 +85,9 @@ public class FlexAggregateRepositoryIT {
                                                 new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                                                      unitOfWorkFactory,
                                                                                                      eventMapper,
-                                                                                                     SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson(createObjectMapper(),
-                                                                                                                                                                                                                IdentifierColumnType.UUID,
-                                                                                                                                                                                                                JSONColumnType.JSONB)));
+                                                                                                     SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfiguration(new JacksonJSONEventSerializer(createObjectMapper()),
+                                                                                                                                                                                                    IdentifierColumnType.UUID,
+                                                                                                                                                                                                    JSONColumnType.JSONB)));
         recordingLocalEventBusConsumer = new RecordingLocalEventBusConsumer();
         eventStore.localEventBus().addSyncSubscriber(recordingLocalEventBusConsumer);
 
