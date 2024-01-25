@@ -12,7 +12,7 @@ many of the most popular libraries and frameworks such as Jackson, Spring Boot, 
 This library focuses purely on providing [Spring Data JPA](https://spring.io/projects/spring-data-jpa) persistence support for the **types** defined in the
 Essentials `types` library.
 
-> Warning: Not ready for production use !!!
+> Warning: This module is very experimental & unstable
 
 To use `Types-SpringData-JPA` just add the following Maven dependency:
 ```
@@ -50,11 +50,6 @@ public class Order {
     public OrderId    id;
     public CustomerId customerId;
     public AccountId  accountId;
-    
-    @ElementCollection
-    @Column(name = "quantity")
-    @CollectionTable(name = "order_lines")
-    public  Map<ProductId, Quantity> orderLines;
     
     ...
 }
