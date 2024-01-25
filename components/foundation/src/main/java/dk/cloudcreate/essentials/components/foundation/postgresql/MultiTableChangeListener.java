@@ -16,8 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.postgresql;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.ListenNotify.SqlOperation;
 import dk.cloudcreate.essentials.reactive.EventBus;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
@@ -45,11 +44,11 @@ public class MultiTableChangeListener<T extends TableChangeNotification> impleme
 
     private final Jdbi                                      jdbi;
     private final Duration                                  pollingInterval;
-    private final ObjectMapper                              objectMapper;
+    private final JSONSerializer                            jsonSerializer;
     private final EventBus                                  eventBus;
     /**
      * Key: The table name<br>
-     * Value: The {@link TableChangeNotification} subclass that the notification string payload should be mapped to using the {@link #objectMapper}
+     * Value: The {@link TableChangeNotification} subclass that the notification string payload should be mapped to using the {@link #jsonSerializer}
      */
     private final ConcurrentMap<String, Class<? extends T>> listenForNotificationsRelatedToTables;
     private final AtomicReference<Handle>                   handleReference;
@@ -58,11 +57,11 @@ public class MultiTableChangeListener<T extends TableChangeNotification> impleme
 
     public MultiTableChangeListener(Jdbi jdbi,
                                     Duration pollingInterval,
-                                    ObjectMapper objectMapper,
+                                    JSONSerializer jsonSerializer,
                                     EventBus eventBus) {
         this.jdbi = requireNonNull(jdbi, "No jdbi provided");
         this.pollingInterval = requireNonNull(pollingInterval, "No pollingInterval provided");
-        this.objectMapper = requireNonNull(objectMapper, "No objectMapper provided");
+        this.jsonSerializer = requireNonNull(jsonSerializer, "No jsonSerializer provided");
         this.eventBus = requireNonNull(eventBus, "No localEventBus instance provided");
         listenForNotificationsRelatedToTables = new ConcurrentHashMap<>();
         handleReference = new AtomicReference<>();
@@ -167,8 +166,8 @@ public class MultiTableChangeListener<T extends TableChangeNotification> impleme
                               return null;
                           }
                           try {
-                              return objectMapper.readValue(notification.getParameter(), payloadType);
-                          } catch (JsonProcessingException e) {
+                              return jsonSerializer.deserialize(notification.getParameter(), payloadType);
+                          } catch (JSONDeserializationException e) {
                               log.error(msg("Failed to deserialize notification payload '{}' to concrete {} related to table '{}'",
                                             notification.getParameter(),
                                             payloadType.getName(),
