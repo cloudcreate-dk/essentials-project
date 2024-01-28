@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types
+package dk.cloudcreate.essentials.kotlin.types
 
-interface IntValueType {
-    val value: Int
+import java.io.Serializable
+
+/**
+ * Semantic [Short] value type interface that allows infrastructure code to easily access the [value] of the value type
+ */
+interface ShortValueType : Serializable {
+    val value: Short
 }

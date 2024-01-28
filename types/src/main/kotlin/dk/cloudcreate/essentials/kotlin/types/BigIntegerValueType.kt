@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types
+package dk.cloudcreate.essentials.kotlin.types
 
-import java.time.ZonedDateTime
+import java.io.Serializable
+import java.math.BigInteger
 
-interface ZonedDateTimeValueType {
-    val value: ZonedDateTime
+/**
+ * Semantic [BigInteger] value type interface that allows infrastructure code to easily access the [value] of the value type
+ */
+interface BigIntegerValueType : Serializable {
+    val value: BigInteger
 }

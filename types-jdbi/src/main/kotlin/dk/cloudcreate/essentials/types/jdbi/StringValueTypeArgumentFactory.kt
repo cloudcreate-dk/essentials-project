@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.types.jdbi
 
-import dk.cloudcreate.essentials.types.StringValueType
+import dk.cloudcreate.essentials.kotlin.types.StringValueType
 import org.jdbi.v3.core.argument.AbstractArgumentFactory
 import org.jdbi.v3.core.argument.Argument
 import org.jdbi.v3.core.config.ConfigRegistry

@@ -16,8 +16,8 @@
 
 package dk.cloudcreate.essentials.types.jdbi
 
+import dk.cloudcreate.essentials.kotlin.types.StringValueType
 import dk.cloudcreate.essentials.shared.types.GenericType
-import dk.cloudcreate.essentials.types.StringValueType
 import org.jdbi.v3.core.mapper.ColumnMapper
 import org.jdbi.v3.core.statement.StatementContext
 import java.sql.ResultSet

@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types
+package dk.cloudcreate.essentials.kotlin.types
 
-interface LongValueType {
-    val value: Long
+import java.io.Serializable
+
+/**
+ * Semantic [Double] value type interface that allows infrastructure code to easily access the [value] of the value type
+ */
+interface DoubleValueType : Serializable {
+    val value: Double
 }

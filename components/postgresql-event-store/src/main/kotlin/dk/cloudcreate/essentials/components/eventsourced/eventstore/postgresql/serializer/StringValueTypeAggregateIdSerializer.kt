@@ -16,10 +16,13 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer
 
-import dk.cloudcreate.essentials.types.StringValueType
+import dk.cloudcreate.essentials.kotlin.types.StringValueType
 import kotlin.reflect.KClass
 import kotlin.reflect.full.primaryConstructor
 
+/**
+ * [AggregateIdSerializer] for semantic [StringValueType]'s
+ */
 data class StringValueTypeAggregateIdSerializer<T : StringValueType>(private val concreteType: KClass<T>) : AggregateIdSerializer {
     override fun aggregateIdType(): Class<*> {
         return concreteType.java

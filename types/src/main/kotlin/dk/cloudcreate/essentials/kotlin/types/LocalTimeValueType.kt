@@ -14,8 +14,14 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types
+package dk.cloudcreate.essentials.kotlin.types
 
-interface ShortValueType {
-    val value: Short
+import java.io.Serializable
+import java.time.LocalTime
+
+/**
+ * Semantic [LocalTime] value type interface that allows infrastructure code to easily access the [value] of the value type
+ */
+interface LocalTimeValueType : Serializable {
+    val value: LocalTime
 }

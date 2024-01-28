@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types
+package dk.cloudcreate.essentials.kotlin.types
 
-interface ByteValueType {
-    val value: Byte
+import java.io.Serializable
+
+/**
+ * Semantic [String] value type interface that allows infrastructure code to easily access the [value] of the value type
+ */
+interface StringValueType : Serializable {
+    val value: String
 }

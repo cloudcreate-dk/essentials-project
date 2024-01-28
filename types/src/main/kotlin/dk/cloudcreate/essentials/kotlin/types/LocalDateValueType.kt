@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types
+package dk.cloudcreate.essentials.kotlin.types
 
+import java.io.Serializable
 import java.time.LocalDate
 
-interface LocalDateValueType {
+/**
+ * Semantic [LocalDate] value type interface that allows infrastructure code to easily access the [value] of the value type
+ */
+interface LocalDateValueType : Serializable {
     val value: LocalDate
 }

@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types
+package dk.cloudcreate.essentials.kotlin.types
 
-import java.time.Instant
+import java.io.Serializable
+import java.math.BigDecimal
 
-interface InstantValueType {
-    val value: Instant
+/**
+ * Semantic [BigDecimal] value type interface that allows infrastructure code to easily access the [value] of the value type
+ */
+interface BigDecimalValueType : Serializable {
+    val value: BigDecimal
 }

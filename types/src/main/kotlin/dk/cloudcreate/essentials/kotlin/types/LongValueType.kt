@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types
+package dk.cloudcreate.essentials.kotlin.types
 
-interface FloatValueType {
-    val value: Float
+import java.io.Serializable
+
+/**
+ * Semantic [Long] value type interface that allows infrastructure code to easily access the [value] of the value type
+ */
+interface LongValueType : Serializable {
+    val value: Long
 }

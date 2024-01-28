@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types
+package dk.cloudcreate.essentials.kotlin.types
 
-import java.math.BigDecimal
+import java.io.Serializable
 
-interface BigDecimalValueType {
-    val value: BigDecimal
+/**
+ * Semantic [Float] value type interface that allows infrastructure code to easily access the [value] of the value type
+ */
+interface FloatValueType : Serializable {
+    val value: Float
 }

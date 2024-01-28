@@ -14,8 +14,14 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types
+package dk.cloudcreate.essentials.kotlin.types
 
-interface DoubleValueType {
-    val value: Double
+import java.io.Serializable
+import java.time.Instant
+
+/**
+ * Semantic [Instant] value type interface that allows infrastructure code to easily access the [value] of the value type
+ */
+interface InstantValueType : Serializable {
+    val value: Instant
 }
