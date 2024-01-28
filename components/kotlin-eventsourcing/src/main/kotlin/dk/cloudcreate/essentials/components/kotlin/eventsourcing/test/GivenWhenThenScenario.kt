@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.kotlin.eventsourcing.test
 
 import dk.cloudcreate.essentials.components.kotlin.eventsourcing.Decider
+import java.util.function.Consumer
 import kotlin.reflect.KClass
 
 /**
@@ -59,7 +60,7 @@ import kotlin.reflect.KClass
  */
 class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
     var _givenEvents: List<EVENT> = listOf()
-    var _whenCommand : CMD? = null
+    var _whenCommand: CMD? = null
     var _actualEvent: EVENT? = null
     lateinit var _expectException: Exception
     lateinit var _expectedExceptionType: KClass<out Exception>
@@ -74,7 +75,7 @@ class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
      * @param events the past events related to the aggregate instance (CAN be empty)
      * @return this [GivenWhenThenScenario] instance
      */
-    fun given(vararg events: EVENT) : GivenWhenThenScenario<CMD, EVENT> {
+    fun given(vararg events: EVENT): GivenWhenThenScenario<CMD, EVENT> {
         _givenEvents = events.toList()
         return this
     }
@@ -87,7 +88,7 @@ class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
      * @param cmd the command
      * @return this [GivenWhenThenScenario] instance
      */
-    fun when_(cmd: CMD) : GivenWhenThenScenario<CMD, EVENT> {
+    fun when_(cmd: CMD): GivenWhenThenScenario<CMD, EVENT> {
         _whenCommand = cmd
         return this
     }
@@ -125,6 +126,27 @@ class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
     }
 
     /**
+     * Define the expected event outcome when [GivenWhenThenScenario] is calling the [Decider.handle] with the command
+     * provided in [when_] and past events provided in [given]
+     *
+     * This step is also known as the **Assert** step in Arrange, Act, Assert
+     * @param actualEventAsserter A [Consumer] that will receive the **actual** event that resulted from handling
+     * handling the [_whenCommand] using the [_givenEvents] past events. This [Consumer] is expected to manually assert
+     * the content of the actual event
+     * @return this [GivenWhenThenScenario] instance
+     */
+    fun thenAssert(actualEventAsserter: Consumer<EVENT?>): GivenWhenThenScenario<CMD, EVENT> {
+        if (_whenCommand == null) throw NoCommandProvidedException()
+        try {
+            _actualEvent = decider.handle(_whenCommand!!, _givenEvents)
+            actualEventAsserter.accept(_actualEvent)
+            return this
+        } catch (e: Exception) {
+            throw FailedWithUnexpectException(e)
+        }
+    }
+
+    /**
      * Define that we don't expect any events outcome when [GivenWhenThenScenario]  is calling the [Decider.handle] with the command
      * provided in [when_] and past events provided in [given]
      *
@@ -143,7 +165,7 @@ class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
     }
 
     /**
-     * Define that we expect the scenario to fail with an [expectedException] of a given [Exception] 
+     * Define that we expect the scenario to fail with an [expectedException] of a given [Exception]
      * instance when the [GivenWhenThenScenario]  is calling the [Decider.handle] with the command
      * provided in [when_] and past events provided in [given]
      *
@@ -154,12 +176,12 @@ class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
      * @throws ExpectToFailWithAnExceptionButNoneWasThrown
      * @throws ActualExceptionIsNotEqualToExpectedException
      */
-    fun thenFailsWithException(expectedException: Exception) : GivenWhenThenScenario<CMD, EVENT> {
+    fun thenFailsWithException(expectedException: Exception): GivenWhenThenScenario<CMD, EVENT> {
         this._expectException = expectedException
         try {
             decider.handle(_whenCommand!!, _givenEvents)
             throw ExpectToFailWithAnExceptionButNoneWasThrown(expectedException)
-        } catch (actualException : Exception) {
+        } catch (actualException: Exception) {
             if (actualException::class != expectedException::class) {
                 throw ActualExceptionIsNotEqualToExpectedException(expectedException, actualException)
             }
@@ -183,12 +205,12 @@ class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
      * @throws ExpectToFailWithAnExceptionButNoneWasThrown
      * @throws ActualExceptionIsNotEqualToExpectedException
      */
-    fun thenFailsWithExceptionType(expectedExceptionType: KClass<out Exception>) : GivenWhenThenScenario<CMD, EVENT> {
+    fun thenFailsWithExceptionType(expectedExceptionType: KClass<out Exception>): GivenWhenThenScenario<CMD, EVENT> {
         this._expectedExceptionType = expectedExceptionType
         try {
             decider.handle(_whenCommand!!, _givenEvents)
             throw ExpectToFailWithAnExceptionTypeButNoneWasThrown(expectedExceptionType)
-        } catch (actualException : Exception) {
+        } catch (actualException: Exception) {
             val actualExceptionType = actualException::class
             if (actualExceptionType != expectedExceptionType) {
                 throw ActualExceptionTypeIsNotEqualToExpectedException(expectedExceptionType, actualException)
@@ -204,12 +226,25 @@ abstract class AssertionException(msg: String?, e: Exception?) : RuntimeExceptio
     constructor() : this(null, null)
 }
 
-class NoCommandProvidedException : AssertionException() 
-class FailedWithUnexpectException(val unexpectedException : Exception) : AssertionException(unexpectedException) 
-class ExpectToFailWithAnExceptionButNoneWasThrown(val expectedException : Exception) : AssertionException(expectedException) 
-class ExpectToFailWithAnExceptionTypeButNoneWasThrown(val expectedExceptionType : KClass<out Exception>) : AssertionException("No exception thrown. Expected exception of type $expectedExceptionType")
-class ActualExceptionTypeIsNotEqualToExpectedException(val expectedExceptionType : KClass<out Exception>, val actualException : Exception) : AssertionException("Expected exception of type $expectedExceptionType, but got", actualException)
-class ActualExceptionIsNotEqualToExpectedException(val expectedException : Exception, val actualException: Exception) : AssertionException("Actual exception ${actualException::class.simpleName} is not equal to expected exception ${expectedException::class.simpleName} ") 
-class DidNotExpectAnEventException(val actualEvent: Any) : AssertionException("Did not expect event: $actualEvent") 
-class ExpectedAnEventButDidGetAnyEventException(val expectedEvent: Any) : AssertionException("Did not get an event. Expected event: $expectedEvent") 
-class ActualAndExpectedEventsAreNotEqualExcepted(val expectedEvent: Any, val  actualEvent: Any) : AssertionException("Got actual event: $actualEvent, but expected event: $expectedEvent") 
+class NoCommandProvidedException : AssertionException()
+class FailedWithUnexpectException(val unexpectedException: Exception) : AssertionException(unexpectedException)
+class ExpectToFailWithAnExceptionButNoneWasThrown(val expectedException: Exception) :
+    AssertionException(expectedException)
+
+class ExpectToFailWithAnExceptionTypeButNoneWasThrown(val expectedExceptionType: KClass<out Exception>) :
+    AssertionException("No exception thrown. Expected exception of type $expectedExceptionType")
+
+class ActualExceptionTypeIsNotEqualToExpectedException(
+    val expectedExceptionType: KClass<out Exception>,
+    val actualException: Exception
+) : AssertionException("Expected exception of type $expectedExceptionType, but got", actualException)
+
+class ActualExceptionIsNotEqualToExpectedException(val expectedException: Exception, val actualException: Exception) :
+    AssertionException("Actual exception ${actualException::class.simpleName} is not equal to expected exception ${expectedException::class.simpleName} ")
+
+class DidNotExpectAnEventException(val actualEvent: Any) : AssertionException("Did not expect event: $actualEvent")
+class ExpectedAnEventButDidGetAnyEventException(val expectedEvent: Any) :
+    AssertionException("Did not get an event. Expected event: $expectedEvent")
+
+class ActualAndExpectedEventsAreNotEqualExcepted(val expectedEvent: Any, val actualEvent: Any) :
+    AssertionException("Got actual event: $actualEvent, but expected event: $expectedEvent")

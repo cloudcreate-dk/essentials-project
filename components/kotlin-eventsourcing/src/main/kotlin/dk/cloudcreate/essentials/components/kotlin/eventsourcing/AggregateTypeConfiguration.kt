@@ -75,8 +75,7 @@ data class AggregateTypeConfiguration(
  * [HandlesCommandsThatInheritsFromCommandType] object instance is configured with
  * @see dk.cloudcreate.essentials.components.kotlin.eventsourcing.adapters.DeciderAndAggregateTypeConfigurator
  */
-@FunctionalInterface
-interface DeciderSupportsAggregateTypeChecker {
+fun interface DeciderSupportsAggregateTypeChecker {
     /**
      * Does the provided [decider] work with the [AggregateType] configured in the
      * [AggregateTypeConfiguration] where this [DeciderSupportsAggregateTypeChecker] instance

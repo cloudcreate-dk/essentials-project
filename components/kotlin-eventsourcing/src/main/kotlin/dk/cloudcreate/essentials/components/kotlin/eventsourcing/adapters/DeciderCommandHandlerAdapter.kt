@@ -142,6 +142,6 @@ class DeciderCommandHandlerAdapter<CMD, EVENT>(
 
 
     override fun toString(): String {
-        return "$deciderSimpleClassName for [${decider::class.simpleName}] handling command '${deciderHandlesCommandOfType!!.simpleName}"
+        return "'$deciderSimpleClassName' handling command '${deciderHandlesCommandOfType!!.simpleName}'"
     }
 }

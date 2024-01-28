@@ -72,7 +72,12 @@ class DeciderAndAggregateTypeConfigurator(
 
         aggregateTypeConfigurations.forEach {
             log.info(
-                "Registering {} for '{}' with aggregateType '{}' to the EventStore",
+                """
+                    
+                ============================================================================================================================================================================================
+                Registering {} for '{}' with aggregateType '{}' to the EventStore
+                ============================================================================================================================================================================================
+                """.trimIndent(),
                 AggregateTypeConfiguration::class.simpleName,
                 it.aggregateType,
                 it.aggregateIdType.simpleName
@@ -81,16 +86,25 @@ class DeciderAndAggregateTypeConfigurator(
                 it.aggregateType,
                 it.aggregateIdSerializer
             )
+            log.info("" +
+                    "============================================================================================================================================================================================")
         }
     }
 
     private fun registerDecidersAsCommandHandlersOnTheCommandBus() {
         log.info(
-            "Registering {} {}(s) as {}(s) on the {}",
+            """
+                
+            ============================================================================================================================================================================================    
+            Registering {} {}(s) as {}(s) on the {}
+            {}
+            ============================================================================================================================================================================================
+            """.trimIndent(),
             deciders.size,
             Decider::class.simpleName,
             CommandHandler::class.simpleName,
-            commandBus::class.simpleName
+            commandBus::class.simpleName,
+            deciders.map { it::class.simpleName }
         )
 
         deciders.forEach { decider ->
@@ -126,6 +140,8 @@ class DeciderAndAggregateTypeConfigurator(
                     eventStore
                 )
             )
+            log.info("" +
+                    "============================================================================================================================================================================================")
         }
 
 

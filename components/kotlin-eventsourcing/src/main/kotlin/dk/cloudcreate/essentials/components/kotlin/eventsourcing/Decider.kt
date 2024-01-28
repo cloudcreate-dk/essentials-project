@@ -41,6 +41,10 @@ package dk.cloudcreate.essentials.components.kotlin.eventsourcing
  *         }
  *         return OrderShipped(cmd.id)
  *     }
+ *
+ *     override fun canHandle(cmd: Any): Boolean {
+ *        return cmd is ShipOrder
+ *     }
  * }
  * ```
  */
@@ -58,4 +62,11 @@ interface Decider<COMMAND, EVENT> {
      * @return **zero** or **one** [EVENT] as a result of handling the command
      */
     fun handle(cmd: COMMAND, events: List<EVENT>): EVENT?
+
+    /**
+     * Guard method that can check if the specific command is supported by this [Decider] instance
+     * @param cmd The command instance that want to check whether this [Decider] instance supports
+     * @return true if this [Decider] instance supports the given [cmd] instance
+     */
+    fun canHandle(cmd: Any): Boolean
 }

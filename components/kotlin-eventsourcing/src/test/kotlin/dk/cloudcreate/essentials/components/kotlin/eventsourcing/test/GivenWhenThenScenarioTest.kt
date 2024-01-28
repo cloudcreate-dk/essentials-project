@@ -2,7 +2,7 @@ package dk.cloudcreate.essentials.components.kotlin.eventsourcing.test
 
 import dk.cloudcreate.essentials.components.foundation.types.RandomIdGenerator
 import dk.cloudcreate.essentials.components.kotlin.eventsourcing.Decider
-import dk.cloudcreate.essentials.types.CharSequenceType
+import dk.cloudcreate.essentials.kotlin.types.StringValueType
 import org.junit.jupiter.api.Test
 
 class GivenWhenThenScenarioTest {
@@ -99,6 +99,10 @@ class CreateOrderDecider : Decider<CreateOrder, OrderEvent> {
         }
         return null
     }
+
+    override fun canHandle(cmd: Any): Boolean {
+        return cmd is CreateOrder
+    }
 }
 
 class AcceptOrderDecider : Decider<AcceptOrder, OrderEvent> {
@@ -111,6 +115,10 @@ class AcceptOrderDecider : Decider<AcceptOrder, OrderEvent> {
             return null
         }
         return OrderAccepted(cmd.id)
+    }
+
+    override fun canHandle(cmd: Any): Boolean {
+        return cmd is AcceptOrder
     }
 }
 
@@ -127,6 +135,10 @@ class ShipOrderDecider : Decider<ShipOrder, OrderEvent> {
             throw RuntimeException("Cannot ship an order that hasn't been accepted")
         }
         return OrderShipped(cmd.id)
+    }
+
+    override fun canHandle(cmd: Any): Boolean {
+        return cmd is ShipOrder
     }
 }
 
@@ -146,13 +158,14 @@ data class OrderCreated(override val id: OrderId) : OrderEvent
 data class OrderAccepted(override val id: OrderId) : OrderEvent
 data class OrderShipped(override val id: OrderId) : OrderEvent
 
-class OrderId constructor(value: CharSequence) : CharSequenceType<OrderId>(value) {
+@JvmInline
+value class OrderId(override val value: String) : StringValueType {
     companion object {
         fun random(): OrderId {
             return OrderId(RandomIdGenerator.generate())
         }
 
-        fun of(id: CharSequence): OrderId {
+        fun of(id: String): OrderId {
             return OrderId(id)
         }
     }
