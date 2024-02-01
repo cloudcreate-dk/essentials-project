@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.postgresql;
 
-import dk.cloudcreate.essentials.components.foundation.json.*;
+import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
 import dk.cloudcreate.essentials.components.foundation.postgresql.ListenNotify.SqlOperation;
 import dk.cloudcreate.essentials.reactive.EventBus;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
@@ -167,7 +167,7 @@ public class MultiTableChangeListener<T extends TableChangeNotification> impleme
                           }
                           try {
                               return jsonSerializer.deserialize(notification.getParameter(), payloadType);
-                          } catch (JSONDeserializationException e) {
+                          } catch (Throwable e) {
                               log.error(msg("Failed to deserialize notification payload '{}' to concrete {} related to table '{}'",
                                             notification.getParameter(),
                                             payloadType.getName(),

@@ -100,14 +100,14 @@ public class MessageDeliveryErrorHandlerBuilder {
         var stopRedeliveryOnHandler = MessageDeliveryErrorHandler.stopRedeliveryOn(stopRedeliveryOnExceptions);
         return new MessageDeliveryErrorHandler() {
             @Override
-            public boolean isPermanentError(QueuedMessage queuedMessage, Exception error) {
+            public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
                 if (shouldAlwaysRetryOn(error)) {
                     return false;
                 }
                 return stopRedeliveryOnHandler.isPermanentError(queuedMessage, error);
             }
 
-            private boolean shouldAlwaysRetryOn(Exception error) {
+            private boolean shouldAlwaysRetryOn(Throwable error) {
                 return alwaysRetryOnExceptions.contains(error.getClass()) ||
                         alwaysRetryOnExceptions.stream()
                                                .anyMatch(exception -> exception.isAssignableFrom(error.getClass()));

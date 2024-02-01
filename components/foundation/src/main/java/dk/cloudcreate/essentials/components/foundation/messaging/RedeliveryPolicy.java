@@ -176,7 +176,7 @@ public class RedeliveryPolicy {
                         .build();
     }
 
-    public boolean isPermanentError(QueuedMessage queuedMessage, Exception error) {
+    public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
         return deliveryErrorHandler.isPermanentError(queuedMessage, error);
     }
 }

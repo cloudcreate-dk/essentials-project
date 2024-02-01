@@ -213,7 +213,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
             if (postTransactionalSideEffect != null) {
                 postTransactionalSideEffect.run();
             }
-        } catch (DurableQueueException e) {
+        } catch (Throwable e) {
             LOG.error(msg("[{}] {} - Failed to poll queue",
                           consumeFromQueue.consumerName,
                           queueName), e);
@@ -249,7 +249,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
             } else {
                 return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error(msg("[{}] Error Polling Queue", queueName), e);
             return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
         }
@@ -290,7 +290,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
             durableQueues.acknowledgeMessageAsHandled(queuedMessage.getId());
             orderedMessageDeliveryThreads.remove(Thread.currentThread());
             return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - QueueMessageHandler for failed to handle message: {}",
                                                    queueName,
                                                    queuedMessage.getId(),
@@ -309,7 +309,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                     durableQueues.markAsDeadLetterMessage(queuedMessage.getId(), e);
                     orderedMessageDeliveryThreads.remove(Thread.currentThread());
                     return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     MESSAGE_HANDLING_FAILURE_LOG.error(msg("[{}:{}] {} - Failed to mark the Message as a Dead Letter Message. Details: Is Permanent Error: {}. Message: {}",
                                                            queueName,
                                                            queuedMessage.getId(),
@@ -336,7 +336,7 @@ public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, U
                                                redeliveryDelay);
                     orderedMessageDeliveryThreads.remove(Thread.currentThread());
                     return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
                     if (ex.getMessage().contains("Interrupted waiting for lock")) {
                         // Usually happening when SpringBoot is performing an unclean shutdown
                         MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Failed to register the message for retry.",
