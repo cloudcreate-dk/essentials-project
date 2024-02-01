@@ -615,7 +615,7 @@ public class MongoDurableQueues implements DurableQueues {
     private Object deserializeMessagePayload(QueueName queueName, byte[] messagePayload, String messagePayloadType) {
         try {
             return jsonSerializer.deserialize(messagePayload, Classes.forName(messagePayloadType));
-        } catch (JSONDeserializationException e) {
+        } catch (Throwable e) {
             throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
         }
     }
