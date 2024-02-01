@@ -17,7 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.json;
 
 public class JSONSerializationException extends RuntimeException {
-    public JSONSerializationException(String msg, Exception cause) {
+    public JSONSerializationException(String msg, Throwable cause) {
         super(msg, cause);
     }
 }
