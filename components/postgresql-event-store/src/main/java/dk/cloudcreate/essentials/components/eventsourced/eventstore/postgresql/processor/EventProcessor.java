@@ -165,6 +165,19 @@ public abstract class EventProcessor implements Lifecycle {
     private PatternMatchingMessageHandler   patternMatchingInboxMessageHandlerDelegate;
     private List<MessageHandlerInterceptor> messageHandlerInterceptors;
 
+    /**
+     * Create a new {@link EventProcessor} instance
+     *
+     * @param eventProcessorDependencies The {@link EventProcessorDependencies} that encapsulates all
+     *                                   the dependencies required by an instance of an {@link EventProcessor}
+     * @see EventProcessor#EventProcessor(EventStoreSubscriptionManager, Inboxes, DurableLocalCommandBus, List)
+     */
+    protected EventProcessor(EventProcessorDependencies eventProcessorDependencies) {
+        this(requireNonNull(eventProcessorDependencies, "No eventProcessorDependencies provided").eventStoreSubscriptionManager,
+             eventProcessorDependencies.inboxes,
+             eventProcessorDependencies.commandBus,
+             eventProcessorDependencies.messageHandlerInterceptors);
+    }
 
     /**
      * Create a new {@link EventProcessor} instance
