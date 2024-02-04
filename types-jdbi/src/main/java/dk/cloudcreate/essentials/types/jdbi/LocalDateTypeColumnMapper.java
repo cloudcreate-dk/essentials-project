@@ -35,16 +35,16 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <T> the concrete {@link LocalDateType} this instance is mapping
  */
-public abstract class LocalDateColumnMapper<T extends LocalDateType<T>> implements ColumnMapper<T> {
+public abstract class LocalDateTypeColumnMapper<T extends LocalDateType<T>> implements ColumnMapper<T> {
     private final Class<T> concreteType;
 
     @SuppressWarnings("unchecked")
-    public LocalDateColumnMapper() {
+    public LocalDateTypeColumnMapper() {
         concreteType = (Class<T>) GenericType.resolveGenericTypeOnSuperClass(this.getClass(),
                                                                              0);
     }
 
-    public LocalDateColumnMapper(Class<T> concreteType) {
+    public LocalDateTypeColumnMapper(Class<T> concreteType) {
         this.concreteType = requireNonNull(concreteType, "No concreteType provided");
     }
 
