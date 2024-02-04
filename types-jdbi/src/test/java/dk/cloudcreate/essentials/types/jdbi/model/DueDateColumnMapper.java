@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.types.jdbi.model;
 
-import dk.cloudcreate.essentials.types.jdbi.LocalDateColumnMapper;
+import dk.cloudcreate.essentials.types.jdbi.LocalDateTypeColumnMapper;
 
-public class DueDateColumnMapper extends LocalDateColumnMapper<DueDate> {
+public class DueDateColumnMapper extends LocalDateTypeColumnMapper<DueDate> {
 }
