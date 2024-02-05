@@ -440,7 +440,7 @@ public interface DurableQueues extends Lifecycle {
      * @return the {@link QueuedMessage} message wrapped in an {@link Optional} if the operation was successful, otherwise it returns an {@link Optional#empty()}
      */
     default Optional<QueuedMessage> retryMessage(QueueEntryId queueEntryId,
-                                                 Exception causeForRetry,
+                                                 Throwable causeForRetry,
                                                  Duration deliveryDelay) {
         return retryMessage(new RetryMessage(queueEntryId,
                                              causeForRetry,
@@ -469,7 +469,7 @@ public interface DurableQueues extends Lifecycle {
      * @return the {@link QueuedMessage} message wrapped in an {@link Optional} if the operation was successful, otherwise it returns an {@link Optional#empty()}
      */
     default Optional<QueuedMessage> markAsDeadLetterMessage(QueueEntryId queueEntryId,
-                                                            Exception causeForBeingMarkedAsDeadLetter) {
+                                                            Throwable causeForBeingMarkedAsDeadLetter) {
         return markAsDeadLetterMessage(new MarkAsDeadLetterMessage(queueEntryId,
                                                                    causeForBeingMarkedAsDeadLetter));
     }

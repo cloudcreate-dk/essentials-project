@@ -34,7 +34,7 @@ public class AggregateRootWithStateTest {
         var aggregate          = new Order(orderId, orderingCustomerId, orderNumber);
         var uncommittedChanges = aggregate.getUncommittedChanges();
         assertThat((CharSequence) uncommittedChanges.aggregateId).isEqualTo(orderId);
-        assertThat((CharSequence) uncommittedChanges.eventOrderOfLastRehydratedEvent).isNull();
+        assertThat(uncommittedChanges.eventOrderOfLastRehydratedEvent).isEqualTo(EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED);
         assertThat(uncommittedChanges.events.size()).isEqualTo(1);
         assertThat(uncommittedChanges.events.get(0)).isInstanceOf(OrderEvent.OrderAdded.class);
         assertThat((CharSequence) ((OrderEvent.OrderAdded) uncommittedChanges.events.get(0)).orderId).isEqualTo(orderId);

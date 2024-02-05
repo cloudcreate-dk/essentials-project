@@ -57,10 +57,10 @@ public abstract class AggregateRoot<ID, EVENT_TYPE extends Event<ID>, AGGREGATE_
     /**
      * Zero based event order
      */
-    private           EventOrder                              eventOrderOfLastAppliedEvent;
+    private           EventOrder                              eventOrderOfLastAppliedEvent = EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED;
     private           boolean                                 hasBeenRehydrated;
     private           boolean                                 isRehydrating;
-    private           EventOrder                              eventOrderOfLastRehydratedEvent;
+    private           EventOrder                              eventOrderOfLastRehydratedEvent = EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED;
 
     public AggregateRoot() {
         initialize();
@@ -233,6 +233,7 @@ public abstract class AggregateRoot<ID, EVENT_TYPE extends Event<ID>, AGGREGATE_
     @Override
     public void markChangesAsCommitted() {
         uncommittedChanges = new ArrayList<>();
+        eventOrderOfLastRehydratedEvent = null;
     }
 
     /**

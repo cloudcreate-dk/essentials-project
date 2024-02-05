@@ -19,6 +19,7 @@ package dk.cloudcreate.essentials.components.foundation.reactive.command;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.command.interceptor.*;
 import dk.cloudcreate.essentials.shared.functional.CheckedFunction;
+import dk.cloudcreate.essentials.shared.interceptor.InterceptorOrder;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -26,6 +27,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * {@link CommandBusInterceptor} that ensures that each Command is handled within a {@link UnitOfWork}
  * by using the {@link UnitOfWorkFactory#withUnitOfWork(CheckedFunction)}
  */
+@InterceptorOrder(5)
 public class UnitOfWorkControllingCommandBusInterceptor implements CommandBusInterceptor {
     private final UnitOfWorkFactory<? extends UnitOfWork> unitOfWorkFactory;
 

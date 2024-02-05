@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
+import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.sortInterceptorsByOrder;
 
 /**
  * Base implementation of the {@link CommandBus} - provides default implementation for all
@@ -69,6 +70,7 @@ public abstract class AbstractCommandBus implements CommandBus {
             log.info("Adding CommandBusInterceptor: {}", interceptor);
             interceptors.add(requireNonNull(interceptor, "No interceptor provided"));
         }
+        sortInterceptorsByOrder(this.interceptors);
         return this;
     }
 
@@ -81,6 +83,7 @@ public abstract class AbstractCommandBus implements CommandBus {
     public CommandBus removeInterceptor(CommandBusInterceptor interceptor) {
         log.info("Removing CommandBusInterceptor: {}", interceptor);
         interceptors.remove(requireNonNull(interceptor, "No interceptor provided"));
+        sortInterceptorsByOrder(this.interceptors);
         return this;
     }
 

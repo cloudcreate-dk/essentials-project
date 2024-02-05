@@ -26,6 +26,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.e
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.test_data.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreManagedUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
@@ -47,8 +48,6 @@ import java.time.*;
 import java.util.*;
 import java.util.stream.*;
 
-import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateEventStreamConfiguration.standardConfigurationUsingJackson;
-import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardConfigurationUsingJackson;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -89,12 +88,12 @@ class MultiTenantPostgresqlEventStoreIT {
         var persistenceStrategy = new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                                        unitOfWorkFactory,
                                                                                        eventMapper,
-                                                                                       standardConfigurationUsingJackson(aggregateType_ -> aggregateType_ + "_events",
-                                                                                                                         EventStreamTableColumnNames.defaultColumnNames(),
-                                                                                                                         createObjectMapper(),
-                                                                                                                         IdentifierColumnType.UUID,
-                                                                                                                         JSONColumnType.JSONB,
-                                                                                                                         new TenantSerializer.TenantIdSerializer()));
+                                                                                       SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardConfiguration(aggregateType_ -> aggregateType_ + "_events",
+                                                                                                                                                                          EventStreamTableColumnNames.defaultColumnNames(),
+                                                                                                                                                                          createJSONSerializer(),
+                                                                                                                                                                          IdentifierColumnType.UUID,
+                                                                                                                                                                          JSONColumnType.JSONB,
+                                                                                                                                                                          new TenantSerializer.TenantIdSerializer()));
         persistenceStrategy.addAggregateEventStreamConfiguration(aggregateType,
                                                                  OrderId.class);
 
@@ -271,12 +270,12 @@ class MultiTenantPostgresqlEventStoreIT {
     @Test
     void test_loadEventsByGlobalOrder() {
         // Add support for the Product aggregate
-        eventStore.addAggregateEventStreamConfiguration(standardConfigurationUsingJackson(PRODUCTS,
-                                                                                          createObjectMapper(),
-                                                                                          AggregateIdSerializer.serializerFor(ProductId.class),
-                                                                                          IdentifierColumnType.TEXT,
-                                                                                          JSONColumnType.JSON,
-                                                                                          new TenantSerializer.TenantIdSerializer()));
+        eventStore.addAggregateEventStreamConfiguration(SeparateTablePerAggregateEventStreamConfiguration.standardConfiguration(PRODUCTS,
+                                                                                                                                createJSONSerializer(),
+                                                                                                                                AggregateIdSerializer.serializerFor(ProductId.class),
+                                                                                                                                IdentifierColumnType.TEXT,
+                                                                                                                                JSONColumnType.JSON,
+                                                                                                                                new TenantSerializer.TenantIdSerializer()));
 
         var testEvents = createTestEvents();
 
@@ -385,12 +384,12 @@ class MultiTenantPostgresqlEventStoreIT {
     @Test
     void test_pollEvents() {
         // Add support for the Product aggregate
-        eventStore.addAggregateEventStreamConfiguration(standardConfigurationUsingJackson(PRODUCTS,
-                                                                                          createObjectMapper(),
-                                                                                          AggregateIdSerializer.serializerFor(ProductId.class),
-                                                                                          IdentifierColumnType.TEXT,
-                                                                                          JSONColumnType.JSON,
-                                                                                          new TenantSerializer.TenantIdSerializer()));
+        eventStore.addAggregateEventStreamConfiguration(SeparateTablePerAggregateEventStreamConfiguration.standardConfiguration(PRODUCTS,
+                                                                                                                                createJSONSerializer(),
+                                                                                                                                AggregateIdSerializer.serializerFor(ProductId.class),
+                                                                                                                                IdentifierColumnType.TEXT,
+                                                                                                                                JSONColumnType.JSON,
+                                                                                                                                new TenantSerializer.TenantIdSerializer()));
         var testEvents = createTestEvents();
 
         var productEventsReceived = new ArrayList<PersistedEvent>();
@@ -518,7 +517,7 @@ class MultiTenantPostgresqlEventStoreIT {
         return eventsPerAggregateType;
     }
 
-    private ObjectMapper createObjectMapper() {
+    private JSONEventSerializer createJSONSerializer() {
         var objectMapper = JsonMapper.builder()
                                      .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                      .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
@@ -541,7 +540,7 @@ class MultiTenantPostgresqlEventStoreIT {
                                                .withSetterVisibility(JsonAutoDetect.Visibility.NONE)
                                                .withFieldVisibility(JsonAutoDetect.Visibility.ANY)
                                                .withCreatorVisibility(JsonAutoDetect.Visibility.ANY));
-        return objectMapper;
+        return new JacksonJSONEventSerializer(objectMapper);
     }
 
     private class TestPersistableEventMapper implements PersistableEventMapper {

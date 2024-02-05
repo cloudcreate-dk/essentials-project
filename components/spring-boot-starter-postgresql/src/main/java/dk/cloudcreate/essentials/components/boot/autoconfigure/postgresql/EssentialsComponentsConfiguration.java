@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 
 
 import com.fasterxml.jackson.annotation.*;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
@@ -50,7 +51,6 @@ import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.postgres.PostgresPlugin;
 import org.slf4j.*;
 import org.springframework.beans.BeansException;
-import org.springframework.boot.actuate.autoconfigure.tracing.ConditionalOnEnabledTracing;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -81,21 +81,21 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     @Bean
-    @ConditionalOnEnabledTracing
-    public DurableQueuesMicrometerTracingInterceptor durableQueuesMicrometerTracingInterceptor(Tracer tracer,
-                                                                                               Propagator propagator,
-                                                                                               ObservationRegistry observationRegistry,
+    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
+    public DurableQueuesMicrometerTracingInterceptor durableQueuesMicrometerTracingInterceptor(Optional<Tracer> tracer,
+                                                                                               Optional<Propagator> propagator,
+                                                                                               Optional<ObservationRegistry> observationRegistry,
                                                                                                EssentialsComponentsProperties properties) {
-        return new DurableQueuesMicrometerTracingInterceptor(tracer,
-                                                             propagator,
-                                                             observationRegistry,
+        return new DurableQueuesMicrometerTracingInterceptor(tracer.get(),
+                                                             propagator.get(),
+                                                             observationRegistry.get(),
                                                              properties.getDurableQueues().isVerboseTracing());
     }
 
     @Bean
-    @ConditionalOnEnabledTracing
-    public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(MeterRegistry meterRegistry) {
-        return new DurableQueuesMicrometerInterceptor(meterRegistry);
+    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
+    public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(Optional<MeterRegistry> meterRegistry) {
+        return new DurableQueuesMicrometerInterceptor(meterRegistry.get());
     }
 
     /**
@@ -132,6 +132,17 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @ConditionalOnMissingBean
     public EssentialsImmutableJacksonModule essentialsImmutableJacksonModule() {
         return new EssentialsImmutableJacksonModule();
+    }
+
+    /**
+     * Essential Jackson module which adds support for serializing and deserializing objects with semantic types
+     *
+     * @return the Essential Jackson module which adds support for serializing and deserializing objects with semantic types
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EssentialTypesJacksonModule essentialsJacksonModule() {
+        return new EssentialTypesJacksonModule();
     }
 
     /**
@@ -193,20 +204,6 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     /**
-     * The {@link JSONSerializer} that handles {@link DurableQueues} message payload serialization and deserialization
-     *
-     * @param essentialComponentsObjectMapper the {@link ObjectMapper} responsible for serializing Messages
-     * @return the {@link JSONSerializer}
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JacksonJSONEventSerializer")
-    public JSONSerializer jsonSerializer(ObjectMapper essentialComponentsObjectMapper) {
-        return new JacksonJSONSerializer(essentialComponentsObjectMapper);
-    }
-
-
-    /**
      * The {@link PostgresqlDurableQueues} that handles messaging and supports the {@link Inboxes}/{@link Outboxes} implementations
      *
      * @param unitOfWorkFactory                the {@link UnitOfWorkFactory}
@@ -244,12 +241,12 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @Bean
     @ConditionalOnMissingBean
     public MultiTableChangeListener<TableChangeNotification> multiTableChangeListener(Jdbi jdbi,
-                                                                                      ObjectMapper essentialComponentsObjectMapper,
+                                                                                      JSONSerializer jsonSerializer,
                                                                                       EventBus eventBus,
                                                                                       EssentialsComponentsProperties properties) {
         return new MultiTableChangeListener<>(jdbi,
                                               properties.getMultiTableChangeListener().getPollingInterval(),
-                                              essentialComponentsObjectMapper,
+                                              jsonSerializer,
                                               eventBus);
     }
 
@@ -317,14 +314,18 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     /**
-     * {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
+     * {@link JSONSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
+     * (including handling {@link DurableQueues} message payload serialization and deserialization)
      *
      * @param optionalEssentialsImmutableJacksonModule the optional {@link EssentialsImmutableJacksonModule}
-     * @return the {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
+     * @param additionalModules                        additional {@link Module}'s found in the {@link ApplicationContext}
+     * @return the {@link JSONSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
      */
     @Bean
+    @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JSONEventSerializer")
     @ConditionalOnMissingBean
-    public ObjectMapper essentialComponentsObjectMapper(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule) {
+    public JSONSerializer jsonSerializer(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule,
+                                         List<Module> additionalModules) {
         var objectMapperBuilder = JsonMapper.builder()
                                             .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                             .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
@@ -337,12 +338,11 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                             .enable(MapperFeature.AUTO_DETECT_FIELDS)
                                             .enable(MapperFeature.PROPAGATE_TRANSIENT_MARKER)
                                             .addModule(new Jdk8Module())
-                                            .addModule(new JavaTimeModule())
-                                            .addModule(new EssentialTypesJacksonModule());
+                                            .addModule(new JavaTimeModule());
 
-        optionalEssentialsImmutableJacksonModule.ifPresent(essentialsImmutableJacksonModule -> {
-            objectMapperBuilder.addModule(new EssentialsImmutableJacksonModule());
-        });
+        additionalModules.forEach(objectMapperBuilder::addModule);
+
+        optionalEssentialsImmutableJacksonModule.ifPresent(objectMapperBuilder::addModule);
 
         var objectMapper = objectMapperBuilder.build();
         objectMapper.setVisibility(objectMapper.getSerializationConfig().getDefaultVisibilityChecker()
@@ -350,7 +350,8 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                                                .withSetterVisibility(JsonAutoDetect.Visibility.NONE)
                                                .withFieldVisibility(JsonAutoDetect.Visibility.ANY)
                                                .withCreatorVisibility(JsonAutoDetect.Visibility.ANY));
-        return objectMapper;
+
+        return new JacksonJSONSerializer(objectMapper);
     }
 
     /**
@@ -370,6 +371,17 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
                     lifecycleBean.start();
                 }
             });
+
+            var callbacks = applicationContext.getBeansOfType(JdbiConfigurationCallback.class).values();
+            if (!callbacks.isEmpty()) {
+                var jdbi = applicationContext.getBean(Jdbi.class);
+                callbacks.forEach(configureJdbiCallback -> {
+                    log.info("Calling {}: {}",
+                             JdbiConfigurationCallback.class.getSimpleName(),
+                             configureJdbiCallback.getClass().getName());
+                    configureJdbiCallback.configure(jdbi);
+                });
+            }
         } else if (event instanceof ContextClosedEvent) {
             log.info("{} - has Context already been closed: {}", event.getClass().getSimpleName(), closed);
             if (!closed) {
