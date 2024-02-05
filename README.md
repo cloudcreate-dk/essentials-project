@@ -15,6 +15,8 @@ Essentials is released under version 2.0 of the [Apache License](https://www.apa
 | [0.30.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_1_x) | 17+                | 3.1.x                     |
 | [0.40.*](https://github.com/cloudcreate-dk/essentials-project/tree/main)             | 17+                | 3.2.x                     |
 
+Note: For Kotlin support you need to use version 0.40.4 or later
+
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
 many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
