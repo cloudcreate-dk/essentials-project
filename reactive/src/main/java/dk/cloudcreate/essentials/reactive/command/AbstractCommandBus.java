@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
+import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.sortInterceptorsByOrder;
 
 /**
  * Base implementation of the {@link CommandBus} - provides default implementation for all
@@ -69,6 +70,7 @@ public abstract class AbstractCommandBus implements CommandBus {
             log.info("Adding CommandBusInterceptor: {}", interceptor);
             interceptors.add(requireNonNull(interceptor, "No interceptor provided"));
         }
+        sortInterceptorsByOrder(this.interceptors);
         return this;
     }
 
@@ -81,6 +83,7 @@ public abstract class AbstractCommandBus implements CommandBus {
     public CommandBus removeInterceptor(CommandBusInterceptor interceptor) {
         log.info("Removing CommandBusInterceptor: {}", interceptor);
         interceptors.remove(requireNonNull(interceptor, "No interceptor provided"));
+        sortInterceptorsByOrder(this.interceptors);
         return this;
     }
 

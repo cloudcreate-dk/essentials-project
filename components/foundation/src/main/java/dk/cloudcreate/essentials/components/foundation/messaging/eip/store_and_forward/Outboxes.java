@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.reactive.EventHandler;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -230,6 +231,14 @@ public interface Outboxes {
             public Outbox sendMessage(Message payload) {
                 durableQueues.queueMessage(outboxQueueName,
                                            payload);
+                return this;
+            }
+
+            @Override
+            public Outbox sendMessage(Message payload, Duration deliveryDelay) {
+                durableQueues.queueMessage(outboxQueueName,
+                                           payload,
+                                           deliveryDelay);
                 return this;
             }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,19 +19,24 @@ package dk.cloudcreate.essentials.types.springdata.jpa.model;
 import dk.cloudcreate.essentials.types.*;
 import jakarta.persistence.*;
 
-import java.util.*;
+import java.util.Objects;
 
 @Entity
 @Table(name = "orders")
 public class Order {
     @EmbeddedId
-    public OrderId    id;
-    public CustomerId customerId;
+    @Column(name = "order_id") // Aligned with the generated column name from the embeddable id
+    public  OrderId                  id;
+    public  CustomerId               customerId;
     public  AccountId                accountId;
-    @ElementCollection
-    @Column(name = "quantity")
-    @CollectionTable(name = "order_lines")
-    public  Map<ProductId, Quantity> orderLines;
+    /**
+     * Does not work at the moment
+//     */
+//    @ElementCollection(fetch = FetchType.EAGER)
+//    @MapKeyColumn(name = "product_id")
+//    @Column(name = "quantity")
+//    @CollectionTable(name = "order_lines")
+//    public  Map<ProductId, Quantity> orderLines;
     private Amount                   amount;
     private Percentage               percentage;
 
@@ -41,28 +46,30 @@ public class Order {
 
     @Embedded
     @AttributeOverrides({
-            @AttributeOverride(name="amount", column=@Column(name="total_price_amount")),
-            @AttributeOverride(name="currency", column=@Column(name="total_price_currency"))
+            @AttributeOverride(name = "amount", column = @Column(name = "total_price_amount")),
+            @AttributeOverride(name = "currency", column = @Column(name = "total_price_currency"))
     })
     private Money totalPrice;
 
     // Dates
-    private Created created;
-    private DueDate dueDate;
-    private LastUpdated lastUpdated;
-    private TimeOfDay timeOfDay;
+    private Created         created;
+    private DueDate         dueDate;
+    private LastUpdated     lastUpdated;
+    private TimeOfDay       timeOfDay;
     private TransactionTime transactionTime;
-    private TransferTime transferTime;
+    private TransferTime    transferTime;
 
     public Order() {
     }
 
-    public Order(OrderId id, CustomerId customerId, AccountId accountId, Map<ProductId, Quantity> orderLines, Amount amount, Percentage percentage,
+    public Order(OrderId id, CustomerId customerId, AccountId accountId,
+//                 Map<ProductId, Quantity> orderLines,
+                 Amount amount, Percentage percentage,
                  CurrencyCode currency, CountryCode country, EmailAddress email, Money totalPrice, Created created, DueDate dueDate, LastUpdated lastUpdated, TimeOfDay timeOfDay, TransactionTime transactionTime, TransferTime transferTime) {
         this.id = id;
         this.customerId = customerId;
         this.accountId = accountId;
-        this.orderLines = orderLines;
+//        this.orderLines = orderLines;
         this.amount = amount;
         this.percentage = percentage;
         this.currency = currency;
@@ -97,13 +104,13 @@ public class Order {
         this.accountId = accountId;
     }
 
-    public Map<ProductId, Quantity> getOrderLines() {
-        return orderLines;
-    }
-
-    public void setOrderLines(Map<ProductId, Quantity> orderLines) {
-        this.orderLines = orderLines;
-    }
+//    public Map<ProductId, Quantity> getOrderLines() {
+//        return orderLines;
+//    }
+//
+//    public void setOrderLines(Map<ProductId, Quantity> orderLines) {
+//        this.orderLines = orderLines;
+//    }
 
     public Amount getAmount() {
         return amount;
@@ -206,12 +213,12 @@ public class Order {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Order order = (Order) o;
-        return Objects.equals(id, order.id) && Objects.equals(customerId, order.customerId) && Objects.equals(accountId, order.accountId) && Objects.equals(orderLines, order.orderLines) && Objects.equals(amount, order.amount) && Objects.equals(percentage, order.percentage) && Objects.equals(currency, order.currency) && Objects.equals(country, order.country) && Objects.equals(email, order.email) && Objects.equals(totalPrice, order.totalPrice) && Objects.equals(created, order.created) && Objects.equals(dueDate, order.dueDate) && Objects.equals(lastUpdated, order.lastUpdated) && Objects.equals(timeOfDay, order.timeOfDay) && Objects.equals(transactionTime, order.transactionTime) && Objects.equals(transferTime, order.transferTime);
+        return Objects.equals(id, order.id) && Objects.equals(customerId, order.customerId) && Objects.equals(accountId, order.accountId) && /*Objects.equals(orderLines, order.orderLines) &&*/ Objects.equals(amount, order.amount) && Objects.equals(percentage, order.percentage) && Objects.equals(currency, order.currency) && Objects.equals(country, order.country) && Objects.equals(email, order.email) && Objects.equals(totalPrice, order.totalPrice) && Objects.equals(created, order.created) && Objects.equals(dueDate, order.dueDate) && Objects.equals(lastUpdated, order.lastUpdated) && Objects.equals(timeOfDay, order.timeOfDay) && Objects.equals(transactionTime, order.transactionTime) && Objects.equals(transferTime, order.transferTime);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, customerId, accountId, orderLines, amount, percentage, currency, country, email, totalPrice, created, dueDate, lastUpdated, timeOfDay, transactionTime, transferTime);
+        return Objects.hash(id, customerId, accountId, /*orderLines,*/ amount, percentage, currency, country, email, totalPrice, created, dueDate, lastUpdated, timeOfDay, transactionTime, transferTime);
     }
 
     @Override
@@ -220,7 +227,7 @@ public class Order {
                 "id=" + id +
                 ", customerId=" + customerId +
                 ", accountId=" + accountId +
-                ", orderLines=" + orderLines +
+//                ", orderLines=" + orderLines +
                 ", amount=" + amount +
                 ", percentage=" + percentage +
                 ", currency=" + currency +

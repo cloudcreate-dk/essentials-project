@@ -215,8 +215,8 @@ or
 ```java
 var orders = AggregateType.of("Order");
 eventStore.addAggregateEventStreamConfiguration(
-    SeparateTablePerAggregateTypeConfiguration.standardSingleTenantConfigurationUsingJackson(orders,
-                                                  createObjectMapper(),
+    SeparateTablePerAggregateTypeConfiguration.standardSingleTenantConfiguration(orders,
+                                                  new JacksonJSONEventSerializer(createObjectMapper()),
                                                   AggregateIdSerializer.serializerFor(OrderId.class),
                                                   IdentifierColumnType.UUID,
                                                   JSONColumnType.JSONB));
@@ -691,6 +691,6 @@ To use `Postgresql Event Store` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-event-store</artifactId>
-    <version>0.30.5</version>
+    <version>0.30.6</version>
 </dependency>
 ```

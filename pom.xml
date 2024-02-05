@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright 2021-2023 the original author or authors.
+  ~ Copyright 2021-2024 the original author or authors.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -66,27 +66,27 @@
 
         <objenesis.version>3.3</objenesis.version>
         <postgresql.version>42.7.1</postgresql.version>
-        <slf4j.version>2.0.10</slf4j.version>
-        <spring-boot.version>3.1.7</spring-boot.version>
+        <slf4j.version>2.0.11</slf4j.version>
+        <spring-boot.version>3.1.8</spring-boot.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <spring-data-mongodb.version>4.1.7</spring-data-mongodb.version>
-        <spring-data-jpa.version>3.1.7</spring-data-jpa.version>
+        <spring-data-mongodb.version>4.1.8</spring-data-mongodb.version>
+        <spring-data-jpa.version>3.1.8</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
-        <assertj.version>3.25.1</assertj.version>
+        <assertj.version>3.25.3</assertj.version>
         <mongodb-driver-sync.version>4.11.1</mongodb-driver-sync.version>
         <log4j-to-slf4j.version>2.22.1</log4j-to-slf4j.version>
         <json-smart.version>2.5.0</json-smart.version>
         <snakeyaml.version>2.2</snakeyaml.version>
-        <micrometer.version>1.12.1</micrometer.version>
-        <micrometer-tracing.version>1.2.1</micrometer-tracing.version>
-        <netty-bom.version>4.1.104.Final</netty-bom.version>
-        <junit-bom.version>5.10.1</junit-bom.version>
-        <testcontainers-bom.version>1.19.3</testcontainers-bom.version>
-        <jdbi3-bom.version>3.43.0</jdbi3-bom.version>
+        <micrometer.version>1.12.2</micrometer.version>
+        <micrometer-tracing.version>1.2.2</micrometer-tracing.version>
+        <netty-bom.version>4.1.106.Final</netty-bom.version>
+        <junit-bom.version>5.10.2</junit-bom.version>
+        <testcontainers-bom.version>1.19.4</testcontainers-bom.version>
+        <jdbi3-bom.version>3.44.0</jdbi3-bom.version>
         <jackson-bom.version>2.16.1</jackson-bom.version>
-        <reactor-bom.version>2023.0.1</reactor-bom.version>
-        <spring-framework-bom.version>6.0.15</spring-framework-bom.version>
-        <mockito-bom.version>5.8.0</mockito-bom.version>
+        <reactor-bom.version>2023.0.2</reactor-bom.version>
+        <spring-framework-bom.version>6.0.16</spring-framework-bom.version>
+        <mockito-bom.version>5.10.0</mockito-bom.version>
         <logback.version>1.4.14</logback.version>
 
         <maven-dependency-plugin.version>3.6.1</maven-dependency-plugin.version>
@@ -99,14 +99,14 @@
         <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.6.3</maven-javadoc-plugin.version>
-        <maven-failsafe-plugin.version>3.2.3</maven-failsafe-plugin.version>
-        <maven-surefire-plugin.version>3.2.3</maven-surefire-plugin.version>
+        <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
+        <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <maven-compiler-plugin.version>3.12.1</maven-compiler-plugin.version>
         <versions-maven-plugin.version>2.16.2</versions-maven-plugin.version>
         <maven-enforcer-plugin.version>3.4.1</maven-enforcer-plugin.version>
         <minimum-maven-version>3.8.8</minimum-maven-version>
-        <dependency-check-maven.version>9.0.8</dependency-check-maven.version>
-        <flatten-maven-plugin.version>1.5.0</flatten-maven-plugin.version>
+        <dependency-check-maven.version>9.0.9</dependency-check-maven.version>
+        <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
         <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
         <maven-gpg-plugin.version>3.1.0</maven-gpg-plugin.version>
     </properties>
@@ -250,6 +250,30 @@
     </distributionManagement>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${maven.multiModuleProjectDirectory}</directory>
+                <targetPath>META-INF</targetPath>
+                <includes>
+                    <include>LICENSE.txt</include>
+                </includes>
+            </resource>
+        </resources>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+            <testResource>
+                <directory>${maven.multiModuleProjectDirectory}</directory>
+                <targetPath>META-INF</targetPath>
+                <includes>
+                    <include>LICENSE.txt</include>
+                </includes>
+            </testResource>
+        </testResources>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -291,27 +315,56 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
                     <version>${maven-jar-plugin.version}</version>
+                    <configuration>
+                        <archive>
+                            <manifestEntries>
+                                <License>Apache License, Version 2.0 - https://www.apache.org/licenses/LICENSE-2.0.txt</License>
+                            </manifestEntries>
+                        </archive>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-source-plugin</artifactId>
                     <version>${maven-source-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                            <configuration>
+                                <archive>
+                                    <manifestEntries>
+                                        <License>Apache License, Version 2.0 - https://www.apache.org/licenses/LICENSE-2.0.txt</License>
+                                    </manifestEntries>
+                                </archive>
+                            </configuration>
+                        </execution>
+                    </executions>
+
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>${maven-javadoc-plugin.version}</version>
-                    <configuration>
-                        <doclint>none</doclint>
-                    </configuration>
                     <executions>
                         <execution>
                             <id>attach-javadocs</id>
                             <goals>
                                 <goal>jar</goal>
                             </goals>
+                            <configuration>
+                                <doclint>none</doclint>
+                                <archive>
+                                    <manifestEntries>
+                                        <License>Apache License, Version 2.0 - https://www.apache.org/licenses/LICENSE-2.0.txt</License>
+                                    </manifestEntries>
+                                </archive>
+                            </configuration>
                         </execution>
                     </executions>
+
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -481,29 +534,10 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <configuration>
-                            <doclint>none</doclint>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
                     </plugin>
                 </plugins>
             </build>
@@ -515,29 +549,10 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <configuration>
-                            <doclint>none</doclint>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
                     </plugin>
                 </plugins>
             </build>

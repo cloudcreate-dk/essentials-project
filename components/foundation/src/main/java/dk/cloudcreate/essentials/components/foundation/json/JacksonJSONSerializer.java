@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,8 @@
 
 package dk.cloudcreate.essentials.components.foundation.json;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dk.cloudcreate.essentials.shared.reflection.Classes;
-
-import java.io.IOException;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -40,7 +37,7 @@ public class JacksonJSONSerializer implements JSONSerializer {
         requireNonNull(obj, "you must provide a non-null object");
         try {
             return objectMapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
+        } catch (Throwable e) {
             throw new JSONSerializationException(msg("Failed to serialize {} to JSON", obj.getClass().getName()),
                                                  e);
         }
@@ -51,7 +48,7 @@ public class JacksonJSONSerializer implements JSONSerializer {
         requireNonNull(obj, "you must provide a non-null object");
         try {
             return objectMapper.writeValueAsBytes(obj);
-        } catch (JsonProcessingException e) {
+        } catch (Throwable e) {
             throw new JSONSerializationException(msg("Failed to serialize {} to JSON", obj.getClass().getName()),
                                                  e);
         }
@@ -70,7 +67,7 @@ public class JacksonJSONSerializer implements JSONSerializer {
         requireNonNull(javaType, "No javaType provided");
         try {
             return objectMapper.readValue(json, javaType);
-        } catch (JsonProcessingException e) {
+        } catch (Throwable e) {
             throw new JSONDeserializationException(msg("Failed to deserialize JSON to {}", javaType.getName()),
                                                    e);
         }
@@ -88,7 +85,7 @@ public class JacksonJSONSerializer implements JSONSerializer {
         requireNonNull(javaType, "No javaType provided");
         try {
             return objectMapper.readValue(json, javaType);
-        } catch (IOException e) {
+        } catch (Throwable e) {
             throw new JSONDeserializationException(msg("Failed to deserialize JSON to {}", javaType.getName()),
                                                    e);
         }

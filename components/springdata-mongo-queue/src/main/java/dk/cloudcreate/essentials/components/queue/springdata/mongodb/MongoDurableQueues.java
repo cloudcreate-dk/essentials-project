@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
+import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.sortInterceptorsByOrder;
 import static dk.cloudcreate.essentials.shared.interceptor.InterceptorChain.newInterceptorChainForOperation;
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
@@ -386,6 +387,7 @@ public class MongoDurableQueues implements DurableQueues {
             started = true;
             log.info("Starting");
             interceptors.forEach(durableQueuesInterceptor -> durableQueuesInterceptor.setDurableQueues(this));
+            sortInterceptorsByOrder(interceptors);
             durableQueueConsumers.values().forEach(MongoDurableQueueConsumer::start);
             startCollectionListener();
             log.info("Started");
@@ -478,6 +480,7 @@ public class MongoDurableQueues implements DurableQueues {
         log.info("Adding interceptor: {}", interceptor);
         interceptor.setDurableQueues(this);
         interceptors.add(interceptor);
+        sortInterceptorsByOrder(interceptors);
         return this;
     }
 
@@ -486,6 +489,7 @@ public class MongoDurableQueues implements DurableQueues {
         requireNonNull(interceptor, "No interceptor provided");
         log.info("Removing interceptor: {}", interceptor);
         interceptors.remove(interceptor);
+        sortInterceptorsByOrder(interceptors);
         return this;
     }
 
@@ -611,7 +615,7 @@ public class MongoDurableQueues implements DurableQueues {
     private Object deserializeMessagePayload(QueueName queueName, byte[] messagePayload, String messagePayloadType) {
         try {
             return jsonSerializer.deserialize(messagePayload, Classes.forName(messagePayloadType));
-        } catch (JSONDeserializationException e) {
+        } catch (Throwable e) {
             throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
         }
     }
@@ -853,7 +857,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                        log.debug("Deleted Message with id '{}'", queueEntryId);
                                                        return true;
                                                    } else {
-                                                       log.error("Failed to Delete Message with id '{}'", queueEntryId);
+                                                       log.error("Couldn't Delete Message with id '{}' - it may already have been deleted", queueEntryId);
                                                        return false;
                                                    }
                                                }).proceed();
