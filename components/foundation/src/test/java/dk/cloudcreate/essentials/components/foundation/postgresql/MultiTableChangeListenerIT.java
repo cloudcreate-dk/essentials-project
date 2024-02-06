@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import dk.cloudcreate.essentials.components.foundation.json.JacksonJSONSerializer;
 import dk.cloudcreate.essentials.reactive.LocalEventBus;
 import org.assertj.core.api.Fail;
 import org.jdbi.v3.core.Jdbi;
@@ -88,7 +89,7 @@ class MultiTableChangeListenerIT {
             ListenNotify.addChangeNotificationTriggerToTable(handle, TABLE_3, List.of(ListenNotify.SqlOperation.INSERT), "id", "column5", "column6");
         });
 
-        listener = new MultiTableChangeListener<>(jdbi, Duration.ofMillis(50), objectMapper, localEventBus);
+        listener = new MultiTableChangeListener<>(jdbi, Duration.ofMillis(50), new JacksonJSONSerializer(objectMapper), localEventBus);
         listener.listenToNotificationsFor(TABLE_1, Table1Notification.class);
         listener.listenToNotificationsFor(TABLE_2, Table2Notification.class);
         listener.listenToNotificationsFor(TABLE_3, Table3Notification.class);

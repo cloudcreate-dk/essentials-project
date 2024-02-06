@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,7 +87,7 @@ public interface CommandBusInterceptorChain {
          *
          * @param command                     the command instance
          * @param matchedCommandHandler       the single {@link CommandHandler} the responded true to {@link CommandHandler#canHandle(Class)}
-         * @param interceptors                the {@link CommandBusInterceptor}'s (can be an empty List if no interceptors have been configured)
+         * @param interceptors                the ordered {@link CommandBusInterceptor}'s (can be an empty List if no interceptors have been configured)
          * @param interceptorOperationInvoker the function responsible for calling the correct {@link CommandBusInterceptor} <code>send</code> method
          * @param defaultCommandBusBehaviour  the function invoking the default {@link LocalCommandBus} <code>send</code> method logic
          */

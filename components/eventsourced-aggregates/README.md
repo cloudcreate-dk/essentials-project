@@ -43,7 +43,7 @@ To use `EventSourced Aggregates` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components/groupId>
     <artifactId>eventsourced-aggregates</artifactId>
-    <version>0.9.17</version>
+    <version>0.9.18</version>
 </dependency>
 ```
 
@@ -415,9 +415,9 @@ configured `AggregateEventStreamPersistenceStrategy`
 ```
 var orders = AggregateType.of("Orders");
 var ordersRepository = StatefulAggregateRepository.from(eventStore,
-                                                    SeparateTablePerAggregateTypeConfiguration.standardSingleTenantConfigurationUsingJackson(
+                                                    SeparateTablePerAggregateTypeConfiguration.standardSingleTenantConfiguration(
                                                         orders,
-                                                        createObjectMapper(),
+                                                        new JacksonJSONEventSerializer(createObjectMapper()),
                                                         AggregateIdSerializer.serializerFor(OrderId.class),
                                                         IdentifierColumnType.UUID,
                                                         JSONColumnType.JSONB),
@@ -472,7 +472,7 @@ It's therefore advisable to combine `PostgresqlAggregateSnapshotRepository` with
 except for `AggregateSnapshotRepository#aggregateUpdated(Object, AggregateEventStream)` and `AggregateSnapshotRepository#deleteSnapshots(AggregateType, Object, Class, List)`, which are performed **asynchronously** in the background.
 
 ```
-var aggregateEventStreamConfigurationFactory = SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson(createObjectMapper(),
+var aggregateEventStreamConfigurationFactory = SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfiguration(new JacksonJSONEventSerializer(createObjectMapper()),
                                                                                                                                                           IdentifierColumnType.UUID,
                                                                                                                                                                   JSONColumnType.JSONB);
 var snapshotRepository = new PostgresqlAggregateSnapshotRepository(eventStore,
@@ -508,6 +508,6 @@ To use `EventSourced Aggregates` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components/groupId>
     <artifactId>eventsourced-aggregates</artifactId>
-    <version>0.9.17</version>
+    <version>0.9.18</version>
 </dependency>
 ```

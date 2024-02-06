@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package dk.cloudcreate.essentials.components.foundation.reactive.command;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.command.interceptor.*;
 import dk.cloudcreate.essentials.shared.functional.CheckedFunction;
+import dk.cloudcreate.essentials.shared.interceptor.InterceptorOrder;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -26,6 +27,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * {@link CommandBusInterceptor} that ensures that each Command is handled within a {@link UnitOfWork}
  * by using the {@link UnitOfWorkFactory#withUnitOfWork(CheckedFunction)}
  */
+@InterceptorOrder(5)
 public class UnitOfWorkControllingCommandBusInterceptor implements CommandBusInterceptor {
     private final UnitOfWorkFactory<? extends UnitOfWork> unitOfWorkFactory;
 

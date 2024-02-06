@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ public interface EventStoreInterceptorChain<OPERATION, RESULT> {
          * Create a new {@link EventStoreInterceptorChain} instance for the provided <code>operation</code>
          *
          * @param operation                  the {@link EventStore} operation to intercept, aka. the argument to the interceptor
-         * @param interceptors               the {@link EventStoreInterceptor}'s (can be an empty List if no interceptors have been configured)
+         * @param interceptors               the ordered {@link EventStoreInterceptor}'s (can be an empty List if no interceptors have been configured)
          * @param interceptorMethodInvoker   the function that's responsible for invoking the matching {@link EventStoreInterceptor} method
          * @param defaultEventStoreBehaviour the default {@link EventStore} behaviour for the given <code>operation</code> in case none of the interceptors provided a different result and stopped the interceptor chain
          */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  */
 public class MarkAsDeadLetterMessage {
     public final QueueEntryId queueEntryId;
-    private      Exception    causeForBeingMarkedAsDeadLetter;
+    private      Throwable    causeForBeingMarkedAsDeadLetter;
 
     /**
      * Create a new builder that produces a new {@link MarkAsDeadLetterMessage} instance
@@ -54,7 +54,7 @@ public class MarkAsDeadLetterMessage {
      * @param queueEntryId                    the unique id of the message that must be marked as a Dead Letter Message
      * @param causeForBeingMarkedAsDeadLetter the reason for the message being marked as a Dead Letter Message
      */
-    public MarkAsDeadLetterMessage(QueueEntryId queueEntryId, Exception causeForBeingMarkedAsDeadLetter) {
+    public MarkAsDeadLetterMessage(QueueEntryId queueEntryId, Throwable causeForBeingMarkedAsDeadLetter) {
         this.queueEntryId = requireNonNull(queueEntryId, "No queueEntryId provided");
         this.causeForBeingMarkedAsDeadLetter = causeForBeingMarkedAsDeadLetter;
     }
@@ -71,7 +71,7 @@ public class MarkAsDeadLetterMessage {
      *
      * @return the reason for the message being marked as a Dead Letter Message
      */
-    public Exception getCauseForBeingMarkedAsDeadLetter() {
+    public Throwable getCauseForBeingMarkedAsDeadLetter() {
         return causeForBeingMarkedAsDeadLetter;
     }
 
@@ -79,7 +79,7 @@ public class MarkAsDeadLetterMessage {
      *
      * @param causeForBeingMarkedAsDeadLetter the reason for the message being marked as a Dead Letter Message
      */
-    public void setCauseForBeingMarkedAsDeadLetter(Exception causeForBeingMarkedAsDeadLetter) {
+    public void setCauseForBeingMarkedAsDeadLetter(Throwable causeForBeingMarkedAsDeadLetter) {
         this.causeForBeingMarkedAsDeadLetter = causeForBeingMarkedAsDeadLetter;
     }
 

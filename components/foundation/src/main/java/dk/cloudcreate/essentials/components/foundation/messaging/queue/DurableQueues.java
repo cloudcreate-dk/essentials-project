@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -440,7 +440,7 @@ public interface DurableQueues extends Lifecycle {
      * @return the {@link QueuedMessage} message wrapped in an {@link Optional} if the operation was successful, otherwise it returns an {@link Optional#empty()}
      */
     default Optional<QueuedMessage> retryMessage(QueueEntryId queueEntryId,
-                                                 Exception causeForRetry,
+                                                 Throwable causeForRetry,
                                                  Duration deliveryDelay) {
         return retryMessage(new RetryMessage(queueEntryId,
                                              causeForRetry,
@@ -469,7 +469,7 @@ public interface DurableQueues extends Lifecycle {
      * @return the {@link QueuedMessage} message wrapped in an {@link Optional} if the operation was successful, otherwise it returns an {@link Optional#empty()}
      */
     default Optional<QueuedMessage> markAsDeadLetterMessage(QueueEntryId queueEntryId,
-                                                            Exception causeForBeingMarkedAsDeadLetter) {
+                                                            Throwable causeForBeingMarkedAsDeadLetter) {
         return markAsDeadLetterMessage(new MarkAsDeadLetterMessage(queueEntryId,
                                                                    causeForBeingMarkedAsDeadLetter));
     }

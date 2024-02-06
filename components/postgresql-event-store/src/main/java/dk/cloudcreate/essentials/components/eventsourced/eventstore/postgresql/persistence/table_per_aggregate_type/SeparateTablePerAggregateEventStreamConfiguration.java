@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.*;
@@ -96,23 +95,23 @@ public class SeparateTablePerAggregateEventStreamConfiguration extends Aggregate
      * {@link SeparateTablePerAggregateEventStreamConfiguration#jsonSerializer} = {@link JacksonJSONEventSerializer}<br>
      *
      * @param aggregateType                             The type of Aggregate this event stream configuration relates to
-     * @param objectMapper                              The {@link ObjectMapper} that will be wrapped in a {@link JacksonJSONEventSerializer}
+     * @param jsonSerializer                            The {@link JSONEventSerializer}
      * @param aggregateIdSerializer                     The serializer for the Aggregate Id
      * @param identifierColumnTypeUsedForAllIdentifiers The SQL Column type used for all identifier columns (aggregate id, event id, correlation id, etc.)
      * @param jsonColumnTypeUsedForAllJSONColumns       The SQL JSON column type used for all JSON columns (Event and {@link EventMetaData})
      * @return the event stream configuration for the given aggregate type
      */
-    public static SeparateTablePerAggregateEventStreamConfiguration standardSingleTenantConfigurationUsingJackson(AggregateType aggregateType,
-                                                                                                                  ObjectMapper objectMapper,
-                                                                                                                  AggregateIdSerializer aggregateIdSerializer,
-                                                                                                                  IdentifierColumnType identifierColumnTypeUsedForAllIdentifiers,
-                                                                                                                  JSONColumnType jsonColumnTypeUsedForAllJSONColumns) {
-        return standardConfigurationUsingJackson(aggregateType,
-                                                 objectMapper,
-                                                 aggregateIdSerializer,
-                                                 identifierColumnTypeUsedForAllIdentifiers,
-                                                 jsonColumnTypeUsedForAllJSONColumns,
-                                                 new NoSupportForMultiTenancySerializer());
+    public static SeparateTablePerAggregateEventStreamConfiguration standardSingleTenantConfiguration(AggregateType aggregateType,
+                                                                                                      JSONEventSerializer jsonSerializer,
+                                                                                                      AggregateIdSerializer aggregateIdSerializer,
+                                                                                                      IdentifierColumnType identifierColumnTypeUsedForAllIdentifiers,
+                                                                                                      JSONColumnType jsonColumnTypeUsedForAllJSONColumns) {
+        return standardConfiguration(aggregateType,
+                                     jsonSerializer,
+                                     aggregateIdSerializer,
+                                     identifierColumnTypeUsedForAllIdentifiers,
+                                     jsonColumnTypeUsedForAllJSONColumns,
+                                     new NoSupportForMultiTenancySerializer());
     }
 
     /**
@@ -123,25 +122,25 @@ public class SeparateTablePerAggregateEventStreamConfiguration extends Aggregate
      * {@link SeparateTablePerAggregateEventStreamConfiguration#jsonSerializer} = {@link JacksonJSONEventSerializer}<br>
      *
      * @param aggregateType                             The type of Aggregate this event stream configuration relates to
-     * @param objectMapper                              The {@link ObjectMapper} that will be wrapped in a {@link JacksonJSONEventSerializer}
+     * @param jsonSerializer                            The {@link JSONEventSerializer}
      * @param aggregateIdSerializer                     The serializer for the Aggregate Id
      * @param identifierColumnTypeUsedForAllIdentifiers The SQL Column type used for all identifier columns (aggregate id, event id, correlation id, etc.)
      * @param jsonColumnTypeUsedForAllJSONColumns       The SQL JSON column type used for all JSON columns (Event and {@link EventMetaData})
      * @param tenantSerializer                          The {@link TenantSerializer} to use (e.g. {@link TenantIdSerializer})
      * @return the event stream configuration for the given aggregate type
      */
-    public static SeparateTablePerAggregateEventStreamConfiguration standardConfigurationUsingJackson(AggregateType aggregateType,
-                                                                                                      ObjectMapper objectMapper,
-                                                                                                      AggregateIdSerializer aggregateIdSerializer,
-                                                                                                      IdentifierColumnType identifierColumnTypeUsedForAllIdentifiers,
-                                                                                                      JSONColumnType jsonColumnTypeUsedForAllJSONColumns,
-                                                                                                      TenantSerializer<?> tenantSerializer) {
+    public static SeparateTablePerAggregateEventStreamConfiguration standardConfiguration(AggregateType aggregateType,
+                                                                                          JSONEventSerializer jsonSerializer,
+                                                                                          AggregateIdSerializer aggregateIdSerializer,
+                                                                                          IdentifierColumnType identifierColumnTypeUsedForAllIdentifiers,
+                                                                                          JSONColumnType jsonColumnTypeUsedForAllJSONColumns,
+                                                                                          TenantSerializer<?> tenantSerializer) {
         requireNonNull(aggregateType, "No aggregateType provided");
         return new SeparateTablePerAggregateEventStreamConfiguration(aggregateType,
                                                                      aggregateType.toString() + "_events",
                                                                      EventStreamTableColumnNames.defaultColumnNames(),
                                                                      100,
-                                                                     new JacksonJSONEventSerializer(objectMapper),
+                                                                     jsonSerializer,
                                                                      aggregateIdSerializer,
                                                                      identifierColumnTypeUsedForAllIdentifiers,
                                                                      identifierColumnTypeUsedForAllIdentifiers,

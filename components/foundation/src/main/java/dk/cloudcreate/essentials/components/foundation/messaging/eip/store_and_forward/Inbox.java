@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
+import java.time.Duration;
 import java.util.function.Consumer;
 
 /**
@@ -116,6 +117,20 @@ public interface Inbox {
     }
 
     /**
+     * Register or add a message (with meta-data) that has been received and where the message should be delivered later<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload  the message payload
+     * @param metaData the message meta-data
+     * @param deliveryDelay    duration before the message should be delivered
+     * @return this inbox instance
+     */
+    default Inbox addMessageReceived(Object payload, MessageMetaData metaData, Duration deliveryDelay) {
+        return addMessageReceived(new Message(payload, metaData), deliveryDelay);
+    }
+
+    /**
      * Register or add a message (without meta-data) that has been received<br>
      * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
@@ -124,6 +139,18 @@ public interface Inbox {
      */
     default Inbox addMessageReceived(Object payload) {
         return addMessageReceived(new Message(payload));
+    }
+
+    /**
+     * Register or add a message (without meta-data) that has been received and where the message should be delivered later<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload the message payload
+     * @param deliveryDelay   duration before the message should be delivered
+     */
+    default Inbox addMessageReceived(Object payload, Duration deliveryDelay) {
+        return addMessageReceived(new Message(payload), deliveryDelay);
     }
 
     /**
@@ -136,6 +163,18 @@ public interface Inbox {
      * @see OrderedMessage
      */
     Inbox addMessageReceived(Message message);
+
+    /**
+     * Register or add a message that has been received and where the message should be delivered later<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param message the message
+     * @param deliveryDelay   duration before the message should be delivered
+     * @return this inbox instance
+     * @see OrderedMessage
+     */
+    Inbox addMessageReceived(Message message, Duration deliveryDelay);
 
     /**
      * Get the number of message received that haven't been processed yet (or successfully processed) by the message consumer

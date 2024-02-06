@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
 import dk.cloudcreate.essentials.components.foundation.messaging.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
@@ -164,6 +165,19 @@ public abstract class EventProcessor implements Lifecycle {
     private PatternMatchingMessageHandler   patternMatchingInboxMessageHandlerDelegate;
     private List<MessageHandlerInterceptor> messageHandlerInterceptors;
 
+    /**
+     * Create a new {@link EventProcessor} instance
+     *
+     * @param eventProcessorDependencies The {@link EventProcessorDependencies} that encapsulates all
+     *                                   the dependencies required by an instance of an {@link EventProcessor}
+     * @see EventProcessor#EventProcessor(EventStoreSubscriptionManager, Inboxes, DurableLocalCommandBus, List)
+     */
+    protected EventProcessor(EventProcessorDependencies eventProcessorDependencies) {
+        this(requireNonNull(eventProcessorDependencies, "No eventProcessorDependencies provided").eventStoreSubscriptionManager,
+             eventProcessorDependencies.inboxes,
+             eventProcessorDependencies.commandBus,
+             eventProcessorDependencies.messageHandlerInterceptors);
+    }
 
     /**
      * Create a new {@link EventProcessor} instance
@@ -252,10 +266,15 @@ public abstract class EventProcessor implements Lifecycle {
                                                            eventOrder));
                 }
                 var persistedEvent = events.get(0);
-                patternMatchingInboxMessageHandlerDelegate.accept(OrderedMessage.of(persistedEvent.event().deserialize(),
-                                                                                    stringAggregateId,
-                                                                                    eventOrder,
-                                                                                    msg.getMetaData()));
+                try {
+                    patternMatchingInboxMessageHandlerDelegate.accept(OrderedMessage.of(persistedEvent.event().deserialize(),
+                                                                                        stringAggregateId,
+                                                                                        eventOrder,
+                                                                                        msg.getMetaData()));
+                } catch (JSONDeserializationException e) {
+                    log.error("Failed to deserialize PersistedEvent '{}'", persistedEvent.event().getEventTypeOrNamePersistenceValue(), e);
+                    throw e;
+                }
             } else {
                 patternMatchingInboxMessageHandlerDelegate.accept(msg);
             }

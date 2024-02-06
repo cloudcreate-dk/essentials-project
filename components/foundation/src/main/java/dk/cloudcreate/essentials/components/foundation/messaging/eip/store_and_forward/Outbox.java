@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
+import java.time.Duration;
 import java.util.function.Consumer;
 
 /**
@@ -116,6 +117,19 @@ public interface Outbox {
     }
 
     /**
+     * Send a message (without meta-data) asynchronously and where the message should be delivered later.<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload       the message payload
+     * @param deliveryDelay duration before the message should be delivered
+     * @return this outbox instance
+     */
+    default Outbox sendMessage(Object payload, Duration deliveryDelay) {
+        return sendMessage(new Message(payload), deliveryDelay);
+    }
+
+    /**
      * Send a message (with meta-data) asynchronously.<br>
      * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
@@ -129,6 +143,20 @@ public interface Outbox {
     }
 
     /**
+     * Send a message (with meta-data) asynchronously and where the message should be delivered later.<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload       the message payload
+     * @param metaData      the message meta-data
+     * @param deliveryDelay duration before the message should be delivered
+     * @return this outbox instance
+     */
+    default Outbox sendMessage(Object payload, MessageMetaData metaData, Duration deliveryDelay) {
+        return sendMessage(new Message(payload, metaData), deliveryDelay);
+    }
+
+    /**
      * Send a message asynchronously.<br>
      * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
@@ -138,6 +166,18 @@ public interface Outbox {
      * @see OrderedMessage
      */
     Outbox sendMessage(Message message);
+
+    /**
+     * Send a message asynchronously and where the message should be delivered later.<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param message       the message
+     * @param deliveryDelay duration before the message should be delivered
+     * @return this outbox instance
+     * @see OrderedMessage
+     */
+    Outbox sendMessage(Message message, Duration deliveryDelay);
 
     /**
      * Get the number of message in the outbox that haven't been sent yet

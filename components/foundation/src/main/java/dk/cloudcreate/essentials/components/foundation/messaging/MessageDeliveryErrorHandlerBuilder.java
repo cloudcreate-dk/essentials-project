@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,14 +100,14 @@ public class MessageDeliveryErrorHandlerBuilder {
         var stopRedeliveryOnHandler = MessageDeliveryErrorHandler.stopRedeliveryOn(stopRedeliveryOnExceptions);
         return new MessageDeliveryErrorHandler() {
             @Override
-            public boolean isPermanentError(QueuedMessage queuedMessage, Exception error) {
+            public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
                 if (shouldAlwaysRetryOn(error)) {
                     return false;
                 }
                 return stopRedeliveryOnHandler.isPermanentError(queuedMessage, error);
             }
 
-            private boolean shouldAlwaysRetryOn(Exception error) {
+            private boolean shouldAlwaysRetryOn(Throwable error) {
                 return alwaysRetryOnExceptions.contains(error.getClass()) ||
                         alwaysRetryOnExceptions.stream()
                                                .anyMatch(exception -> exception.isAssignableFrom(error.getClass()));

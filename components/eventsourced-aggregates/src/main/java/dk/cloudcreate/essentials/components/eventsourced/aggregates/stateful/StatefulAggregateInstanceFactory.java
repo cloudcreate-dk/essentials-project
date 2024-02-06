@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,19 +38,6 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 public interface StatefulAggregateInstanceFactory {
     /**
-     * An {@link StatefulAggregateInstanceFactory} that calls the default no-arguments constructor on the concrete {@link Aggregate} type to
-     * create a new instance of the {@link Aggregate}
-     */
-    StatefulAggregateInstanceFactory DEFAULT_REFLECTION_BASED_CONSTRUCTOR_AGGREGATE_ROOT_FACTORY = new ReflectionBasedAggregateInstanceFactory();
-    /**
-     * An {@link StatefulAggregateInstanceFactory} that uses {@link Objenesis} to create a new instance of the {@link Aggregate}<br>
-     * <b>Please note: Objenesis doesn't initialize fields nor call any constructors</b>, so you {@link Aggregate} design needs to take
-     * this into consideration.<br>
-     * All concrete aggregates that extends {@link StatefulAggregate} have been prepared to be initialized by {@link Objenesis}
-     */
-    StatefulAggregateInstanceFactory OBJENESIS_AGGREGATE_ROOT_FACTORY                            = new ObjenesisAggregateInstanceFactory();
-
-    /**
      * Create an instance of the {@link Aggregate}
      *
      * @param id            the id value
@@ -62,25 +49,25 @@ public interface StatefulAggregateInstanceFactory {
     <ID, AGGREGATE> AGGREGATE create(ID id, Class<AGGREGATE> aggregateType);
 
     /**
-     * Returns an {@link StatefulAggregateInstanceFactory} that calls the default no-arguments constructor on the concrete {@link Aggregate} type to
+     * Returns a {@link StatefulAggregateInstanceFactory} that calls the default no-arguments constructor on the concrete {@link Aggregate} type to
      * create a new instance of the {@link Aggregate}
      *
-     * @return #DEFAULT_CONSTRUCTOR_AGGREGATE_ROOT_FACTORY
+     * @return a {@link StatefulAggregateInstanceFactory} that calls the default no-arguments constructor on the concrete {@link Aggregate} type
      */
     static StatefulAggregateInstanceFactory reflectionBasedAggregateRootFactory() {
-        return DEFAULT_REFLECTION_BASED_CONSTRUCTOR_AGGREGATE_ROOT_FACTORY;
+        return new ReflectionBasedAggregateInstanceFactory();
     }
 
     /**
-     * Returns an {@link StatefulAggregateInstanceFactory} that uses {@link Objenesis} to create a new instance of the {@link Aggregate}<br>
+     * Returns a {@link StatefulAggregateInstanceFactory} that uses {@link Objenesis} to create a new instance of the {@link Aggregate}<br>
      * <b>Please note: Objenesis doesn't initialize fields nor call any constructors</b>, so you {@link Aggregate} design needs to take
      * this into consideration.<br>
      * All concrete aggregates that extends {@link AggregateRoot} have been prepared to be initialized by {@link Objenesis}
      *
-     * @return #OBJENESIS_AGGREGATE_ROOT_FACTORY
+     * @return a {@link StatefulAggregateInstanceFactory} that uses {@link Objenesis} to create a new instance of the {@link Aggregate}
      */
     static StatefulAggregateInstanceFactory objenesisAggregateRootFactory() {
-        return OBJENESIS_AGGREGATE_ROOT_FACTORY;
+        return new ObjenesisAggregateInstanceFactory();
     }
 
 
@@ -112,13 +99,16 @@ public interface StatefulAggregateInstanceFactory {
      * All concrete aggregates that extends {@link AggregateRoot} have been prepared to be initialized by {@link Objenesis}
      */
     class ObjenesisAggregateInstanceFactory implements StatefulAggregateInstanceFactory {
-        private final Objenesis                                      objenesis       = new ObjenesisStd();
+        private       Objenesis                                      objenesis;
         private final ConcurrentMap<Class<?>, ObjectInstantiator<?>> instantiatorMap = new ConcurrentHashMap<>();
 
         @SuppressWarnings("unchecked")
         @Override
         public <ID, AGGREGATE> AGGREGATE create(ID id, Class<AGGREGATE> aggregateType) {
             requireNonNull(aggregateType, "You must provide an aggregateType");
+            if (objenesis == null) {
+                objenesis = new ObjenesisStd();
+            }
             return (AGGREGATE) instantiatorMap.computeIfAbsent(aggregateType,
                                                                objenesis::getInstantiatorOf)
                                               .newInstance();

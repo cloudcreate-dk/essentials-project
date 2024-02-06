@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,34 +16,42 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.eventstore;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.processor.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.spring.SpringTransactionAwareEventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
-import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
+import dk.cloudcreate.essentials.components.foundation.messaging.MessageHandler;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
+import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.reactive.OnErrorHandler;
 import org.jdbi.v3.core.Jdbi;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.util.*;
-
-import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson;
 
 /**
  * {@link PostgresqlEventStore} auto configuration
@@ -89,18 +97,6 @@ public class EventStoreConfiguration {
     }
 
     /**
-     * The {@link JSONEventSerializer} that handles both {@link EventStore} event/metadata serialization as well as {@link DurableQueues} message payload serialization and deserialization
-     *
-     * @param essentialComponentsObjectMapper the {@link ObjectMapper} responsible for serializing Messages
-     * @return the {@link JSONSerializer}
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public JSONEventSerializer jsonSerializer(ObjectMapper essentialComponentsObjectMapper) {
-        return new JacksonJSONEventSerializer(essentialComponentsObjectMapper);
-    }
-
-    /**
      * Define the {@link EventStoreUnitOfWorkFactory} which is required for the {@link EventStore}
      * in order handle events associated with a given transaction.<br>
      * The {@link SpringTransactionAwareEventStoreUnitOfWorkFactory} supports joining {@link UnitOfWork}'s
@@ -136,13 +132,13 @@ public class EventStoreConfiguration {
     /**
      * Set up the strategy for how {@link AggregateType} event-streams should be persisted.
      *
-     * @param jdbi                            the jdbi instance
-     * @param unitOfWorkFactory               the {@link EventStoreUnitOfWorkFactory}
-     * @param persistableEventMapper          the mapper from the raw Java Event's to {@link PersistableEvent}<br>
-     * @param essentialComponentsObjectMapper {@link ObjectMapper} responsible for serializing/deserializing the raw Java events to and from JSON
-     * @param persistableEventEnrichers       {@link PersistableEventEnricher}'s - which are called in sequence by the {@link SeparateTablePerAggregateTypePersistenceStrategy#persist(EventStoreUnitOfWork, AggregateType, Object, Optional, List)} after
-     *                                        {@link PersistableEventMapper#map(Object, AggregateEventStreamConfiguration, Object, EventOrder)}
-     *                                        has been called
+     * @param jdbi                      the jdbi instance
+     * @param unitOfWorkFactory         the {@link EventStoreUnitOfWorkFactory}
+     * @param persistableEventMapper    the mapper from the raw Java Event's to {@link PersistableEvent}<br>
+     * @param jsonEventSerializer       {@link JSONEventSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
+     * @param persistableEventEnrichers {@link PersistableEventEnricher}'s - which are called in sequence by the {@link SeparateTablePerAggregateTypePersistenceStrategy#persist(EventStoreUnitOfWork, AggregateType, Object, Optional, List)} after
+     *                                  {@link PersistableEventMapper#map(Object, AggregateEventStreamConfiguration, Object, EventOrder)}
+     *                                  has been called
      * @return the strategy for how {@link AggregateType} event-streams should be persisted
      */
     @Bean
@@ -150,15 +146,15 @@ public class EventStoreConfiguration {
     public AggregateEventStreamPersistenceStrategy<SeparateTablePerAggregateEventStreamConfiguration> eventStorePersistenceStrategy(Jdbi jdbi,
                                                                                                                                     EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
                                                                                                                                     PersistableEventMapper persistableEventMapper,
-                                                                                                                                    ObjectMapper essentialComponentsObjectMapper,
+                                                                                                                                    JSONEventSerializer jsonEventSerializer,
                                                                                                                                     EssentialsEventStoreProperties properties,
                                                                                                                                     List<PersistableEventEnricher> persistableEventEnrichers) {
         return new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                     unitOfWorkFactory,
                                                                     persistableEventMapper,
-                                                                    standardSingleTenantConfigurationUsingJackson(essentialComponentsObjectMapper,
-                                                                                                                  properties.getIdentifierColumnType(),
-                                                                                                                  properties.getJsonColumnType()),
+                                                                    SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfiguration(jsonEventSerializer,
+                                                                                                                                                                   properties.getIdentifierColumnType(),
+                                                                                                                                                                   properties.getJsonColumnType()),
                                                                     persistableEventEnrichers);
     }
 
@@ -185,5 +181,70 @@ public class EventStoreConfiguration {
                                                                               new NoEventStreamGapHandler<>());
         configurableEventStore.addEventStoreInterceptors(eventStoreInterceptors);
         return configurableEventStore;
+    }
+
+    /**
+     * Create {@link EventProcessorDependencies} which encapsulates all the dependencies required by an instance of an {@link EventProcessor}
+     *
+     * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions<br>
+     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only queue a reference to
+     *                                      the {@link PersistedEvent} and before the message is forwarded to the corresponding {@link MessageHandler} then we load the {@link PersistedEvent}'s
+     *                                      payload and forward it to the {@link MessageHandler} annotated method
+     * @param inboxes                       the {@link Inboxes} instance used to create an {@link Inbox}, with the name returned from {@link EventProcessor#getProcessorName()}.
+     *                                      This {@link Inbox} is used for forwarding {@link PersistedEvent}'s received via {@link EventStoreSubscription}'s, because {@link EventStoreSubscription}'s
+     *                                      doesn't handle message retry, etc.
+     * @param commandBus                    The {@link CommandBus} where any {@link Handler} or {@link CmdHandler} annotated methods in the subclass of the {@link EventProcessor} will be registered
+     * @param messageHandlerInterceptors    The {@link MessageHandlerInterceptor}'s that will intercept calls to the {@link MessageHandler} annotated methods.<br>
+     * @return {@link EventProcessorDependencies}
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EventProcessorDependencies eventProcessorDependencies(EventStoreSubscriptionManager eventStoreSubscriptionManager,
+                                                                 Inboxes inboxes,
+                                                                 DurableLocalCommandBus commandBus,
+                                                                 List<MessageHandlerInterceptor> messageHandlerInterceptors) {
+        return new EventProcessorDependencies(eventStoreSubscriptionManager,
+                                              inboxes,
+                                              commandBus,
+                                              messageHandlerInterceptors);
+    }
+
+    /**
+     * The {@link JSONEventSerializer} that handles both {@link EventStore} event/metadata serialization as well as {@link DurableQueues} message payload serialization and deserialization
+     *
+     * @param optionalEssentialsImmutableJacksonModule the optional {@link EssentialsImmutableJacksonModule}
+     * @param additionalModules                        additional {@link Module}'s found in the {@link ApplicationContext}
+     * @return the {@link JSONEventSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public JSONEventSerializer jsonSerializer(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule,
+                                              List<Module> additionalModules) {
+        var objectMapperBuilder = JsonMapper.builder()
+                                            .disable(MapperFeature.AUTO_DETECT_GETTERS)
+                                            .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
+                                            .disable(MapperFeature.AUTO_DETECT_SETTERS)
+                                            .disable(MapperFeature.DEFAULT_VIEW_INCLUSION)
+                                            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                                            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                                            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                                            .enable(MapperFeature.AUTO_DETECT_CREATORS)
+                                            .enable(MapperFeature.AUTO_DETECT_FIELDS)
+                                            .enable(MapperFeature.PROPAGATE_TRANSIENT_MARKER)
+                                            .addModule(new Jdk8Module())
+                                            .addModule(new JavaTimeModule());
+
+        additionalModules.forEach(objectMapperBuilder::addModule);
+
+        optionalEssentialsImmutableJacksonModule.ifPresent(objectMapperBuilder::addModule);
+
+        var objectMapper = objectMapperBuilder.build();
+        objectMapper.setVisibility(objectMapper.getSerializationConfig().getDefaultVisibilityChecker()
+                                               .withGetterVisibility(JsonAutoDetect.Visibility.NONE)
+                                               .withSetterVisibility(JsonAutoDetect.Visibility.NONE)
+                                               .withFieldVisibility(JsonAutoDetect.Visibility.ANY)
+                                               .withCreatorVisibility(JsonAutoDetect.Visibility.ANY));
+
+        return new JacksonJSONEventSerializer(objectMapper);
     }
 }

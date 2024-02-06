@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import dk.cloudcreate.essentials.reactive.EventBus;
 import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.types.LongRange;
 import org.jdbi.v3.core.ConnectionException;
+import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
 import org.slf4j.*;
 import reactor.core.publisher.*;
 import reactor.core.scheduler.Schedulers;
@@ -45,6 +46,7 @@ import java.util.stream.*;
 import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptorChain.newInterceptorChainForOperation;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
+import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.sortInterceptorsByOrder;
 
 /**
  * Postgresql specific {@link EventStore} implementation
@@ -197,12 +199,14 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
     @Override
     public ConfigurableEventStore<CONFIG> addEventStoreInterceptor(EventStoreInterceptor eventStoreInterceptor) {
         this.eventStoreInterceptors.add(requireNonNull(eventStoreInterceptor, "No eventStoreInterceptor provided"));
+        sortInterceptorsByOrder(this.eventStoreInterceptors);
         return this;
     }
 
     @Override
     public ConfigurableEventStore<CONFIG> removeEventStoreInterceptor(EventStoreInterceptor eventStoreInterceptor) {
         this.eventStoreInterceptors.remove(requireNonNull(eventStoreInterceptor, "No eventStoreInterceptor provided"));
+        sortInterceptorsByOrder(this.eventStoreInterceptors);
         return this;
     }
 
@@ -673,7 +677,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                 unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
             } catch (Exception e) {
                 var rootCause = Exceptions.getRootCause(e);
-                if (e.getMessage().contains("has been closed") || rootCause instanceof IOException || rootCause instanceof ConnectionException) {
+                if (e.getMessage().contains("has been closed") || rootCause instanceof IOException || rootCause instanceof ConnectionException || rootCause instanceof UnableToExecuteStatementException) {
                     eventStoreStreamLog.debug(msg("[{}] Polling worker - Experienced a Postgresql Connection issue while creating a UnitOfWork",
                                                   eventStreamLogName), e);
                 } else {

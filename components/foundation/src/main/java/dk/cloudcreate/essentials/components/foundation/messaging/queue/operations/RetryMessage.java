@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  */
 public class RetryMessage {
     public final QueueEntryId queueEntryId;
-    private      Exception    causeForRetry;
+    private      Throwable    causeForRetry;
     private      Duration     deliveryDelay;
 
     /**
@@ -53,7 +53,7 @@ public class RetryMessage {
      * @param causeForRetry the reason why the message delivery has to be retried
      * @param deliveryDelay how long will the queue wait until it delivers the message to the {@link DurableQueueConsumer}
      */
-    public RetryMessage(QueueEntryId queueEntryId, Exception causeForRetry, Duration deliveryDelay) {
+    public RetryMessage(QueueEntryId queueEntryId, Throwable causeForRetry, Duration deliveryDelay) {
         this.queueEntryId = requireNonNull(queueEntryId, "No queueEntryId provided");
         this.causeForRetry = causeForRetry;
         this.deliveryDelay = deliveryDelay;
@@ -71,7 +71,7 @@ public class RetryMessage {
      *
      * @return the reason why the message delivery has to be retried
      */
-    public Exception getCauseForRetry() {
+    public Throwable getCauseForRetry() {
         return causeForRetry;
     }
 
