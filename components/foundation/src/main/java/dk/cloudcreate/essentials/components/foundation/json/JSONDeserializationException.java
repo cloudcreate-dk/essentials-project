@@ -22,7 +22,7 @@ public class JSONDeserializationException extends RuntimeException {
         super(message);
     }
 
-    public JSONDeserializationException(String msg, Exception cause) {
+    public JSONDeserializationException(String msg, Throwable cause) {
         super(msg, cause);
     }
 }

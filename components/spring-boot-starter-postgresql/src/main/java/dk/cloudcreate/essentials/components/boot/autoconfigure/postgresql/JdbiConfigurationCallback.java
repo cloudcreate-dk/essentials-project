@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2023 the original author or authors.
+ * Copyright 2021-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,15 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.types.jdbi.model;
+package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 
-import dk.cloudcreate.essentials.types.jdbi.LocalDateTypeColumnMapper;
+import org.jdbi.v3.core.Jdbi;
+import org.springframework.lang.NonNull;
 
-public class DueDateColumnMapper extends LocalDateTypeColumnMapper<DueDate> {
+/**
+ * Instances of this callback, typically defined as Spring {@literal @Bean}'s,
+ * will be called right after the application context has been refreshed
+ */
+public interface JdbiConfigurationCallback {
+    void configure(@NonNull Jdbi jdbi);
 }

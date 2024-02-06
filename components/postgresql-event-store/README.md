@@ -215,8 +215,8 @@ or
 ```java
 var orders = AggregateType.of("Order");
 eventStore.addAggregateEventStreamConfiguration(
-    SeparateTablePerAggregateTypeConfiguration.standardSingleTenantConfigurationUsingJackson(orders,
-                                                  createObjectMapper(),
+    SeparateTablePerAggregateTypeConfiguration.standardSingleTenantConfiguration(orders,
+                                                  new JacksonJSONEventSerializer(createObjectMapper()),
                                                   AggregateIdSerializer.serializerFor(OrderId.class),
                                                   IdentifierColumnType.UUID,
                                                   JSONColumnType.JSONB));

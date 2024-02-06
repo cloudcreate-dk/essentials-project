@@ -26,6 +26,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.e
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.PostgresqlEventStreamGapHandler.ResolveTransientGapsToPermanentGapsPromotionStrategy;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JacksonJSONEventSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.test_data.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
@@ -48,7 +49,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfigurationUsingJackson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
@@ -84,9 +84,9 @@ class PostgresqlEventStreamGapHandlerIT {
         var persistenceStrategy = new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                                        unitOfWorkFactory,
                                                                                        eventMapper,
-                                                                                       standardSingleTenantConfigurationUsingJackson(createObjectMapper(),
-                                                                                                                                     IdentifierColumnType.UUID,
-                                                                                                                                     JSONColumnType.JSONB));
+                                                                                       SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfiguration(new JacksonJSONEventSerializer(createObjectMapper()),
+                                                                                                                                                                                      IdentifierColumnType.UUID,
+                                                                                                                                                                                      JSONColumnType.JSONB));
         persistenceStrategy.addAggregateEventStreamConfiguration(aggregateType,
                                                                  OrderId.class);
         eventStore = new PostgresqlEventStore<>(unitOfWorkFactory,

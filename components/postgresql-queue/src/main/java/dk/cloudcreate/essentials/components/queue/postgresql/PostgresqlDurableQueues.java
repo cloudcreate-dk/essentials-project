@@ -1156,7 +1156,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
         requireNonNull(messagePayloadType, "No messagePayloadType provided");
         try {
             return jsonSerializer.deserialize(messagePayload, Classes.forName(messagePayloadType));
-        } catch (JSONDeserializationException e) {
+        } catch (Throwable e) {
             throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
         }
     }
@@ -1166,7 +1166,7 @@ public class PostgresqlDurableQueues implements DurableQueues {
         requireNonNull(metaData, "No messagePayload provided");
         try {
             return jsonSerializer.deserialize(metaData, MessageMetaData.class);
-        } catch (JSONDeserializationException e) {
+        } catch (Throwable e) {
             throw new DurableQueueException(msg("Failed to deserialize message meta-data"), e, queueName);
         }
     }

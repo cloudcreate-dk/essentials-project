@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.reactive.command.CommandBus;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -242,6 +243,27 @@ public interface Inboxes {
                 } else {
                     durableQueues.queueMessage(inboxQueueName,
                                                message);
+                }
+                return this;
+            }
+
+            @Override
+            public Inbox addMessageReceived(Message message, Duration deliveryDelay) {
+                // An Inbox is usually used to bridge receiving messages from a Messaging system
+                // In these cases we rarely have other business logic that's already started a Transaction/UnitOfWork.
+                // So to simplify using the Inbox we allow adding a message to start a UnitOfWork if none exists
+
+                if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
+                    // Allow addMessageReceived to automatically start a new or join in an existing UnitOfWork
+                    durableQueues.getUnitOfWorkFactory().get().usingUnitOfWork(() -> {
+                        durableQueues.queueMessage(inboxQueueName,
+                                                   message,
+                                                   deliveryDelay);
+                    });
+                } else {
+                    durableQueues.queueMessage(inboxQueueName,
+                                               message,
+                                               deliveryDelay);
                 }
                 return this;
             }

@@ -63,8 +63,11 @@ class ProductRepositoryIT {
     @Test
     void test_we_can_store_a_product_and_load_it_again() {
         var storedProduct = transactionTemplate.execute(status -> productRepository.save(new Product(ProductId.random(),
-                                                                              "Test Product",
-                                                                              new Price(Amount.of("100.5"), CurrencyCode.of("DKK")))));
+                                                                                                     "Test Product",
+                                                                                                     new Price(Amount.of("100.5"), CurrencyCode.of("DKK")),
+                                                                                                     OrderId.random())));
+
+        assertThat(productRepository.findById(storedProduct.getId()).get()).isEqualTo(storedProduct);
 
         var jdbi = Jdbi.create(postgreSQLContainer.getJdbcUrl(), postgreSQLContainer.getUsername(), postgreSQLContainer.getPassword());
         var rawResults = jdbi.withHandle(handle -> handle.createQuery("select * from products")
@@ -85,7 +88,6 @@ class ProductRepositoryIT {
             }
         });
         softAssertions.assertAll();
-
 
 
         transactionTemplate.execute(status -> {

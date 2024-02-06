@@ -39,7 +39,7 @@ public interface MessageDeliveryErrorHandler {
      * @return true if the error is a permanent error - in which case the message is instantly marked as an Poison-Message/Dead-Letter-Message,
      * otherwise false - in which case the message will be redelivered according to the specified {@link RedeliveryPolicy}
      */
-    boolean isPermanentError(QueuedMessage queuedMessage, Exception error);
+    boolean isPermanentError(QueuedMessage queuedMessage, Throwable error);
 
     /**
      * Create a {@link MessageDeliveryErrorHandler} that always retries no matter which exception occurs
@@ -99,7 +99,7 @@ public interface MessageDeliveryErrorHandler {
         }
 
         @Override
-        public boolean isPermanentError(QueuedMessage queuedMessage, Exception error) {
+        public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
             return exceptions.contains(error.getClass()) ||
                     exceptions.stream()
                               .anyMatch(exception -> exception.isAssignableFrom(error.getClass()));
@@ -115,7 +115,7 @@ public interface MessageDeliveryErrorHandler {
 
     class AlwaysRetry implements MessageDeliveryErrorHandler {
         @Override
-        public boolean isPermanentError(QueuedMessage queuedMessage, Exception error) {
+        public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
             return false;
         }
 
@@ -127,7 +127,7 @@ public interface MessageDeliveryErrorHandler {
 
     class NeverRetry implements MessageDeliveryErrorHandler {
         @Override
-        public boolean isPermanentError(QueuedMessage queuedMessage, Exception error) {
+        public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
             return true;
         }
 
