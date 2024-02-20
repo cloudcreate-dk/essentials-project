@@ -16,16 +16,15 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
 import dk.cloudcreate.essentials.shared.reflection.Classes;
-import dk.cloudcreate.essentials.types.*;
+import dk.cloudcreate.essentials.types.CharSequenceType;
+import dk.cloudcreate.essentials.types.Identifier;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * Encapsulates the <b>Java</b> Type Fully Qualified Class Name (FQCN) of an Event as opposed to the {@link EventName}<br>
- * The Event Name is used if only a JSON String payload representing a "CustomerRegistered" event is persisted (in {@link PersistedEvent#event()})
+ * The Event Name is used if only a JSON String payload representing a "CustomerRegistered" event is persisted (in PersistedEvent's event)
  * as opposed as an actual typed Event (i.e. a custom class such as a com.company.product.events.CustomerRegistered class)<br>
  * <br>
  * The {@link #toString()} methods returns the Serialized version of the {@link EventType}, which is prefixed with {@link #FQCN_PREFIX}.<br>
@@ -37,7 +36,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 public class EventType extends CharSequenceType<EventType> implements Identifier {
     /**
      * The prefix that pre-appended the actual Fully Qualified Class Name (FQCN) during serialization.<br>
-     * This allows the {@link EventStore} to distinguish between a {@link EventType} and {@link EventName} by
+     * This allows the EventStore to distinguish between a {@link EventType} and {@link EventName} by
      * calling {@link #isSerializedEventType(CharSequence)}
      */
     public static final String FQCN_PREFIX = "FQCN:";

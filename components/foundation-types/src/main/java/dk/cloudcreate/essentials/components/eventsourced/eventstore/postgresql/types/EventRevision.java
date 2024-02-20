@@ -16,21 +16,18 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
-import dk.cloudcreate.essentials.types.*;
+import dk.cloudcreate.essentials.types.IntegerType;
 
 /**
- * Encapsulates the name of an Event as opposed to the {@link EventType}<br>
- * The Event Name is used if only a JSON String payload representing a "CustomerRegistered" event is persisted (in {@link PersistedEvent#event()})
- * as opposed as an actual typed Event (i.e. a custom class such as a com.company.product.events.CustomerRegistered class)
- * @see EventTypeOrName
+ * The revision of an Event type. The first revision has value 1
  */
-public class EventName extends CharSequenceType<EventName> implements Identifier {
-    public EventName(CharSequence value) {
+public class EventRevision extends IntegerType<EventRevision> {
+    public static EventRevision FIRST = EventRevision.of(1);
+    public EventRevision(Integer value) {
         super(value);
     }
 
-    public static EventName of(CharSequence value) {
-        return new EventName(value);
+    public static EventRevision of(int value) {
+        return new EventRevision(value);
     }
 }
