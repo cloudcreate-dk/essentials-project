@@ -16,14 +16,11 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypePersistenceStrategy;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
-import dk.cloudcreate.essentials.types.*;
+import dk.cloudcreate.essentials.types.CharSequenceType;
+import dk.cloudcreate.essentials.types.Identifier;
 
 /**
- * The primary concept of the {@link EventStore} are <b>Event Streams</b><br>
+ * A primary concept of the EventStore is <b>Event Streams</b><br>
  * Definition: <b>An Event Stream is a collection of related Events.</b><br>
  * The most common denominator for Events in an Event Stream is the <b>Type of Aggregate</b> they're associated with.<br>
  * Classical examples of Aggregate Types and their associated events are:
@@ -62,19 +59,18 @@ import dk.cloudcreate.essentials.types.*;
  *     the handling of other Events related to other types of Aggregates.<br>
  *     E.g. it makes more sense to handle Order related Events separate from Account related Events
  *     </li>
- *     <li>Using the {@link SeparateTablePerAggregateTypePersistenceStrategy} we can store all Events related to a specific Aggregate Type in a separate table
+ *     <li>Using SeparateTablePerAggregateTypePersistenceStrategy we can store all Events related to a specific Aggregate Type in a separate table
  *     from other Aggregate types, which is more efficient and allows us to store many more Events related to this given {@link AggregateType}.<br>
- *     This allows use to use the {@link PersistedEvent#globalEventOrder()} to track the order in which Events, related to the same type of Aggregate, were persisted.<br>
- *     This also allows us to use the {@link GlobalEventOrder} as a natual Resume-Point for the {@link EventStore} subscriptions (see {@link EventStoreSubscriptionManager}
+ *     This allows use to use the globalEventOrdering to track the order in which Events, related to the same type of Aggregate, were persisted.<br>
+ *     This also allows us to use the GlobalEventOrdering as a natual Resume-Point for EventStore subscriptions (see EventStoreSubscriptionManager)
  *     </li>
  * </ul
  * <p>
- * This aligns with the concept of the {@link AggregateEventStream}, which contains Events related to a specific {@link AggregateType} with a distinct <b>AggregateId</b><br>
- * When loading/fetching and persisting/appending Events we always work at the Aggregate instance level, i.e. with {@link AggregateEventStream}'s.<br>
+ * This aligns with the concept of an AggregateEventStream, which contains Events related to a specific {@link AggregateType} with a distinct <b>AggregateId</b><br>
+ * When loading/fetching and persisting/appending Events we always work at the Aggregate instance level, i.e., with AggregateEventStreams.<br>
  * <br>
- * The {@link AggregateType} is used for grouping/categorizing multiple {@link AggregateEventStream} instances related to
- * similar types of aggregates.<br>
- * Unless you're using a fully functional style aggregate where you only perform a Left-Fold of all Events in an {@link AggregateEventStream}, then there will typically be a
+ * The {@link AggregateType} is used for grouping/categorizing multiple AggregateEventStream instances related to similar types of aggregates.<br>
+ * Unless you're using a fully functional style aggregate where you only perform a Left-Fold of all Events in an AggregateEventStream, then there will typically be a
  * 1-1 relationship between an {@link AggregateType} and the class that implements the Aggregate.<br>
  * <br>
  * What's important here is that the {@link AggregateType} is only a <b>name</b> and shouldn't be confused with the Fully Qualified Class Name of the Aggregate implementation class.<br>

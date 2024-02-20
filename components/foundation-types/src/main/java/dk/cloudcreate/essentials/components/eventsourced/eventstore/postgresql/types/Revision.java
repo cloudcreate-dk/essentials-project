@@ -16,13 +16,12 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.PersistableEventMapper;
 
 import java.lang.annotation.*;
 
 /**
  * Annotation that can be used on an Event to indicate its revision and be read by the
- * {@link PersistableEventMapper} when persisting events
+ * PersistableEventMapper when persisting events
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
