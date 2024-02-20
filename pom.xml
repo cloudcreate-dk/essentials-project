@@ -128,6 +128,7 @@
         <module>immutable-jackson</module>
         <module>reactive</module>
         <module>components/foundation</module>
+        <module>components/foundation-types</module>
         <module>components/foundation-test</module>
         <module>components/eventsourced-aggregates</module>
         <module>components/spring-boot-starter-postgresql</module>
