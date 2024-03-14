@@ -17,62 +17,100 @@
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 
 
-import com.fasterxml.jackson.annotation.*;
+import java.util.List;
+import java.util.Optional;
+import javax.sql.DataSource;
+
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
-import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
-import dk.cloudcreate.essentials.components.foundation.json.*;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockEvents;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
+import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
+import dk.cloudcreate.essentials.components.foundation.json.JacksonJSONSerializer;
+import dk.cloudcreate.essentials.components.foundation.lifecycle.DefaultLifecycleManager;
+import dk.cloudcreate.essentials.components.foundation.lifecycle.LifecycleManager;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
-import dk.cloudcreate.essentials.components.foundation.postgresql.*;
-import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inboxes;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Outboxes;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueuesInterceptor;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuePollingOptimizer;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerInterceptor;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerTracingInterceptor;
+import dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener;
+import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
+import dk.cloudcreate.essentials.components.foundation.postgresql.TableChangeNotification;
+import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus;
+import dk.cloudcreate.essentials.components.foundation.reactive.command.UnitOfWorkControllingCommandBusInterceptor;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.jdbi.SpringTransactionAwareJdbiUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
-import dk.cloudcreate.essentials.reactive.*;
-import dk.cloudcreate.essentials.reactive.command.*;
+import dk.cloudcreate.essentials.reactive.EventBus;
+import dk.cloudcreate.essentials.reactive.EventHandler;
+import dk.cloudcreate.essentials.reactive.LocalEventBus;
+import dk.cloudcreate.essentials.reactive.OnErrorHandler;
+import dk.cloudcreate.essentials.reactive.command.CommandBus;
+import dk.cloudcreate.essentials.reactive.command.CommandHandler;
+import dk.cloudcreate.essentials.reactive.command.SendAndDontWaitErrorHandler;
 import dk.cloudcreate.essentials.reactive.command.interceptor.CommandBusInterceptor;
 import dk.cloudcreate.essentials.reactive.spring.ReactiveHandlersBeanPostProcessor;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.tracing.Tracer;
+import io.micrometer.tracing.propagation.Propagator;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.postgres.PostgresPlugin;
-import org.slf4j.*;
-import org.springframework.beans.BeansException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.*;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.*;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.event.*;
 import org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy;
 import org.springframework.transaction.PlatformTransactionManager;
-
-import javax.sql.DataSource;
-import java.util.*;
 
 /**
  * Postgresql focused Essentials Components auto configuration
  */
 @AutoConfiguration
 @EnableConfigurationProperties(EssentialsComponentsProperties.class)
-public class EssentialsComponentsConfiguration implements ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
+public class EssentialsComponentsConfiguration {
     public static final Logger log = LoggerFactory.getLogger(EssentialsComponentsConfiguration.class);
 
-    private ApplicationContext     applicationContext;
-    private boolean                closed;
-    private Map<String, Lifecycle> lifeCycleBeans;
+    @Bean
+    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
+    public DurableQueuesMicrometerTracingInterceptor durableQueuesMicrometerTracingInterceptor(Optional<Tracer> tracer,
+                                                                                               Optional<Propagator> propagator,
+                                                                                               Optional<ObservationRegistry> observationRegistry,
+                                                                                               EssentialsComponentsProperties properties) {
+        return new DurableQueuesMicrometerTracingInterceptor(tracer.get(),
+                                                             propagator.get(),
+                                                             observationRegistry.get(),
+                                                             properties.getDurableQueues().isVerboseTracing());
+    }
 
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
+    @Bean
+    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
+    public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(Optional<MeterRegistry> meterRegistry) {
+        return new DurableQueuesMicrometerInterceptor(meterRegistry.get());
     }
 
     /**
@@ -332,44 +370,27 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     /**
-     * Callback to ensure Essentials components implementing {@link dk.cloudcreate.essentials.components.foundation.Lifecycle} are started
+     * The {@link LifecycleManager} that handles starting and stopping life cycle beans
      *
-     * @param event
+     * @param properties the auto configure properties
+     * @return the {@link LifecycleManager}
      */
-    @Override
-    public void onApplicationEvent(ApplicationContextEvent event) {
-        if (event instanceof ContextRefreshedEvent) {
-            log.info(event.getClass().getSimpleName());
-            closed = false;
-            lifeCycleBeans = applicationContext.getBeansOfType(Lifecycle.class);
-            lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
-                if (!lifecycleBean.isStarted()) {
-                    log.info("Starting {} bean '{}' of type '{}'", dk.cloudcreate.essentials.components.foundation.Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
-                    lifecycleBean.start();
-                }
-            });
+    @Bean
+    @ConditionalOnMissingBean
+    public LifecycleManager lifecycleController(EssentialsComponentsProperties properties) {
+        return new DefaultLifecycleManager(this::onContextRefreshedEvent, properties.getLifeCycles().isStartLifecycles());
+    }
 
-            var callbacks = applicationContext.getBeansOfType(JdbiConfigurationCallback.class).values();
-            if (!callbacks.isEmpty()) {
-                var jdbi = applicationContext.getBean(Jdbi.class);
-                callbacks.forEach(configureJdbiCallback -> {
-                    log.info("Calling {}: {}",
-                             JdbiConfigurationCallback.class.getSimpleName(),
-                             configureJdbiCallback.getClass().getName());
-                    configureJdbiCallback.configure(jdbi);
-                });
-            }
-        } else if (event instanceof ContextClosedEvent) {
-            log.info("{} - has Context already been closed: {}", event.getClass().getSimpleName(), closed);
-            if (!closed) {
-                lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
-                    if (lifecycleBean.isStarted()) {
-                        log.info("Stopping {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
-                        lifecycleBean.stop();
-                    }
-                });
-                closed = true;
-            }
+    private void onContextRefreshedEvent(ApplicationContext applicationContext) {
+        var callbacks = applicationContext.getBeansOfType(JdbiConfigurationCallback.class).values();
+        if (!callbacks.isEmpty()) {
+            var jdbi = applicationContext.getBean(Jdbi.class);
+            callbacks.forEach(configureJdbiCallback -> {
+                log.info("Calling {}: {}",
+                    JdbiConfigurationCallback.class.getSimpleName(),
+                    configureJdbiCallback.getClass().getName());
+                configureJdbiCallback.configure(jdbi);
+            });
         }
     }
 }
