@@ -34,22 +34,11 @@
     <packaging>jar</packaging>
     <name>essentials-types-avro</name>
 
-    <properties>
-        <avro.version>1.11.3</avro.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>dk.cloudcreate.essentials</groupId>
             <artifactId>types</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        <!-- Due to CVE-2023-42503 -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-            <version>1.25.0</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.avro</groupId>
