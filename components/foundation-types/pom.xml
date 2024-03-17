@@ -47,7 +47,7 @@
         <dependency>
             <groupId>com.fasterxml.uuid</groupId>
             <artifactId>java-uuid-generator</artifactId>
-            <version>4.3.0</version>
+            <version>5.0.0</version>
         </dependency>
     </dependencies>
 
@@ -60,7 +60,7 @@
                     <configuration>
                         <archive>
                             <manifestEntries>
-                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.foundationTypes</Automatic-Module-Name>
+                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.foundation.types</Automatic-Module-Name>
                             </manifestEntries>
                         </archive>
                     </configuration>
