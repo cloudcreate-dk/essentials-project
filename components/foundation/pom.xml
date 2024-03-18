@@ -67,6 +67,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <artifactId>foundation-types</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>dk.cloudcreate.essentials</groupId>
             <artifactId>reactive</artifactId>
             <version>${project.version}</version>
