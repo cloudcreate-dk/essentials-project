@@ -16,16 +16,18 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 
+import java.time.Duration;
+
 import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener;
 import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Duration;
 
 /**
  * Properties for the Postgresql focused Essentials Components auto-configuration
@@ -38,6 +40,8 @@ public class EssentialsComponentsProperties {
 
     private final MultiTableChangeListenerProperties multiTableChangeListener = new MultiTableChangeListenerProperties();
 
+    private final LifeCycleProperties lifeCycles = new LifeCycleProperties();
+
 
     public FencedLockManagerProperties getFencedLockManager() {
         return fencedLockManager;
@@ -49,6 +53,10 @@ public class EssentialsComponentsProperties {
 
     public MultiTableChangeListenerProperties getMultiTableChangeListener() {
         return multiTableChangeListener;
+    }
+
+    public LifeCycleProperties getLifeCycles() {
+        return this.lifeCycles;
     }
 
     public static class MultiTableChangeListenerProperties {
@@ -266,6 +274,28 @@ public class EssentialsComponentsProperties {
          */
         public void setFencedLocksTableName(String fencedLocksTableName) {
             this.fencedLocksTableName = fencedLocksTableName;
+        }
+    }
+
+    public static class LifeCycleProperties {
+        private boolean startLifeCycles = true;
+
+        /**
+         * Get property that determines if lifecycle beans should be started automatically
+         *
+         * @return the property that determined if lifecycle beans should be started automatically
+         */
+        public boolean isStartLifecycles() {
+            return startLifeCycles;
+        }
+
+        /**
+         * Set property that determines if lifecycle beans should be started automatically
+         *
+         * @param startLifeCycles the property that determines if lifecycle beans should be started automatically
+         */
+        public void setStartLifeCycles(boolean startLifeCycles) {
+            this.startLifeCycles = startLifeCycles;
         }
     }
 }

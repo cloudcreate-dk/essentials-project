@@ -16,16 +16,17 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.mongodb;
 
+import java.time.Duration;
+import java.util.Optional;
+
 import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockStorage;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Duration;
-import java.util.Optional;
 
 /**
  * Properties for the MongoDB focused Essentials Components auto-configuration
@@ -35,6 +36,7 @@ import java.util.Optional;
 public class EssentialsComponentsProperties {
     private final FencedLockManager fencedLockManager = new FencedLockManager();
     private final DurableQueues     durableQueues     = new DurableQueues();
+    private final LifeCycleProperties lifeCycles = new LifeCycleProperties();
 
     public FencedLockManager getFencedLockManager() {
         return fencedLockManager;
@@ -42,6 +44,10 @@ public class EssentialsComponentsProperties {
 
     public DurableQueues getDurableQueues() {
         return durableQueues;
+    }
+
+    public LifeCycleProperties getLifeCycles() {
+        return this.lifeCycles;
     }
 
     public static class DurableQueues {
@@ -239,6 +245,28 @@ public class EssentialsComponentsProperties {
          */
         public void setFencedLocksCollectionName(String fencedLocksCollectionName) {
             this.fencedLocksCollectionName = fencedLocksCollectionName;
+        }
+    }
+
+    public static class LifeCycleProperties {
+        private boolean startLifeCycles = true;
+
+        /**
+         * Get property that determines if lifecycle beans should be started automatically
+         *
+         * @return the property that determined if lifecycle beans should be started automatically
+         */
+        public boolean isStartLifecycles() {
+            return startLifeCycles;
+        }
+
+        /**
+         * Set property that determines if lifecycle beans should be started automatically
+         *
+         * @param startLifeCycles the property that determines if lifecycle beans should be started automatically
+         */
+        public void setStartLifeCycles(boolean startLifeCycles) {
+            this.startLifeCycles = startLifeCycles;
         }
     }
 }
