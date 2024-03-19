@@ -56,12 +56,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.uuid</groupId>
-            <artifactId>java-uuid-generator</artifactId>
-            <version>5.0.0</version>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
             <groupId>dk.cloudcreate.essentials</groupId>
             <artifactId>types</artifactId>
             <version>${project.version}</version>
