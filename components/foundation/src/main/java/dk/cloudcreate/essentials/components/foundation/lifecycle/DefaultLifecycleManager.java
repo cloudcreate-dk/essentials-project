@@ -16,6 +16,10 @@ import org.springframework.context.event.ContextRefreshedEvent;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
+/**
+ * Default {@link LifecycleManager} that integrate with Spring to ensure that {@link ApplicationContext} Beans that implement the {@link Lifecycle}
+ * interface are started and stopped in response to {@link ContextRefreshedEvent} and {@link ContextClosedEvent}
+ */
 public class DefaultLifecycleManager implements LifecycleManager, ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
     public static final Logger log = LoggerFactory.getLogger(DefaultLifecycleManager.class);
     private ApplicationContext applicationContext;
@@ -24,6 +28,11 @@ public class DefaultLifecycleManager implements LifecycleManager, ApplicationLis
     private final Consumer<ApplicationContext> contextRefreshedEventConsumer;
     private final boolean isStartLifecycles;
 
+    /**
+     *
+     * @param contextRefreshedEventConsumer callback that will be called after all {@link Lifecycle} Beans {@link Lifecycle#start()} has been called
+     * @param isStartLifecycles determines if lifecycle beans should be started automatically
+     */
     public DefaultLifecycleManager(Consumer<ApplicationContext> contextRefreshedEventConsumer,
                                    boolean isStartLifecycles) {
         this.contextRefreshedEventConsumer = requireNonNull(contextRefreshedEventConsumer);
@@ -31,6 +40,10 @@ public class DefaultLifecycleManager implements LifecycleManager, ApplicationLis
         log.info("Initializing {} with isStartLifecycles = {}", this.getClass().getSimpleName(), isStartLifecycles);
     }
 
+    /**
+     *
+     * @param isStartLifecycles determines if lifecycle beans should be started automatically
+     */
     public DefaultLifecycleManager(boolean isStartLifecycles) {
         this(event -> {}, isStartLifecycles);
     }
