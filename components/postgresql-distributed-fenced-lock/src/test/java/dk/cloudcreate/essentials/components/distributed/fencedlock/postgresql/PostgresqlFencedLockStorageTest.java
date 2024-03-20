@@ -39,8 +39,9 @@ class PostgresqlFencedLockStorageTest {
 
     @Test
     void initializeWithInvalidOverriddenTableName() {
-        var overriddenTableName = "where";
-        assertThatThrownBy(() -> new PostgresqlFencedLockStorage(mock(Jdbi.class), overriddenTableName))
+        assertThatThrownBy(() -> new PostgresqlFencedLockStorage(mock(Jdbi.class), "where"))
+                .isInstanceOf(InvalidTableOrColumnNameException.class);
+        assertThatThrownBy(() -> new PostgresqlFencedLockStorage(mock(Jdbi.class), "; --"))
                 .isInstanceOf(InvalidTableOrColumnNameException.class);
     }
 }
