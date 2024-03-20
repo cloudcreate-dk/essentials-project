@@ -25,7 +25,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Builder for {@link MessageDeliveryErrorHandler}
  */
-public class MessageDeliveryErrorHandlerBuilder {
+public final class MessageDeliveryErrorHandlerBuilder {
     private List<Class<? extends Exception>> alwaysRetryOnExceptions    = List.of();
     private List<Class<? extends Exception>> stopRedeliveryOnExceptions = List.of();
 

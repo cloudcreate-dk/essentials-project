@@ -36,7 +36,7 @@ import static dk.cloudcreate.essentials.types.avro.CurrencyCodeLogicalTypeFactor
  * }
  * }</pre>
  */
-public class CurrencyCodeConversion extends BaseCharSequenceConversion<CurrencyCode> {
+public final class CurrencyCodeConversion extends BaseCharSequenceConversion<CurrencyCode> {
     @Override
     public Class<CurrencyCode> getConvertedType() {
         return CurrencyCode.class;

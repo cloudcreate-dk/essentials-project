@@ -14,19 +14,15 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.components.foundation.types;
-
-import dk.cloudcreate.essentials.types.*;
+package dk.cloudcreate.essentials.components.foundation.postgresql;
 
 /**
- * Simple single value {@link Tenant} identifier
+ * Thrown by {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} in case
+ * a table or column name is null, empty, matches a reserved keyword,
+ * or contains invalid characters.
  */
-public class TenantId extends CharSequenceType<TenantId> implements Tenant, Identifier {
-    public TenantId(CharSequence value) {
-        super(value);
-    }
-
-    public static TenantId of(CharSequence value) {
-        return new TenantId(value);
+public final class InvalidTableOrColumnNameException extends RuntimeException {
+    public InvalidTableOrColumnNameException(String msg) {
+        super(msg);
     }
 }

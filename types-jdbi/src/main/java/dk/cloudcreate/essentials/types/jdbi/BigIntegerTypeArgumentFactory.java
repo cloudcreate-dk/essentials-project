@@ -26,7 +26,7 @@ import java.sql.Types;
  * Base implementation for a {@link BigIntegerType}.<br>
  * Extend this class to support your concrete {@link BigIntegerType} sub-type:
  * <pre>{@code
- * public class AmountArgumentFactory extends BigIntegerTypeArgumentFactory<Amount> {
+ * public final class AmountArgumentFactory extends BigIntegerTypeArgumentFactory<Amount> {
  * }}</pre>
  *
  * @param <T> the concrete {@link BigIntegerType} subclass

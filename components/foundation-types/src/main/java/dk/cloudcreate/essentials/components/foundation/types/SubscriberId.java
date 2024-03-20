@@ -18,19 +18,21 @@ package dk.cloudcreate.essentials.components.foundation.types;
 
 import dk.cloudcreate.essentials.types.*;
 
+import java.util.UUID;
+
 /**
- * A message id provides a unique identifier for a Message in a distributed system
+ * A subscriber id is used to uniquely identify an event subscriber
  */
-public class MessageId extends CharSequenceType<MessageId> implements Identifier {
-    public MessageId(CharSequence value) {
+public final class SubscriberId extends CharSequenceType<SubscriberId> implements Identifier {
+    public SubscriberId(CharSequence value) {
         super(value);
     }
 
-    public static MessageId of(CharSequence value) {
-        return new MessageId(value);
+    public static SubscriberId of(CharSequence value) {
+        return new SubscriberId(value);
     }
 
-    public static MessageId random() {
-        return new MessageId(RandomIdGenerator.generate());
+    public static SubscriberId random() {
+        return new SubscriberId(UUID.randomUUID().toString());
     }
 }

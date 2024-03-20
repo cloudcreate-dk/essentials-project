@@ -22,5 +22,5 @@ import org.jdbi.v3.core.argument.ArgumentFactory;
 /**
  * {@link ArgumentFactory} for {@link Percentage}
  */
-public class PercentageArgumentFactory extends BigDecimalTypeArgumentFactory<Percentage> {
+public final class PercentageArgumentFactory extends BigDecimalTypeArgumentFactory<Percentage> {
 }

@@ -31,7 +31,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * <br>
  * Example of a concrete mapper:
  * <pre>{@code
- * public class TransferTimeColumnMapper extends OffsetDateTimeTypeColumnMapper<TransferTime> {
+ * public final class TransferTimeColumnMapper extends OffsetDateTimeTypeColumnMapper<TransferTime> {
  * }}</pre>
  *
  * @param <T> the concrete {@link OffsetDateTimeType} this instance is mapping

@@ -28,7 +28,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Builder for a {@link ThreadFactory} to allow setting thread names, auto increment thread numbers, etc.
  */
-public class ThreadFactoryBuilder {
+public final class ThreadFactoryBuilder {
     private String                   nameFormat;
     private Optional<ThreadFactory>  delegateThreadFactory = Optional.empty();
     private Integer                  priority;

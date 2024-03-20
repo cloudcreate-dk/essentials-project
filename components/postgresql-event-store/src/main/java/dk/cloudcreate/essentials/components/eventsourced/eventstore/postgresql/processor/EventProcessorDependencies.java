@@ -27,7 +27,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Encapsulates all the dependencies required by an instance of an {@link EventProcessor}
  */
-public class EventProcessorDependencies {
+public final class EventProcessorDependencies {
     public final EventStoreSubscriptionManager   eventStoreSubscriptionManager;
     public final Inboxes                         inboxes;
     public final DurableLocalCommandBus          commandBus;

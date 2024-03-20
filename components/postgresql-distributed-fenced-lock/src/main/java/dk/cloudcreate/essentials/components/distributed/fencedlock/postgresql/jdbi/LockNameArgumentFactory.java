@@ -19,5 +19,5 @@ package dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.j
 import dk.cloudcreate.essentials.components.foundation.fencedlock.LockName;
 import dk.cloudcreate.essentials.types.jdbi.CharSequenceTypeArgumentFactory;
 
-public class LockNameArgumentFactory extends CharSequenceTypeArgumentFactory<LockName> {
+public final class LockNameArgumentFactory extends CharSequenceTypeArgumentFactory<LockName> {
 }

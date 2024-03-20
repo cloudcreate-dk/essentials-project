@@ -25,7 +25,7 @@ import dk.cloudcreate.essentials.components.foundation.json.*;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
-public class JacksonJSONEventSerializer extends JacksonJSONSerializer implements JSONEventSerializer {
+public final class JacksonJSONEventSerializer extends JacksonJSONSerializer implements JSONEventSerializer {
 
     public JacksonJSONEventSerializer(ObjectMapper objectMapper) {
         super(objectMapper);

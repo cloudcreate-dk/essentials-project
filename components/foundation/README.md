@@ -1,13 +1,20 @@
 # Essentials Components - Foundation
 
-This library focuses purely on providing common types and foundational patterns, such as queue, inbox, outbox, etc. used in modern java solutions:
+> **NOTE:**  
+> **The library is WORK-IN-PROGRESS**
 
-- **Identifiers**
-    - `CorrelationId`
-    - `EventId`
-    - `MessageId`
-    - `SubscriberId`
-    - `Tenant` and `TenantId`
+> Please see the **Security** notices for [components README.md](../README.md), as well as **Security** notices for the individual components, to familiarize yourself with the security risks related to using the Components
+> Such as:
+> - [foundation-types](foundation-types/README.md)
+> - [postgresql-distributed-fenced-lock](postgresql-distributed-fenced-lock/README.md) 
+> - [springdata-mongo-distributed-fenced-lock](springdata-mongo-distributed-fenced-lock/README.md)
+> - [postgresql-queue](postgresql-queue/README.md)
+> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
+> - [postgresql-event-store](postgresql-event-store/README.md)
+> - [eventsourced-aggregates](eventsourced-aggregates/README.md)
+
+This library focuses purely on providing foundational patterns, such as queue, inbox, outbox, etc. used in modern java solutions:
+
 - **Common Interfaces**
     - `Lifecycle`
 - **DurableLocalCommandBus** (`CommandBus` variant that uses `DurableQueues` to ensure Commands sent using `sendAndDontWait` aren't lost in case of failure)
@@ -35,7 +42,7 @@ To use `foundation` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>foundation</artifactId>
-    <version>0.40.4</version>
+    <version>0.40.5</version>
 </dependency>
 ```
 
@@ -54,6 +61,12 @@ If you need cross-service point-to-point messaging support, e.g. across instance
 This library focuses on providing a Durable Queue supporting message redelivery and Dead Letter Message functionality
 and comes in two flavours  
 `PostgresqlDurableQueues` and `MongoDurableQueues` which both implement the `DurableQueues` interface.
+
+> For more information and security related information see
+> - [postgresql-queue](postgresql-queue/README.md)
+> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
+
+### `QueueName`
 
 Each Queue is uniquely identified by its `QueueName`.
 Durable Queue concept that supports **queuing** a `Message` on to a Queue. Each message is associated with a
@@ -75,7 +88,7 @@ QueueEntryId msgId = unitOfWorkFactory.withUnitOfWork(() -> durableQueues.queueM
                                                                                        someMessage));
 ```
 
-### Non-Transactional Queueing of a Message (supported by `MongoDurableQueues`):
+### Non-Transactional Queueing of a Message (supported by `PostgresqlDurableQueues` and `MongoDurableQueues`):
 
 ```
 var queueEntryId = durableQueues.queueMessage(QueueName.of("TestQueue"),
@@ -153,187 +166,17 @@ To use `DurableQueues` you must create an instance of a concrete `DurableQueues`
 
 ### `PostgresqlDurableQueues`
 
-To use `PostgresqlDurableQueues` you must include dependency
+An implementation using PostgreSQL to provide DurableQueues
 
-```xml
-
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>postgresql-queue</artifactId>
-    <version>0.40.4</version>
-</dependency>
-```
-
-Example standalone configuration:
-
-```
-var unitOfWorkFactory = new JdbiUnitOfWorkFactory(jdbi);
-var durableQueues = new PostgresqlDurableQueues(unitOfWorkFactory);
-durableQueues.start();
-```
-
-Example Spring configuration:
-
-```
-@Bean
-public DurableQueues durableQueues(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory) {
-    return new PostgresqlDurableQueues(unitOfWorkFactory);
-}
-
-@Bean
-public Jdbi jdbi(DataSource dataSource) {
-    var jdbi = Jdbi.create(new TransactionAwareDataSourceProxy(dataSource));
-    jdbi.installPlugin(new PostgresPlugin());
-    return jdbi;
-}
-
-@Bean
-public EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory(Jdbi jdbi,
-                                                                                     PlatformTransactionManager transactionManager) {
-    return new SpringTransactionAwareJdbiUnitOfWorkFactory(jdbi, transactionManager);
-}
-
-@Bean
-public com.fasterxml.jackson.databind.Module essentialJacksonModule() {
-    return new EssentialTypesJacksonModule();
-}
-```
+> For more information and security related information see
+> - [postgresql-queue](postgresql-queue/README.md)
 
 ### `MongoDurableQueues`
 
-To use `MongoDurableQueues` you must include dependency
+An implementation using MongoDB and the SpringData MongoDB library to provide DurableQueues
 
-```xml
-
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>springdata-mongo-queue</artifactId>
-    <version>0.40.4</version>
-</dependency>
-```
-
-Next you need to decide on which `TransactionalMode` to run the `MongoDurableQueues` in.
-
-### FullyTransactional
-
-When using this mode all the queueing, de-queueing methods requires an existing `UnitOfWork`
-started prior to being called. The reason for this is that Queues are typically used together with the `Inbox` or
-`Outbox` pattern, which benefits from including queueing/de-queueing together with other database entity modifying
-operations.  
-When changing an entity and queueing/de-queueing happens in ONE shared transaction *(NOTE this requires that the entity
-storage and the queue storage
-to use the same MongoDB database) then the shared database transaction guarantees that all the data storage operations
-are committed or rollback as one
-
-Example `TransactionalMode#FullyTransactional` Spring configuration:
-
-```
-@Bean
-public DurableQueues durableQueues(MongoTemplate mongoTemplate, 
-                                   SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory) {
-    return new MongoDurableQueues(mongoTemplate,
-                                      unitOfWorkFactory);
-}
-        
-@Bean
-public SingleValueTypeRandomIdGenerator registerIdGenerator() {
-    return new SingleValueTypeRandomIdGenerator();
-}
-
-@Bean
-public MongoCustomConversions mongoCustomConversions() {
-    return new MongoCustomConversions(List.of(
-            new SingleValueTypeConverter(QueueEntryId.class,
-                                         QueueName.class)));
-}
-
-@Bean
-public MongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
-    TransactionOptions transactionOptions = TransactionOptions.builder()
-                                                              .readConcern(ReadConcern.SNAPSHOT)
-                                                              .writeConcern(WriteConcern.ACKNOWLEDGED)
-                                                              .build();
-    return new MongoTransactionManager(databaseFactory, transactionOptions);
-}
-
-@Bean
-MongoTemplate mongoTemplate(MongoDatabaseFactory mongoDbFactory, MongoConverter converter) {
-    MongoTemplate mongoTemplate = new MongoTemplate(mongoDbFactory, converter);
-    mongoTemplate.setWriteConcern(WriteConcern.ACKNOWLEDGED);
-    mongoTemplate.setWriteResultChecking(WriteResultChecking.EXCEPTION);
-    return mongoTemplate;
-}
-
-@Bean
-public com.fasterxml.jackson.databind.Module essentialJacksonModule() {
-    return new EssentialTypesJacksonModule();
-}
-```
-
-### SingleOperationTransaction
-
-MongoDB/DocumentDB have some limitations when performing multiple data storage operations within a transaction (such as
-querying large collections returning large numbers of Documents).   
-Running this mode is also useful for Long-running message handling,
-For these cases you can configure the `TransactionalMode` as `SingleOperationTransaction` where queueing and de-queueing are
-performed using separate single document
-transactions and where acknowledging/retry are also performed as separate transactions.  
-Depending on the type of errors that can occur this MAY leave a dequeued message
-in a state of being marked as "being delivered" forever. Hence `MongoDurableQueues` supports periodically
-discovering messages that have been under delivery for a long time (aka. stuck messages or timed-out messages) and will
-reset them in order for them to be redelivered.
-
-Example `TransactionalMode#SingleOperationTransaction` Spring configuration:
-
-```
-@Bean
-public DurableQueues durableQueues(MongoTemplate mongoTemplate) {
-    return new MongoDurableQueues(mongoTemplate,
-                                  Duration.ofSeconds(10));
-}
-        
-@Bean
-public SingleValueTypeRandomIdGenerator registerIdGenerator() {
-    return new SingleValueTypeRandomIdGenerator();
-}
-
-@Bean
-public MongoCustomConversions mongoCustomConversions() {
-    return new MongoCustomConversions(List.of(
-            new SingleValueTypeConverter(QueueEntryId.class,
-                                         QueueName.class)));
-}
-
-@Bean
-MongoTemplate mongoTemplate(MongoDatabaseFactory mongoDbFactory, MongoConverter converter) {
-    MongoTemplate mongoTemplate = new MongoTemplate(mongoDbFactory, converter);
-    mongoTemplate.setWriteConcern(WriteConcern.ACKNOWLEDGED);
-    mongoTemplate.setWriteResultChecking(WriteResultChecking.EXCEPTION);
-    return mongoTemplate;
-}
-
-@Bean
-public com.fasterxml.jackson.databind.Module essentialJacksonModule() {
-    return new EssentialTypesJacksonModule();
-}
-```
-
-Using TransactionalMode#SingleOperationTransaction (if consuming messages manually without using `DurableQueues.consumeFromQueue(ConsumeFromQueue)`):
-
-```
-durableQueues.queueMessage(queueName, message);
-var msgUnderDelivery = durableQueues.getNextMessageReadyForDelivery(queueName);
-if (msgUnderDelivery.isPresent()) {
-   try {
-      handleMessage(msgUnderDelivery.get());
-      durableQueues.acknowledgeMessageAsHandled(msgUnderDelivery.get().getId());
-   } catch (Exception e) {
-      durableQueues.retryMessage(msgUnderDelivery.get().getId(), 
-                                 e,
-                                 Duration.ofMillis(500));
-   }
-}
-```
+> For more information and security related information see
+> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
 
 ## `DurableLocalCommandBus`
 
@@ -689,81 +532,16 @@ lockManager.acquireLockAsync(LockName.of("MyLock"),
 
 An implementation using Postgresql to coordinate the different locks
 
-```
-@Bean
-public FencedLockManager fencedLockManager(Jdbi jdbi, HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory) {
-    return PostgresqlFencedLockManager.builder()
-                                      .setJdbi(jdbi)
-                                      .setUnitOfWorkFactory(unitOfWorkFactory)
-                                      .setLockTimeOut(Duration.ofSeconds(3))
-                                      .setLockConfirmationInterval(Duration.ofSeconds(1))
-                                      .buildAndStart();
-}
-```
+> For more information and security related information see
+> - [postgresql-distributed-fenced-lock](postgresql-distributed-fenced-lock/README.md) 
 
-Configuration example:
-
-```
-var lockManager = PostgresqlFencedLockManager.builder()
-                                      .setJdbi(Jdbi.create(jdbcUrl,
-                                                           username,
-                                                           password))
-                                      .setUnitOfWorkFactory(unitOfWorkFactory)
-                                      .setLockTimeOut(Duration.ofSeconds(3))
-                                      .setLockConfirmationInterval(Duration.ofSeconds(1))
-                                      .buildAndStart(); 
-```                                                
-
-To use `PostgreSQL Distributed Fenced Lock` just add the following Maven dependency:
-
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>postgresql-distributed-fenced-lock</artifactId>
-    <version>0.40.4</version>
-</dependency>
-```
 
 ## MongoFencedLockManager
 
-An implementation using MongoDB and the SpringData MongoDB library to coordinate the different locks:
+An implementation using MongoDB and the SpringData MongoDB library to coordinate the different locks.
 
-```
-@Bean
-public FencedLockManager fencedLockManager(MongoTemplate mongoTemplate,
-                                           MongoConverter mongoConverter,
-                                           SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory) {
-  return MongoFencedLockManager.builder()
-                               .setMongoTemplate(mongoTemplate)
-                               .setMongoConverter(mongoConverter)
-                               .setUnitOfWorkFactory(unitOfWorkFactory)
-                               .setLockTimeOut(Duration.ofSeconds(3))
-                               .setLockConfirmationInterval(Duration.ofSeconds(1)))
-                               .buildAndStart();
-}
-
-@Bean
-public SingleValueTypeRandomIdGenerator registerIdGenerator() {
-    return new SingleValueTypeRandomIdGenerator();
-}
-
-@Bean
-public MongoCustomConversions mongoCustomConversions() {
-    return new MongoCustomConversions(List.of(
-            new SingleValueTypeConverter(LockName.class)));
-}
-
-@Bean
-public MongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
-    return new MongoTransactionManager(databaseFactory);
-}
-
-@Bean SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory(MongoTransactionManager transactionManager,
-                                                                     MongoDatabaseFactory databaseFactory) {
-   return new SpringMongoTransactionAwareUnitOfWorkFactory(transactionManager,
-                                                           databaseFactory);
-}
-```
+> For more information and security related information see
+> - [springdata-mongo-distributed-fenced-lock](springdata-mongo-distributed-fenced-lock/README.md) 
 
 
 

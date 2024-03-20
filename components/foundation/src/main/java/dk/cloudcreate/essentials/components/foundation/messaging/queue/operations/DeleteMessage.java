@@ -28,7 +28,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * using {@link TransactionalMode#FullyTransactional}<br>
  * Operation also matches {@link DurableQueuesInterceptor#intercept(DeleteMessage, InterceptorChain)}
  */
-public class DeleteMessage {
+public final class DeleteMessage {
     public final QueueEntryId queueEntryId;
 
     /**

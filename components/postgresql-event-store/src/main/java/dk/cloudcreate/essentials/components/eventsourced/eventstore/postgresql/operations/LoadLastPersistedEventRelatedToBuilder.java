@@ -23,7 +23,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.e
  *
  * @param <ID> the id type for the aggregate
  */
-public class LoadLastPersistedEventRelatedToBuilder<ID> {
+public final class LoadLastPersistedEventRelatedToBuilder<ID> {
     private AggregateType aggregateType;
     private ID            aggregateId;
 

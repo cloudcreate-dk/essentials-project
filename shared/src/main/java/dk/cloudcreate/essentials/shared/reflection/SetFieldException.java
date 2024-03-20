@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.shared.reflection;
 
-public class SetFieldException extends ReflectionException {
+public final class SetFieldException extends ReflectionException {
     public SetFieldException() {
     }
 

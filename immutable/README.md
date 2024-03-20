@@ -7,6 +7,9 @@ The Essentials philosophy is to provide high level building blocks and coding co
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
 many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
 
+> **NOTE:**  
+> **The library is WORK-IN-PROGRESS**
+
 ## Immutable
 
 This library focuses purely on providing utility classes that make it easier to create **simple** immutable types/classes, that
@@ -18,7 +21,7 @@ To use `Immutable` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable</artifactId>
-    <version>0.40.4</version>
+    <version>0.40.5</version>
 </dependency>
 ```
 

@@ -48,7 +48,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *  </li>
  * </ul>
  */
-public class ImmutableObjectsValueInstantiator extends ValueInstantiator {
+public final class ImmutableObjectsValueInstantiator extends ValueInstantiator {
     private static Objenesis OBJENESIS = new ObjenesisStd();
 
     private final ValueInstantiator     standardJacksonValueInstantiator;

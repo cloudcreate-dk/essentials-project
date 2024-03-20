@@ -26,7 +26,7 @@ import java.sql.Types;
  * Base implementation for a {@link BigDecimalType}.<br>
  * Extend this class to support your concrete {@link BigDecimalType} sub-type:
  * <pre>{@code
- * public class AmountArgumentFactory extends BigDecimalTypeArgumentFactory<Amount> {
+ * public final class AmountArgumentFactory extends BigDecimalTypeArgumentFactory<Amount> {
  * }}</pre>
  *
  * @param <T> the concrete {@link BigDecimalType} subclass

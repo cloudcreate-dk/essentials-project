@@ -22,5 +22,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link CountryCode} {@link ColumnMapper}
  */
-public class CountryCodeColumnMapper extends CharSequenceTypeColumnMapper<CountryCode> {
+public final class CountryCodeColumnMapper extends CharSequenceTypeColumnMapper<CountryCode> {
 }

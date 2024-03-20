@@ -36,7 +36,7 @@ import static dk.cloudcreate.essentials.types.avro.EmailAddressLogicalTypeFactor
  * }
  * }</pre>
  */
-public class EmailAddressConversion extends BaseCharSequenceConversion<EmailAddress> {
+public final class EmailAddressConversion extends BaseCharSequenceConversion<EmailAddress> {
     @Override
     public Class<EmailAddress> getConvertedType() {
         return EmailAddress.class;

@@ -14,18 +14,23 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.reactive;
+package dk.cloudcreate.essentials.components.foundation.types;
 
-public class PublishException extends RuntimeException {
-    public final Object event;
+import dk.cloudcreate.essentials.types.*;
 
-    public PublishException(String msg, Object event) {
-        super(msg);
-        this.event = event;
+/**
+ * A message id provides a unique identifier for a Message in a distributed system
+ */
+public final class MessageId extends CharSequenceType<MessageId> implements Identifier {
+    public MessageId(CharSequence value) {
+        super(value);
     }
 
-    public PublishException(String message, Throwable cause, Object event) {
-        super(message, cause);
-        this.event = event;
+    public static MessageId of(CharSequence value) {
+        return new MessageId(value);
+    }
+
+    public static MessageId random() {
+        return new MessageId(RandomIdGenerator.generate());
     }
 }

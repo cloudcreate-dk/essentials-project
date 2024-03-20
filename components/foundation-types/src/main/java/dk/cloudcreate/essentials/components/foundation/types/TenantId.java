@@ -18,21 +18,15 @@ package dk.cloudcreate.essentials.components.foundation.types;
 
 import dk.cloudcreate.essentials.types.*;
 
-import java.util.UUID;
-
 /**
- * A subscriber id is used to uniquely identify an event subscriber
+ * Simple single value {@link Tenant} identifier
  */
-public class SubscriberId extends CharSequenceType<SubscriberId> implements Identifier {
-    public SubscriberId(CharSequence value) {
+public final class TenantId extends CharSequenceType<TenantId> implements Tenant, Identifier {
+    public TenantId(CharSequence value) {
         super(value);
     }
 
-    public static SubscriberId of(CharSequence value) {
-        return new SubscriberId(value);
-    }
-
-    public static SubscriberId random() {
-        return new SubscriberId(UUID.randomUUID().toString());
+    public static TenantId of(CharSequence value) {
+        return new TenantId(value);
     }
 }

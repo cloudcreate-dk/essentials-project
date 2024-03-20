@@ -23,5 +23,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link CorrelationId} {@link ColumnMapper}
  */
-public class CorrelationIdColumnMapper extends CharSequenceTypeColumnMapper<CorrelationId> {
+public final class CorrelationIdColumnMapper extends CharSequenceTypeColumnMapper<CorrelationId> {
 }

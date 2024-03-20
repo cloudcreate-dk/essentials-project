@@ -26,7 +26,7 @@ import java.sql.*;
  * Base implementation for a {@link ZonedDateTimeType}.<br>
  * Extend this class to support your concrete {@link ZonedDateTimeType} sub-type:
  * <pre>{@code
- * public class TransactionTimeArgumentFactory extends ZonedDateTimeTypeArgumentFactory<TransactionTime> {
+ * public final class TransactionTimeArgumentFactory extends ZonedDateTimeTypeArgumentFactory<TransactionTime> {
  * }}</pre>
  *
  * @param <T> the concrete {@link ZonedDateTimeType} subclass

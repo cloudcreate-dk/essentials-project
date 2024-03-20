@@ -22,5 +22,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link EmailAddress} {@link ColumnMapper}
  */
-public class EmailAddressColumnMapper extends CharSequenceTypeColumnMapper<EmailAddress> {
+public final class EmailAddressColumnMapper extends CharSequenceTypeColumnMapper<EmailAddress> {
 }

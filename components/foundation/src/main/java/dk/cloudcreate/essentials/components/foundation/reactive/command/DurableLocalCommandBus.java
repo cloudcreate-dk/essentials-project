@@ -43,7 +43,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.*;
  *
  * @see AnnotatedCommandHandler
  */
-public class DurableLocalCommandBus extends AbstractCommandBus implements Lifecycle {
+public final class DurableLocalCommandBus extends AbstractCommandBus implements Lifecycle {
     private static final Logger           log                        = LoggerFactory.getLogger(DurableLocalCommandBus.class);
     public static final  QueueName        DEFAULT_COMMAND_QUEUE_NAME = QueueName.of("DefaultCommandQueue");
     public static final  RedeliveryPolicy DEFAULT_REDELIVERY_POLICY  = RedeliveryPolicy.linearBackoff(Duration.ofMillis(150),

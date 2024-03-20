@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 
 import java.time.Duration;
 
-public class EventStoreSubscriptionManagerBuilder {
+public final class EventStoreSubscriptionManagerBuilder {
     private EventStore                    eventStore;
     private int                           eventStorePollingBatchSize = 100;
     private Duration                      eventStorePollingInterval  = Duration.ofMillis(500);

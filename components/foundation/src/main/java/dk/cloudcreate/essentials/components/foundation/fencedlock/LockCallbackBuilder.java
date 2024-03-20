@@ -20,7 +20,7 @@ import java.util.function.Consumer;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
-public class LockCallbackBuilder {
+public final class LockCallbackBuilder {
     private Consumer<FencedLock> onLockAcquired;
     private Consumer<FencedLock> onLockReleased;
 

@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.types.CharSequenceType;
 /**
  * Jackson Serializer for {@link CharSequenceType}
  */
-public class CharSequenceTypeJsonSerializer extends ToStringSerializerBase {
+public final class CharSequenceTypeJsonSerializer extends ToStringSerializerBase {
     public CharSequenceTypeJsonSerializer() {
         super(CharSequenceType.class);
     }

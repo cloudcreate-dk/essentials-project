@@ -36,7 +36,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * <br>
  * Conditional logic can be applied using {@link #ifHasEventType(Consumer)} or {@link #ifHasEventName(Consumer)}
  */
-public class EventTypeOrName extends Either<EventType, EventName> {
+public final class EventTypeOrName extends Either<EventType, EventName> {
     public EventTypeOrName(EventType eventType, EventName eventName) {
         super(eventType, eventName);
     }

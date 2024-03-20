@@ -26,7 +26,7 @@ import java.sql.*;
  * Base implementation for a {@link LocalDateType}.<br>
  * Extend this class to support your concrete {@link LocalDateType} sub-type:
  * <pre>{@code
- * public class DueDateArgumentFactory extends LocalDateTypeArgumentFactory<DueDate> {
+ * public final class DueDateArgumentFactory extends LocalDateTypeArgumentFactory<DueDate> {
  * }}</pre>
  *
  * @param <T> the concrete {@link LocalDateType} subclass

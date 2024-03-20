@@ -23,7 +23,7 @@ import java.time.Duration;
 /**
  * Builder for {@link RetryMessage}
  */
-public class RetryMessageBuilder {
+public final class RetryMessageBuilder {
     private QueueEntryId queueEntryId;
     private Exception causeForRetry;
     private Duration  deliveryDelay;

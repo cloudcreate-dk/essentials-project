@@ -9,6 +9,9 @@ The Essentials philosophy is to provide high level building blocks and coding co
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
 many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
 
+**NOTE:**
+**This library is WORK-IN-PROGRESS**
+
 ## Types-SpringData-Mongo
 
 This library focuses purely on providing [Spring Data MongoDB](https://spring.io/projects/spring-data-mongodb) persistence support for the **types** defined in the
@@ -19,7 +22,7 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-mongo</artifactId>
-    <version>0.40.4</version>
+    <version>0.40.5</version>
 </dependency>
 ```
 
@@ -30,9 +33,6 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
     <artifactId>spring-data-mongodb</artifactId>
 </dependency>
 ```
-
-**NOTE:**
-**This library is WORK-IN-PROGRESS**
 
 ### Configuration
 

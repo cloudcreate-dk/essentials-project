@@ -17,55 +17,31 @@
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 
 
-import java.util.List;
-import java.util.Optional;
-import javax.sql.DataSource;
-
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockEvents;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
-import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
-import dk.cloudcreate.essentials.components.foundation.json.JacksonJSONSerializer;
-import dk.cloudcreate.essentials.components.foundation.lifecycle.DefaultLifecycleManager;
-import dk.cloudcreate.essentials.components.foundation.lifecycle.LifecycleManager;
+import dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.EssentialsComponentsProperties.*;
+import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.*;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.json.*;
+import dk.cloudcreate.essentials.components.foundation.lifecycle.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inboxes;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Outboxes;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueuesInterceptor;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuePollingOptimizer;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerInterceptor;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerTracingInterceptor;
-import dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener;
-import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
-import dk.cloudcreate.essentials.components.foundation.postgresql.TableChangeNotification;
-import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus;
-import dk.cloudcreate.essentials.components.foundation.reactive.command.UnitOfWorkControllingCommandBusInterceptor;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
-import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWork;
-import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.*;
+import dk.cloudcreate.essentials.components.foundation.postgresql.*;
+import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.jdbi.SpringTransactionAwareJdbiUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
-import dk.cloudcreate.essentials.reactive.EventBus;
-import dk.cloudcreate.essentials.reactive.EventHandler;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
-import dk.cloudcreate.essentials.reactive.OnErrorHandler;
-import dk.cloudcreate.essentials.reactive.command.CommandBus;
-import dk.cloudcreate.essentials.reactive.command.CommandHandler;
-import dk.cloudcreate.essentials.reactive.command.SendAndDontWaitErrorHandler;
+import dk.cloudcreate.essentials.reactive.*;
+import dk.cloudcreate.essentials.reactive.command.*;
 import dk.cloudcreate.essentials.reactive.command.interceptor.CommandBusInterceptor;
 import dk.cloudcreate.essentials.reactive.spring.ReactiveHandlersBeanPostProcessor;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -74,21 +50,62 @@ import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.postgres.PostgresPlugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.slf4j.*;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import javax.sql.DataSource;
+import java.util.*;
+
 /**
- * Postgresql focused Essentials Components auto configuration
+ * Postgresql focused Essentials Components auto configuration<br>
+ * <br>
+ * <u><b>Security:</b></u><br>
+ * If you in your own Spring Boot application choose to override the Beans defined by this starter,
+ * then you need to check the component document to learn about the Security implications of each configuration.
+ * <br>
+ * <u>{@link PostgresqlFencedLockManager}</u><br>
+ * To support customization of {@link PostgresqlFencedLockManager} storage table name, the {@link EssentialsComponentsProperties#getFencedLockManager()}'s {@link FencedLockManagerProperties#setFencedLocksTableName(String)}
+ * will be directly used in constructing SQL statements through string concatenation, which exposes the component to SQL injection attacks.<br>
+ * <br>
+ * It is the responsibility of the user of this component to sanitize the {@code fencedLocksTableName}
+ * to ensure the security of all the SQL statements generated by this component. The {@link PostgresqlFencedLockStorage} component will
+ * call the {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} method to validate the table name as a first line of defense.<br>
+ * However, Essentials components as well as {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting SQL against SQL injection threats.<br>
+ * <b>The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.</b><br>
+ * Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.<br>
+ * Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.<br>
+ * <br>
+ * It is highly recommended that the {@code fencedLocksTableName} value is only derived from a controlled and trusted source.<br>
+ * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the {@code fencedLocksTableName} value.<br>
+ * <b>Failure to adequately sanitize and validate this value could expose the application to SQL injection
+ * vulnerabilities, compromising the security and integrity of the database.</b><br>
+ * <br>
+ * <u>{@link PostgresqlDurableQueues}</u><br>
+ * To support customization of {@link PostgresqlDurableQueues} storage table name, the {@link EssentialsComponentsProperties#getDurableQueues()}'s {@link DurableQueuesProperties#setSharedQueueTableName(String)}
+ * will be directly used in constructing SQL statements through string concatenation, which exposes the component to SQL injection attacks.<br>
+ * It is the responsibility of the user of this component to sanitize the {@code sharedQueueTableName}
+ * to ensure the security of all the SQL statements generated by this component. The {@link PostgresqlDurableQueues} component will
+ * call the {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} method to validate the table name as a first line of defense.<br>
+ * The {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} provides an initial layer of defense against SQL injection by applying naming conventions intended to reduce the risk of malicious input.<br>
+ * However, Essentials components as well as {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting SQL against SQL injection threats.<br>
+ * <b>The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.</b><br>
+ * Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.<br>
+ * Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.<br>
+ * <br>
+ * It is highly recommended that the {@code sharedQueueTableName} value is only derived from a controlled and trusted source.<br>
+ * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the {@code sharedQueueTableName} value.<br>
+ * <b>Failure to adequately sanitize and validate this value could expose the application to SQL injection
+ * vulnerabilities, compromising the security and integrity of the database.</b>
+ * @see dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues
+ * @see dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager
+ * @see dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage
+ * @see MultiTableChangeListener
  */
 @AutoConfiguration
 @EnableConfigurationProperties(EssentialsComponentsProperties.class)
@@ -121,7 +138,7 @@ public class EssentialsComponentsConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public ReactiveHandlersBeanPostProcessor reactiveHandlersBeanPostProcessor() {
+    public static ReactiveHandlersBeanPostProcessor reactiveHandlersBeanPostProcessor() {
         return new ReactiveHandlersBeanPostProcessor();
     }
 
@@ -147,17 +164,6 @@ public class EssentialsComponentsConfiguration {
     @ConditionalOnMissingBean
     public EssentialsImmutableJacksonModule essentialsImmutableJacksonModule() {
         return new EssentialsImmutableJacksonModule();
-    }
-
-    /**
-     * Essential Jackson module which adds support for serializing and deserializing objects with semantic types
-     *
-     * @return the Essential Jackson module which adds support for serializing and deserializing objects with semantic types
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public EssentialTypesJacksonModule essentialsJacksonModule() {
-        return new EssentialTypesJacksonModule();
     }
 
     /**
@@ -387,8 +393,8 @@ public class EssentialsComponentsConfiguration {
             var jdbi = applicationContext.getBean(Jdbi.class);
             callbacks.forEach(configureJdbiCallback -> {
                 log.info("Calling {}: {}",
-                    JdbiConfigurationCallback.class.getSimpleName(),
-                    configureJdbiCallback.getClass().getName());
+                         JdbiConfigurationCallback.class.getSimpleName(),
+                         configureJdbiCallback.getClass().getName());
                 configureJdbiCallback.configure(jdbi);
             });
         }

@@ -27,7 +27,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Operation matching the {@link EventStore#loadEvent(AggregateType, EventId)}<br>
  * Operation also matches {@link EventStoreInterceptor#intercept(LoadEvent, EventStoreInterceptorChain)}
  */
-public class LoadEvent {
+public final class LoadEvent {
     /**
      * the aggregate type that the underlying {@link AggregateEventStream}, which should contain the {@link PersistedEvent} with the given <code>eventId</code>, is associated with
      */

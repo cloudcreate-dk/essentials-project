@@ -5,6 +5,9 @@ Essentials is a set of Java version 17 (and later) building blocks built from th
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and strongly typed code, which doesn't depend on other libraries or frameworks, but
 instead allows easy integrations with many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
 
+> **NOTE:**  
+> **The library is WORK-IN-PROGRESS**
+
 ## Shared
 
 This library contains the smallest set of supporting building blocks needed for other Essentials libraries.
@@ -14,7 +17,7 @@ To use `Shared` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>shared</artifactId>
-    <version>0.40.4</version>
+    <version>0.40.5</version>
 </dependency>
 ```
 

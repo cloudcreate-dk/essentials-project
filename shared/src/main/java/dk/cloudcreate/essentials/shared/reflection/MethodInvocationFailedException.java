@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.shared.reflection;
 
-public class MethodInvocationFailedException extends ReflectionException {
+public final class MethodInvocationFailedException extends ReflectionException {
     public MethodInvocationFailedException() {
     }
 

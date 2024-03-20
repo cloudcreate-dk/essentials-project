@@ -23,5 +23,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link AggregateType} {@link ColumnMapper}
  */
-public class AggregateTypeColumnMapper extends CharSequenceTypeColumnMapper<AggregateType> {
+public final class AggregateTypeColumnMapper extends CharSequenceTypeColumnMapper<AggregateType> {
 }

@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.shared.reflection;
 
-public class TooManyMatchingFieldsFoundException extends ReflectionException {
+public final class TooManyMatchingFieldsFoundException extends ReflectionException {
     public TooManyMatchingFieldsFoundException() {
     }
 

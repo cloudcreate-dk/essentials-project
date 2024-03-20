@@ -29,7 +29,7 @@ import static dk.cloudcreate.essentials.components.foundation.reactive.command.D
 /**
  * Builder for {@link DurableLocalCommandBus}
  */
-public class DurableLocalCommandBusBuilder {
+public final class DurableLocalCommandBusBuilder {
     private DurableQueues               durableQueues;
     private int                         parallelSendAndDontWaitConsumers = 10;
     private QueueName                   commandQueueName                 = DEFAULT_COMMAND_QUEUE_NAME;

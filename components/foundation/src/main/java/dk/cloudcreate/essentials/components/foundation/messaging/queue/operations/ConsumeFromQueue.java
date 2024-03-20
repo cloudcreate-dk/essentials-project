@@ -33,7 +33,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.*;
  * Operation also matches {@link DurableQueuesInterceptor#intercept(ConsumeFromQueue, InterceptorChain)}
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class ConsumeFromQueue {
+public final class ConsumeFromQueue {
     /**
      * The name of the consumer (for logging purposes)
      */

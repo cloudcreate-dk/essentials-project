@@ -105,14 +105,14 @@
         <maven-javadoc-plugin.version>3.6.3</maven-javadoc-plugin.version>
         <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
-        <maven-compiler-plugin.version>3.12.1</maven-compiler-plugin.version>
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <versions-maven-plugin.version>2.16.2</versions-maven-plugin.version>
         <maven-enforcer-plugin.version>3.4.1</maven-enforcer-plugin.version>
         <minimum-maven-version>3.8.8</minimum-maven-version>
         <dependency-check-maven.version>9.0.10</dependency-check-maven.version>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
         <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
-        <maven-gpg-plugin.version>3.2.0</maven-gpg-plugin.version>
+        <maven-gpg-plugin.version>3.2.1</maven-gpg-plugin.version>
     </properties>
 
     <modules>
@@ -140,7 +140,7 @@
         <module>components/spring-postgresql-event-store</module>
         <module>components/springdata-mongo-distributed-fenced-lock</module>
         <module>components/springdata-mongo-queue</module>
-        <module>components/kotlin-eventsourcing</module>
+<!--        <module>components/kotlin-eventsourcing</module>-->
     </modules>
 
 

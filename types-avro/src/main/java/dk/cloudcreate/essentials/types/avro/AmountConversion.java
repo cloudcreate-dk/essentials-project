@@ -36,7 +36,7 @@ import static dk.cloudcreate.essentials.types.avro.AmountLogicalTypeFactory.AMOU
  * }
  * }</pre>
  */
-public class AmountConversion extends BaseBigDecimalTypeConversion<Amount> {
+public final class AmountConversion extends BaseBigDecimalTypeConversion<Amount> {
     @Override
     public Class<Amount> getConvertedType() {
         return Amount.class;

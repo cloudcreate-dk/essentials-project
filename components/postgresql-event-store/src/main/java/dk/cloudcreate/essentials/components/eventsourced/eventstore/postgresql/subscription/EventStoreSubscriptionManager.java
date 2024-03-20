@@ -466,7 +466,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      * Default implementation of the {@link EventStoreSubscriptionManager} interface
      */
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    class DefaultEventStoreSubscriptionManager implements EventStoreSubscriptionManager {
+    final class DefaultEventStoreSubscriptionManager implements EventStoreSubscriptionManager {
         private static final Logger log = LoggerFactory.getLogger(EventStoreSubscriptionManager.class);
 
         private final EventStore                    eventStore;
