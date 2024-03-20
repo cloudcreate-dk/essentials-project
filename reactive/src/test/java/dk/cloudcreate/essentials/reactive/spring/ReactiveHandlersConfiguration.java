@@ -40,7 +40,7 @@ public class ReactiveHandlersConfiguration {
         return new LocalCommandBus();
     }
 
-    @Bean ReactiveHandlersBeanPostProcessor reactiveHandlersBeanPostProcessor() {
+    public static @Bean ReactiveHandlersBeanPostProcessor reactiveHandlersBeanPostProcessor() {
         return new ReactiveHandlersBeanPostProcessor();
     }
 

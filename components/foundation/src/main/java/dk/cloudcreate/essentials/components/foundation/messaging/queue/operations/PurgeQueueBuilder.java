@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName
 /**
  * Builder for {@link PurgeQueue}
  */
-public class PurgeQueueBuilder {
+public final class PurgeQueueBuilder {
     private QueueName queueName;
 
     /**

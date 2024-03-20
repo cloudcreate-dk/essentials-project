@@ -26,7 +26,7 @@ import java.sql.Types;
  * Base implementation for a {@link LongType}.<br>
  * Extend this class to support your concrete {@link LongType} sub-type:
  * <pre>{@code
- * public class AccountIdArgumentFactory extends LongTypeArgumentFactory<AccountId> {
+ * public final class AccountIdArgumentFactory extends LongTypeArgumentFactory<AccountId> {
  * }}</pre>
  *
  * @param <T> the concrete {@link LongType} subclass

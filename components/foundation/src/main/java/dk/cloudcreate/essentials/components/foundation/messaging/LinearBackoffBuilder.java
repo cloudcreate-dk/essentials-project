@@ -25,7 +25,7 @@ import java.time.Duration;
  * @see RedeliveryPolicy#linearBackoff()
  * @see RedeliveryPolicy#fixedBackoff()
  */
-public class LinearBackoffBuilder {
+public final class LinearBackoffBuilder {
     private Duration                    redeliveryDelay;
     private Duration                    maximumFollowupRedeliveryDelayThreshold;
     private int                         maximumNumberOfRedeliveries;

@@ -23,7 +23,7 @@ import dk.cloudcreate.essentials.types.*;
 /**
  * The name of an {@link Outbox}
  */
-public class OutboxName extends CharSequenceType<OutboxName> implements Identifier {
+public final class OutboxName extends CharSequenceType<OutboxName> implements Identifier {
     public OutboxName(CharSequence value) {
         super(value);
     }

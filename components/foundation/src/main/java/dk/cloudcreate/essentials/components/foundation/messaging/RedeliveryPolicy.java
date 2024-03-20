@@ -35,7 +35,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.*;
  * @see RedeliveryPolicy#linearBackoff()
  * @see RedeliveryPolicy#fixedBackoff()
  */
-public class RedeliveryPolicy {
+public final class RedeliveryPolicy {
     public final Duration                    initialRedeliveryDelay;
     public final Duration                    followupRedeliveryDelay;
     public final double                      followupRedeliveryDelayMultiplier;

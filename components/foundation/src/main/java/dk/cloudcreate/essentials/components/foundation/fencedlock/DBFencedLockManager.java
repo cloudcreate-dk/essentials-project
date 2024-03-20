@@ -32,7 +32,12 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 
-public class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLock> implements FencedLockManager {
+/**
+ * Common super base class for implementing persistent/durable {@link FencedLockManager}'s
+ * @param <UOW> the type of {@link UnitOfWork} required
+ * @param <LOCK> the concrete type of {@link DBFencedLock} used
+ */
+public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLock> implements FencedLockManager {
     protected final Logger log = LoggerFactory.getLogger(this.getClass());
 
     private final FencedLockStorage<UOW, LOCK>                lockStorage;

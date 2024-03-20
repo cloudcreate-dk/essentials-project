@@ -22,5 +22,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link Amount} {@link ColumnMapper}
  */
-public class AmountColumnMapper extends BigDecimalTypeColumnMapper<Amount> {
+public final class AmountColumnMapper extends BigDecimalTypeColumnMapper<Amount> {
 }

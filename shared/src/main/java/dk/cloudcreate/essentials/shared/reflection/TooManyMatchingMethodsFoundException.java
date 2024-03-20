@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.shared.reflection;
 
-public class TooManyMatchingMethodsFoundException extends ReflectionException {
+public final class TooManyMatchingMethodsFoundException extends ReflectionException {
     public TooManyMatchingMethodsFoundException() {
     }
 

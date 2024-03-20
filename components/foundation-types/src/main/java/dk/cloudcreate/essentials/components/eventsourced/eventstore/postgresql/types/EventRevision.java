@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.types.IntegerType;
 /**
  * The revision of an Event type. The first revision has value 1
  */
-public class EventRevision extends IntegerType<EventRevision> {
+public final class EventRevision extends IntegerType<EventRevision> {
     public static EventRevision FIRST = EventRevision.of(1);
     public EventRevision(Integer value) {
         super(value);

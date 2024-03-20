@@ -26,7 +26,7 @@ import java.sql.*;
  * Base implementation for a {@link LocalDateTimeType}.<br>
  * Extend this class to support your concrete {@link LocalDateTimeType} sub-type:
  * <pre>{@code
- * public class LocalDateTimeArgumentFactory extends LocalDateTimeTypeArgumentFactory<Created> {
+ * public final class LocalDateTimeArgumentFactory extends LocalDateTimeTypeArgumentFactory<Created> {
  * }}</pre>
  *
  * @param <T> the concrete {@link LocalDateTimeType} subclass

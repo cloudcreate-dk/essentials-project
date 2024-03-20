@@ -16,27 +16,64 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.mongodb;
 
-import java.time.Duration;
-import java.util.Optional;
-
-import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockStorage;
+import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.*;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
+import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
 import dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Duration;
+
 /**
- * Properties for the MongoDB focused Essentials Components auto-configuration
+ * Properties for the MongoDB focused Essentials Components auto-configuration<br>
+ * <br>
+ * To support customization of storage collection name, the {@code fencedLocksCollectionName} will be directly used as Collection name,
+ * which exposes the component to the risk of malicious input.<br>
+ * <br>
+ * <strong>Security Note:</strong><br>
+ * It is the responsibility of the user of this component to sanitize the {@code fencedLocksCollectionName}
+ * to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockStorage} component, used by {@link MongoFencedLockManager} will
+ * call the {@link dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+ * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+ * However, Essentials components as well as {@link dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+ * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+ * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+ * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+ * <br>
+ * It is highly recommended that the {@code fencedLocksCollectionName} value is only derived from a controlled and trusted source.<br>
+ * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code fencedLocksCollectionName} value.<br>
+ * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
+ * <br>
+ * <u>{@link MongoDurableQueues}</u><br>
+ * To support customization of storage collection name, the {@link MongoDurableQueues#getSharedQueueCollectionName()} will be directly used as Collection name,
+ * which exposes the component to the risk of malicious input.<br>
+ * <br>
+ * <strong>Security Note:</strong><br>
+ * It is the responsibility of the user of this component to sanitize the {@code sharedQueueCollectionName}
+ * to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoDurableQueues}, will
+ * call the {@link dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+ * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+ * However, Essentials components as well as {@link dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+ * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+ * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+ * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+ * <br>
+ * It is highly recommended that the {@code sharedQueueCollectionName} value is only derived from a controlled and trusted source.<br>
+ * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code sharedQueueCollectionName} value.<br>
+ * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
+ * @see dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues
+ * @see dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockManager
+ * @see dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockStorage
  */
 @Configuration
 @ConfigurationProperties(prefix = "essentials")
 public class EssentialsComponentsProperties {
-    private final FencedLockManager fencedLockManager = new FencedLockManager();
-    private final DurableQueues     durableQueues     = new DurableQueues();
-    private final LifeCycleProperties lifeCycles = new LifeCycleProperties();
+    private final FencedLockManager   fencedLockManager = new FencedLockManager();
+    private final DurableQueues       durableQueues     = new DurableQueues();
+    private final LifeCycleProperties lifeCycles        = new LifeCycleProperties();
 
     public FencedLockManager getFencedLockManager() {
         return fencedLockManager;
@@ -65,6 +102,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * Should the Tracing produces only include all operations or only top level operations (default false)
+         *
          * @return Should the Tracing produces only include all operations or only top level operations
          */
         public boolean isVerboseTracing() {
@@ -73,6 +111,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * Should the Tracing produces only include all operations or only top level operations (default false)
+         *
          * @param verboseTracing Should the Tracing produces only include all operations or only top level operations
          */
         public void setVerboseTracing(boolean verboseTracing) {
@@ -81,7 +120,24 @@ public class EssentialsComponentsProperties {
 
         /**
          * Get the name of the collection that will contain all messages (across all {@link QueueName}'s)<br>
-         * Default is {@value MongoDurableQueues#DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
+         * Default is {@value MongoDurableQueues#DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}<br>
+         * <strong>Note:</strong><br>
+         * To support customization of storage collection name, the {@code sharedQueueCollectionName} will be directly used as Collection name,
+         * which exposes the component to the risk of malicious input.<br>
+         * <br>
+         * <strong>Security Note:</strong><br>
+         * It is the responsibility of the user of this component to sanitize the {@code sharedQueueCollectionName}
+         * to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoDurableQueues}, will
+         * call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+         * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+         * However, Essentials components as well as {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+         * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+         * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+         * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+         * <br>
+         * It is highly recommended that the {@code sharedQueueCollectionName} value is only derived from a controlled and trusted source.<br>
+         * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code sharedQueueCollectionName} value.<br>
+         * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
          *
          * @return the name of the collection that will contain all messages (across all {@link QueueName}'s)
          */
@@ -93,7 +149,24 @@ public class EssentialsComponentsProperties {
          * Set the name of the collection that will contain all messages (across all {@link QueueName}'s)<br>
          * Default is {@value MongoDurableQueues#DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
          *
-         * @param sharedQueueCollectionName the name of the collection that will contain all messages (across all {@link QueueName}'s)
+         * @param sharedQueueCollectionName the name of the collection that will contain all messages (across all {@link QueueName}'s)<br>
+         *                                  <strong>Note:</strong><br>
+         *                                  To support customization of storage collection name, the {@code sharedQueueCollectionName} will be directly used as Collection name,
+         *                                  which exposes the component to the risk of malicious input.<br>
+         *                                  <br>
+         *                                  <strong>Security Note:</strong><br>
+         *                                  It is the responsibility of the user of this component to sanitize the {@code sharedQueueCollectionName}
+         *                                  to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoDurableQueues}, will
+         *                                  call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+         *                                  The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+         *                                  However, Essentials components as well as {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+         *                                  <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+         *                                  Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+         *                                  Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+         *                                  <br>
+         *                                  It is highly recommended that the {@code sharedQueueCollectionName} value is only derived from a controlled and trusted source.<br>
+         *                                  To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code sharedQueueCollectionName} value.<br>
+         *                                  <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
          */
         public void setSharedQueueCollectionName(String sharedQueueCollectionName) {
             this.sharedQueueCollectionName = sharedQueueCollectionName;
@@ -230,18 +303,52 @@ public class EssentialsComponentsProperties {
         }
 
         /**
-         * Get the name of the collection where the locks will be stored. If left {@link Optional#empty()} then the {@link MongoFencedLockStorage#DEFAULT_FENCED_LOCKS_COLLECTION_NAME} value will be used
+         * The name of the collection where the locks will be stored.
+         * <strong>Note:</strong><br>
+         * To support customization of storage collection name, the {@code fencedLocksCollectionName} will be directly used as Collection name,
+         * which exposes the component to the risk of malicious input.<br>
+         * <br>
+         * <strong>Security Note:</strong><br>
+         * It is the responsibility of the user of this component to sanitize the {@code fencedLocksCollectionName}
+         * to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoFencedLockStorage} component, used by the {@link MongoFencedLockManager}, will
+         * call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+         * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+         * However, Essentials components as well as {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+         * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+         * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+         * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+         * <br>
+         * It is highly recommended that the {@code fencedLocksCollectionName} value is only derived from a controlled and trusted source.<br>
+         * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code fencedLocksCollectionName} value.<br>
+         * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>         *
          *
-         * @return the name of the collection where the locks will be stored. If left {@link Optional#empty()} then the {@link MongoFencedLockStorage#DEFAULT_FENCED_LOCKS_COLLECTION_NAME} value will be used
+         * @return the name of the collection where the locks will be stored.
          */
         public String getFencedLocksCollectionName() {
             return fencedLocksCollectionName;
         }
 
         /**
-         * Set the name of the collection where the locks will be stored. If left {@link Optional#empty()} then the {@link MongoFencedLockStorage#DEFAULT_FENCED_LOCKS_COLLECTION_NAME} value will be used
+         * The name of the collection where the locks will be stored.
          *
-         * @param fencedLocksCollectionName the name of the collection where the locks will be stored. If left {@link Optional#empty()} then the {@link MongoFencedLockStorage#DEFAULT_FENCED_LOCKS_COLLECTION_NAME} value will be used
+         * @param fencedLocksCollectionName the name of the collection where the locks will be stored.<br>
+         *                                  <strong>Note:</strong><br>
+         *                                  To support customization of storage collection name, the {@code fencedLocksCollectionName} will be directly used as Collection name,
+         *                                  which exposes the component to the risk of malicious input.<br>
+         *                                  <br>
+         *                                  <strong>Security Note:</strong><br>
+         *                                  It is the responsibility of the user of this component to sanitize the {@code fencedLocksCollectionName}
+         *                                  to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoFencedLockStorage} component, used by the {@link MongoFencedLockManager}, will
+         *                                  call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+         *                                  The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+         *                                  However, Essentials components as well as {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+         *                                  <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+         *                                  Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+         *                                  Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+         *                                  <br>
+         *                                  It is highly recommended that the {@code fencedLocksCollectionName} value is only derived from a controlled and trusted source.<br>
+         *                                  To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code fencedLocksCollectionName} value.<br>
+         *                                  <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
          */
         public void setFencedLocksCollectionName(String fencedLocksCollectionName) {
             this.fencedLocksCollectionName = fencedLocksCollectionName;

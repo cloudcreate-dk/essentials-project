@@ -23,5 +23,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link SubscriberId} {@link ColumnMapper}
  */
-public class SubscriberIdColumnMapper extends CharSequenceTypeColumnMapper<SubscriberId> {
+public final class SubscriberIdColumnMapper extends CharSequenceTypeColumnMapper<SubscriberId> {
 }

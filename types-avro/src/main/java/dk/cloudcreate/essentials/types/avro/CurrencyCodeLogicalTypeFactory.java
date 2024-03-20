@@ -83,7 +83,7 @@ import org.apache.avro.*;
  * }
  * }</pre>
  */
-public class CurrencyCodeLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
+public final class CurrencyCodeLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
     public static final LogicalType CURRENCY_CODE = new CharSequenceTypeLogicalType("CurrencyCode");
 
     @Override

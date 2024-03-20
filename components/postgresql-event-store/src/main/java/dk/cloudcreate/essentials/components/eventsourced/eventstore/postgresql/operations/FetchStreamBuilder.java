@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.operations;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateEventStream;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventOrder;
 import dk.cloudcreate.essentials.components.foundation.types.Tenant;
 import dk.cloudcreate.essentials.types.LongRange;
@@ -28,7 +28,7 @@ import java.util.Optional;
  *
  * @param <ID> the id type for the aggregate
  */
-public class FetchStreamBuilder<ID> {
+public final class FetchStreamBuilder<ID> {
     private AggregateType    aggregateType;
     private ID               aggregateId;
     private LongRange        eventOrderRange;

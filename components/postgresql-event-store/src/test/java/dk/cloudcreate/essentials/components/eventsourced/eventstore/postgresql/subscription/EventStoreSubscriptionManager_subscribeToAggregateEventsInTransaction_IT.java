@@ -30,10 +30,8 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JacksonJSONEventSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.test_data.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.SqlExecutionTimeLogger;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
 import org.jdbi.v3.core.Jdbi;
@@ -111,14 +109,13 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsInTransaction_IT {
 
     @Test
     void subscribe() {
-        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi);
+        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory());
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
                                                                                      Duration.ofMillis(100),
                                                                                      new PostgresqlFencedLockManager(jdbi,
                                                                                                                      unitOfWorkFactory,
                                                                                                                      Optional.of("Node1"),
-                                                                                                                     Optional.empty(),
                                                                                                                      Duration.ofSeconds(3),
                                                                                                                      Duration.ofSeconds(1)),
                                                                                      Duration.ofSeconds(1),

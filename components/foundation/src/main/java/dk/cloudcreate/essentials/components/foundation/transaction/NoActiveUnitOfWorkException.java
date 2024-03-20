@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.transaction;
 
-public class NoActiveUnitOfWorkException extends UnitOfWorkException {
+public final class NoActiveUnitOfWorkException extends UnitOfWorkException {
     public NoActiveUnitOfWorkException() {
     }
 

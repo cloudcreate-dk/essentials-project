@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventOrder;
 import dk.cloudcreate.essentials.types.NumberType;
 
 import java.util.*;
@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <ID> the id type for the aggregate
  */
-public class AppendToStreamBuilder<ID> {
+public final class AppendToStreamBuilder<ID> {
     private AggregateType  aggregateType;
     private ID             aggregateId;
     private Optional<Long> appendEventsAfterEventOrder = Optional.empty();

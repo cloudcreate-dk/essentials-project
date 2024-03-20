@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.shared.reflection.invocation.*;
@@ -78,7 +78,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * }
  * }</pre>
  */
-public class PatternMatchingPersistedEventHandler implements PersistedEventHandler {
+public abstract class PatternMatchingPersistedEventHandler implements PersistedEventHandler {
     private final PatternMatchingMethodInvoker<Object> invoker;
     private final Object                               invokePersistedEventHandlerMethodsOn;
     private       boolean                              allowUnmatchedEvents = false;

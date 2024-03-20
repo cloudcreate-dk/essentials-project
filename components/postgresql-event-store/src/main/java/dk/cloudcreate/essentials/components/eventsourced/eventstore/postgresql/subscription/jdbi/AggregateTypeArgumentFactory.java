@@ -19,5 +19,5 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.types.jdbi.CharSequenceTypeArgumentFactory;
 
-public class AggregateTypeArgumentFactory extends CharSequenceTypeArgumentFactory<AggregateType> {
+public final class AggregateTypeArgumentFactory extends CharSequenceTypeArgumentFactory<AggregateType> {
 }

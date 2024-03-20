@@ -23,7 +23,7 @@ import java.util.Optional;
 /**
  * An Event id provides a unique identifier for an Event
  */
-public class EventId extends CharSequenceType<EventId> implements Identifier {
+public final class EventId extends CharSequenceType<EventId> implements Identifier {
     public EventId(CharSequence value) {
         super(value);
     }

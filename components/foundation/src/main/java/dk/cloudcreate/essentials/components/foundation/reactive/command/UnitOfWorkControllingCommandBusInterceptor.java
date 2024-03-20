@@ -28,7 +28,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * by using the {@link UnitOfWorkFactory#withUnitOfWork(CheckedFunction)}
  */
 @InterceptorOrder(5)
-public class UnitOfWorkControllingCommandBusInterceptor implements CommandBusInterceptor {
+public final class UnitOfWorkControllingCommandBusInterceptor implements CommandBusInterceptor {
     private final UnitOfWorkFactory<? extends UnitOfWork> unitOfWorkFactory;
 
     public UnitOfWorkControllingCommandBusInterceptor(UnitOfWorkFactory<? extends UnitOfWork> unitOfWorkFactory) {

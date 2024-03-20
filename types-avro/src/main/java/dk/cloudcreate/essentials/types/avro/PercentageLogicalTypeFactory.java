@@ -83,7 +83,7 @@ import org.apache.avro.*;
  * }
  * }</pre>
  */
-public class PercentageLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
+public final class PercentageLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
     public static final LogicalType PERCENTAGE = new BigDecimalTypeLogicalType("Percentage");
 
     @Override

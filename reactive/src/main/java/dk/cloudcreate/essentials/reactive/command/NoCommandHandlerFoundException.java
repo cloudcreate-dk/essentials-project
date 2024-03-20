@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.reactive.command;
 
-public class NoCommandHandlerFoundException extends SendCommandException {
+public final class NoCommandHandlerFoundException extends SendCommandException {
     public NoCommandHandlerFoundException(Class<?> commandType, String message) {
         super(commandType, message);
     }

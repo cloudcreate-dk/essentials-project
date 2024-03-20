@@ -26,7 +26,7 @@ import java.util.List;
  * Builder for {@link EventProcessorDependencies}, which encapsulates all the dependencies
  * required by an instance of an {@link EventProcessor}
  */
-public class EventProcessorDependenciesBuilder {
+public final class EventProcessorDependenciesBuilder {
     private EventStoreSubscriptionManager   eventStoreSubscriptionManager;
     private Inboxes                         inboxes;
     private DurableLocalCommandBus          commandBus;

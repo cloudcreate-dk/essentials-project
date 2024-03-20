@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * <br>
  * Example of a concrete mapper:
  * <pre>{@code
- * public class TimeOfDayColumnMapper extends LocalTimeTypeColumnMapper<TimeOfDay> {
+ * public final class TimeOfDayColumnMapper extends LocalTimeTypeColumnMapper<TimeOfDay> {
  * }}</pre>
  *
  * @param <T> the concrete {@link LocalTimeType} this instance is mapping

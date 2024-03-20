@@ -25,7 +25,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.*;
 /**
  * Utility class for working with {@link Field}'s
  */
-public class Fields {
+public final class Fields {
     /**
      * Find a field by name and type
      *

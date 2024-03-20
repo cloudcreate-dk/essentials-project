@@ -33,7 +33,7 @@ package dk.cloudcreate.essentials.shared.messages;
  * Message msg = VALIDATION.create();
  * }</pre>
  */
-public class MessageTemplate0 extends AbstractMessageTemplate {
+public final class MessageTemplate0 extends AbstractMessageTemplate {
 
     public MessageTemplate0(String messageKey, String defaultMessage) {
         super(messageKey, defaultMessage);

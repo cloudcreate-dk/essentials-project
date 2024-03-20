@@ -23,7 +23,7 @@ import java.util.UUID;
 /**
  * A subscriber id is used to uniquely identify an event subscriber
  */
-public class SubscriberId extends CharSequenceType<SubscriberId> implements Identifier {
+public final class SubscriberId extends CharSequenceType<SubscriberId> implements Identifier {
     public SubscriberId(CharSequence value) {
         super(value);
     }

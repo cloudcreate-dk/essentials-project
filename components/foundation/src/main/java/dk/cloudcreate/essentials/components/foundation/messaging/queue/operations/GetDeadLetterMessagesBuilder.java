@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 /**
  * Builder for {@link GetDeadLetterMessages}
  */
-public class GetDeadLetterMessagesBuilder {
+public final class GetDeadLetterMessagesBuilder {
     private QueueName queueName;
     private DurableQueues.QueueingSortOrder queueingSortOrder;
     private long                            startIndex;

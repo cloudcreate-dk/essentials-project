@@ -3,6 +3,37 @@
 Essentials is a set of Java version 17 (and later) building blocks built from the ground up to have no dependencies
 on other libraries, unless explicitly mentioned.
 
+> **NOTE:**  
+> **The libraries are WORK-IN-PROGRESS**
+
+# Security
+
+Several of the components, as well as their subcomponents and/or supporting classes, allows the user of the components to provide customized:
+- table names
+- column names
+- collection names
+- etc.
+
+By using naming conventions for Postgresql table/column/index names and MongoDB Collection names, Essentials attempts to provide an initial layer of defense intended to reduce the risk of malicious input.    
+**However, Essentials does not offer exhaustive protection, nor does it assure the complete security of the resulting SQL and Mongo Queries/Updates against injection threats.**
+> The responsibility for implementing protective measures against malicious API input and configuration values lies exclusively with the users/developers using the Essentials components and its supporting classes.  
+> Users must ensure thorough sanitization and validation of API input parameters, SQL table/column/index names as well as MongoDB collection names.
+
+**Insufficient attention to these practices may leave the application vulnerable to attacks, endangering the security and integrity of the database.**
+
+> Please see the **Security** notices for [components README.md](../README.md), as well as **Security** notices for the individual components, to familiarize yourself with the security
+> risks related to using the Components:
+> - [foundation-types](foundation-types/README.md)
+> - [postgresql-distributed-fenced-lock](postgresql-distributed-fenced-lock/README.md)
+> - [springdata-mongo-distributed-fenced-lock](springdata-mongo-distributed-fenced-lock/README.md)
+> - [postgresql-queue](postgresql-queue/README.md)
+> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
+> - [postgresql-event-store](postgresql-event-store/README.md)
+> - [eventsourced-aggregates](eventsourced-aggregates/README.md)
+> - [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
+> - [spring-boot-starter-postgresql-event-store](components/spring-boot-starter-postgresql-event-store/README.md)
+> - [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
+
 ## License
 Essentials is released under version 2.0 of the [Apache License](https://www.apache.org/licenses/LICENSE-2.0)
 
@@ -15,8 +46,6 @@ Essentials is released under version 2.0 of the [Apache License](https://www.apa
 | [0.30.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_1_x) | 17+                | 3.1.x                     |
 | [0.40.*](https://github.com/cloudcreate-dk/essentials-project/tree/main)             | 17+                | 3.2.x                     |
 
-Note: For Kotlin support you need to use version 0.40.4 or later
-
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
 many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
@@ -28,7 +57,7 @@ need to add these third party dependencies (such as Spring, JDBI, Postgresql JDB
 
 Each module's README.md will provide information about which third party dependencies that are typically for the Essentials module to be functional.
 
-## Essentials modules
+## Essentials modules overview
 ![Essentials modules overview](images/all-essentials-modules.png)
 
 ## Advanced Components
@@ -39,9 +68,6 @@ Components also includes **Spring Boot** auto-configuration modules which specia
 - See [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
 - See [spring-boot-starter-postgresql-event-store](components/spring-boot-starter-postgresql-event-store/README.md)
 - See [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
-
-**NOTE:**
-**The libraries are WORK-IN-PROGRESS**
 
 ## Shared
 
@@ -87,7 +113,7 @@ To use `Shared` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>shared</artifactId>
-    <version>0.20.12</version>
+    <version>0.40.4</version>
 </dependency>
 ```
 
@@ -127,7 +153,7 @@ To use `Types` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types</artifactId>
-    <version>0.20.12</version>
+    <version>0.40.4</version>
 </dependency>
 ```
 
@@ -142,7 +168,7 @@ To use `Reactive` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>reactive</artifactId>
-    <version>0.20.12</version>
+    <version>0.40.4</version>
 </dependency>
 ```
 
@@ -220,7 +246,7 @@ To use `Immutable` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable</artifactId>
-    <version>0.20.12</version>
+    <version>0.40.4</version>
 </dependency>
 ```
 
@@ -268,7 +294,7 @@ To use `Immutable-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable-jackson</artifactId>
-    <version>0.20.12</version>
+    <version>0.40.4</version>
 </dependency>
 ```
 
@@ -290,7 +316,7 @@ To use `Types-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jackson</artifactId>
-    <version>0.20.12</version>
+    <version>0.40.4</version>
 </dependency>
 ```
 
@@ -335,7 +361,7 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-mongo</artifactId>
-    <version>0.20.12</version>
+    <version>0.40.4</version>
 </dependency>
 ```
 
@@ -344,7 +370,11 @@ See [types-springdata-mongo](types-springdata-mongo/README.md) for more informat
 ## Types Spring Data JPA
 
 This library focuses purely on providing [Spring Data JPA](https://spring.io/projects/spring-data-jpa) persistence support for the **types** defined in the
-Essentials `types` library. Example:
+Essentials `types` library.
+
+> **Warning: The Types Spring Data JPA module is very experimental & unstable - subject to be removed**
+
+Example:
 
 ```
 @Entity
@@ -364,15 +394,6 @@ public class Order {
 will work out of the box without the need for any custom `AttributeConverter`'s. BUT we currently don't support
 automatic Id generation.
 
-To use `Types-SpringData-JPA` just add the following Maven dependency:
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials</groupId>
-    <artifactId>types-springdata-jpa</artifactId>
-    <version>0.20.12</version>
-</dependency>
-```
-
 See [types-springdata-jpa](types-springdata-jpa/README.md) for more information
 
 ## Types Spring Web
@@ -386,7 +407,7 @@ To use `Types-Spring-Web` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-spring-web</artifactId>
-    <version>0.20.12</version>
+    <version>0.40.4</version>
 </dependency>
 ```
 
@@ -458,7 +479,7 @@ To use `Types-JDBI` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jdbi</artifactId>
-    <version>0.20.12</version>
+    <version>0.40.4</version>
 </dependency>
 ```
 
@@ -472,7 +493,7 @@ To use `Types-Avro` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-avro</artifactId>
-    <version>0.20.12</version>
+    <version>0.40.4</version>
 </dependency>
 ```
 

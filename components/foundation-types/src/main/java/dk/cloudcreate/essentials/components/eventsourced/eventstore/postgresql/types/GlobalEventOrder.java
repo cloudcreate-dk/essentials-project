@@ -17,12 +17,10 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
-import dk.cloudcreate.essentials.types.LongRange;
-import dk.cloudcreate.essentials.types.LongType;
+import dk.cloudcreate.essentials.types.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.LongStream;
+import java.util.stream.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -31,7 +29,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * across all AggregateEventStreams with the same {@link AggregateType}.<br>
  * The first global-event-order has value 1, since this is the initial value for a Postgresql BIGINT IDENTITY column.
  */
-public class GlobalEventOrder extends LongType<GlobalEventOrder> {
+public final class GlobalEventOrder extends LongType<GlobalEventOrder> {
     /**
      * Special value that contains the {@link GlobalEventOrder} of the FIRST Event persisted in context of a given {@link AggregateType}
      */

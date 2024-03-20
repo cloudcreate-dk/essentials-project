@@ -23,7 +23,7 @@ import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.
 
 import java.util.function.Consumer;
 
-public class MongoDurableQueueConsumer extends DefaultDurableQueueConsumer<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
+public final class MongoDurableQueueConsumer extends DefaultDurableQueueConsumer<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
     public MongoDurableQueueConsumer(ConsumeFromQueue consumeFromQueue,
                                      SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
                                      MongoDurableQueues durableQueues,

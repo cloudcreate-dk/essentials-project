@@ -22,5 +22,5 @@ import org.jdbi.v3.core.argument.ArgumentFactory;
 /**
  * {@link ArgumentFactory} for {@link EmailAddress}
  */
-public class EmailAddressArgumentFactory extends CharSequenceTypeArgumentFactory<EmailAddress> {
+public final class EmailAddressArgumentFactory extends CharSequenceTypeArgumentFactory<EmailAddress> {
 }

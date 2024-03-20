@@ -24,7 +24,7 @@ import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 import java.util.function.Consumer;
 
 @SuppressWarnings("unchecked")
-public class PostgresqlDurableQueueConsumer extends DefaultDurableQueueConsumer<PostgresqlDurableQueues, HandleAwareUnitOfWork, UnitOfWorkFactory<HandleAwareUnitOfWork>> {
+public final class PostgresqlDurableQueueConsumer extends DefaultDurableQueueConsumer<PostgresqlDurableQueues, HandleAwareUnitOfWork, UnitOfWorkFactory<HandleAwareUnitOfWork>> {
 
     @SuppressWarnings("rawtypes")
     public PostgresqlDurableQueueConsumer(ConsumeFromQueue consumeFromQueue,

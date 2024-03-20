@@ -23,5 +23,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link LockName} {@link ColumnMapper}
  */
-public class LockNameColumnMapper extends CharSequenceTypeColumnMapper<LockName> {
+public final class LockNameColumnMapper extends CharSequenceTypeColumnMapper<LockName> {
 }

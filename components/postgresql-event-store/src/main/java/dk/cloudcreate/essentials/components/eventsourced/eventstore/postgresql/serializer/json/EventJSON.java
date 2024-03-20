@@ -17,7 +17,6 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json;
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
 import dk.cloudcreate.essentials.types.CharSequenceType;
 
@@ -30,7 +29,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * JSON Serialized payload, used to Serialize {@link PersistedEvent} {@link PersistedEvent#metaData()} and the {@link PersistedEvent#event()} payload
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class EventJSON {
+public final class EventJSON {
     private transient JSONEventSerializer jsonSerializer;
     /**
      * Cache or the {@link #json} deserialized back to its {@link #eventTypeOrName} form

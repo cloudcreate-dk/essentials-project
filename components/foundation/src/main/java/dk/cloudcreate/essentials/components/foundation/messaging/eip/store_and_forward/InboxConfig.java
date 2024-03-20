@@ -23,7 +23,7 @@ import java.util.Objects;
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 
-public class InboxConfig {
+public final class InboxConfig {
     /**
      * The name of the inbox
      */

@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * <br>
  * Example of a concrete mapper:
  * <pre>{@code
- * public class AmountArgumentFactory extends BigDecimalTypeArgumentFactory<Amount> {
+ * public final class AmountArgumentFactory extends BigDecimalTypeArgumentFactory<Amount> {
  * }}</pre>
  *
  * @param <T> the concrete {@link BigDecimalType} this instance is mapping

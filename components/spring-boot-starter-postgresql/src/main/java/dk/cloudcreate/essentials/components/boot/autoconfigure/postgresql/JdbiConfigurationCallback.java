@@ -17,12 +17,11 @@
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 
 import org.jdbi.v3.core.Jdbi;
-import org.springframework.lang.NonNull;
 
 /**
  * Instances of this callback, typically defined as Spring {@literal @Bean}'s,
  * will be called right after the application context has been refreshed
  */
 public interface JdbiConfigurationCallback {
-    void configure(@NonNull Jdbi jdbi);
+    void configure(Jdbi jdbi);
 }

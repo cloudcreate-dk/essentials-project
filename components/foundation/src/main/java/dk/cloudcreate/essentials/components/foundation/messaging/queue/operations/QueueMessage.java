@@ -31,7 +31,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * using {@link TransactionalMode#FullyTransactional}<br>
  * Operation also matches {@link DurableQueuesInterceptor#intercept(QueueMessage, InterceptorChain)}
  */
-public class QueueMessage {
+public final class QueueMessage {
     public final QueueName           queueName;
     private      Message             message;
     private      Optional<Exception> causeOfEnqueuing;

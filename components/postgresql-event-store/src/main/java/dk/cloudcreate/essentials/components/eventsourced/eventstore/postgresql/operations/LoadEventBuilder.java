@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.components.foundation.types.EventId;
 /**
  * Builder for {@link LoadEvent}
  */
-public class LoadEventBuilder {
+public final class LoadEventBuilder {
     private AggregateType aggregateType;
     private EventId eventId;
 

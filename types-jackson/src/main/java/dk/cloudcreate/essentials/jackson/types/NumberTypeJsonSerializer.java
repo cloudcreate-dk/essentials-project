@@ -26,7 +26,7 @@ import java.io.IOException;
 /**
  * Jackson Serializer for {@link CharSequenceType}
  */
-public class NumberTypeJsonSerializer extends NumberSerializer {
+public final class NumberTypeJsonSerializer extends NumberSerializer {
     public NumberTypeJsonSerializer() {
         super(NumberType.class);
     }

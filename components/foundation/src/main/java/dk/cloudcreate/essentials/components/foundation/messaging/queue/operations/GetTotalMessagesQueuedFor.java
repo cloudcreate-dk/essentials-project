@@ -25,7 +25,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Get the total number of messages queued (i.e. not including Dead Letter Messages) for the given queue<br>
  * Operation also matched {@link DurableQueuesInterceptor#intercept(GetTotalMessagesQueuedFor, InterceptorChain)}
  */
-public class GetTotalMessagesQueuedFor {
+public final class GetTotalMessagesQueuedFor {
     /**
      * the name of the Queue where we will query for the number of queued messages
      */

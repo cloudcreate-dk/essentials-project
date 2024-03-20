@@ -33,7 +33,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * existing <b>Spring</b> Managed transaction then please use the Spring specific {@link UnitOfWorkFactory},
  * <code>SpringManagedUnitOfWorkFactory</code>, provided with the <b>spring-postgresql-event-store</b> module.
  */
-public class EventStoreManagedUnitOfWorkFactory extends GenericHandleAwareUnitOfWorkFactory<EventStoreUnitOfWork> implements EventStoreUnitOfWorkFactory<EventStoreUnitOfWork> {
+public final class EventStoreManagedUnitOfWorkFactory extends GenericHandleAwareUnitOfWorkFactory<EventStoreUnitOfWork> implements EventStoreUnitOfWorkFactory<EventStoreUnitOfWork> {
     private static final Logger log = LoggerFactory.getLogger(EventStoreManagedUnitOfWorkFactory.class);
 
     private final List<PersistedEventsCommitLifecycleCallback> lifecycleCallbacks;

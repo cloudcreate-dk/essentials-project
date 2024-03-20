@@ -32,7 +32,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * at all {@link CommitStage}'s, as coordinated by the provided {@link EventStoreUnitOfWorkFactory}
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class EventStoreEventBus implements EventBus {
+public final class EventStoreEventBus implements EventBus {
     private static final Logger log = LoggerFactory.getLogger("EventStoreLocalEventBus");
 
     private EventBus eventBus;

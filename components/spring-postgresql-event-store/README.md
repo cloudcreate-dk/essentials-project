@@ -4,6 +4,11 @@ This library provides the `SpringTransactionAwareEventStoreUnitOfWorkFactory` (a
 standard `EventStoreManagedUnitOfWorkFactory`)
 which allows the `EventStore` to participate in Spring managed Transactions.
 
+> **NOTE:**  
+> **The library is WORK-IN-PROGRESS**
+
+> Please see the **Security** notices for the [postgresql-event-store README.md](../postgresql-event-store/README.md) component to familiarize yourself with the security risks
+
 ```
 @SpringBootApplication
 class Application {

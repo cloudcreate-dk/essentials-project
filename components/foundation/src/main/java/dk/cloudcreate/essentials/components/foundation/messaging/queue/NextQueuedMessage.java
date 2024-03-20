@@ -21,7 +21,7 @@ import java.util.Objects;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
-public class NextQueuedMessage implements Comparable<NextQueuedMessage> {
+public final class NextQueuedMessage implements Comparable<NextQueuedMessage> {
     public final QueueEntryId id;
     public final QueueName    queueName;
     public final Instant      addedTimestamp;
