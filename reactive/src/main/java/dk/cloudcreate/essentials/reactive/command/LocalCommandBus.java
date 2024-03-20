@@ -35,7 +35,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @see AnnotatedCommandHandler
  */
-public class LocalCommandBus extends AbstractCommandBus {
+public final class LocalCommandBus extends AbstractCommandBus {
     private static final Logger log = LoggerFactory.getLogger(LocalCommandBus.class);
 
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(ThreadFactoryBuilder.builder()

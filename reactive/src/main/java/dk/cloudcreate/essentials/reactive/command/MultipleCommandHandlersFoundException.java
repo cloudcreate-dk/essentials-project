@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.reactive.command;
 
-public class MultipleCommandHandlersFoundException extends SendCommandException {
+public final class MultipleCommandHandlersFoundException extends SendCommandException {
     public MultipleCommandHandlersFoundException(Class<?> commandType, String message) {
         super(commandType, message);
     }

@@ -17,8 +17,7 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
 import dk.cloudcreate.essentials.shared.reflection.Classes;
-import dk.cloudcreate.essentials.types.CharSequenceType;
-import dk.cloudcreate.essentials.types.Identifier;
+import dk.cloudcreate.essentials.types.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -33,7 +32,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @see EventTypeOrName
  */
-public class EventType extends CharSequenceType<EventType> implements Identifier {
+public final class EventType extends CharSequenceType<EventType> implements Identifier {
     /**
      * The prefix that pre-appended the actual Fully Qualified Class Name (FQCN) during serialization.<br>
      * This allows the EventStore to distinguish between a {@link EventType} and {@link EventName} by

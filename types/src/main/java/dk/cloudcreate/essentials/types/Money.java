@@ -28,7 +28,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * All operations working on two {@link Money} instances, such as {@link #add(Money)} will
  * throw {@link NotTheSameCurrenciesException} if the two {@link Money} instances don't share the same {@link #getCurrency()}
  */
-public class Money implements Serializable, Comparable<Money> {
+public final class Money implements Serializable, Comparable<Money> {
     private Amount       amount;
     private CurrencyCode currency;
 

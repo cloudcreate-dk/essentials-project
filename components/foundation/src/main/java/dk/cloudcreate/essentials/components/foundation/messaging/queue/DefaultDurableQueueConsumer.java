@@ -45,7 +45,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * @param <UOW>            the {@link UnitOfWork} type
  * @param <UOW_FACTORY>    the {@link UnitOfWorkFactory} type
  */
-public class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>>
+public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>>
         implements DurableQueueConsumer, DurableQueueConsumerNotifications {
     public static final Logger   LOG                                          = LoggerFactory.getLogger(DurableQueueConsumer.class);
     public static final Logger   MESSAGE_HANDLING_FAILURE_LOG                 = LoggerFactory.getLogger(DurableQueueConsumer.class + ".MessageHandlingFailures");

@@ -25,7 +25,7 @@ import java.util.Objects;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
-public class SubscriptionResumePoint {
+public final class SubscriptionResumePoint {
     private final SubscriberId     subscriberId;
     private final AggregateType    aggregateType;
     private       GlobalEventOrder resumeFromAndIncluding;

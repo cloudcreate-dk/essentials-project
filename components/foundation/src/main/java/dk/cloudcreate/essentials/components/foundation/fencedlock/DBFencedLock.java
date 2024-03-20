@@ -24,6 +24,10 @@ import java.util.*;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
+/**
+ * Base class for implementing persistent/durable {@link FencedLockManager}'s
+ * @see DBFencedLockManager
+ */
 public class DBFencedLock implements FencedLock {
     /**
      * The name of the lock

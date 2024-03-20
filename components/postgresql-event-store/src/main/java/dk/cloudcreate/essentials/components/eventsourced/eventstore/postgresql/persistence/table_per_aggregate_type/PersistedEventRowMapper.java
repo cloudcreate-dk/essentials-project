@@ -32,7 +32,7 @@ import java.util.Optional;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
-class PersistedEventRowMapper implements RowMapper<PersistedEvent> {
+final class PersistedEventRowMapper implements RowMapper<PersistedEvent> {
     private final SeparateTablePerAggregateTypePersistenceStrategy  persistenceStrategy;
     private final SeparateTablePerAggregateEventStreamConfiguration config;
 

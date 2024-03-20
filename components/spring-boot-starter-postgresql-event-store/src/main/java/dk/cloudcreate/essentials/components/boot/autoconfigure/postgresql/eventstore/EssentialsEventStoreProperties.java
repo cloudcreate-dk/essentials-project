@@ -16,9 +16,11 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.eventstore;
 
+import dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.EssentialsComponentsConfiguration;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -26,7 +28,24 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Duration;
 
 /**
- * Properties for the Postgresql EventStore
+ * Properties for the Postgresql EventStore<br>
+ * <br>
+ * <br>
+ * <u><b>Security:</b></u><br>
+ * If you in your own Spring Boot application choose to override the Beans defined by this starter,
+ * then you need to check the component document to learn about the Security implications of each configuration.
+ * <br>
+ * Also see {@link EssentialsComponentsConfiguration} for security information related to common Essentials components.
+ *
+ * @see PostgresqlDurableSubscriptionRepository
+ * @see SeparateTablePerAggregateTypePersistenceStrategy
+ * @see SeparateTablePerAggregateTypeEventStreamConfigurationFactory
+ * @see SeparateTablePerAggregateEventStreamConfiguration
+ * @see EventStreamTableColumnNames
+ * @see dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues
+ * @see dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager
+ * @see dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage
+ * @see dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener
  */
 @Configuration
 @ConfigurationProperties(prefix = "essentials.eventstore")

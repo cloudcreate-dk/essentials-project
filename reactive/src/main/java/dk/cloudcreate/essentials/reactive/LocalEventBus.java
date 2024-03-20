@@ -70,7 +70,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * @see AnnotatedEventHandler
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class LocalEventBus implements EventBus {
+public final class LocalEventBus implements EventBus {
     private final Logger log;
 
     private final String                                  busName;

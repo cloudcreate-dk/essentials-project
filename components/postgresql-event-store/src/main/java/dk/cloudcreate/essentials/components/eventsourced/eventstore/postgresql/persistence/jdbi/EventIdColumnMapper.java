@@ -23,5 +23,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link EventId} {@link ColumnMapper}
  */
-public class EventIdColumnMapper extends CharSequenceTypeColumnMapper<EventId> {
+public final class EventIdColumnMapper extends CharSequenceTypeColumnMapper<EventId> {
 }

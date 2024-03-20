@@ -24,7 +24,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Stop watch feature that allows you to time operations
  */
-public class StopWatch {
+public final class StopWatch {
     private final String description;
     private final long   start;
 

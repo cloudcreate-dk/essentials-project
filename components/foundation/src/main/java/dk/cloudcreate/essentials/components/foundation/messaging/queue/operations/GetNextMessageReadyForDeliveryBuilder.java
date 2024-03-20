@@ -23,7 +23,7 @@ import java.util.*;
 /**
  * Builder for {@link GetNextMessageReadyForDelivery}
  */
-public class GetNextMessageReadyForDeliveryBuilder {
+public final class GetNextMessageReadyForDeliveryBuilder {
     private QueueName          queueName;
     private Collection<String> excludeOrderedMessagesWithKey = List.of();
 

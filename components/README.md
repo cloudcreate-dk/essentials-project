@@ -6,15 +6,42 @@ or Components such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `D
 
 > Note: [For Java version 11 to 16 support, please use version 0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)
 
+> **NOTE:**  
+> **The libraries are WORK-IN-PROGRESS**
+
+# Security
+
+Several of the components, as well as their subcomponents and/or supporting classes, allows the user of the components to provide customized:
+- table names
+- column names
+- collection names 
+- etc.
+
+By using naming conventions for Postgresql table/column/index names and MongoDB Collection names, Essentials attempts to provide an initial layer of defense intended to reduce the risk of malicious input.    
+**However, Essentials does not offer exhaustive protection, nor does it assure the complete security of the resulting SQL and Mongo Queries/Updates against injection threats.**
+> The responsibility for implementing protective measures against malicious API input and configuration values lies exclusively with the users/developers using the Essentials components and its supporting classes.
+> Users must ensure thorough sanitization and validation of API input parameters,  SQL table/column/index names as well as MongoDB collection names.
+
+**Insufficient attention to these practices may leave the application vulnerable to attacks, endangering the security and integrity of the database.**
+
+> Please see the Java documentation and Readme's for the individual components for more information.
+> Such as:
+> - [foundation-types](foundation-types/README.md)
+> - [postgresql-distributed-fenced-lock](postgresql-distributed-fenced-lock/README.md)
+> - [springdata-mongo-distributed-fenced-lock](springdata-mongo-distributed-fenced-lock/README.md)
+> - [postgresql-queue](postgresql-queue/README.md)
+> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
+> - [postgresql-event-store](postgresql-event-store/README.md)
+> - [eventsourced-aggregates](eventsourced-aggregates/README.md)
+> - [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
+> - [spring-boot-starter-postgresql-event-store](components/spring-boot-starter-postgresql-event-store/README.md)
+> - [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
+
+# Components overview
 ![Essentials Components modules](../images/essentials-components-modules.png)
 
-**NOTE:**
-**The libraries are WORK-IN-PROGRESS**
-
-# Foundation
-
-This library contains the smallest set of supporting building blocks needed for other Essentials Components libraries,
-such as:
+# Foundation-Types
+This library focuses purely on providing common types:
 
 - **Identifiers**
     - `CorrelationId`
@@ -22,6 +49,22 @@ such as:
     - `MessageId`
     - `SubscriberId`
     - `Tenant` and `TenantId`
+- **EventStore** types
+    - `AggregateType`
+    - `EventName`
+    - `EventOrder`
+    - `EventRevision`
+    - `EventType`
+    - `EventTypeOrName`
+    - `GlobalEventOrder`
+    - `Revision`
+
+See [foundation-types](foundation-types/README.md)
+
+# Foundation
+This library contains the smallest set of supporting building blocks needed for other Essentials Components libraries,
+such as:
+
 - **Common Interfaces**
     - `Lifecycle`
 - **DurableLocalCommandBus** (`CommandBus` variant that uses `DurableQueues` to ensure Commands sent using `sendAndDontWait` aren't lost in case of failure)
@@ -42,143 +85,24 @@ such as:
     - `Inbox` (Store and Forward supported by a Durable Queue)
     - `Outbox` (Store and Forward supported by a Durable Queue)
 
-To use `foundation` just add the following Maven dependency:
-
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>foundation</artifactId>
-    <version>0.30.6</version>
-</dependency>
-```
-
 See [foundation](foundation/README.md)
 
 # Essentials Postgresql: Spring Boot starter
 This library Spring Boot auto-configuration for all Postgresql focused Essentials components.
 All `@Beans` auto-configured by this library use `@ConditionalOnMissingBean` to allow for easy overriding.
 
-To use `spring-boot-starter-postgresql` to add the following dependency:
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>spring-boot-starter-postgresql</artifactId>
-    <version>0.30.6</version>
-</dependency>
-```
-
-`EssentialsComponentsConfiguration` auto-configures:
-- Jackson/FasterXML JSON modules:
-  - `EssentialTypesJacksonModule`
-  - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath)
-  - `ObjectMapper` with bean name `essentialComponentsObjectMapper` which provides good defaults for JSON serialization
-- `Jdbi` to use the provided Spring `DataSource`
-- `SpringTransactionAwareJdbiUnitOfWorkFactory` configured to use the Spring provided `PlatformTransactionManager`
-  - This `UnitOfWorkFactory` will only be auto-registered if the `SpringTransactionAwareEventStoreUnitOfWorkFactory` is not on the classpath (see `EventStoreConfiguration`)
-- `PostgresqlFencedLockManager` using the `essentialComponentsObjectMapper` as JSON serializer
-  - Supports additional properties:
-  - ```
-    essentials.fenced-lock-manager.fenced-locks-table-name=fenced_locks
-    essentials.fenced-lock-manager.lock-confirmation-interval=5s
-    essentials.fenced-lock-manager.lock-time-out=12s
-    ```
-- `PostgresqlDurableQueues` using the `essentialComponentsObjectMapper` as JSON serializer
-  - Supports additional properties:
-  - ```
-    essentials.durable-queues.shared-queue-table-name=durable_queues
-    essentials.durable-queues.polling-delay-interval-increment-factor=0.5
-    essentials.durable-queues.max-polling-interval=2s
-    # Only relevant if transactional-mode=singleoperationtransaction
-    # essentials.durable-queues.message-handling-timeout=5s
-    ```
-- `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `PostgresqlDurableQueues`
-- `LocalEventBus` with bus-name `default` and Bean name `eventBus`
-- `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
-- Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
-
 See [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
 
 # Essentials Postgresql Event Store: Spring Boot starter
 
-To use `spring-boot-starter-postgresql-event-store` to add the following dependency:
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
-    <version>0.40.0</version>
-</dependency>
-```
-
 Auto configures everything from [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
-as well as the `EventStore`.
-
-`EventStoreConfiguration` will also auto-configure the `EventStore`:
-- `PostgresqlEventStore` using `PostgresqlEventStreamGapHandler` (using default configuration)
-  - You can configure `NoEventStreamGapHandler` using Spring properties:
-  - `essentials.event-store.use-event-stream-gap-handler=false`
-- `SeparateTablePerAggregateTypePersistenceStrategy` using `IdentifierColumnType.TEXT` for persisting `AggregateId`'s and `JSONColumnType.JSONB` for persisting Event and EventMetadata JSON payloads
-  - ColumnTypes can be overridden by using Spring properties:
-  - ```
-       essentials.event-store.identifier-column-type=uuid
-       essentials.event-store.json-column-type=jsonb
-      ```
-- `EventStoreUnitOfWorkFactory` in the form of `SpringTransactionAwareEventStoreUnitOfWorkFactory`
-- `EventStoreEventBus` with an internal `LocalEventBus` with bus-name `EventStoreLocalBus`
-- `PersistableEventMapper` with basic setup. Override this bean if you need additional meta-data, such as event-id, event-type, event-order, event-timestamp, event-meta-data, correlation-id, tenant-id included
-- `EventStoreSubscriptionManager` with default `EventStoreSubscriptionManagerProperties` values
-  - The default `EventStoreSubscriptionManager` values can be overridden using Spring properties:
-  - ```
-      essentials.event-store.subscription-manager.event-store-polling-batch-size=5
-      essentials.event-store.subscription-manager.snapshot-resume-points-every=2s
-      essentials.event-store.subscription-manager.event-store-polling-interval=200
-      ```
+as well as the `EventStore` from [postgresql-event-store](postgresql-event-store/README.md) and its supporting components.
 
 See [spring-boot-starter-postgresql-event-store](spring-boot-starter-postgresql-event-store/README.md)
 
 # Essentials MongoDB: Spring Boot starter
 This library Spring Boot auto-configuration for all MongoDB focused Essentials components.
 All `@Beans` auto-configured by this library use `@ConditionalOnMissingBean` to allow for easy overriding.
-
-To use `spring-boot-starter-mongodb` to add the following dependency:
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>spring-boot-starter-mongodb</artifactId>
-    <version>0.30.6</version>
-</dependency>
-```
-
-The `EssentialsComponentsConfiguration` auto-configures:
-- Jackson/FasterXML JSON modules:
-  - `EssentialTypesJacksonModule`
-  - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath)
-  - `ObjectMapper` with bean name `essentialComponentsObjectMapper` which provides good defaults for JSON serialization
-- `SingleValueTypeRandomIdGenerator` to support server generated Id creations for SpringData Mongo classes with @Id fields of type `SingleValueType`
-- `MongoCustomConversions` with a `SingleValueTypeConverter` covering `LockName`, `QueueEntryId` and `QueueName`
-- `MongoTransactionManager` as it is needed by the `SpringMongoTransactionAwareUnitOfWorkFactory`
-- `SpringMongoTransactionAwareUnitOfWorkFactory` configured to use the `MongoTransactionManager`
-- `MongoFencedLockManager` using the `essentialComponentsObjectMapper` as JSON serializer
-  - Supports additional properties:
-  - ```
-    essentials.fenced-lock-manager.fenced-locks-collection-name=fenced_locks
-    essentials.fenced-lock-manager.lock-confirmation-interval=5s
-    essentials.fenced-lock-manager.lock-time-out=12s
-    ```
-- `MongoDurableQueues` using the `essentialComponentsObjectMapper` as JSON serializer
-  - Supports additional properties:
-  - ```
-    essentials.durable-queues.shared-queue-collection-name=durable_queues
-    essentials.durable-queues.transactional-mode=fullytransactional
-    # Only relevant if transactional-mode=singleoperationtransaction
-    # essentials.durable-queues.message-handling-timeout=5s
-    essentials.durable-queues.polling-delay-interval-increment-factor=0.5
-    essentials.durable-queues.max-polling-interval=2s
-    ```
-- `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `MongoDurableQueues`
-- `LocalEventBus` with bus-name `default` and Bean name `eventBus`
-- `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
-- Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped
-
 
 See [spring-boot-starter-mongodb](spring-boot-starter-mongodb/README.md)
 
@@ -189,41 +113,6 @@ the `EventStore` concept.
 The `EventStore` is very flexible and doesn't specify any specific design requirements for an Aggregate or its Events,
 except that that have to be associated with an `AggregateType` (see the
 `AggregateType` sub section or the `EventStore` section for more information).
-
-This library supports multiple flavours of Aggregate design such as:
-
-- The **modern** `dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.modern.AggregateRoot`
-- The *classic* `dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.classic.AggregateRoot`
-- The *classic* with separate state
-  object `dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.classic.state.AggregateRootWithState`
-- The **functional** `dk.cloudcreate.essentials.components.eventsourced.aggregates.flex.FlexAggregate`
-
-The **modern** `AggregateRoot`, *classic* `AggregateRoot` and *classic* `AggregateRootWithState` are all examples of a
-mutable `StatefulAggregate` design.
-
-What makes an `Aggregate` design **stateful** is the fact that any changes, i.e. Events applied as the result of calling
-command methods on the aggregate instance, are stored within
-the `StatefulAggregate` and can be queried using `getUncommittedChanges()` and reset (e.g. after a
-transaction/UnitOfWork has completed) using `markChangesAsCommitted()`
-
-Each aggregate loaded or being saved gets associated with the currently active `UnitOfWork`.  
-When the `UnitOfWork` is in the commit phase, then the `UnitOfWork` is queries for all changed entities, and the events
-stored within the `StatefulAggregate`'s
-will be persisted to the `EventStore`.
-
-The `FlexAggregate` follows a functional immutable Aggregate design where each command method returns
-the `EventsToPersist` and applying events doesn't alter the state of the aggregate (only rehydration modifies the
-aggregate state).
-
-To use `EventSourced Aggregates` just add the following Maven dependency:
-
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components/groupId>
-    <artifactId>eventsourced-aggregates</artifactId>
-    <version>0.30.6</version>
-</dependency>
-```
 
 See [eventsourced-aggregates](eventsourced-aggregates/README.md)
 
@@ -243,16 +132,6 @@ how Kafka keeps track of Consumers Topic offsets).
 
 This library also provides an `EventProcessor` concept, which is an Event Modeling style Event Sourced Event Processor Event and Command message Handler.
 
-To use `Postgresql Event Store` just add the following Maven dependency:
-
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>postgresql-event-store</artifactId>
-    <version>0.30.6</version>
-</dependency>
-```
-
 See [postgresql-event-store](postgresql-event-store/README.md)
 
 # Spring PostgreSQL Event Store
@@ -260,46 +139,6 @@ See [postgresql-event-store](postgresql-event-store/README.md)
 This library provides the `SpringTransactionAwareEventStoreUnitOfWorkFactory` (as opposed to the
 standard `EventStoreManagedUnitOfWorkFactory`)
 which allows the `EventStore` to participate in Spring managed Transactions.
-
-```
-@SpringBootApplication
-class Application {
-    @Bean
-    public com.fasterxml.jackson.databind.Module essentialJacksonModule() {
-        return new EssentialTypesJacksonModule();
-    }
-
-    @Bean
-    public Jdbi jdbi(DataSource dataSource) {
-        Jdbi jdbi = Jdbi.create(new TransactionAwareDataSourceProxy(dataSource));
-        return jdbi;
-    }
-    
-    @Bean
-    public EventStoreUnitOfWorkFactory unitOfWorkFactory(Jdbi jdbi, PlatformTransactionManager transactionManager) {
-        return new SpringTransactionAwareEventStoreUnitOfWorkFactory(jdbi, transactionManager);
-    }
-}
-```
-
-With the `SpringTransactionAwareEventStoreUnitOfWorkFactory` you can either use the `UnitOfWorkFactory` to start and commit Spring transactions, or you can use
-the `TransactionTemplate` class or `@Transactional` annotation to start and commit transactions.
-
-No matter how a transaction is started, you can always acquire the active `UnitOfWork` using
-
-```
-unitOfWorkFactory.getCurrentUnitOfWork()
-```
-
-To use `Spring Postgresql Event Store` just add the following Maven dependency:
-
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>spring-postgresql-event-store</artifactId>
-    <version>0.30.6</version>
-</dependency>
-```
 
 See [spring-postgresql-event-store](spring-postgresql-event-store/README.md)
 
@@ -323,82 +162,12 @@ See [foundation](foundation/README.md) for more information about how to use the
 
 Provides a `FencedLockManager` implementation using Postgresql to coordinate intra-service distributed locks 
 
-Configuration example:
-
-```
-var lockManager = PostgresqlFencedLockManager.builder()
-                                      .setJdbi(Jdbi.create(jdbcUrl,
-                                                           username,
-                                                           password))
-                                      .setUnitOfWorkFactory(unitOfWorkFactory)
-                                      .setLockTimeOut(Duration.ofSeconds(3))
-                                      .setLockConfirmationInterval(Duration.ofSeconds(1))
-                                      .buildAndStart(); 
-```                                                
-
-To use `PostgreSQL Distributed Fenced Lock` just add the following Maven dependency:
-
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>postgresql-distributed-fenced-lock</artifactId>
-    <version>0.30.6</version>
-</dependency>
-```
-
 See [foundation](foundation/README.md) for more information about how to use the `FencedLockManager`  
 See [postgresql-distributed-fenced-lock](postgresql-distributed-fenced-lock/README.md) for more information about how to use the `PostgresqlFencedLockManager`
 
 ## MongoFencedLockManager
 
 Provides a `FencedLockManager` implementation using MongoDB and the SpringData MongoDB library to coordinate intra-service distributed locks
-
-```
-    public MongoFencedLockManager(MongoTemplate mongoTemplate,
-                                  MongoConverter mongoConverter,
-                                  UnitOfWorkFactory<? extends ClientSessionAwareUnitOfWork> unitOfWorkFactory,
-                                  Optional<String> lockManagerInstanceId,
-                                  Optional<String> fencedLocksCollectionName,
-                                  Duration lockTimeOut,
-                                  Duration lockConfirmationInterval) {
-      ...
-    }
-```
-
-Usage example:
-
-```
-@Bean
-public FencedLockManager fencedLockManager(MongoTemplate mongoTemplate,
-                                           MongoConverter mongoConverter,
-                                           MongoTransactionManager transactionManager,
-                                           MongoDatabaseFactory databaseFactory) {
-  return MongoFencedLockManager.builder()
-                               .setMongoTemplate(mongoTemplate)
-                               .setMongoConverter(mongoConverter)
-                               .setUnitOfWorkFactory(new SpringMongoTransactionAwareUnitOfWorkFactory(transactionManager,
-                                                                                                      databaseFactory))
-                               .setLockTimeOut(Duration.ofSeconds(3))
-                               .setLockConfirmationInterval(Duration.ofSeconds(1)))
-                               .buildAndStart();
-}
-
-@Bean
-public SingleValueTypeRandomIdGenerator registerIdGenerator() {
-    return new SingleValueTypeRandomIdGenerator();
-}
-
-@Bean
-public MongoCustomConversions mongoCustomConversions() {
-    return new MongoCustomConversions(List.of(
-            new SingleValueTypeConverter(LockName.class)));
-}
-
-@Bean
-public MongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
-    return new MongoTransactionManager(databaseFactory);
-}
-```
 
 See [foundation](foundation/README.md) for more information about how to use the `FencedLockManager`  
 See [springdata-mongo-distributed-fenced-lock](springdata-mongo-distributed-fenced-lock/README.md) for more information about how to use the `MongoFencedLockManager`
@@ -425,68 +194,11 @@ See [foundation](foundation/README.md) for more information about how to use the
 
 ## PostgresqlDurableQueues
 
-To use `PostgreSQL Durable Queue` just add the following Maven dependency:
-
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>postgresql-queue</artifactId>
-    <version>0.30.6</version>
-</dependency>
-```
-
-Example setting up `PostgresqlDurableQueues` (note: you can also use it together with either
-the `EventStoreManagedUnitOfWorkFactory` or `SpringManagedUnitOfWorkFactory`):
-
-```
-var unitOfWorkFactory = new JdbiUnitOfWorkFactory(jdbi);
-var durableQueues = new PostgresqlDurableQueues(unitOfWorkFactory);
-durableQueues.start();
-```
-
-See [foundation](foundation/README.md) for more information about how to use `PostgresqlDurableQueues` and `DurableQueues`
+See [foundation](foundation/README.md) for more information about how to use the `DurableQueues`
+See [postgresql-queue](postgresql-queue/README.md) for more information about how to use `PostgresqlDurableQueues`
 
 ## MongoDurableQueues
 
-To use `MongoDB Durable Queue` just add the following Maven dependency:
-
-```
-<dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
-    <artifactId>springdata-mongo-queue</artifactId>
-    <version>0.30.6</version>
-</dependency>
-```
-
-Example setting up `MongoDurableQueues`:
-
-```
-    @Bean
-    public SingleValueTypeRandomIdGenerator registerIdGenerator() {
-        return new SingleValueTypeRandomIdGenerator();
-    }
-
-    @Bean
-    public MongoCustomConversions mongoCustomConversions() {
-        return new MongoCustomConversions(List.of(
-                new SingleValueTypeConverter(QueueEntryId.class,
-                                             QueueName.class)));
-    }
-
-    @Bean
-    public MongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
-        return new MongoTransactionManager(databaseFactory);
-    }
-
-
-    @Bean
-    MongoTemplate mongoTemplate(MongoDatabaseFactory mongoDbFactory, MongoConverter converter) {
-        MongoTemplate mongoTemplate = new MongoTemplate(mongoDbFactory, converter);
-        mongoTemplate.setWriteConcern(WriteConcern.ACKNOWLEDGED);
-        mongoTemplate.setWriteResultChecking(WriteResultChecking.EXCEPTION);
-        return mongoTemplate;
-    }
-```
-
-See [foundation](foundation/README.md) for more information about how to use `MongoDurableQueues` and `DurableQueues`
+See [foundation](foundation/README.md) for more information about how to use the `DurableQueues`
+See [springdata-mongo-queue](springdata-mongo-queue/README.md) for more information about how to use `MongoDurableQueues`
 

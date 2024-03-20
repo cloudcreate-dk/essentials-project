@@ -28,7 +28,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * using {@link TransactionalMode#FullyTransactional}<br>
  * Operation also matches {@link DurableQueuesInterceptor#intercept(AcknowledgeMessageAsHandled, InterceptorChain)}
  */
-public class AcknowledgeMessageAsHandled {
+public final class AcknowledgeMessageAsHandled {
     public final QueueEntryId queueEntryId;
 
     /**

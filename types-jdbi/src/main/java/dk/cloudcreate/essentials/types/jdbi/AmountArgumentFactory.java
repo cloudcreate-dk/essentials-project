@@ -22,5 +22,5 @@ import org.jdbi.v3.core.argument.ArgumentFactory;
 /**
  * {@link ArgumentFactory} for {@link Amount}
  */
-public class AmountArgumentFactory extends BigDecimalTypeArgumentFactory<Amount> {
+public final class AmountArgumentFactory extends BigDecimalTypeArgumentFactory<Amount> {
 }

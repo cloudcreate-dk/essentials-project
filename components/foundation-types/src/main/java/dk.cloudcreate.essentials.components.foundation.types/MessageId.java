@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.types.*;
 /**
  * A message id provides a unique identifier for a Message in a distributed system
  */
-public class MessageId extends CharSequenceType<MessageId> implements Identifier {
+public final class MessageId extends CharSequenceType<MessageId> implements Identifier {
     public MessageId(CharSequence value) {
         super(value);
     }

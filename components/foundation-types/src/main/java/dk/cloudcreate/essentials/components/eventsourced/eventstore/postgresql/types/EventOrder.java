@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.types.LongType;
 
 /**
@@ -28,7 +28,7 @@ import dk.cloudcreate.essentials.types.LongType;
  * related to a <b>specific</b> aggregate instance (as opposed to the PersistedEvent's globalEventOrder which contains
  * the order of ALL events related to a specific {@link AggregateType})
  */
-public class EventOrder extends LongType<EventOrder> {
+public final class EventOrder extends LongType<EventOrder> {
     /**
      * Special value that signifies the no previous events have been persisted in relation to a given aggregate
      */

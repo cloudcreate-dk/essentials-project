@@ -24,7 +24,7 @@ import java.util.function.Supplier;
  *
  * @param <R> the type of result
  */
-public class TimingWithResult<R> extends Timing {
+public final class TimingWithResult<R> extends Timing {
     /**
      * The result of the operation performed
      */

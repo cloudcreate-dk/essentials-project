@@ -22,5 +22,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link CurrencyCode} {@link ColumnMapper}
  */
-public class CurrencyCodeColumnMapper extends CharSequenceTypeColumnMapper<CurrencyCode> {
+public final class CurrencyCodeColumnMapper extends CharSequenceTypeColumnMapper<CurrencyCode> {
 }

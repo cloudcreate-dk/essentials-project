@@ -9,6 +9,9 @@ The Essentials philosophy is to provide high level building blocks and coding co
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
 many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
 
+> **NOTE:**  
+> **The library is WORK-IN-PROGRESS**
+
 ## Types
 
 This library focuses purely on providing base semantic types and utility types that can be used to better documented and more

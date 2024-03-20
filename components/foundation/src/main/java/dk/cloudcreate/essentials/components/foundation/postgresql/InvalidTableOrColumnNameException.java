@@ -14,18 +14,15 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.reactive;
+package dk.cloudcreate.essentials.components.foundation.postgresql;
 
-public class PublishException extends RuntimeException {
-    public final Object event;
-
-    public PublishException(String msg, Object event) {
+/**
+ * Thrown by {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} in case
+ * a table or column name is null, empty, matches a reserved keyword,
+ * or contains invalid characters.
+ */
+public final class InvalidTableOrColumnNameException extends RuntimeException {
+    public InvalidTableOrColumnNameException(String msg) {
         super(msg);
-        this.event = event;
-    }
-
-    public PublishException(String message, Throwable cause, Object event) {
-        super(message, cause);
-        this.event = event;
     }
 }

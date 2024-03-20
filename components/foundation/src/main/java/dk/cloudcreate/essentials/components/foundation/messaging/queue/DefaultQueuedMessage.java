@@ -24,7 +24,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Represents a message queued onto a Durable Queue
  */
-public class DefaultQueuedMessage implements QueuedMessage {
+public final class DefaultQueuedMessage implements QueuedMessage {
     public final QueueEntryId   id;
     public final QueueName      queueName;
     /**

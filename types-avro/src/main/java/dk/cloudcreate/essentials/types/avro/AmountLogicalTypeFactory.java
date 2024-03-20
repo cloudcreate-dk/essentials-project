@@ -84,7 +84,7 @@ import org.apache.avro.*;
  * }
  * }</pre>
  */
-public class AmountLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
+public final class AmountLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
     public static final LogicalType AMOUNT = new BigDecimalTypeLogicalType("Amount");
 
     @Override

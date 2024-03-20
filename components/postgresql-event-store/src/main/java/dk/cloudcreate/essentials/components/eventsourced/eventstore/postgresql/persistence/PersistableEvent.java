@@ -213,7 +213,7 @@ public interface PersistableEvent {
 
     boolean valueEquals(PersistableEvent that);
 
-    class DefaultPersistableEvent implements PersistableEvent {
+    final class DefaultPersistableEvent implements PersistableEvent {
         private final EventId                  eventId;
         private final Object                   aggregateId;
         private final AggregateType            streamName;

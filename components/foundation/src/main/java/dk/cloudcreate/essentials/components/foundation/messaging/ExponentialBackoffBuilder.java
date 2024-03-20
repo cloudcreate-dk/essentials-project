@@ -26,7 +26,7 @@ import java.time.Duration;
  * @see RedeliveryPolicy#linearBackoff()
  * @see RedeliveryPolicy#fixedBackoff()
  */
-public class ExponentialBackoffBuilder {
+public final class ExponentialBackoffBuilder {
     private Duration                    initialRedeliveryDelay;
     private Duration                    followupRedeliveryDelay;
     private double                      followupRedeliveryDelayMultiplier;
