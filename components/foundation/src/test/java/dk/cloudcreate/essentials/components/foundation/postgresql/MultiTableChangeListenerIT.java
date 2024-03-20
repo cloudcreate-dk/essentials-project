@@ -224,7 +224,7 @@ class MultiTableChangeListenerIT {
         return objectMapper;
     }
 
-    private static abstract class TestTableNotification extends TableChangeNotification {
+    static abstract class TestTableNotification extends TableChangeNotification {
         @JsonProperty("id")
         private long id;
 
@@ -241,7 +241,7 @@ class MultiTableChangeListenerIT {
         }
     }
 
-    private static class Table1Notification extends TestTableNotification {
+    static class Table1Notification extends TestTableNotification {
         @JsonProperty("column1")
         private String column1;
         @JsonProperty("column2")
