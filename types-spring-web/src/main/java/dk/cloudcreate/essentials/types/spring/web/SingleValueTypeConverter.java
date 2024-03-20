@@ -31,7 +31,7 @@ import java.util.Set;
  * {@link CharSequenceType} to {@link String} and {@link String} to {@link CharSequenceType}<br>
  * {@link NumberType} to {@link Number} and {@link Number} to {@link NumberType}
  */
-public class SingleValueTypeConverter implements GenericConverter {
+public final class SingleValueTypeConverter implements GenericConverter {
     @Override
     public Set<ConvertiblePair> getConvertibleTypes() {
         return Set.of(new ConvertiblePair(String.class, CharSequenceType.class),

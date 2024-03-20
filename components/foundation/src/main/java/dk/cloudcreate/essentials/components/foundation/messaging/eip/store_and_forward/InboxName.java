@@ -23,7 +23,7 @@ import dk.cloudcreate.essentials.types.*;
 /**
  * The name of an {@link Inbox}
  */
-public class InboxName extends CharSequenceType<InboxName> implements Identifier {
+public final class InboxName extends CharSequenceType<InboxName> implements Identifier {
     public InboxName(CharSequence value) {
         super(value);
     }

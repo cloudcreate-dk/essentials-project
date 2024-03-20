@@ -24,7 +24,7 @@ import dk.cloudcreate.essentials.types.*;
  * as opposed as an actual typed Event (i.e., a custom class such as a com.company.product.events.CustomerRegistered class)
  * @see EventTypeOrName
  */
-public class EventName extends CharSequenceType<EventName> implements Identifier {
+public final class EventName extends CharSequenceType<EventName> implements Identifier {
     public EventName(CharSequence value) {
         super(value);
     }

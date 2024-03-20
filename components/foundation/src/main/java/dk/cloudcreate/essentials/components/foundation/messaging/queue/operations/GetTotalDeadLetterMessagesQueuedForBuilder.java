@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName
 /**
  * Builder for {@link GetTotalDeadLetterMessagesQueuedFor}
  */
-public class GetTotalDeadLetterMessagesQueuedForBuilder {
+public final class GetTotalDeadLetterMessagesQueuedForBuilder {
     private QueueName queueName;
 
     /**

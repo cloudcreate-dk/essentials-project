@@ -27,7 +27,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Base metadata implementation for {@link PersistableEvent} and {@link PersistedEvent}
  */
-public class EventMetaData implements Map<String, String>, Serializable {
+public final class EventMetaData implements Map<String, String>, Serializable {
     private final Map<String, String> metaData;
 
     public EventMetaData(Map<String, String> metaData) {

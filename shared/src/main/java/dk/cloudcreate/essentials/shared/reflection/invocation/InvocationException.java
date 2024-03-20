@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.shared.reflection.invocation;
 
-public class InvocationException extends RuntimeException {
+public final class InvocationException extends RuntimeException {
     public InvocationException() {
     }
 

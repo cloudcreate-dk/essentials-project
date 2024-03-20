@@ -28,7 +28,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Encapsulated Metadata (like headers, correlation id, tracing id's, etc.) associated with a {@link Message}
  */
-public class MessageMetaData implements Map<String, String>, Serializable {
+public final class MessageMetaData implements Map<String, String>, Serializable {
     /**
      * If the message is delivered via either an {@link Inbox}
      * or {@link Outbox} using a {@link FencedLock}, such as {@link Inboxes#durableQueueBasedInboxes(DurableQueues, FencedLockManager)})

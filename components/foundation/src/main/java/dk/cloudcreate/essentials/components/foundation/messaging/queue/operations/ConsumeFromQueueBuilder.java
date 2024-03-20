@@ -27,7 +27,7 @@ import java.util.concurrent.*;
 /**
  * Builder for {@link ConsumeFromQueue}
  */
-public class ConsumeFromQueueBuilder {
+public final class ConsumeFromQueueBuilder {
     private String                             consumerName            = UUID.randomUUID().toString();
     private QueueName                          queueName;
     private RedeliveryPolicy                   redeliveryPolicy;

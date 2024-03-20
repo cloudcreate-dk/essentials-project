@@ -26,7 +26,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * {@link List} utility methods
  */
-public class Lists {
+public final class Lists {
     /**
      * Convert the <code>list</code> to an 0-based Indexed Stream consisting of {@link Pair}'s, where each {@link Pair}
      * consists of the 0-based Index (i.e. the first index has value 0) and the corresponding List element at the given index: <code>Pair&lt;Index, List-element-at-the-given-index&gt;</code><br>

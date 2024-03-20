@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.types.CurrencyCode;
 import javax.persistence.Converter;
 
 @Converter(autoApply = true)
-public class CurrencyCodeAttributeConverter extends BaseCharSequenceTypeAttributeConverter<CurrencyCode> {
+public final class CurrencyCodeAttributeConverter extends BaseCharSequenceTypeAttributeConverter<CurrencyCode> {
     @Override
     protected Class<CurrencyCode> getConcreteCharSequenceType() {
         return CurrencyCode.class;

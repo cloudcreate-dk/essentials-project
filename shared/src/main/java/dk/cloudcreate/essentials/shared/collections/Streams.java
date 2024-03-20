@@ -23,7 +23,7 @@ import java.util.stream.*;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
-public class Streams {
+public final class Streams {
     public static <R, T, U> Stream<R> zipOrderedAndEqualSizedStreams(Stream<T> streamT, Stream<U> streamU, BiFunction<T, U, R> zipFunction) {
         requireNonNull(streamT, "No streamT provided");
         requireNonNull(streamU, "No streamU provided");

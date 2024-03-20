@@ -32,7 +32,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * {@link CharSequenceType} to {@link String} and {@link String} to {@link CharSequenceType}<br>
  * {@link NumberType} to {@link Number} and {@link Number}/{@link Decimal128} to {@link NumberType}
  */
-public class SingleValueTypeConverter implements GenericConverter {
+public final class SingleValueTypeConverter implements GenericConverter {
     private final List<Class<? extends CharSequenceType<?>>> explicitCharSequenceTypeToObjectIdConverters;
 
     /**

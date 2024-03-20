@@ -17,7 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.json;
 
 
-public class JSONDeserializationException extends RuntimeException {
+public final class JSONDeserializationException extends RuntimeException {
     public JSONDeserializationException(String message) {
         super(message);
     }

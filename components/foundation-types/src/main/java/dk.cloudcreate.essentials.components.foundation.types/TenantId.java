@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.types.*;
 /**
  * Simple single value {@link Tenant} identifier
  */
-public class TenantId extends CharSequenceType<TenantId> implements Tenant, Identifier {
+public final class TenantId extends CharSequenceType<TenantId> implements Tenant, Identifier {
     public TenantId(CharSequence value) {
         super(value);
     }

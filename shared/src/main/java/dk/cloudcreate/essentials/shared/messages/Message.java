@@ -47,7 +47,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * @see MessageTemplate
  * @see MessageTemplates
  */
-public class Message implements Serializable {
+public final class Message implements Serializable {
     private MessageTemplate template;
     private List<Object>    parameters;
     private String          message;

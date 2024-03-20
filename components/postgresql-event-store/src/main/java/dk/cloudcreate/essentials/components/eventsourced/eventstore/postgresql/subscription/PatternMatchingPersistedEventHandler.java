@@ -78,7 +78,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * }
  * }</pre>
  */
-public class PatternMatchingPersistedEventHandler implements PersistedEventHandler {
+public abstract class PatternMatchingPersistedEventHandler implements PersistedEventHandler {
     private final PatternMatchingMethodInvoker<Object> invoker;
     private final Object                               invokePersistedEventHandlerMethodsOn;
     private       boolean                              allowUnmatchedEvents = false;

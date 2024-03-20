@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueEntr
 /**
  * Builder for {@link DeleteMessage}
  */
-public class DeleteMessageBuilder {
+public final class DeleteMessageBuilder {
     private QueueEntryId queueEntryId;
 
     /**

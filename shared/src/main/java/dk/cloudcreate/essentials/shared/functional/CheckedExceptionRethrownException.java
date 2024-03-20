@@ -26,7 +26,7 @@ package dk.cloudcreate.essentials.shared.functional;
  * @see CheckedBiFunction
  * @see CheckedTripleFunction
  */
-public class CheckedExceptionRethrownException extends RuntimeException {
+public final class CheckedExceptionRethrownException extends RuntimeException {
     public CheckedExceptionRethrownException(String message, Throwable cause) {
         super(message, cause);
     }

@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.types.EmailAddress;
 import javax.persistence.Converter;
 
 @Converter(autoApply = true)
-public class EmailAddressAttributeConverter extends BaseCharSequenceTypeAttributeConverter<EmailAddress> {
+public final class EmailAddressAttributeConverter extends BaseCharSequenceTypeAttributeConverter<EmailAddress> {
     @Override
     protected Class<EmailAddress> getConcreteCharSequenceType() {
         return EmailAddress.class;

@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.shared.reflection;
 
-public class NoMatchingMethodFoundException extends ReflectionException {
+public final class NoMatchingMethodFoundException extends ReflectionException {
     public NoMatchingMethodFoundException() {
     }
 

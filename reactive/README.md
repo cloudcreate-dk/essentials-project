@@ -5,6 +5,9 @@ Essentials is a set of Java version 11 (and later) building blocks built from th
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and strongly typed code, which doesn't depend on other libraries or frameworks, but
 instead allows easy integrations with many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
 
+> **NOTE:**  
+> **The library is WORK-IN-PROGRESS**
+
 ## Reactive
 
 This library contains the smallest set of supporting reactive building blocks needed for other Essentials libraries.
@@ -147,7 +150,7 @@ All you need to do is to add a `@Bean` of type `ReactiveHandlersBeanPostProcesso
 ```
 @Configuration
 public class ReactiveHandlersConfiguration {
-    @Bean ReactiveHandlersBeanPostProcessor reactiveHandlersBeanPostProcessor() {
+    @Bean static ReactiveHandlersBeanPostProcessor reactiveHandlersBeanPostProcessor() {
         return new ReactiveHandlersBeanPostProcessor();
     }
     

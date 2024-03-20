@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQu
 /**
  * Builder for {@link StopConsumingFromQueue}
  */
-public class StopConsumingFromQueueBuilder {
+public final class StopConsumingFromQueueBuilder {
     private DurableQueueConsumer durableQueueConsumer;
 
     /**

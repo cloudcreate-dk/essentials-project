@@ -31,7 +31,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * across all AggregateEventStreams with the same {@link AggregateType}.<br>
  * The first global-event-order has value 1, since this is the initial value for a Postgresql BIGINT IDENTITY column.
  */
-public class GlobalEventOrder extends LongType<GlobalEventOrder> {
+public final class GlobalEventOrder extends LongType<GlobalEventOrder> {
     /**
      * Special value that contains the {@link GlobalEventOrder} of the FIRST Event persisted in context of a given {@link AggregateType}
      */

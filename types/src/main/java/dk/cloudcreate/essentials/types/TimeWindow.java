@@ -28,7 +28,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * If <code>toExclusive</code> is <code>null</code>, then the {@link TimeWindow} covers the time-period of <code>[{@link #fromInclusive};∞[</code>, otherwise
  * the {@link TimeWindow} covers the time-period: <code>[{@link #fromInclusive};{@link #toExclusive}[</code>
  */
-public class TimeWindow {
+public final class TimeWindow {
     /**
      * The start of the time period that this {@link TimeWindow} covers. This timestamp is inclusive in the time window
      */

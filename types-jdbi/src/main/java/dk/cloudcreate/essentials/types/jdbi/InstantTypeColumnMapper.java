@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * <br>
  * Example of a concrete mapper:
  * <pre>{@code
- * public class LastUpdatedColumnMapper extends InstantTypeColumnMapper<LastUpdated> {
+ * public final class LastUpdatedColumnMapper extends InstantTypeColumnMapper<LastUpdated> {
  * }}</pre>
  *
  * @param <T> the concrete {@link InstantType} this instance is mapping

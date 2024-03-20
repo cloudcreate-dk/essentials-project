@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMe
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 
-public class OutboxConfig {
+public final class OutboxConfig {
     /**
      * The name of the outbox
      */

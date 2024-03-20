@@ -50,9 +50,6 @@ class MongoFencedLockManagerIT extends DBFencedLockManagerIT<MongoFencedLockMana
     private MongoTemplate mongoTemplate;
 
     @Autowired
-    private MongoConverter mongoConverter;
-
-    @Autowired
     private MongoTransactionManager transactionManager;
 
     @Autowired
@@ -61,25 +58,23 @@ class MongoFencedLockManagerIT extends DBFencedLockManagerIT<MongoFencedLockMana
     @Override
     protected MongoFencedLockManager createLockManagerNode2() {
         return new MongoFencedLockManager(mongoTemplate,
-                                          mongoConverter,
                                           new SpringMongoTransactionAwareUnitOfWorkFactory(transactionManager,
                                                                                            databaseFactory),
                                           Optional.of("node2"),
-                                          Optional.empty(),
                                           Duration.ofSeconds(3),
-                                          Duration.ofSeconds(1));
+                                          Duration.ofSeconds(1),
+                                          Optional.empty());
     }
 
     @Override
     protected MongoFencedLockManager createLockManagerNode1() {
         return new MongoFencedLockManager(mongoTemplate,
-                                          mongoConverter,
                                           new SpringMongoTransactionAwareUnitOfWorkFactory(transactionManager,
                                                                                            databaseFactory),
                                           Optional.of("node1"),
-                                          Optional.empty(),
                                           Duration.ofSeconds(3),
-                                          Duration.ofSeconds(1));
+                                          Duration.ofSeconds(1),
+                                          Optional.empty());
     }
 
     @Test

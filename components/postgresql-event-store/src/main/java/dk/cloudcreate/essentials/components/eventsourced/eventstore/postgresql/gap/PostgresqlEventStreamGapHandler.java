@@ -21,8 +21,9 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.e
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.AggregateEventStreamConfiguration;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.jdbi.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
+import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
@@ -43,14 +44,14 @@ import static dk.cloudcreate.essentials.shared.FailFast.*;
  *
  * @param <CONFIG> The concrete {@link AggregateEventStreamConfiguration}
  */
-public class PostgresqlEventStreamGapHandler<CONFIG extends AggregateEventStreamConfiguration> implements EventStreamGapHandler<CONFIG> {
+public final class PostgresqlEventStreamGapHandler<CONFIG extends AggregateEventStreamConfiguration> implements EventStreamGapHandler<CONFIG> {
     private static final Logger                                               log                                  = LoggerFactory.getLogger(PostgresqlEventStreamGapHandler.class);
     public static final  String                                               TRANSIENT_SUBSCRIBER_GAPS_TABLE_NAME = "transient_subscriber_gaps";
     private static final String                                               TRANSIENT_SUBSCRIBER_GAPS_INDEX_NAME = "transient_subscriber_gaps_index";
     public static final  String                                               PERMANENT_GAPS_TABLE_NAME            = "permanent_gaps";
     public static final  List<GlobalEventOrder>                               NO_GAPS                              = List.of();
     private final        PostgresqlEventStore<CONFIG>                         postgresqlEventStore;
-    private final        EventStoreUnitOfWorkFactory<EventStoreUnitOfWork>    unitOfWorkFactory;
+    private final        EventStoreUnitOfWorkFactory<?>                       unitOfWorkFactory;
     private final        ResolveTransientGapsToIncludeInQueryStrategy         resolveTransientGapsToIncludeInQueryStrategy;
     private final        ResolveTransientGapsToPermanentGapsPromotionStrategy resolveTransientGapsToPermanentGapsPromotionStrategy;
     private              long                                                 refreshTransientGapsFromStorageEverySeconds;
@@ -62,7 +63,7 @@ public class PostgresqlEventStreamGapHandler<CONFIG extends AggregateEventStream
      * @param unitOfWorkFactory    the unit of work factory that coordinates the event store {@link UnitOfWork}
      */
     public PostgresqlEventStreamGapHandler(PostgresqlEventStore<CONFIG> postgresqlEventStore,
-                                           EventStoreUnitOfWorkFactory unitOfWorkFactory) {
+                                           EventStoreUnitOfWorkFactory<?> unitOfWorkFactory) {
         this(postgresqlEventStore,
              unitOfWorkFactory,
              Duration.ofSeconds(60),
@@ -92,7 +93,7 @@ public class PostgresqlEventStreamGapHandler<CONFIG extends AggregateEventStream
      * @param resolveTransientGapsToPermanentGapsPromotionStrategy strategy for when the {@link PostgresqlEventStreamGapHandler} will promote a transient gap to a permanent gap
      */
     public PostgresqlEventStreamGapHandler(PostgresqlEventStore<CONFIG> postgresqlEventStore,
-                                           EventStoreUnitOfWorkFactory unitOfWorkFactory,
+                                           EventStoreUnitOfWorkFactory<?> unitOfWorkFactory,
                                            Duration refreshTransientGapsFromStorageInterval,
                                            ResolveTransientGapsToIncludeInQueryStrategy resolveTransientGapsToIncludeInQueryStrategy,
                                            ResolveTransientGapsToPermanentGapsPromotionStrategy resolveTransientGapsToPermanentGapsPromotionStrategy) {
@@ -105,6 +106,9 @@ public class PostgresqlEventStreamGapHandler<CONFIG extends AggregateEventStream
     }
 
     private void createGapHandlingTablesAndIndexes() {
+        PostgresqlUtil.checkIsValidTableOrColumnName(TRANSIENT_SUBSCRIBER_GAPS_TABLE_NAME);
+        PostgresqlUtil.checkIsValidTableOrColumnName(TRANSIENT_SUBSCRIBER_GAPS_INDEX_NAME);
+        PostgresqlUtil.checkIsValidTableOrColumnName(PERMANENT_GAPS_TABLE_NAME);
 
         unitOfWorkFactory.usingUnitOfWork(unitOfWork -> {
             unitOfWork.handle().getJdbi().registerArgument(new AggregateTypeArgumentFactory());
@@ -159,7 +163,7 @@ public class PostgresqlEventStreamGapHandler<CONFIG extends AggregateEventStream
         requireNonNull(resetForThisSpecificGlobalEventOrdersRange, "No resetForThisSpecificGlobalEventOrdersRange provided");
         var globalEventOrdersRemoved = unitOfWorkFactory.withUnitOfWork(unitOfWork ->
                                                                         {
-                                                                            var sql = "DELETE FROM " + PERMANENT_GAPS_TABLE_NAME + " WHERE aggregate_type = :aggregate_type RETURNING gap_global_event_order\n";
+                                                                            var sql = "DELETE FROM " + PERMANENT_GAPS_TABLE_NAME + " WHERE aggregate_type = :aggregate_type \n";
                                                                             if (resetForThisSpecificGlobalEventOrdersRange.isOpenRange()) {
                                                                                 sql += " AND gap_global_event_order >= :gap_global_event_order_from_and_including";
                                                                             } else {
@@ -196,7 +200,7 @@ public class PostgresqlEventStreamGapHandler<CONFIG extends AggregateEventStream
 
         var globalEventOrdersRemoved = unitOfWorkFactory.withUnitOfWork(unitOfWork ->
                                                                         {
-                                                                            var sql = "DELETE FROM " + PERMANENT_GAPS_TABLE_NAME + " WHERE aggregate_type = :aggregate_type RETURNING gap_global_event_order\n" +
+                                                                            var sql = "DELETE FROM " + PERMANENT_GAPS_TABLE_NAME + " WHERE aggregate_type = :aggregate_type \n" +
                                                                                     " AND gap_global_event_order IN (<globalEventOrders>)\n" +
                                                                                     "  RETURNING gap_global_event_order";
                                                                             return unitOfWork.handle().createQuery(sql)

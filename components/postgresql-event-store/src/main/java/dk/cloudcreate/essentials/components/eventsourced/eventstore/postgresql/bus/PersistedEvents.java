@@ -26,7 +26,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Encapsulates all events Persisted within a {@link UnitOfWork}
  */
-public class PersistedEvents {
+public final class PersistedEvents {
     public final CommitStage          commitStage;
     public final UnitOfWork           unitOfWork;
     public final List<PersistedEvent> events;
