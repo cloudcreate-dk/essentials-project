@@ -29,7 +29,7 @@ import org.testcontainers.junit.jupiter.*;
 
 @Testcontainers
 @DataMongoTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class MongoLocalOrderedMessagesDurableQueueIT extends LocalOrderedMessagesDurableQueueIT<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
     @Container
     static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:latest");

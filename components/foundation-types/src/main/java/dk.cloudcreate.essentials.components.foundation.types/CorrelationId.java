@@ -23,7 +23,7 @@ import java.util.Optional;
 /**
  * A correlation id is used to link multiple Messages or Events together in a distributed system
  */
-public class CorrelationId extends CharSequenceType<CorrelationId> implements Identifier {
+public final class CorrelationId extends CharSequenceType<CorrelationId> implements Identifier {
     public CorrelationId(CharSequence value) {
         super(value);
     }

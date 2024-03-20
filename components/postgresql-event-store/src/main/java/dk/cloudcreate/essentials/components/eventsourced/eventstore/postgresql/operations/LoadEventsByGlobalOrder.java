@@ -32,8 +32,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Operation also matches {@link EventStoreInterceptor#intercept(LoadEventsByGlobalOrder, EventStoreInterceptorChain)}
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public
-class LoadEventsByGlobalOrder {
+public final class LoadEventsByGlobalOrder {
     /**
      * the aggregate type that the underlying events are associated with
      */

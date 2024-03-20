@@ -25,7 +25,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Delete all messages (Queued or Dead letter Messages) in the given queue<br>
  * Operation also matches {@link DurableQueuesInterceptor#intercept(PurgeQueue, InterceptorChain)}
  */
-public class PurgeQueue {
+public final class PurgeQueue {
     public final QueueName queueName;
 
     /**

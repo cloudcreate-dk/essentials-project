@@ -19,5 +19,5 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 import dk.cloudcreate.essentials.components.foundation.types.EventId;
 import dk.cloudcreate.essentials.types.jdbi.CharSequenceTypeArgumentFactory;
 
-public class EventIdArgumentFactory extends CharSequenceTypeArgumentFactory<EventId> {
+public final class EventIdArgumentFactory extends CharSequenceTypeArgumentFactory<EventId> {
 }

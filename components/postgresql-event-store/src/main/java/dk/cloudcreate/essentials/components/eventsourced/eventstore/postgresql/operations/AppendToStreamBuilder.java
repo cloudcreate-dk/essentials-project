@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <ID> the id type for the aggregate
  */
-public class AppendToStreamBuilder<ID> {
+public final class AppendToStreamBuilder<ID> {
     private AggregateType  aggregateType;
     private ID             aggregateId;
     private Optional<Long> appendEventsAfterEventOrder = Optional.empty();

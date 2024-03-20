@@ -22,5 +22,5 @@ import org.jdbi.v3.core.argument.ArgumentFactory;
 /**
  * {@link ArgumentFactory} for {@link CurrencyCode}
  */
-public class CurrencyCodeArgumentFactory extends CharSequenceTypeArgumentFactory<CurrencyCode> {
+public final class CurrencyCodeArgumentFactory extends CharSequenceTypeArgumentFactory<CurrencyCode> {
 }

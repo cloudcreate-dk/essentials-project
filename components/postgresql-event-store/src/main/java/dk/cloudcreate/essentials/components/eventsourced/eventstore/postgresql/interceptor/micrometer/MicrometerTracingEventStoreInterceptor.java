@@ -31,7 +31,7 @@ import java.util.stream.Stream;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
-public class MicrometerTracingEventStoreInterceptor implements EventStoreInterceptor, PersistableEventEnricher {
+public final class MicrometerTracingEventStoreInterceptor implements EventStoreInterceptor, PersistableEventEnricher {
     public static final String                         AGGREGATE_TYPE         = "AggregateType";
     public static final String                         AGGREGATE_ID           = "AggregateId";
     public static final String                         EVENT_TYPE             = "EventType";

@@ -26,7 +26,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Builder for {@link QueueMessage}
  */
-public class QueueMessageBuilder {
+public final class QueueMessageBuilder {
     private QueueName                 queueName;
     private Object                    payload;
     private Optional<Exception>       causeOfEnqueuing = Optional.empty();

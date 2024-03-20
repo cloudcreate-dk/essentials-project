@@ -19,5 +19,5 @@ package dk.cloudcreate.essentials.components.queue.postgresql.jdbi;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
 import dk.cloudcreate.essentials.types.jdbi.CharSequenceTypeArgumentFactory;
 
-public class QueueNameArgumentFactory extends CharSequenceTypeArgumentFactory<QueueName> {
+public final class QueueNameArgumentFactory extends CharSequenceTypeArgumentFactory<QueueName> {
 }

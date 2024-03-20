@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_
 
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 
-public class OutboxConfigBuilder {
+public final class OutboxConfigBuilder {
     private OutboxName outboxName;
     private RedeliveryPolicy       redeliveryPolicy;
     private MessageConsumptionMode messageConsumptionMode;

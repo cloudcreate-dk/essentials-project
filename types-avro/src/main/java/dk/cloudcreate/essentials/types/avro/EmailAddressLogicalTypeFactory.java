@@ -83,7 +83,7 @@ import org.apache.avro.*;
  * }
  * }</pre>
  */
-public class EmailAddressLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
+public final class EmailAddressLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
     public static final LogicalType EMAIL_ADDRESS = new CharSequenceTypeLogicalType("EmailAddress");
 
     @Override

@@ -20,7 +20,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Default {@link LifecycleManager} that integrate with Spring to ensure that {@link ApplicationContext} Beans that implement the {@link Lifecycle}
  * interface are started and stopped in response to {@link ContextRefreshedEvent} and {@link ContextClosedEvent}
  */
-public class DefaultLifecycleManager implements LifecycleManager, ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
+public final class DefaultLifecycleManager implements LifecycleManager, ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
     public static final Logger log = LoggerFactory.getLogger(DefaultLifecycleManager.class);
     private ApplicationContext applicationContext;
     private boolean hasStartedLifeCycleBeans;
@@ -58,7 +58,6 @@ public class DefaultLifecycleManager implements LifecycleManager, ApplicationLis
         if (event instanceof ContextRefreshedEvent) {
             log.info(event.getClass().getSimpleName());
             startLifecycleBeans();
-            contextRefreshedEventConsumer.accept(this.applicationContext);
         } else if (event instanceof ContextClosedEvent) {
             log.info("{} - has started life cycle beans: {}", event.getClass().getSimpleName(), hasStartedLifeCycleBeans);
             onContextClosed();
@@ -80,16 +79,20 @@ public class DefaultLifecycleManager implements LifecycleManager, ApplicationLis
     private void startLifecycleBeans() {
         if (!isStartLifecycles) {
             log.debug("Start of lifecycle beans is disabled");
+            contextRefreshedEventConsumer.accept(this.applicationContext);
             return;
         }
-        hasStartedLifeCycleBeans = true;
-        lifeCycleBeans = applicationContext.getBeansOfType(Lifecycle.class);
-        lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
-            if (!lifecycleBean.isStarted()) {
-                log.info("Starting {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
-                lifecycleBean.start();
-            }
-        });
+        if (!hasStartedLifeCycleBeans) {
+            contextRefreshedEventConsumer.accept(this.applicationContext);
+            hasStartedLifeCycleBeans = true;
+            lifeCycleBeans = applicationContext.getBeansOfType(Lifecycle.class);
+            lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
+                if (!lifecycleBean.isStarted()) {
+                    log.info("Starting {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
+                    lifecycleBean.start();
+                }
+            });
+        }
     }
 
 }

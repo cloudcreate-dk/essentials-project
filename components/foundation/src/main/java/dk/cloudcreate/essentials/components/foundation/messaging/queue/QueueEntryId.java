@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.types.CharSequenceType;
 /**
  * The unique entry for a message in a queue. This id is unique across all messages across all Queues (as identified by the {@link QueueName})
  */
-public class QueueEntryId extends CharSequenceType<QueueEntryId> {
+public final class QueueEntryId extends CharSequenceType<QueueEntryId> {
     public QueueEntryId(CharSequence value) {
         super(value);
     }

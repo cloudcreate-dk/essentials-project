@@ -26,7 +26,7 @@ import java.sql.Types;
  * Base implementation for a {@link FloatType}.<br>
  * Extend this class to support your concrete {@link FloatType} sub-type:
  * <pre>{@code
- * public class AmountArgumentFactory extends FloatTypeArgumentFactory<Amount> {
+ * public final class AmountArgumentFactory extends FloatTypeArgumentFactory<Amount> {
  * }}</pre>
  *
  * @param <T> the concrete {@link FloatType} subclass

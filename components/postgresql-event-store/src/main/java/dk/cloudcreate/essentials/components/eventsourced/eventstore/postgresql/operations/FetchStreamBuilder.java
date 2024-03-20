@@ -28,7 +28,7 @@ import java.util.Optional;
  *
  * @param <ID> the id type for the aggregate
  */
-public class FetchStreamBuilder<ID> {
+public final class FetchStreamBuilder<ID> {
     private AggregateType    aggregateType;
     private ID               aggregateId;
     private LongRange        eventOrderRange;

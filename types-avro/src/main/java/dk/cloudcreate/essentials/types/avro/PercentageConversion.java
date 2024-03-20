@@ -36,7 +36,7 @@ import static dk.cloudcreate.essentials.types.avro.PercentageLogicalTypeFactory.
  * }
  * }</pre>
  */
-public class PercentageConversion extends BaseBigDecimalTypeConversion<Percentage> {
+public final class PercentageConversion extends BaseBigDecimalTypeConversion<Percentage> {
     @Override
     public Class<Percentage> getConvertedType() {
         return Percentage.class;

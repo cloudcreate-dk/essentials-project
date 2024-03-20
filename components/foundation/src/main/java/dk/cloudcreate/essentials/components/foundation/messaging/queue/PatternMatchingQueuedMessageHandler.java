@@ -48,7 +48,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * }
  * }</pre>
  */
-public class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler {
+public abstract class PatternMatchingQueuedMessageHandler implements QueuedMessageHandler {
     private final PatternMatchingMethodInvoker<Object> invoker;
     private final Object  invokeMessageHandlerMethodsOn;
     private       boolean allowUnmatchedMessages = false;

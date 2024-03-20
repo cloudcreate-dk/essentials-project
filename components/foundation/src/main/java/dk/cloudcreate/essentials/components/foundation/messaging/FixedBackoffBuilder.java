@@ -25,7 +25,7 @@ import java.time.Duration;
  * @see RedeliveryPolicy#linearBackoff()
  * @see RedeliveryPolicy#fixedBackoff()
  */
-public class FixedBackoffBuilder {
+public final class FixedBackoffBuilder {
     private Duration                    redeliveryDelay;
     private int                         maximumNumberOfRedeliveries;
     private MessageDeliveryErrorHandler deliveryErrorHandler = MessageDeliveryErrorHandler.alwaysRetry();

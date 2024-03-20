@@ -21,7 +21,7 @@ import jakarta.persistence.Converter;
 
 
 @Converter(autoApply = true)
-public class CurrencyCodeAttributeConverter extends BaseCharSequenceTypeAttributeConverter<CurrencyCode> {
+public final class CurrencyCodeAttributeConverter extends BaseCharSequenceTypeAttributeConverter<CurrencyCode> {
     @Override
     protected Class<CurrencyCode> getConcreteCharSequenceType() {
         return CurrencyCode.class;
