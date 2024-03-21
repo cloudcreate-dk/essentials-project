@@ -36,11 +36,11 @@
     <url>https://github.com/cloudcreate-dk/essentials</url>
 
     <scm>
-        <url>https://github.com/cloudcreate-dk/essentials</url>
-        <developerConnection>scm:https://github.com/cloudcreate-dk/essentials.git</developerConnection>
-        <connection>scm:https://github.com/cloudcreate-dk/essentials.git</connection>
+        <url>https://github.com/cloudcreate-dk/essentials-project</url>
+        <developerConnection>scm:https://github.com/cloudcreate-dk/essentials-project.git</developerConnection>
+        <connection>scm:https://github.com/cloudcreate-dk/essentials-project.git</connection>
     </scm>
-
+  
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
