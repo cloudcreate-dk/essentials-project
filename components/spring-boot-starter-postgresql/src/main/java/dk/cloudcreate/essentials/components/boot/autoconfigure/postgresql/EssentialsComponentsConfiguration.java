@@ -31,7 +31,6 @@ import dk.cloudcreate.essentials.components.foundation.lifecycle.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.*;
 import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
@@ -44,10 +43,6 @@ import dk.cloudcreate.essentials.reactive.*;
 import dk.cloudcreate.essentials.reactive.command.*;
 import dk.cloudcreate.essentials.reactive.command.interceptor.CommandBusInterceptor;
 import dk.cloudcreate.essentials.reactive.spring.ReactiveHandlersBeanPostProcessor;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.observation.ObservationRegistry;
-import io.micrometer.tracing.Tracer;
-import io.micrometer.tracing.propagation.Propagator;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.postgres.PostgresPlugin;
 import org.slf4j.*;
@@ -111,24 +106,6 @@ import java.util.*;
 @EnableConfigurationProperties(EssentialsComponentsProperties.class)
 public class EssentialsComponentsConfiguration {
     public static final Logger log = LoggerFactory.getLogger(EssentialsComponentsConfiguration.class);
-
-    @Bean
-    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
-    public DurableQueuesMicrometerTracingInterceptor durableQueuesMicrometerTracingInterceptor(Optional<Tracer> tracer,
-                                                                                               Optional<Propagator> propagator,
-                                                                                               Optional<ObservationRegistry> observationRegistry,
-                                                                                               EssentialsComponentsProperties properties) {
-        return new DurableQueuesMicrometerTracingInterceptor(tracer.get(),
-                                                             propagator.get(),
-                                                             observationRegistry.get(),
-                                                             properties.getDurableQueues().isVerboseTracing());
-    }
-
-    @Bean
-    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
-    public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(Optional<MeterRegistry> meterRegistry) {
-        return new DurableQueuesMicrometerInterceptor(meterRegistry.get());
-    }
 
     /**
      * Auto-registers any {@link CommandHandler} with the single {@link CommandBus} bean found<br>
