@@ -14,25 +14,15 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.components.foundation.types;
-
-import dk.cloudcreate.essentials.types.*;
-
-import java.util.UUID;
+package dk.cloudcreate.essentials.components.foundation.postgresql;
 
 /**
- * A subscriber id is used to uniquely identify an event subscriber
+ * Thrown by {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} in case
+ * a table or column name is null, empty, matches a reserved keyword,
+ * or contains invalid characters.
  */
-public class SubscriberId extends CharSequenceType<SubscriberId> implements Identifier {
-    public SubscriberId(CharSequence value) {
-        super(value);
-    }
-
-    public static SubscriberId of(CharSequence value) {
-        return new SubscriberId(value);
-    }
-
-    public static SubscriberId random() {
-        return new SubscriberId(UUID.randomUUID().toString());
+public final class InvalidTableOrColumnNameException extends RuntimeException {
+    public InvalidTableOrColumnNameException(String msg) {
+        super(msg);
     }
 }

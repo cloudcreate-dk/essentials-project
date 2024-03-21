@@ -26,7 +26,7 @@ import java.sql.Types;
  * Base implementation for a {@link DoubleType}.<br>
  * Extend this class to support your concrete {@link DoubleType} sub-type:
  * <pre>{@code
- * public class AmountArgumentFactory extends DoubleTypeArgumentFactory<Amount> {
+ * public final class AmountArgumentFactory extends DoubleTypeArgumentFactory<Amount> {
  * }}</pre>
  *
  * @param <T> the concrete {@link DoubleType} subclass

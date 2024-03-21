@@ -24,7 +24,7 @@ import java.util.*;
 /**
  * Builder for {@link QueueMessages}
  */
-public class QueueMessagesBuilder {
+public final class QueueMessagesBuilder {
     private QueueName          queueName;
     private List<Message>            messages;
     private Optional<Duration> deliveryDelay;

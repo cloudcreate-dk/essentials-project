@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.types.*;
 /**
  * The name of a Durable Queue
  */
-public class QueueName extends CharSequenceType<QueueName> implements Identifier {
+public final class QueueName extends CharSequenceType<QueueName> implements Identifier {
     public QueueName(CharSequence value) {
         super(value);
     }

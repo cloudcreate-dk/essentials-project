@@ -23,7 +23,7 @@ import java.time.Duration;
 /**
  * Builder for {@link ResurrectDeadLetterMessage}
  */
-public class ResurrectDeadLetterMessageBuilder {
+public final class ResurrectDeadLetterMessageBuilder {
     private QueueEntryId queueEntryId;
     private Duration deliveryDelay;
 

@@ -32,7 +32,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * using {@link TransactionalMode#FullyTransactional}<br>
  * Operation also matches {@link DurableQueuesInterceptor#intercept(MarkAsDeadLetterMessage, InterceptorChain)}
  */
-public class MarkAsDeadLetterMessage {
+public final class MarkAsDeadLetterMessage {
     public final QueueEntryId queueEntryId;
     private      Throwable    causeForBeingMarkedAsDeadLetter;
 

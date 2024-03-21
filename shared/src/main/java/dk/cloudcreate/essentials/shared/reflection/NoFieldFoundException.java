@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.shared.reflection;
 
-public class NoFieldFoundException extends ReflectionException {
+public final class NoFieldFoundException extends ReflectionException {
     public NoFieldFoundException() {
     }
 

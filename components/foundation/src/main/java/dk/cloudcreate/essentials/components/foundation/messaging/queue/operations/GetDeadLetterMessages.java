@@ -25,7 +25,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Query Dead Letter Messages (i.e. not normal Queued Messages) for the given Queue<br>
  * Operation also matched {@link DurableQueuesInterceptor#intercept(GetDeadLetterMessages, InterceptorChain)}
  */
-public class GetDeadLetterMessages {
+public final class GetDeadLetterMessages {
     public final QueueName           queueName;
     private DurableQueues.QueueingSortOrder queueingSortOrder;
     private long startIndex;

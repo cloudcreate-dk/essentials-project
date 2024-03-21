@@ -23,5 +23,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link QueueName} {@link ColumnMapper}
  */
-public class QueueNameColumnMapper extends CharSequenceTypeColumnMapper<QueueName> {
+public final class QueueNameColumnMapper extends CharSequenceTypeColumnMapper<QueueName> {
 }

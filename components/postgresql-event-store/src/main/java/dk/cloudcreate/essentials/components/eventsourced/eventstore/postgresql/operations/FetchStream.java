@@ -34,8 +34,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * @param <ID> the id type for the aggregate
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public
-class FetchStream<ID> {
+public final class FetchStream<ID> {
     /**
      * the aggregate type that the underlying {@link AggregateEventStream} is associated with
      */

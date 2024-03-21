@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.components.foundation.types.*;
 
 import java.time.OffsetDateTime;
 
-public class PersistableEventBuilder {
+public final class PersistableEventBuilder {
     private EventId         eventId;
     private AggregateType   aggregateType;
     private Object          aggregateId;

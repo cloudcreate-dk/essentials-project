@@ -26,7 +26,7 @@ import java.util.*;
 /**
  * Builder for {@link LoadEventsByGlobalOrder}
  */
-public class LoadEventsByGlobalOrderBuilder {
+public final class LoadEventsByGlobalOrderBuilder {
     private AggregateType          aggregateType;
     private LongRange              globalEventOrderRange;
     private List<GlobalEventOrder> includeAdditionalGlobalOrders       = List.of();

@@ -26,7 +26,7 @@ import java.sql.Types;
  * Base implementation for a {@link IntegerType}.<br>
  * Extend this class to support your concrete {@link IntegerType} sub-type:
  * <pre>{@code
- * public class QuantityArgumentFactory extends IntegerTypeArgumentFactory<Quantity> {
+ * public final class QuantityArgumentFactory extends IntegerTypeArgumentFactory<Quantity> {
  * }}</pre>
  *
  * @param <T> the concrete {@link IntegerType} subclass

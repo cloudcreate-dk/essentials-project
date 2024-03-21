@@ -22,5 +22,5 @@ import org.jdbi.v3.core.argument.ArgumentFactory;
 /**
  * {@link ArgumentFactory} for {@link CountryCode}
  */
-public class CountryCodeArgumentFactory extends CharSequenceTypeArgumentFactory<CountryCode> {
+public final class CountryCodeArgumentFactory extends CharSequenceTypeArgumentFactory<CountryCode> {
 }

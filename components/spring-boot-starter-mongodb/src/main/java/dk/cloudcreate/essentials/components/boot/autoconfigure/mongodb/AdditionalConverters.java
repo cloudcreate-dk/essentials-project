@@ -27,7 +27,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * that will be added to the {@link org.springframework.data.mongodb.core.convert.MongoCustomConversions}
  * that is created in {@link EssentialsComponentsConfiguration#mongoCustomConversions(Optional, Optional)}
  */
-public class AdditionalConverters {
+public final class AdditionalConverters {
     /**
      * {@link Converter}/{@link GenericConverter}/etc.
      */

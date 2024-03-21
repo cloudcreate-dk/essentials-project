@@ -83,7 +83,7 @@ import org.apache.avro.*;
  * }
  * }</pre>
  */
-public class CountryCodeLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
+public final class CountryCodeLogicalTypeFactory implements LogicalTypes.LogicalTypeFactory {
     public static final LogicalType COUNTRY_CODE = new CharSequenceTypeLogicalType("CountryCode");
 
     @Override

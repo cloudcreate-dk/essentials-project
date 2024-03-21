@@ -23,7 +23,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Default {@link EmailAddressValidator} is the {@link NonValidatingEmailAddressValidator}, but you can supply your own {@link EmailAddressValidator} using
  * the {@link #setValidator(EmailAddressValidator)} method.
  */
-public class EmailAddress extends CharSequenceType<EmailAddress> {
+public final class EmailAddress extends CharSequenceType<EmailAddress> {
     private static EmailAddressValidator VALIDATOR = new NonValidatingEmailAddressValidator();
 
     /**

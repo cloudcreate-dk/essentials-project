@@ -26,7 +26,7 @@ import java.util.*;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
-class EventStoreManagedUnitOfWork extends GenericHandleAwareUnitOfWorkFactory.GenericHandleAwareUnitOfWork implements EventStoreUnitOfWork {
+final class EventStoreManagedUnitOfWork extends GenericHandleAwareUnitOfWorkFactory.GenericHandleAwareUnitOfWork implements EventStoreUnitOfWork {
     private final Logger                                       log = LoggerFactory.getLogger(EventStoreManagedUnitOfWork.class);
     /**
      * The list is maintained by the {@link EventStoreManagedUnitOfWorkFactory} and provided in the constructor

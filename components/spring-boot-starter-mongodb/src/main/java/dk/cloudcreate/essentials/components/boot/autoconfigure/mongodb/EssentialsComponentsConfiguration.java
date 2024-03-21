@@ -25,9 +25,9 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mongodb.*;
 import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockManager;
-import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.json.*;
+import dk.cloudcreate.essentials.components.foundation.lifecycle.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
@@ -49,38 +49,68 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
-import org.slf4j.*;
-import org.springframework.beans.BeansException;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.*;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.event.*;
 import org.springframework.core.convert.converter.*;
 import org.springframework.data.mongodb.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.convert.*;
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
 
 import java.util.*;
 import java.util.function.Function;
 
 /**
- * MongoDB focused Essentials Components auto configuration
+ * MongoDB focused Essentials Components auto configuration<br>
+ * <br>
+ * <u><b>Security:</b></u><br>
+ * If you in your own Spring Boot application choose to override the Beans defined by this starter,
+ * then you need to check the component document to learn about the Security implications of each configuration.
+ * <br>
+ * <u>{@link MongoFencedLockManager}</u><br>
+ * To support customization of storage collection name, the {@code fencedLocksCollectionName} will be directly used as Collection name,
+ * which exposes the component to the risk of malicious input.<br>
+ * <br>
+ * <strong>Security Note:</strong><br>
+ * It is the responsibility of the user of this component to sanitize the {@code fencedLocksCollectionName}
+ * to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockStorage} component, used by {@link MongoFencedLockManager} will
+ * call the {@link dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+ * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+ * However, Essentials components as well as {@link dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+ * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+ * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+ * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+ * <br>
+ * It is highly recommended that the {@code fencedLocksCollectionName} value is only derived from a controlled and trusted source.<br>
+ * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code fencedLocksCollectionName} value.<br>
+ * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
+ * <br>
+ * <u>{@link MongoDurableQueues}</u><br>
+ * To support customization of storage collection name, the {@link MongoDurableQueues#getSharedQueueCollectionName()} will be directly used as Collection name,
+ * which exposes the component to the risk of malicious input.<br>
+ * <br>
+ * <strong>Security Note:</strong><br>
+ * It is the responsibility of the user of this component to sanitize the {@code sharedQueueCollectionName}
+ * to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoDurableQueues}, will
+ * call the {@link dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+ * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+ * However, Essentials components as well as {@link dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+ * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+ * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+ * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+ * <br>
+ * It is highly recommended that the {@code sharedQueueCollectionName} value is only derived from a controlled and trusted source.<br>
+ * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code sharedQueueCollectionName} value.<br>
+ * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
+ * @see dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues
+ * @see dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockManager
+ * @see dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockStorage
  */
 @AutoConfiguration
 @EnableConfigurationProperties(EssentialsComponentsProperties.class)
-public class EssentialsComponentsConfiguration implements ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
-    public static final Logger log = LoggerFactory.getLogger(EssentialsComponentsConfiguration.class);
-
-    private ApplicationContext     applicationContext;
-    private boolean                closed;
-    private Map<String, Lifecycle> lifeCycleBeans;
-
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
-    }
+public class EssentialsComponentsConfiguration {
 
     @Bean
     @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
@@ -108,7 +138,7 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
      */
     @Bean
     @ConditionalOnMissingBean
-    public ReactiveHandlersBeanPostProcessor reactiveHandlersBeanPostProcessor() {
+    public static ReactiveHandlersBeanPostProcessor reactiveHandlersBeanPostProcessor() {
         return new ReactiveHandlersBeanPostProcessor();
     }
 
@@ -232,7 +262,6 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
      * The {@link MongoFencedLockManager} that coordinates distributed locks
      *
      * @param mongoTemplate     the {@link MongoTemplate}
-     * @param mongoConverter    the {@link MongoConverter}
      * @param unitOfWorkFactory the {@link UnitOfWorkFactory} for coordinating {@link UnitOfWork}/Transactions
      * @param eventBus          the {@link EventBus} where {@link FencedLockEvents} are published
      * @param properties        the auto configure properties
@@ -241,13 +270,11 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     @Bean
     @ConditionalOnMissingBean
     public FencedLockManager fencedLockManager(MongoTemplate mongoTemplate,
-                                               MongoConverter mongoConverter,
                                                SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
                                                EventBus eventBus,
                                                EssentialsComponentsProperties properties) {
         return MongoFencedLockManager.builder()
                                      .setMongoTemplate(mongoTemplate)
-                                     .setMongoConverter(mongoConverter)
                                      .setUnitOfWorkFactory(unitOfWorkFactory)
                                      .setLockTimeOut(properties.getFencedLockManager().getLockTimeOut())
                                      .setLockConfirmationInterval(properties.getFencedLockManager().getLockConfirmationInterval())
@@ -404,33 +431,14 @@ public class EssentialsComponentsConfiguration implements ApplicationListener<Ap
     }
 
     /**
-     * Callback to ensure Essentials components implementing {@link Lifecycle} are started
+     * The {@link LifecycleManager} that handles starting and stopping life cycle beans
      *
-     * @param event
+     * @param properties the auto configure properties
+     * @return the {@link LifecycleManager}
      */
-    @Override
-    public void onApplicationEvent(ApplicationContextEvent event) {
-        if (event instanceof ContextRefreshedEvent) {
-            log.info(event.getClass().getSimpleName());
-            closed = false;
-            lifeCycleBeans = applicationContext.getBeansOfType(Lifecycle.class);
-            lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
-                if (!lifecycleBean.isStarted()) {
-                    log.info("Starting {} bean '{}' of type '{}'", dk.cloudcreate.essentials.components.foundation.Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
-                    lifecycleBean.start();
-                }
-            });
-        } else if (event instanceof ContextClosedEvent) {
-            log.info("{} - has Context already been closed: {}", event.getClass().getSimpleName(), closed);
-            if (!closed) {
-                lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
-                    if (lifecycleBean.isStarted()) {
-                        log.info("Stopping {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
-                        lifecycleBean.stop();
-                    }
-                });
-                closed = true;
-            }
-        }
+    @Bean
+    @ConditionalOnMissingBean
+    public LifecycleManager lifecycleController(EssentialsComponentsProperties properties) {
+        return new DefaultLifecycleManager(properties.getLifeCycles().isStartLifecycles());
     }
 }

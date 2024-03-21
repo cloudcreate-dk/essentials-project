@@ -17,14 +17,13 @@
 package dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo;
 
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
 import dk.cloudcreate.essentials.components.foundation.transaction.mongo.ClientSessionAwareUnitOfWork;
-import org.bson.Document;
 import org.slf4j.*;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.convert.*;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.*;
 
@@ -34,29 +33,97 @@ import java.util.*;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
-public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAwareUnitOfWork, DBFencedLock> {
+/**
+ * Spring Data MongoDB specific version of {@link FencedLockStorage}<br>
+ * <br>
+ * <u><b>Security:</b></u><br>
+ * To support customization of storage collection name, the {@code fencedLocksCollectionName} will be directly used as Collection name,
+ * which exposes the component to the risk of malicious input.<br>
+ * <br>
+ * <strong>Security Note:</strong><br>
+ * It is the responsibility of the user of this component to sanitize the {@code fencedLocksCollectionName}
+ * to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoFencedLockStorage} component will
+ * call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+ * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+ * However, Essentials components as well as {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+ * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+ * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+ * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+ * <br>
+ * It is highly recommended that the {@code fencedLocksCollectionName} value is only derived from a controlled and trusted source.<br>
+ * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code fencedLocksCollectionName} value.<br>
+ * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
+ */
+public final class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAwareUnitOfWork, DBFencedLock> {
     protected static final Logger log                                  = LoggerFactory.getLogger(MongoFencedLockStorage.class);
-    public static final  long   FIRST_TOKEN                          = 1L;
-    public static final  Long   UNINITIALIZED_LOCK_TOKEN             = -1L;
-    public static final  String DEFAULT_FENCED_LOCKS_COLLECTION_NAME = "fenced_locks";
+    public static final    long   FIRST_TOKEN                          = 1L;
+    public static final    Long   UNINITIALIZED_LOCK_TOKEN             = -1L;
+    public static final    String DEFAULT_FENCED_LOCKS_COLLECTION_NAME = "fenced_locks";
 
     protected final MongoTemplate  mongoTemplate;
-    protected final MongoConverter mongoConverter;
     protected final String         fencedLocksCollectionName;
 
-    public MongoFencedLockStorage(MongoTemplate mongoTemplate,
-                                  MongoConverter mongoConverter,
-                                  Optional<String> fencedLocksCollectionName) {
-        this.mongoTemplate = requireNonNull(mongoTemplate, "You must supply a mongoTemplate instance");
-        this.mongoConverter = requireNonNull(mongoConverter, "You must supply a mongoConverter instance");
-        this.fencedLocksCollectionName = fencedLocksCollectionName.orElse(DEFAULT_FENCED_LOCKS_COLLECTION_NAME);
-        initializeFencedLockCollection(mongoTemplate, fencedLocksCollectionName);
+    /**
+     * Create a {@link MongoFencedLockStorage} using default collection name {@link #DEFAULT_FENCED_LOCKS_COLLECTION_NAME}
+     *
+     * @param mongoTemplate  the mongo template
+     */
+    public MongoFencedLockStorage(MongoTemplate mongoTemplate) {
+        this(mongoTemplate,
+             DEFAULT_FENCED_LOCKS_COLLECTION_NAME);
     }
 
     /**
-     * Override only if the default collection or index name approach doesn't work for you
+     * Create a {@link MongoFencedLockStorage} using a provided collection name
+     *
+     * @param mongoTemplate             the mongo template
+     * @param fencedLocksCollectionName the custom collection name<br>
+     *                                  <strong>Note:</strong><br>
+     *                                  To support customization of storage collection name, the {@code fencedLocksCollectionName} will be directly used as Collection name,
+     *                                  which exposes the component to the risk of malicious input.<br>
+     *                                  <br>
+     *                                  <strong>Security Note:</strong><br>
+     *                                  It is the responsibility of the user of this component to sanitize the {@code fencedLocksCollectionName}
+     *                                  to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoFencedLockStorage} component will
+     *                                  call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+     *                                  The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+     *                                  However, Essentials components as well as {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+     *                                  <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+     *                                  Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+     *                                  Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+     *                                  <br>
+     *                                  It is highly recommended that the {@code fencedLocksCollectionName} value is only derived from a controlled and trusted source.<br>
+     *                                  To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code fencedLocksCollectionName} value.<br>
+     *                                  <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
      */
-    protected void initializeFencedLockCollection(MongoTemplate mongoTemplate, Optional<String> fencedLocksCollectionName) {
+    public MongoFencedLockStorage(MongoTemplate mongoTemplate,
+                                  String fencedLocksCollectionName) {
+        this.mongoTemplate = requireNonNull(mongoTemplate, "You must supply a mongoTemplate instance");
+        this.fencedLocksCollectionName = requireNonNull(fencedLocksCollectionName, "You must supply a fencedLocksCollectionName instance");
+        MongoUtil.checkIsValidCollectionName(this.fencedLocksCollectionName);
+        initializeFencedLockCollection();
+    }
+
+    /**
+     * Context: support customization of storage collection name, the {@link #fencedLocksCollectionName} will be directly used as Collection name,
+     * which exposes the component to the risk of malicious input.<br>
+     * <br>
+     * <strong>Security Note:</strong><br>
+     * It is the responsibility of the user of this component to sanitize the {@code fencedLocksCollectionName}, no matter if you override this method or not,
+     * to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoFencedLockStorage} component will
+     * call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+     * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+     * However, Essentials components as well as {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+     * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+     * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+     * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+     * <br>
+     * It is highly recommended that the {@code fencedLocksCollectionName} value is only derived from a controlled and trusted source.<br>
+     * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code fencedLocksCollectionName} value.<br>
+     * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
+     */
+    private void initializeFencedLockCollection() {
+        MongoUtil.checkIsValidCollectionName(this.fencedLocksCollectionName);
         if (!mongoTemplate.collectionExists(this.fencedLocksCollectionName)) {
             try {
                 mongoTemplate.createCollection(this.fencedLocksCollectionName);
@@ -69,7 +136,7 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
 
 
         // Ensure indexes
-        var indexes = List.of(new Index( )
+        var indexes = List.of(new Index()
                                       .named("find_lock")
                                       .on("name", Sort.Direction.ASC)
                                       .on("lastIssuedFencedToken", Sort.Direction.ASC),
@@ -80,7 +147,7 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
                                       .on("lockedByLockManagerInstanceId", Sort.Direction.ASC));
         indexes.forEach(index -> {
             log.debug("Ensuring Index on Collection '{}': {}",
-                      fencedLocksCollectionName,
+                      this.fencedLocksCollectionName,
                       index);
             mongoTemplate.indexOps(this.fencedLocksCollectionName)
                          .ensureIndex(index);
@@ -88,13 +155,13 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
     }
 
     @Override
-    public void initializeLockStorage(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
+    public final void initializeLockStorage(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                       ClientSessionAwareUnitOfWork unitOfWork) {
         // Do nothing as mongo doesn't support listCollections, etc in a multi document transaction
     }
 
     @Override
-    public boolean insertLockIntoDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
+    public final boolean insertLockIntoDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                     ClientSessionAwareUnitOfWork unitOfWork,
                                     DBFencedLock initialLock,
                                     OffsetDateTime lockAcquiredAndLastConfirmedTimestamp) {
@@ -103,90 +170,74 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
         dbInitialLock.setLockedByLockManagerInstanceId(lockManager.getLockManagerInstanceId());
         dbInitialLock.setLockAcquiredTimestamp(lockAcquiredAndLastConfirmedTimestamp.toInstant());
         dbInitialLock.setLockLastConfirmedTimestamp(lockAcquiredAndLastConfirmedTimestamp.toInstant());
-        var result = mongoTemplate.execute(fencedLocksCollectionName, collection -> {
-            var document = toDocument(dbInitialLock, mongoConverter);
-            try {
-                collection.insertOne(document);
-                return dbInitialLock;
-            } catch (DuplicateKeyException e) {
-                unitOfWork.markAsRollbackOnly(e);
-                return null;
-            }
-        });
-        return result != null;
+        try {
+            mongoTemplate.insert(dbInitialLock, this.fencedLocksCollectionName);
+            return true;
+        } catch (DuplicateKeyException e) {
+            unitOfWork.markAsRollbackOnly(e);
+            return false;
+        }
     }
 
     @Override
-    public boolean updateLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
+    public final boolean updateLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                   ClientSessionAwareUnitOfWork unitOfWork,
                                   DBFencedLock timedOutLock,
                                   DBFencedLock newLockReadyToBeAcquiredLocally) {
         var tokenOfLockToBeUpdated = timedOutLock.getCurrentToken();
         var query = new Query(Criteria.where("name").is(timedOutLock.getName())
                                       .and("lastIssuedFencedToken").is(tokenOfLockToBeUpdated));
-        var dbLock = new MongoFencedLock(newLockReadyToBeAcquiredLocally);
-        dbLock.setLastIssuedFencedToken(newLockReadyToBeAcquiredLocally.getCurrentToken());
-        dbLock.setLockedByLockManagerInstanceId(lockManager.getLockManagerInstanceId());
-        dbLock.setLockAcquiredTimestamp(newLockReadyToBeAcquiredLocally.getLockAcquiredTimestamp().toInstant());
-        dbLock.setLockLastConfirmedTimestamp(newLockReadyToBeAcquiredLocally.getLockLastConfirmedTimestamp().toInstant());
 
-        var doc    = toDocument(dbLock, mongoConverter);
-        var update = Update.fromDocument(doc, "_id");
-        var result = mongoTemplate.updateFirst(query,
-                                               update,
-                                               MongoFencedLock.class,
-                                               fencedLocksCollectionName);
+        var update = new Update()
+                .set("lastIssuedFencedToken", newLockReadyToBeAcquiredLocally.getCurrentToken())
+                .set("lockedByLockManagerInstanceId", lockManager.getLockManagerInstanceId())
+                .set("lockAcquiredTimestamp", newLockReadyToBeAcquiredLocally.getLockAcquiredTimestamp().toInstant())
+                .set("lockLastConfirmedTimestamp", newLockReadyToBeAcquiredLocally.getLockLastConfirmedTimestamp().toInstant());
+
+        var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
+
         return result.getModifiedCount() == 1;
     }
 
 
     @Override
-    public boolean confirmLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
+    public final boolean confirmLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                    ClientSessionAwareUnitOfWork unitOfWork,
                                    DBFencedLock fencedLock,
                                    OffsetDateTime confirmedTimestamp) {
         var query = new Query(Criteria.where("name").is(fencedLock.getName())
                                       .and("lastIssuedFencedToken").is(fencedLock.getCurrentToken())
                                       .and("lockedByLockManagerInstanceId").is(fencedLock.getLockedByLockManagerInstanceId()));
-        var dbLock = new MongoFencedLock(fencedLock);
-        dbLock.setLastIssuedFencedToken(fencedLock.getCurrentToken());
-        dbLock.setLockLastConfirmedTimestamp(confirmedTimestamp.toInstant());
 
-        var doc    = toDocument(dbLock, mongoConverter);
-        var update = Update.fromDocument(doc, "_id");
-        var result = mongoTemplate.updateFirst(query,
-                                               update,
-                                               MongoFencedLock.class,
-                                               fencedLocksCollectionName);
+        var update = new Update()
+                .set("lockLastConfirmedTimestamp", confirmedTimestamp.toInstant());
+
+        var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
+
         return result.getModifiedCount() == 1;
     }
 
     @Override
-    public boolean releaseLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
+    public final boolean releaseLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                    ClientSessionAwareUnitOfWork unitOfWork,
                                    DBFencedLock fencedLock) {
         var query = new Query(Criteria.where("name").is(fencedLock.getName())
                                       .and("lastIssuedFencedToken").is(fencedLock.getCurrentToken()));
-        var dbLock = new MongoFencedLock(fencedLock);
-        dbLock.setLockedByLockManagerInstanceId(null);
 
-        var doc    = toDocument(dbLock, mongoConverter);
-        var update = Update.fromDocument(doc, "_id");
-        var result = mongoTemplate.updateFirst(query,
-                                               update,
-                                               MongoFencedLock.class,
-                                               fencedLocksCollectionName);
+        var update = new Update().unset("lockedByLockManagerInstanceId");
+
+        var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
+
         return result.getModifiedCount() == 1;
     }
 
     @Override
-    public Optional<DBFencedLock> lookupLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
+    public final Optional<DBFencedLock> lookupLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                                  ClientSessionAwareUnitOfWork unitOfWork,
                                                  LockName lockName) {
-        var lock_ = mongoTemplate.findOne(new Query()
-                                                  .addCriteria(Criteria.where("name").is(lockName.toString())),
+        var lock_ = mongoTemplate.findOne(Query.query(Criteria.where("name").is(lockName.toString())),
                                           MongoFencedLock.class,
-                                          fencedLocksCollectionName);
+                                          this.fencedLocksCollectionName);
         return Optional.ofNullable(lock_)
                        .map(lock -> new DBFencedLock(lockManager,
                                                      lockName,
@@ -198,7 +249,7 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
     }
 
     @Override
-    public DBFencedLock createUninitializedLock(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
+    public final DBFencedLock createUninitializedLock(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                                 LockName lockName) {
         return new DBFencedLock(lockManager,
                                 lockName,
@@ -209,7 +260,7 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
     }
 
     @Override
-    public DBFencedLock createInitializedLock(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
+    public final DBFencedLock createInitializedLock(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                               LockName name,
                                               long currentToken,
                                               String lockedByLockManagerInstanceId,
@@ -224,33 +275,24 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
     }
 
     @Override
-    public Long getUninitializedTokenValue() {
+    public final Long getUninitializedTokenValue() {
         return UNINITIALIZED_LOCK_TOKEN;
     }
 
     @Override
-    public long getInitialTokenValue() {
+    public final long getInitialTokenValue() {
         return FIRST_TOKEN;
     }
 
-
-    private Document toDocument(MongoFencedLock bean, MongoWriter<? super MongoFencedLock> writer) {
-        Document document = new Document();
-        writer.write(bean, document);
-        if (document.containsKey("_id") && document.get("_id") == null) {
-            document.remove("_id");
-        }
-        return document;
-    }
-
     @Override
-    public void deleteLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
+    public final void deleteLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                ClientSessionAwareUnitOfWork unitOfWork,
                                LockName nameOfLockToDelete) {
-        var result = mongoTemplate.remove(new Query()
-                                                  .addCriteria(Criteria.where("name").is(nameOfLockToDelete)),
-                                          MongoFencedLock.class,
-                                          fencedLocksCollectionName);
+        var query = Query.query(Criteria.where("name").is(nameOfLockToDelete.value()));
+
+        // Execute the delete operation
+        var result = mongoTemplate.remove(query, MongoFencedLock.class, this.fencedLocksCollectionName);
+
         if (result.getDeletedCount() == 1) {
             log.debug("[{}] Deleted lock '{}'", lockManager.getLockManagerInstanceId(),
                       nameOfLockToDelete);
@@ -258,9 +300,9 @@ public class MongoFencedLockStorage implements FencedLockStorage<ClientSessionAw
     }
 
     @Override
-    public void deleteAllLocksInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
+    public final void deleteAllLocksInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                    ClientSessionAwareUnitOfWork unitOfWork) {
-        var result = mongoTemplate.remove(new Query(), MongoFencedLock.class, fencedLocksCollectionName);
+        var result = mongoTemplate.remove(new Query(), MongoFencedLock.class, this.fencedLocksCollectionName);
         log.debug("[{}] Deleted all {} locks", lockManager.getLockManagerInstanceId(), result.getDeletedCount());
     }
 

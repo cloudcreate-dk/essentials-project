@@ -30,12 +30,12 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * JSON Serialized payload, used to Serialize {@link PersistedEvent} {@link PersistedEvent#metaData()} and the {@link PersistedEvent#event()} payload
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class EventJSON {
+public final class EventJSON {
     private transient JSONEventSerializer jsonSerializer;
     /**
      * Cache or the {@link #json} deserialized back to its {@link #eventTypeOrName} form
      */
-    private transient Optional<Object>    jsonDeserialized;
+    private transient Optional<Object> jsonDeserialized;
     private final     EventTypeOrName  eventTypeOrName;
     private final     String           json;
 

@@ -28,7 +28,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * To deliver a Dead Letter Message you must first resurrect the message using {@link DurableQueues#resurrectDeadLetterMessage(QueueEntryId, Duration)}<br>
  * Operation also matches {@link DurableQueuesInterceptor#intercept(QueueMessageAsDeadLetterMessage, InterceptorChain)}
  */
-public class QueueMessageAsDeadLetterMessage {
+public final class QueueMessageAsDeadLetterMessage {
     public final QueueName queueName;
     private      Message   message;
     private      Exception causeOfError;

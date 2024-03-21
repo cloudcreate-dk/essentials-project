@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * Note: There no guarantee that the known currencies ({@link #getKnownCurrencyCodes()}) are correct or up to date, use at own risk.<br>
  * This class is thread safe
  */
-public class CurrencyCode extends CharSequenceType<CurrencyCode> {
+public final class CurrencyCode extends CharSequenceType<CurrencyCode> {
     private static final ConcurrentSkipListSet<String> KNOWN_CURRENCY_CODES = new ConcurrentSkipListSet<>();
 
     /**

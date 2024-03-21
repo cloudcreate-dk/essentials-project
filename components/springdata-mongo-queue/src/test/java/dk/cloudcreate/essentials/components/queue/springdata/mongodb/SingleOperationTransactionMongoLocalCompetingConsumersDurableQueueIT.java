@@ -30,7 +30,7 @@ import java.time.Duration;
 
 @Testcontainers
 @DataMongoTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class SingleOperationTransactionMongoLocalCompetingConsumersDurableQueueIT extends LocalCompetingConsumersDurableQueueIT<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
     @Container
     static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:latest");

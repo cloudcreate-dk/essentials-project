@@ -30,7 +30,7 @@ import org.testcontainers.junit.jupiter.*;
 
 @Testcontainers
 @DataMongoTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class MongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
     @Container
     static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:latest");

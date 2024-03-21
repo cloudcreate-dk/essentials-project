@@ -26,7 +26,7 @@ import java.sql.Types;
  * Base implementation for a {@link ByteType}.<br>
  * Extend this class to support your concrete {@link ByteType} sub-type:
  * <pre>{@code
- * public class SymbolArgumentFactory extends ByteTypeArgumentFactory<Symbol> {
+ * public final class SymbolArgumentFactory extends ByteTypeArgumentFactory<Symbol> {
  * }}</pre>
  *
  * @param <T> the concrete {@link ByteType} subclass

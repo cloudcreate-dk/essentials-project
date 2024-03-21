@@ -5,6 +5,9 @@ Essentials is a set of Java version 17 (and later) building blocks built from th
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and strongly typed code, which doesn't depend on other libraries or frameworks, but
 instead allows easy integrations with many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
 
+> **NOTE:**  
+> **The library is WORK-IN-PROGRESS**
+
 ## Immutable-Jackson
 
 This library focuses purely on providing https://github.com/FasterXML/jackson deserialization support for immutable classes or other classes that don't have a suitable creator
@@ -46,7 +49,7 @@ To use `Immutable-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable-jackson</artifactId>
-    <version>0.20.12</version>
+    <version>0.20.13</version>
 </dependency>
 ```
 

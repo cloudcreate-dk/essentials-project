@@ -27,7 +27,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * that will be supported by the {@link dk.cloudcreate.essentials.types.springdata.mongo.SingleValueTypeConverter}
  * that is registered in {@link EssentialsComponentsConfiguration#mongoCustomConversions(Optional, Optional)}
  */
-public class AdditionalCharSequenceTypesSupported {
+public final class AdditionalCharSequenceTypesSupported {
     public final List<Class<? extends CharSequenceType<?>>> charSequenceTypes;
 
     public AdditionalCharSequenceTypesSupported() {
