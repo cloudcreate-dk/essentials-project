@@ -23,7 +23,7 @@ By using naming conventions for Postgresql table/column/index names and MongoDB 
 
 > Please see the **Security** notices for [components README.md](components/README.md), as well as **Security** notices for the individual components, to familiarize yourself with the security
 > risks related to using the Components:
-> - [foundation-types](foundation-types/README.md)
+> - [foundation-types](components/foundation-types/README.md)
 > - [postgresql-distributed-fenced-lock](components/postgresql-distributed-fenced-lock/README.md)
 > - [springdata-mongo-distributed-fenced-lock](components/springdata-mongo-distributed-fenced-lock/README.md)
 > - [postgresql-queue](components/postgresql-queue/README.md)
