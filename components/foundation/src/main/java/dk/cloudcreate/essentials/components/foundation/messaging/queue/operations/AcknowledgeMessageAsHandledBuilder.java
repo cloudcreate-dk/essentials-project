@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueEntr
 /**
  * Builder for {@link AcknowledgeMessageAsHandled}
  */
-public class AcknowledgeMessageAsHandledBuilder {
+public final class AcknowledgeMessageAsHandledBuilder {
     private QueueEntryId queueEntryId;
 
     /**

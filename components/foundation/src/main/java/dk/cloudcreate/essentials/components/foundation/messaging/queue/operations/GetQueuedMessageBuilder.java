@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueEntr
 /**
  * Builder for {@link GetQueuedMessage}
  */
-public class GetQueuedMessageBuilder {
+public final class GetQueuedMessageBuilder {
     private QueueEntryId queueEntryId;
 
     /**

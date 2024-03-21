@@ -28,6 +28,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuePollingOptimizer.SimpleQueuePollingOptimizer;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
+import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
@@ -66,8 +67,26 @@ import static org.springframework.data.mongodb.core.query.Query.query;
  * Spring-data MongoDB version of the {@link DurableQueues} concept.<br>
  * Supports both {@link TransactionalMode#FullyTransactional} in collaboration with a {@link UnitOfWorkFactory} in order to support queuing message together with business logic (such as failing to handle an Event, etc.)
  * as well as {@link TransactionalMode#SingleOperationTransaction}
+ * <br>
+ * <u><b>Security:</b></u><br>
+ * To support customization of storage collection name, the {@link #getSharedQueueCollectionName()} will be directly used as Collection name,
+ * which exposes the component to the risk of malicious input.<br>
+ * <br>
+ * <strong>Security Note:</strong><br>
+ * It is the responsibility of the user of this component to sanitize the {@code sharedQueueCollectionName}
+ * to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoDurableQueues}, will
+ * call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+ * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+ * However, Essentials components as well as {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+ * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+ * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+ * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+ * <br>
+ * It is highly recommended that the {@code sharedQueueCollectionName} value is only derived from a controlled and trusted source.<br>
+ * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code sharedQueueCollectionName} value.<br>
+ * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
  */
-public class MongoDurableQueues implements DurableQueues {
+public final class MongoDurableQueues implements DurableQueues {
 
     protected static final Logger                                            log                                    = LoggerFactory.getLogger(MongoDurableQueues.class);
     public static final    String                                            DEFAULT_DURABLE_QUEUES_COLLECTION_NAME = "durable_queues";
@@ -108,7 +127,8 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     /**
-     * Create {@link DurableQueues} running in {@link TransactionalMode#SingleOperationTransaction} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}, default {@link ObjectMapper}
+     * Create {@link DurableQueues} running in {@link TransactionalMode#SingleOperationTransaction} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME},
+     * the default {@link JacksonJSONSerializer} using {@link #createDefaultObjectMapper()}
      * configuration
      *
      * @param mongoTemplate                the {@link MongoTemplate} used
@@ -130,7 +150,8 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     /**
-     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME} and a default {@link ObjectMapper}
+     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME} and
+     * the default {@link JacksonJSONSerializer} using {@link #createDefaultObjectMapper()}
      * configuration
      *
      * @param mongoTemplate     the {@link MongoTemplate} used
@@ -171,7 +192,24 @@ public class MongoDurableQueues implements DurableQueues {
      * @param mongoTemplate                the {@link MongoTemplate} used
      * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
      * @param jsonSerializer               the {@link JSONSerializer} that is used to serialize/deserialize message payloads
-     * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)
+     * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)<br>
+     *                                     <strong>Note:</strong><br>
+     *                                     To support customization of storage collection name, the {@code sharedQueueCollectionName} will be directly used as Collection name,
+     *                                     which exposes the component to the risk of malicious input.<br>
+     *                                     <br>
+     *                                     <strong>Security Note:</strong><br>
+     *                                     It is the responsibility of the user of this component to sanitize the {@code sharedQueueCollectionName}
+     *                                     to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoDurableQueues}, will
+     *                                     call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+     *                                     The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+     *                                     However, Essentials components as well as {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+     *                                     <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+     *                                     Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+     *                                     Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+     *                                     <br>
+     *                                     It is highly recommended that the {@code sharedQueueCollectionName} value is only derived from a controlled and trusted source.<br>
+     *                                     To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code sharedQueueCollectionName} value.<br>
+     *                                     <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
      * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
      *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
@@ -190,7 +228,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     /**
-     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with custom messagePayloadObjectMapper and with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
+     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with custom jsonSerializer and with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME}
      *
      * @param mongoTemplate                the {@link MongoTemplate} used
      * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
@@ -218,7 +256,24 @@ public class MongoDurableQueues implements DurableQueues {
      * @param messageHandlingTimeout       Defines the timeout for messages being delivered, but haven't yet been acknowledged.
      *                                     After this timeout the message delivery will be reset and the message will again be a candidate for delivery
      * @param jsonSerializer               the {@link JSONSerializer} that is used to serialize/deserialize message payloads
-     * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)
+     * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)<br>
+     *                                     <strong>Note:</strong><br>
+     *                                     To support customization of storage collection name, the {@code sharedQueueCollectionName} will be directly used as Collection name,
+     *                                     which exposes the component to the risk of malicious input.<br>
+     *                                     <br>
+     *                                     <strong>Security Note:</strong><br>
+     *                                     It is the responsibility of the user of this component to sanitize the {@code sharedQueueCollectionName}
+     *                                     to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoDurableQueues}, will
+     *                                     call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+     *                                     The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+     *                                     However, {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+     *                                     <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+     *                                     Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+     *                                     Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+     *                                     <br>
+     *                                     It is highly recommended that the {@code sharedQueueCollectionName} value is only derived from a controlled and trusted source.<br>
+     *                                     To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code sharedQueueCollectionName} value.<br>
+     *                                     <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
      * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
      *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
@@ -268,7 +323,24 @@ public class MongoDurableQueues implements DurableQueues {
      * @param messageHandlingTimeout       Only relevant when using {@link TransactionalMode#SingleOperationTransaction} and defines the timeout for messages being delivered, but haven't yet been acknowledged.
      *                                     After this timeout the message delivery will be reset and the message will again be a candidate for delivery
      * @param jsonSerializer               the {@link JSONSerializer} that is used to serialize/deserialize message payloads
-     * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)
+     * @param sharedQueueCollectionName    the name of the collection that will contain all messages (across all {@link QueueName}'s)<br>
+     *                                     <strong>Note:</strong><br>
+     *                                     To support customization of storage collection name, the {@code sharedQueueCollectionName} will be directly used as Collection name,
+     *                                     which exposes the component to the risk of malicious input.<br>
+     *                                     <br>
+     *                                     <strong>Security Note:</strong><br>
+     *                                     It is the responsibility of the user of this component to sanitize the {@code sharedQueueCollectionName}
+     *                                     to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoDurableQueues}, will
+     *                                     call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+     *                                     The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+     *                                     However, {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+     *                                     <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+     *                                     Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+     *                                     Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+     *                                     <br>
+     *                                     It is highly recommended that the {@code sharedQueueCollectionName} value is only derived from a controlled and trusted source.<br>
+     *                                     To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code sharedQueueCollectionName} value.<br>
+     *                                     <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
      * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
      *                                     if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead
      */
@@ -294,34 +366,39 @@ public class MongoDurableQueues implements DurableQueues {
         this.jsonSerializer = requireNonNull(jsonSerializer, "No messagePayloadObjectMapper");
         this.sharedQueueCollectionName = requireNonNull(sharedQueueCollectionName, "No sharedQueueCollectionName provided").toLowerCase(Locale.ROOT);
         this.queuePollingOptimizerFactory = queuePollingOptimizerFactory != null ? queuePollingOptimizerFactory : this::createQueuePollingOptimizerFor;
-
+        MongoUtil.checkIsValidCollectionName(this.sharedQueueCollectionName);
         initializeQueueCollection();
         this.messageListenerContainer = new DefaultMessageListenerContainer(mongoTemplate);
     }
 
     /**
-     * Override only if the default collection or index name approach doesn't work for you
+     * Context: support customization of storage collection name, the {@link #sharedQueueCollectionName} will be directly used as Collection name,
+     * which exposes the component to the risk of malicious input.<br>
+     * <br>
+     * <strong>Security Note:</strong><br>
+     * It is the responsibility of the user of this component to sanitize the {@code sharedQueueCollectionName}
+     * to ensure the security of the resulting MongoDB configuration and associated Queries/Updates/etc. The {@link MongoDurableQueues}, will
+     * call the {@link MongoUtil#checkIsValidCollectionName(String)} method to validate the collection name as a first line of defense.<br>
+     * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
+     * However, {@link MongoUtil#checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+     * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+     * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
+     * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
+     * <br>
+     * It is highly recommended that the {@code sharedQueueCollectionName} value is only derived from a controlled and trusted source.<br>
+     * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code sharedQueueCollectionName} value.<br>
+     * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
      */
-    protected void initializeQueueCollection() {
+    private void initializeQueueCollection() {
+        MongoUtil.checkIsValidCollectionName(this.sharedQueueCollectionName);
         if (!mongoTemplate.collectionExists(this.sharedQueueCollectionName)) {
             try {
                 mongoTemplate.createCollection(this.sharedQueueCollectionName);
             } catch (Exception e) {
                 if (!mongoTemplate.collectionExists(this.sharedQueueCollectionName)) {
-                    throw new RuntimeException(msg("Failed to create Queue collection '{}'", this.sharedQueueCollectionName), e);
+                    throw new RuntimeException(msg("Failed to create Queue collection '{}'", this.sharedQueueCollectionName),e);
                 }
             }
-        } else {
-            // Migrate old messages that doesn't include the ordered messages properties
-            Query query = new Query();
-            query.addCriteria(Criteria.where("keyOrder").exists(false));
-
-            Update update = new Update();
-            update.set("key", null);
-            update.set("keyOrder", -1);
-            update.set("deliveryMode", QueuedMessage.DeliveryMode.NORMAL);
-
-            mongoTemplate.updateMulti(query, update, sharedQueueCollectionName);
         }
 
         // Ensure indexes
@@ -356,19 +433,19 @@ public class MongoDurableQueues implements DurableQueues {
         indexes.forEach((indexName, index) -> {
             log.debug("Ensuring Index '{}' on Collection '{}': {}",
                       indexName,
-                      sharedQueueCollectionName,
+                      this.sharedQueueCollectionName,
                       index);
             try {
                 allIndexes.stream().filter(indexInfo -> indexInfo.getName().equals(indexName)).findFirst()
                           .ifPresent(indexInfo -> {
                               log.trace("[{}] Index '{}' - Existing index: {}\nNew index: {}",
-                                        sharedQueueCollectionName,
+                                        this.sharedQueueCollectionName,
                                         indexName,
                                         indexInfo,
                                         index);
                               if (!indexInfo.isIndexForFields(index.getIndexKeys().keySet())) {
                                   log.debug("[{}] Deleting outdated index '{}'",
-                                            sharedQueueCollectionName,
+                                            this.sharedQueueCollectionName,
                                             indexInfo.getName());
                                   indexOperations.dropIndex(indexInfo.getName());
                               }
@@ -381,9 +458,14 @@ public class MongoDurableQueues implements DurableQueues {
         });
     }
 
+    public final String getSharedQueueCollectionName() {
+        return sharedQueueCollectionName;
+    }
+
     @Override
-    public void start() {
+    public final void start() {
         if (!started) {
+            MongoUtil.checkIsValidCollectionName(this.sharedQueueCollectionName);
             started = true;
             log.info("Starting");
             interceptors.forEach(durableQueuesInterceptor -> durableQueuesInterceptor.setDurableQueues(this));
@@ -395,7 +477,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public void stop() {
+    public final void stop() {
         if (started) {
             log.info("Stopping");
             durableQueueConsumers.values().forEach(MongoDurableQueueConsumer::stop);
@@ -407,11 +489,11 @@ public class MongoDurableQueues implements DurableQueues {
 
 
     @Override
-    public boolean isStarted() {
+    public final boolean isStarted() {
         return started;
     }
 
-    protected void startCollectionListener() {
+    protected final void startCollectionListener() {
         MessageListener<ChangeStreamDocument<Document>, DurableQueuedMessage> listener = message -> {
             try {
                 if (message.getBody() == null) {
@@ -435,7 +517,7 @@ public class MongoDurableQueues implements DurableQueues {
             }
         };
         ChangeStreamRequest<DurableQueuedMessage> request = ChangeStreamRequest.builder()
-                                                                               .collection(sharedQueueCollectionName)
+                                                                               .collection(this.sharedQueueCollectionName)
                                                                                .filter(newAggregation(
                                                                                        match(where("operationType").in("insert", "update", "replace")),
                                                                                        match(where("queueName").exists(true))
@@ -455,7 +537,7 @@ public class MongoDurableQueues implements DurableQueues {
         messageListenerContainer.start();
     }
 
-    protected void stopCollectionListener() {
+    protected final void stopCollectionListener() {
         if (changeSubscription != null) {
             changeSubscription.cancel();
         }
@@ -465,17 +547,17 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public TransactionalMode getTransactionalMode() {
+    public final TransactionalMode getTransactionalMode() {
         return transactionalMode;
     }
 
     @Override
-    public Optional<UnitOfWorkFactory<? extends UnitOfWork>> getUnitOfWorkFactory() {
+    public final Optional<UnitOfWorkFactory<? extends UnitOfWork>> getUnitOfWorkFactory() {
         return Optional.ofNullable(unitOfWorkFactory);
     }
 
     @Override
-    public DurableQueues addInterceptor(DurableQueuesInterceptor interceptor) {
+    public final DurableQueues addInterceptor(DurableQueuesInterceptor interceptor) {
         requireNonNull(interceptor, "No interceptor provided");
         log.info("Adding interceptor: {}", interceptor);
         interceptor.setDurableQueues(this);
@@ -485,7 +567,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public DurableQueues removeInterceptor(DurableQueuesInterceptor interceptor) {
+    public final DurableQueues removeInterceptor(DurableQueuesInterceptor interceptor) {
         requireNonNull(interceptor, "No interceptor provided");
         log.info("Removing interceptor: {}", interceptor);
         interceptors.remove(interceptor);
@@ -495,11 +577,11 @@ public class MongoDurableQueues implements DurableQueues {
 
 
     @Override
-    public Set<QueueName> getQueueNames() {
+    public final Set<QueueName> getQueueNames() {
         var consumerQueueNames = durableQueueConsumers.keySet();
         var dbQueueNames = new HashSet<>(mongoTemplate.findDistinct(new Query(),
                                                                     "queueName",
-                                                                    sharedQueueCollectionName,
+                                                                    this.sharedQueueCollectionName,
                                                                     QueueName.class));
 
         dbQueueNames.addAll(consumerQueueNames);
@@ -507,7 +589,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public QueueEntryId queueMessage(QueueMessage operation) {
+    public final QueueEntryId queueMessage(QueueMessage operation) {
         requireNonNull(operation, "You must provide a QueueMessage instance");
         return newInterceptorChainForOperation(operation,
                                                interceptors,
@@ -521,7 +603,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public QueueEntryId queueMessageAsDeadLetterMessage(QueueMessageAsDeadLetterMessage operation) {
+    public final QueueEntryId queueMessageAsDeadLetterMessage(QueueMessageAsDeadLetterMessage operation) {
         requireNonNull(operation, "You must provide a QueueMessageAsDeadLetterMessage instance");
         return newInterceptorChainForOperation(operation,
                                                interceptors,
@@ -534,7 +616,7 @@ public class MongoDurableQueues implements DurableQueues {
                 .proceed();
     }
 
-    protected QueueEntryId queueMessage(QueueName queueName, Message message, boolean isDeadLetterMessage, Optional<Exception> causeOfEnqueuing, Optional<Duration> deliveryDelay) {
+    protected final QueueEntryId queueMessage(QueueName queueName, Message message, boolean isDeadLetterMessage, Optional<Exception> causeOfEnqueuing, Optional<Duration> deliveryDelay) {
         requireNonNull(queueName, "You must provide a queueName");
         requireNonNull(message, "You must provide a message");
         requireNonNull(causeOfEnqueuing, "You must provide a causeOfEnqueuing option");
@@ -560,7 +642,7 @@ public class MongoDurableQueues implements DurableQueues {
 
         var durableQueuedMessage = createDurableQueuedMessage(queueName, isDeadLetterMessage, addedTimestamp, nextDeliveryTimestamp, message);
 
-        mongoTemplate.save(durableQueuedMessage, sharedQueueCollectionName);
+        mongoTemplate.save(durableQueuedMessage, this.sharedQueueCollectionName);
         log.debug("[{}:{}] Queued {}{}message{} with nextDeliveryTimestamp {}. TransactionalMode: {}",
                   queueName,
                   queueEntryId,
@@ -574,7 +656,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public Optional<QueuedMessage> getDeadLetterMessage(GetDeadLetterMessage operation) {
+    public final Optional<QueuedMessage> getDeadLetterMessage(GetDeadLetterMessage operation) {
         requireNonNull(operation, "You must specify a GetDeadLetterMessage instance");
         return newInterceptorChainForOperation(operation,
                                                interceptors,
@@ -584,17 +666,17 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public Optional<QueueName> getQueueNameFor(QueueEntryId queueEntryId) {
+    public final Optional<QueueName> getQueueNameFor(QueueEntryId queueEntryId) {
         var query = new Query(where("id").is(queueEntryId.toString()));
         return Optional.ofNullable(mongoTemplate.findOne(query,
                                                          DurableQueuedMessage.class,
-                                                         sharedQueueCollectionName))
+                                                         this.sharedQueueCollectionName))
                        .map(DurableQueuedMessage::getQueueName);
 
     }
 
     @Override
-    public Optional<QueuedMessage> getQueuedMessage(GetQueuedMessage operation) {
+    public final Optional<QueuedMessage> getQueuedMessage(GetQueuedMessage operation) {
         requireNonNull(operation, "You must specify a GetQueuedMessage instance");
         return newInterceptorChainForOperation(operation,
                                                interceptors,
@@ -603,12 +685,12 @@ public class MongoDurableQueues implements DurableQueues {
                 .proceed();
     }
 
-    protected Optional<QueuedMessage> getQueuedMessage(QueueEntryId queueEntryId, boolean isDeadLetterMessage) {
+    protected final Optional<QueuedMessage> getQueuedMessage(QueueEntryId queueEntryId, boolean isDeadLetterMessage) {
         var query = new Query(where("id").is(queueEntryId)
                                          .and("isDeadLetterMessage").is(isDeadLetterMessage));
         return Optional.ofNullable(mongoTemplate.findOne(query,
                                                          DurableQueuedMessage.class,
-                                                         sharedQueueCollectionName))
+                                                         this.sharedQueueCollectionName))
                        .map(durableQueuedMessage -> durableQueuedMessage.setDeserializeMessagePayloadFunction(this::deserializeMessagePayload));
     }
 
@@ -621,7 +703,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public List<QueueEntryId> queueMessages(QueueMessages operation) {
+    public final List<QueueEntryId> queueMessages(QueueMessages operation) {
         requireNonNull(operation, "You must provide a QueueMessages instance");
         operation.validate();
 
@@ -645,7 +727,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                           .collect(Collectors.toList());
 
                                                    var insertedEntryIds = mongoTemplate.insert(messages,
-                                                                                               sharedQueueCollectionName)
+                                                                                               this.sharedQueueCollectionName)
                                                                                        .stream()
                                                                                        .map(DurableQueuedMessage::getId)
                                                                                        .collect(Collectors.toList());
@@ -701,7 +783,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public Optional<QueuedMessage> retryMessage(RetryMessage operation) {
+    public final Optional<QueuedMessage> retryMessage(RetryMessage operation) {
         requireNonNull(operation, "You must provide a RetryMessage instance");
         operation.validate();
         return newInterceptorChainForOperation(operation,
@@ -727,7 +809,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                                   update,
                                                                                                   FindAndModifyOptions.options().returnNew(true),
                                                                                                   DurableQueuedMessage.class,
-                                                                                                  sharedQueueCollectionName);
+                                                                                                  this.sharedQueueCollectionName);
                                                    if (updateResult != null && !updateResult.isBeingDelivered) {
                                                        log.debug("[{}] Marked Message with id '{}' for Retry at {}. Message entry after update: {}",
                                                                  updateResult.queueName,
@@ -743,7 +825,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public Optional<QueuedMessage> markAsDeadLetterMessage(MarkAsDeadLetterMessage operation) {
+    public final Optional<QueuedMessage> markAsDeadLetterMessage(MarkAsDeadLetterMessage operation) {
         requireNonNull(operation, "You must provide a MarkAsDeadLetterMessage instance");
         operation.validate();
         return newInterceptorChainForOperation(operation,
@@ -767,7 +849,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                                   update,
                                                                                                   FindAndModifyOptions.options().returnNew(true),
                                                                                                   DurableQueuedMessage.class,
-                                                                                                  sharedQueueCollectionName);
+                                                                                                  this.sharedQueueCollectionName);
                                                    if (updateResult != null && updateResult.isDeadLetterMessage) {
                                                        log.debug("[{}] Marked message with id '{}' as Dead Letter Message. Message entry after update: {}", updateResult.queueName, queueEntryId, updateResult);
                                                        return Optional.of((QueuedMessage) updateResult);
@@ -779,7 +861,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public Optional<QueuedMessage> resurrectDeadLetterMessage(ResurrectDeadLetterMessage operation) {
+    public final Optional<QueuedMessage> resurrectDeadLetterMessage(ResurrectDeadLetterMessage operation) {
         requireNonNull(operation, "You must provide a ResurrectDeadLetterMessage instance");
         operation.validate();
         return newInterceptorChainForOperation(operation,
@@ -804,7 +886,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                                   update,
                                                                                                   FindAndModifyOptions.options().returnNew(true),
                                                                                                   DurableQueuedMessage.class,
-                                                                                                  sharedQueueCollectionName);
+                                                                                                  this.sharedQueueCollectionName);
 
                                                    if (updateResult != null && !updateResult.isDeadLetterMessage) {
                                                        var isOrderedMessage = updateResult.deliveryMode == QueuedMessage.DeliveryMode.IN_ORDER;
@@ -824,7 +906,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public boolean acknowledgeMessageAsHandled(AcknowledgeMessageAsHandled operation) {
+    public final boolean acknowledgeMessageAsHandled(AcknowledgeMessageAsHandled operation) {
         requireNonNull(operation, "You must provide a AcknowledgeMessageAsHandled instance");
 
         return newInterceptorChainForOperation(operation,
@@ -839,7 +921,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public boolean deleteMessage(DeleteMessage operation) {
+    public final boolean deleteMessage(DeleteMessage operation) {
         requireNonNull(operation, "You must provide a DeleteMessage instance");
 
         return newInterceptorChainForOperation(operation,
@@ -852,7 +934,7 @@ public class MongoDurableQueues implements DurableQueues {
 
 
                                                    var queueEntryId    = operation.queueEntryId;
-                                                   var messagesDeleted = mongoTemplate.remove(query(where("_id").is(queueEntryId.toString())), sharedQueueCollectionName).getDeletedCount();
+                                                   var messagesDeleted = mongoTemplate.remove(query(where("_id").is(queueEntryId.toString())), this.sharedQueueCollectionName).getDeletedCount();
                                                    if (messagesDeleted == 1) {
                                                        log.debug("Deleted Message with id '{}'", queueEntryId);
                                                        return true;
@@ -864,7 +946,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public Optional<QueuedMessage> getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery operation) {
+    public final Optional<QueuedMessage> getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery operation) {
         requireNonNull(operation, "You must specify a GetNextMessageReadyForDelivery instance");
         return newInterceptorChainForOperation(operation,
                                                interceptors,
@@ -911,7 +993,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                                               update,
                                                                                                               FindAndModifyOptions.options().returnNew(true),
                                                                                                               DurableQueuedMessage.class,
-                                                                                                              sharedQueueCollectionName);
+                                                                                                              this.sharedQueueCollectionName);
 
                                                        if (nextMessageToDeliver != null && nextMessageToDeliver.isBeingDelivered()) {
                                                            var deliverMessage = resolveIfMessageShouldBeDelivered(queueName, nextMessageToDeliver);
@@ -966,7 +1048,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                         .with(Sort.by(Sort.Direction.ASC, "keyOrder"))
                                                                                         .limit(10),
                                                                                 DurableQueuedMessage.class,
-                                                                                sharedQueueCollectionName);
+                                                                                this.sharedQueueCollectionName);
             if (queuedMessagesWithSameKeyAndALowerKeyOrder.size() > 0) {
                 var findOrderedMessagesWithTheSameKeyAndAHigherOrder = query(where("queueName").is(queueName.toString())
                                                                                                .and("key").is(nextMessageToDeliver.key)
@@ -987,7 +1069,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                                              firstDeadLetterMessageWithSameKey.getKeyOrder())),
                                                                    FindAndModifyOptions.options().returnNew(true),
                                                                    DurableQueuedMessage.class,
-                                                                   sharedQueueCollectionName);
+                                                                   this.sharedQueueCollectionName);
                     if (updateResult != null && !updateResult.isBeingDelivered()) {
                         var reason = msg("Resetting message with id '{}' (key: '{}', order: {}) as not being delivered and marking it as a Dead Letter Message, because message '{}' (order: {}) is marked as a Dead Letter Message",
                                          nextMessageToDeliver.getId(),
@@ -1008,7 +1090,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                                                   firstDeadLetterMessageWithSameKey.getKeyOrder()));
                     var updatedResult = mongoTemplate.updateMulti(findOrderedMessagesWithTheSameKeyAndAHigherOrder,
                                                                   markAsDeadLetterMessageUpdate,
-                                                                  sharedQueueCollectionName);
+                                                                  this.sharedQueueCollectionName);
                     if (updatedResult.getModifiedCount() > 0) {
                         log.debug("** [{}] Marked {} message(s) with key '{}' and order > '{}' as Dead Letter Messages, because Message '{}' with same key '{}' and lower order '{}' was already marked as a Dead Letter Message",
                                   queueName,
@@ -1033,7 +1115,7 @@ public class MongoDurableQueues implements DurableQueues {
                                                                    adjustNextDeliveryTimestampUpdate,
                                                                    FindAndModifyOptions.options().returnNew(true),
                                                                    DurableQueuedMessage.class,
-                                                                   sharedQueueCollectionName);
+                                                                   this.sharedQueueCollectionName);
                     if (updateResult != null && updateResult.getNextDeliveryTimestamp().equals(nextDeliveryTimestamp)) {
                         var reason = msg("Adjusting message nextDeliveryTimestamp for message with id '{}' (key: '{}', order: {}) to ´{}´ because message '{}' (order: {}) has nextDeliveryTimestamp '{}'",
                                          nextMessageToDeliver.getId(),
@@ -1050,7 +1132,7 @@ public class MongoDurableQueues implements DurableQueues {
 
                     var updateNextDeliveryTimestamp = new Update().set("nextDeliveryTimestamp", nextDeliveryTimestamp.plus(100, ChronoUnit.MILLIS).toInstant());
 
-                    var updatedResult = mongoTemplate.updateMulti(findOrderedMessagesWithTheSameKeyAndAHigherOrder, updateNextDeliveryTimestamp, sharedQueueCollectionName);
+                    var updatedResult = mongoTemplate.updateMulti(findOrderedMessagesWithTheSameKeyAndAHigherOrder, updateNextDeliveryTimestamp, this.sharedQueueCollectionName);
                     if (updatedResult.getModifiedCount() > 0) {
                         log.debug("** [{}] Updated {} messages nextDeliveryTimestamp to '{}', because Message '{}' with same key '{}' and lower order '{}' has nextDeliveryTimestamp '{}'",
                                   queueName,
@@ -1078,7 +1160,7 @@ public class MongoDurableQueues implements DurableQueues {
      *
      * @param queueName the queue for which we're looking for messages stuck being marked as {@link QueuedMessage#isBeingDelivered()}
      */
-    protected void resetMessagesStuckBeingDelivered(QueueName queueName) {
+    protected final void resetMessagesStuckBeingDelivered(QueueName queueName) {
         // Reset stuck messages
         if (transactionalMode == TransactionalMode.SingleOperationTransaction) {
             var now                            = Instant.now();
@@ -1100,7 +1182,7 @@ public class MongoDurableQueues implements DurableQueues {
 
                 var updateResult = mongoTemplate.updateMulti(stuckMessagesQuery,
                                                              update,
-                                                             sharedQueueCollectionName);
+                                                             this.sharedQueueCollectionName);
                 if (updateResult.getModifiedCount() > 0) {
                     log.debug("[{}] Reset {} messages stuck marked as isBeingDelivered", queueName, updateResult.getModifiedCount());
                 } else {
@@ -1112,36 +1194,36 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public boolean hasMessagesQueuedFor(QueueName queueName) {
+    public final boolean hasMessagesQueuedFor(QueueName queueName) {
         return getTotalMessagesQueuedFor(queueName) > 0;
     }
 
     @Override
-    public long getTotalMessagesQueuedFor(GetTotalMessagesQueuedFor operation) {
+    public final long getTotalMessagesQueuedFor(GetTotalMessagesQueuedFor operation) {
         requireNonNull(operation, "You must specify a GetTotalMessagesQueuedFor instance");
         return newInterceptorChainForOperation(operation,
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> mongoTemplate.count(query(where("queueName").is(operation.queueName)
                                                                                                  .and("isDeadLetterMessage").is(false)),
-                                                                         sharedQueueCollectionName))
+                                                                         this.sharedQueueCollectionName))
                 .proceed();
     }
 
     @Override
-    public long getTotalDeadLetterMessagesQueuedFor(GetTotalDeadLetterMessagesQueuedFor operation) {
+    public final long getTotalDeadLetterMessagesQueuedFor(GetTotalDeadLetterMessagesQueuedFor operation) {
         requireNonNull(operation, "You must specify a GetTotalDeadLetterMessagesQueuedFor instance");
         return newInterceptorChainForOperation(operation,
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> mongoTemplate.count(query(where("queueName").is(operation.queueName)
                                                                                                  .and("isDeadLetterMessage").is(true)),
-                                                                         sharedQueueCollectionName))
+                                                                         this.sharedQueueCollectionName))
                 .proceed();
     }
 
     @Override
-    public List<QueuedMessage> getQueuedMessages(GetQueuedMessages operation) {
+    public final List<QueuedMessage> getQueuedMessages(GetQueuedMessages operation) {
         requireNonNull(operation, "You must specify a GetQueuedMessages instance");
         return newInterceptorChainForOperation(operation,
                                                interceptors,
@@ -1164,7 +1246,7 @@ public class MongoDurableQueues implements DurableQueues {
         ALL, DEAD_LETTER_MESSAGES, QUEUED_MESSAGES
     }
 
-    protected List<QueuedMessage> queryQueuedMessages(QueueName queueName, QueueingSortOrder queueingSortOrder, IncludeMessages includeMessages, long startIndex, long pageSize) {
+    protected final List<QueuedMessage> queryQueuedMessages(QueueName queueName, QueueingSortOrder queueingSortOrder, IncludeMessages includeMessages, long startIndex, long pageSize) {
         requireNonNull(queueName, "No queueName provided");
         requireNonNull(queueingSortOrder, "No queueingOrder provided");
         requireNonNull(includeMessages, "No includeMessages provided");
@@ -1188,24 +1270,24 @@ public class MongoDurableQueues implements DurableQueues {
                                           .limit((int) pageSize)
                                           .skip(startIndex),
                                   DurableQueuedMessage.class,
-                                  sharedQueueCollectionName)
+                                  this.sharedQueueCollectionName)
                             .stream()
                             .map(durableQueuedMessage -> durableQueuedMessage.setDeserializeMessagePayloadFunction(this::deserializeMessagePayload))
                             .collect(Collectors.toList());
     }
 
     @Override
-    public int purgeQueue(PurgeQueue operation) {
+    public final int purgeQueue(PurgeQueue operation) {
         requireNonNull(operation, "You must specify a PurgeQueue instance");
         return newInterceptorChainForOperation(operation,
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
-                                               () -> (int) mongoTemplate.remove(query(where("queueName").is(operation.queueName)), sharedQueueCollectionName).getDeletedCount())
+                                               () -> (int) mongoTemplate.remove(query(where("queueName").is(operation.queueName)), this.sharedQueueCollectionName).getDeletedCount())
                 .proceed();
     }
 
     @Override
-    public List<NextQueuedMessage> queryForMessagesSoonReadyForDelivery(QueueName queueName, Instant withNextDeliveryTimestampAfter, int maxNumberOfMessagesToReturn) {
+    public final List<NextQueuedMessage> queryForMessagesSoonReadyForDelivery(QueueName queueName, Instant withNextDeliveryTimestampAfter, int maxNumberOfMessagesToReturn) {
         requireNonNull(queueName, "No queueName provided");
         requireNonNull(withNextDeliveryTimestampAfter, "No withNextDeliveryTimestampAfter provided");
         var criteria = where("queueName").is(queueName.toString())
@@ -1220,7 +1302,7 @@ public class MongoDurableQueues implements DurableQueues {
              .include("addedTimestamp", "nextDeliveryTimestamp");
         return mongoTemplate.find(query,
                                   DurableQueuedMessage.class,
-                                  sharedQueueCollectionName)
+                                  this.sharedQueueCollectionName)
                             .stream()
                             .map(durableQueuedMessage -> new NextQueuedMessage(durableQueuedMessage.id,
                                                                                queueName,
@@ -1230,7 +1312,7 @@ public class MongoDurableQueues implements DurableQueues {
     }
 
     @Override
-    public DurableQueueConsumer consumeFromQueue(ConsumeFromQueue operation) {
+    public final DurableQueueConsumer consumeFromQueue(ConsumeFromQueue operation) {
         requireNonNull(operation, "No operation provided");
         if (durableQueueConsumers.containsKey(operation.queueName)) {
             throw new DurableQueueException("There is already an DurableConsumer for this queue", operation.queueName);
@@ -1259,14 +1341,14 @@ public class MongoDurableQueues implements DurableQueues {
      * @param operation the operation for which the {@link QueuePollingOptimizer} will be responsible
      * @return the {@link QueuePollingOptimizer}
      */
-    protected QueuePollingOptimizer createQueuePollingOptimizerFor(ConsumeFromQueue operation) {
+    protected final QueuePollingOptimizer createQueuePollingOptimizerFor(ConsumeFromQueue operation) {
         var pollingIntervalMs = operation.getPollingInterval().toMillis();
         return new SimpleQueuePollingOptimizer(operation,
                                                (long) (pollingIntervalMs * 0.5d),
                                                pollingIntervalMs * 20);
     }
 
-    void removeQueueConsumer(DurableQueueConsumer durableQueueConsumer) {
+    final void removeQueueConsumer(DurableQueueConsumer durableQueueConsumer) {
         requireNonNull(durableQueueConsumer, "You must provide a durableQueueConsumer");
         requireFalse(durableQueueConsumer.isStarted(), msg("Cannot remove DurableQueueConsumer '{}' since it's started!", durableQueueConsumer.queueName()));
         var operation = new StopConsumingFromQueue(durableQueueConsumer);

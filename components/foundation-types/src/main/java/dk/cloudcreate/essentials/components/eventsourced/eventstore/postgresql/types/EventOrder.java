@@ -16,19 +16,19 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.types.LongType;
 
 /**
  * Each event has its own unique position within the stream, also known as the event-order,
- * which defines the order, in which the events were added to the aggregates {@link AggregateEventStream}<br>
+ * which defines the order, in which the events were added to the aggregates AggregateEventStream<br>
  * <br>
  * The first eventOrder should have value 0 - but ultimately it's a decision of the developer.<br>
  * This is also commonly called the version or sequenceNumber, and it's a sequential ever-growing number.<br>
- * related to a <b>specific</b> aggregate instance (as opposed to the {@link PersistedEvent#globalEventOrder()} which contains
+ * related to a <b>specific</b> aggregate instance (as opposed to the PersistedEvent's globalEventOrder which contains
  * the order of ALL events related to a specific {@link AggregateType})
  */
-public class EventOrder extends LongType<EventOrder> {
+public final class EventOrder extends LongType<EventOrder> {
     /**
      * Special value that signifies the no previous events have been persisted in relation to a given aggregate
      */

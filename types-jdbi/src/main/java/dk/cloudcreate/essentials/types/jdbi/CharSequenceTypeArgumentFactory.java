@@ -26,7 +26,7 @@ import java.sql.Types;
  * Base implementation for a {@link CharSequenceType}.<br>
  * Extend this class to support your concrete {@link CharSequenceType} sub-type:
  * <pre>{@code
- * public class CustomerIdArgumentFactory extends CharSequenceTypeArgumentFactory<CustomerId> {
+ * public final class CustomerIdArgumentFactory extends CharSequenceTypeArgumentFactory<CustomerId> {
  * }}</pre>
  *
  * @param <T> the concrete {@link CharSequenceType} subclass

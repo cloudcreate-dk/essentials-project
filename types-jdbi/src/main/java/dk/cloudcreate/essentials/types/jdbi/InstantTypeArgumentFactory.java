@@ -26,7 +26,7 @@ import java.sql.*;
  * Base implementation for a {@link InstantType}.<br>
  * Extend this class to support your concrete {@link InstantType} sub-type:
  * <pre>{@code
- * public class LastUpdatedArgumentFactory extends InstantTypeArgumentFactory<LastUpdated> {
+ * public final class LastUpdatedArgumentFactory extends InstantTypeArgumentFactory<LastUpdated> {
  * }}</pre>
  *
  * @param <T> the concrete {@link InstantType} subclass

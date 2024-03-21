@@ -26,7 +26,7 @@ import java.sql.Types;
  * Base implementation for a {@link ShortType}.<br>
  * Extend this class to support your concrete {@link ShortType} sub-type:
  * <pre>{@code
- * public class AmountArgumentFactory extends ShortTypeArgumentFactory<Amount> {
+ * public final class AmountArgumentFactory extends ShortTypeArgumentFactory<Amount> {
  * }}</pre>
  *
  * @param <T> the concrete {@link ShortType} subclass

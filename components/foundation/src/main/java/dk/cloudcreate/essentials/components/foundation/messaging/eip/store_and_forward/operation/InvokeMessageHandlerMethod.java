@@ -20,7 +20,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
 
 import java.lang.reflect.Method;
 
-public class InvokeMessageHandlerMethod {
+public final class InvokeMessageHandlerMethod {
     public final  Method   methodToInvoke;
     private final Message  message;
     private final Object   messagPayload;

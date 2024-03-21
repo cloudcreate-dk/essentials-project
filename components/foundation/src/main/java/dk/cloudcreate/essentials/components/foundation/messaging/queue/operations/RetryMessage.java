@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * using {@link TransactionalMode#FullyTransactional}<br>
  * Operation also matches {@link DurableQueuesInterceptor#intercept(RetryMessage, InterceptorChain)}
  */
-public class RetryMessage {
+public final class RetryMessage {
     public final QueueEntryId queueEntryId;
     private      Throwable    causeForRetry;
     private      Duration     deliveryDelay;

@@ -56,7 +56,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *                                    Example: Within a single class we have placed a set methods that can handle <code>OrderEvent</code>'s, such as <code>OrderCreated, OrderShipped, OrderAccepted</code>, etc.<br>
  *                                    In this case <code>OrderEvent</code> will be our <code>ARGUMENT_ROOT_TYPE</code> as it forms the root of the type hierarchy.
  */
-public class SingleArgumentAnnotatedMethodPatternMatcher<ARGUMENT_COMMON_ROOT_TYPE> implements MethodPatternMatcher<ARGUMENT_COMMON_ROOT_TYPE> {
+public final class SingleArgumentAnnotatedMethodPatternMatcher<ARGUMENT_COMMON_ROOT_TYPE> implements MethodPatternMatcher<ARGUMENT_COMMON_ROOT_TYPE> {
     private final Class<? extends Annotation> matchOnMethodsAnnotatedWith;
     private final Class<?>                    argumentCommonRootType;
 

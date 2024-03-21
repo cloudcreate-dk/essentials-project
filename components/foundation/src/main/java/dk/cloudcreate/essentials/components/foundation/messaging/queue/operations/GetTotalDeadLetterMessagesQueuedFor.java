@@ -25,7 +25,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Get the total number of dead-letter-messages/poison-messages queued for the given queue<br>
  * Operation also matched {@link DurableQueuesInterceptor#intercept(GetTotalDeadLetterMessagesQueuedFor, InterceptorChain)}
  */
-public class GetTotalDeadLetterMessagesQueuedFor {
+public final class GetTotalDeadLetterMessagesQueuedFor {
     /**
      * the name of the Queue where we will query for the
      * number of dead-letter-messages/poison-messages queued for the given queue

@@ -25,7 +25,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @see Money
  */
-public class Amount extends BigDecimalType<Amount> {
+public final class Amount extends BigDecimalType<Amount> {
 
     public static final Amount ZERO = Amount.of(BigDecimal.ZERO);
 

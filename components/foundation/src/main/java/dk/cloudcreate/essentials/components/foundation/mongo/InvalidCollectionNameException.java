@@ -14,23 +14,14 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.components.foundation.types;
-
-import dk.cloudcreate.essentials.types.*;
+package dk.cloudcreate.essentials.components.foundation.mongo;
 
 /**
- * A message id provides a unique identifier for a Message in a distributed system
+ * Thrown by {@link MongoUtil#checkIsValidCollectionName(String)}  in case
+ * the rules are violated
  */
-public class MessageId extends CharSequenceType<MessageId> implements Identifier {
-    public MessageId(CharSequence value) {
-        super(value);
-    }
-
-    public static MessageId of(CharSequence value) {
-        return new MessageId(value);
-    }
-
-    public static MessageId random() {
-        return new MessageId(RandomIdGenerator.generate());
+public final class InvalidCollectionNameException extends RuntimeException {
+    public InvalidCollectionNameException(String msg) {
+        super(msg);
     }
 }

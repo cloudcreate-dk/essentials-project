@@ -22,7 +22,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Immutable Percentage concept, where a {@link BigDecimal} value of "100" is the same as 100%<br>
  */
-public class Percentage extends BigDecimalType<Percentage> {
+public final class Percentage extends BigDecimalType<Percentage> {
     public static final Percentage _100 = new Percentage(new BigDecimal("100.00"));
     public static final  Percentage _0                        = new Percentage(new BigDecimal("0.00"));
 

@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueEntr
 /**
  * Builder for {@link MarkAsDeadLetterMessage}
  */
-public class MarkAsDeadLetterMessageBuilder {
+public final class MarkAsDeadLetterMessageBuilder {
     private QueueEntryId queueEntryId;
     private Exception causeForBeingMarkedAsDeadLetter;
 

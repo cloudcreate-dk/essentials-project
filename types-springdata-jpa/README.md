@@ -7,19 +7,25 @@ The Essentials philosophy is to provide high level building blocks and coding co
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
 many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
 
+>**NOTE:**
+>**This WORK-IN-PROGRESS library is experimental and unstable, and currently it only supports simple `AttributeConverter`'s.     
+> It e.g. doesn't support Id _autogeneration_ for `@Id` annotated `SingleValueType` field/properties!!!**
+
+> **Warning: This module is very experimental & unstable - subject to be removed**
+
 ## Types-SpringData-JPA
 
 This library focuses purely on providing [Spring Data JPA](https://spring.io/projects/spring-data-jpa) persistence support for the **types** defined in the
 Essentials `types` library.
 
-> Warning: This module is very experimental & unstable
+
 
 To use `Types-SpringData-JPA` just add the following Maven dependency:
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-jpa</artifactId>
-    <version>0.30.6</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
@@ -35,10 +41,6 @@ To use `Types-SpringData-JPA` just add the following Maven dependency:
     <version>3.1.0</version>
 </dependency>
 ```
-
-**NOTE:**
-**This library is WORK-IN-PROGRESS, and currently it only supports simple `AttributeConverter`'s.   
-It e.g. doesn't support Id _autogeneration_ for `@Id` annotated `SingleValueType` field/properties!!!**
 
 Example:
 

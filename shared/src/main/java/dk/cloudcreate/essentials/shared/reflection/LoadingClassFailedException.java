@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.shared.reflection;
 
-public class LoadingClassFailedException extends ReflectionException {
+public final class LoadingClassFailedException extends ReflectionException {
     public LoadingClassFailedException() {
     }
 

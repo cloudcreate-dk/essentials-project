@@ -60,7 +60,7 @@ import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorCha
  * @param <CONFIG> The concrete {@link AggregateEventStreamConfiguration
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfiguration> implements ConfigurableEventStore<CONFIG> {
+public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfiguration> implements ConfigurableEventStore<CONFIG> {
     private static final Logger       log              = LoggerFactory.getLogger(PostgresqlEventStore.class);
     private static final SubscriberId NO_SUBSCRIBER_ID = SubscriberId.of("NoSubscriberId");
 
@@ -84,7 +84,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
      * Create a {@link PostgresqlEventStore} without EventStreamGapHandler (specifically with {@link NoEventStreamGapHandler}) as a backwards compatible configuration
      *
      * @param unitOfWorkFactory                       the unit of work factory
-     * @param aggregateEventStreamPersistenceStrategy the persistence strategy
+     * @param aggregateEventStreamPersistenceStrategy the persistence strategy - please see {@link AggregateEventStreamPersistenceStrategy} documentation regarding <b>Security</b> considerations
      * @param <STRATEGY>                              the persistence strategy type
      */
     public <STRATEGY extends AggregateEventStreamPersistenceStrategy<CONFIG>> PostgresqlEventStore(EventStoreUnitOfWorkFactory unitOfWorkFactory,
@@ -100,7 +100,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
      * Create a {@link PostgresqlEventStore} with EventStreamGapHandler (specifically with {@link PostgresqlEventStreamGapHandler})
      *
      * @param unitOfWorkFactory                       the unit of work factory
-     * @param aggregateEventStreamPersistenceStrategy the persistence strategy
+     * @param aggregateEventStreamPersistenceStrategy the persistence strategy - please see {@link AggregateEventStreamPersistenceStrategy} documentation regarding <b>Security</b> considerations
      * @param eventStoreLocalEventBusOption           option that contains {@link EventStoreEventBus} to use. If empty a new {@link EventStoreEventBus} instance will be used
      * @param eventStreamGapHandlerFactory            the {@link EventStreamGapHandler} to use for tracking event stream gaps
      * @param <STRATEGY>                              the persistence strategy type
@@ -126,7 +126,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
      * Same as calling {@link #PostgresqlEventStore(EventStoreUnitOfWorkFactory, AggregateEventStreamPersistenceStrategy)}
      *
      * @param unitOfWorkFactory                       the unit of work factory
-     * @param aggregateEventStreamPersistenceStrategy the persistence strategy
+     * @param aggregateEventStreamPersistenceStrategy the persistence strategy - please see {@link AggregateEventStreamPersistenceStrategy} documentation regarding <b>Security</b> considerations
      * @param <CONFIG>                                The concrete {@link AggregateEventStreamConfiguration
      * @param <STRATEGY>                              the persistence strategy type
      * @return new {@link PostgresqlEventStore} instance
@@ -144,7 +144,7 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
      * Same as calling {@link #PostgresqlEventStore(EventStoreUnitOfWorkFactory, AggregateEventStreamPersistenceStrategy, Optional, Function)} with an empty {@link EventStoreEventBus} {@link Optional}
      *
      * @param unitOfWorkFactory                       the unit of work factory
-     * @param aggregateEventStreamPersistenceStrategy the persistence strategy
+     * @param aggregateEventStreamPersistenceStrategy the persistence strategy - please see {@link AggregateEventStreamPersistenceStrategy} documentation regarding <b>Security</b> considerations
      * @param <CONFIG>                                The concrete {@link AggregateEventStreamConfiguration
      * @param <STRATEGY>                              the persistence strategy type
      * @return new {@link PostgresqlEventStore} instance
@@ -157,6 +157,10 @@ public class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfigurati
                                           eventStore -> new PostgresqlEventStreamGapHandler<>(eventStore, unitOfWorkFactory));
     }
 
+    /**
+     * Please see {@link AggregateEventStreamPersistenceStrategy} documentation regarding <b>Security</b> considerations
+     * @return the chosen persistenceStrategy
+     */
     public AggregateEventStreamPersistenceStrategy<CONFIG> getPersistenceStrategy() {
         return persistenceStrategy;
     }

@@ -28,7 +28,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *
  * @param <ID> the id type for the aggregate
  */
-public class LoadLastPersistedEventRelatedTo<ID> {
+public final class LoadLastPersistedEventRelatedTo<ID> {
     /**
      * the aggregate type that the underlying {@link AggregateEventStream} is associated with
      */

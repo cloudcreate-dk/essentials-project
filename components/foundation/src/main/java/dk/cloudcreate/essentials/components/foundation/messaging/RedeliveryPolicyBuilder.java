@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging;
 
 import java.time.Duration;
 
-public class RedeliveryPolicyBuilder {
+public final class RedeliveryPolicyBuilder {
     private Duration                    initialRedeliveryDelay;
     private Duration                    followupRedeliveryDelay;
     private double                      followupRedeliveryDelayMultiplier;

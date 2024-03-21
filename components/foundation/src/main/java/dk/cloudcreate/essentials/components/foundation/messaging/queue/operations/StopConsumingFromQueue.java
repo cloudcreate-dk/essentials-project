@@ -26,7 +26,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Is initiated when {@link DurableQueueConsumer#cancel()} is called
  * Operation also matches {@link DurableQueuesInterceptor#intercept(StopConsumingFromQueue, InterceptorChain)}
  */
-public class StopConsumingFromQueue {
+public final class StopConsumingFromQueue {
     /**
      * The durable queue consumer being stopped
      */

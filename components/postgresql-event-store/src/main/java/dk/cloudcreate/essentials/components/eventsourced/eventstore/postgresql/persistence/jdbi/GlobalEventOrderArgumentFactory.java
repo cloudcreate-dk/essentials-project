@@ -19,5 +19,5 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.types.jdbi.LongTypeArgumentFactory;
 
-public class GlobalEventOrderArgumentFactory extends LongTypeArgumentFactory<GlobalEventOrder> {
+public final class GlobalEventOrderArgumentFactory extends LongTypeArgumentFactory<GlobalEventOrder> {
 }

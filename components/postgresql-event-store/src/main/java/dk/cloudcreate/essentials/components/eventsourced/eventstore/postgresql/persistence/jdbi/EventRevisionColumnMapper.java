@@ -23,5 +23,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link EventRevision} {@link ColumnMapper}
  */
-public class EventRevisionColumnMapper extends IntegerTypeColumnMapper<EventRevision> {
+public final class EventRevisionColumnMapper extends IntegerTypeColumnMapper<EventRevision> {
 }

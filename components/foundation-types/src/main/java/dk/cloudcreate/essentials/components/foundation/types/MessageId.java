@@ -14,19 +14,23 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
+package dk.cloudcreate.essentials.components.foundation.types;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.PersistableEventMapper;
-
-import java.lang.annotation.*;
+import dk.cloudcreate.essentials.types.*;
 
 /**
- * Annotation that can be used on an Event to indicate its revision and be read by the
- * {@link PersistableEventMapper} when persisting events
+ * A message id provides a unique identifier for a Message in a distributed system
  */
-@Target(ElementType.TYPE)
-@Retention(RetentionPolicy.RUNTIME)
-@Inherited
-public @interface Revision {
-    int value() default 1;
+public final class MessageId extends CharSequenceType<MessageId> implements Identifier {
+    public MessageId(CharSequence value) {
+        super(value);
+    }
+
+    public static MessageId of(CharSequence value) {
+        return new MessageId(value);
+    }
+
+    public static MessageId random() {
+        return new MessageId(RandomIdGenerator.generate());
+    }
 }

@@ -16,18 +16,16 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
-import dk.cloudcreate.essentials.types.IntegerType;
+
+import java.lang.annotation.*;
 
 /**
- * The revision of an Event type- first revision has value 1
+ * Annotation that can be used on an Event to indicate its revision and be read by the
+ * PersistableEventMapper when persisting events
  */
-public class EventRevision extends IntegerType<EventRevision> {
-    public static EventRevision FIRST = EventRevision.of(1);
-    public EventRevision(Integer value) {
-        super(value);
-    }
-
-    public static EventRevision of(int value) {
-        return new EventRevision(value);
-    }
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited
+public @interface Revision {
+    int value() default 1;
 }

@@ -25,7 +25,7 @@ import java.util.Arrays;
  * Utility class for working with {@link Methods}/{@link Method} <b>parameters</b> and {@link Constructors}/{@link Constructor}
  * declaration <b>parameters</b> or method/constructor call <b>arguments</b>
  */
-public class Parameters {
+public final class Parameters {
     /**
      * Class used to represent the unknown type for a <code>null</code> parameter to {@link #argumentTypes(Object...)}
      */

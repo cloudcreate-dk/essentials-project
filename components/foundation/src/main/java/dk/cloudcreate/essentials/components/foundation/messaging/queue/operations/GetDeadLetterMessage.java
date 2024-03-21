@@ -25,7 +25,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Get a queued message that's marked as a {@link QueuedMessage#isDeadLetterMessage}<br>
  * Operation also matches {@link DurableQueuesInterceptor#intercept(GetDeadLetterMessage, InterceptorChain)}
  */
-public class GetDeadLetterMessage {
+public final class GetDeadLetterMessage {
     /**
      * The messages unique queue entry id
      */

@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * using {@link TransactionalMode#FullyTransactional}<br>
  * Operation also matched {@link DurableQueuesInterceptor#intercept(GetNextMessageReadyForDelivery, InterceptorChain)}
  */
-public class GetNextMessageReadyForDelivery {
+public final class GetNextMessageReadyForDelivery {
     /**
      * the name of the Queue where we will query for the next message ready for delivery
      */
