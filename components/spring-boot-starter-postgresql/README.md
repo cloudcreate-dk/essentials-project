@@ -9,9 +9,9 @@ Most `@Beans` auto-configured by this library use `@ConditionalOnMissingBean` to
 
 > Please see the **Security** notices below, as well as **Security** notices for the individual components, to familiarize yourself with the security risks  
 > Such as:
-> - [foundation-types](foundation-types/README.md)
-> - [postgresql-distributed-fenced-lock](postgresql-distributed-fenced-lock/README.md)
-> - [postgresql-queue](postgresql-queue/README.md)
+> - [foundation-types](../foundation-types/README.md)
+> - [postgresql-distributed-fenced-lock](../postgresql-distributed-fenced-lock/README.md)
+> - [postgresql-queue](../postgresql-queue/README.md)
 
 To use `spring-boot-starter-postgresql` to add the following dependency:
 ```
