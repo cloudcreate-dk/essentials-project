@@ -33,9 +33,9 @@ By using naming conventions for Postgresql table/column/index names and MongoDB 
 > - [springdata-mongo-queue](springdata-mongo-queue/README.md)
 > - [postgresql-event-store](postgresql-event-store/README.md)
 > - [eventsourced-aggregates](eventsourced-aggregates/README.md)
-> - [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
-> - [spring-boot-starter-postgresql-event-store](components/spring-boot-starter-postgresql-event-store/README.md)
-> - [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
+> - [spring-boot-starter-postgresql](spring-boot-starter-postgresql/README.md)
+> - [spring-boot-starter-postgresql-event-store](spring-boot-starter-postgresql-event-store/README.md)
+> - [spring-boot-starter-mongodb](spring-boot-starter-mongodb/README.md)
 
 # Components overview
 ![Essentials Components modules](../images/essentials-components-modules.png)
