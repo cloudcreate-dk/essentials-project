@@ -325,11 +325,11 @@ The default `JSONSerializer` implementation is the `JacksonJSONSerializer` which
 The setup of the `ObjectMapper` needs to support the type of Events being persisted.
 To support storing the strong types, such as `EventId` used by the `PersistedEvent` type, the ObjectMapper needs to be
 configured with the
-[Essential Types Jackson]|(https://github.com/cloudcreate-dk/essentials/tree/main/types-jackson)
+[Essential Types Jackson](../../types-jackson)
 module's `EssentialTypesJacksonModule`.
 
 Below is an example of an immutable Event design, which requires the `ObjectMapper` to be configured with
-the [Essentials Immutable-Jackson](https://github.com/cloudcreate-dk/essentials/tree/main/immutable-jackson)
+the [Essentials Immutable-Jackson](../../immutable-jackson)
 module's `EssentialsImmutableJacksonModule`:
 
 ```java
