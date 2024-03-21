@@ -528,20 +528,29 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                               nextFromInclusiveGlobalOrder.get());
                     batchSizeForThisQuery = 0;
                 } else {
-                    batchSizeForThisQuery = highestPersistedGlobalEventOrder.map(highestGlobalEventOrder -> highestGlobalEventOrder.longValue() - nextFromInclusiveGlobalOrder.get() - 1 + defaultBatchFetchSize)
-                                                                            .orElse(defaultBatchFetchSize);
+//                    batchSizeForThisQuery = highestPersistedGlobalEventOrder.map(highestGlobalEventOrder -> highestGlobalEventOrder.longValue() - nextFromInclusiveGlobalOrder.get() - 1 + defaultBatchFetchSize)
+//                                                                            .orElse(defaultBatchFetchSize);
+//                    if (batchSizeForThisQuery > defaultBatchFetchSize) {
+//                        eventStoreStreamLog.debug("[{}] loadEventsByGlobalOrder temporarily INCREASED query batchSize to {} from {} instead of default {} since highestPersistedGlobalEventOrder is {}",
+//                                                  eventStreamLogName,
+//                                                  batchSizeForThisQuery,
+//                                                  lastBatchSizeForThisQuery,
+//                                                  defaultBatchFetchSize,
+//                                                  highestPersistedGlobalEventOrder.get());
+//                    }
+                    batchSizeForThisQuery = (long) (batchSizeForThisQuery + defaultBatchFetchSize * (currentConsecutiveNoPersistedEventsReturned / 100) * 1.0f);
                     if (batchSizeForThisQuery > defaultBatchFetchSize) {
-                        eventStoreStreamLog.debug("[{}] loadEventsByGlobalOrder temporarily INCREASED query batchSize to {} from {} instead of default {} since highestPersistedGlobalEventOrder is {}",
+                        eventStoreStreamLog.debug("[{}] loadEventsByGlobalOrder temporarily INCREASED query batchSize to {} from {} instead of default {} since number of consecutiveNoPersistedEventsReturned was {}",
                                                   eventStreamLogName,
                                                   batchSizeForThisQuery,
                                                   lastBatchSizeForThisQuery,
                                                   defaultBatchFetchSize,
-                                                  highestPersistedGlobalEventOrder.get());
+                                                  currentConsecutiveNoPersistedEventsReturned);
                     }
                 }
             }
         } else if (currentConsecutiveNoPersistedEventsReturned > 0 && currentConsecutiveNoPersistedEventsReturned % 10 == 0) {
-            batchSizeForThisQuery = (long) (batchSizeForThisQuery + defaultBatchFetchSize * (currentConsecutiveNoPersistedEventsReturned / 10) * 0.4f);
+            batchSizeForThisQuery = (long) (batchSizeForThisQuery + defaultBatchFetchSize * (currentConsecutiveNoPersistedEventsReturned / 10) * 0.5f);
             if (batchSizeForThisQuery > defaultBatchFetchSize) {
                 eventStoreStreamLog.debug("[{}] loadEventsByGlobalOrder temporarily INCREASED query batchSize to {} from {} instead of default {} since number of consecutiveNoPersistedEventsReturned was {}",
                                           eventStreamLogName,
