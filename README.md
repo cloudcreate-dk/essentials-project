@@ -21,15 +21,15 @@ By using naming conventions for Postgresql table/column/index names and MongoDB 
 
 **Insufficient attention to these practices may leave the application vulnerable to attacks, endangering the security and integrity of the database.**
 
-> Please see the **Security** notices for [components README.md](../README.md), as well as **Security** notices for the individual components, to familiarize yourself with the security
+> Please see the **Security** notices for [components README.md](components/README.md), as well as **Security** notices for the individual components, to familiarize yourself with the security
 > risks related to using the Components:
 > - [foundation-types](foundation-types/README.md)
-> - [postgresql-distributed-fenced-lock](postgresql-distributed-fenced-lock/README.md)
-> - [springdata-mongo-distributed-fenced-lock](springdata-mongo-distributed-fenced-lock/README.md)
-> - [postgresql-queue](postgresql-queue/README.md)
-> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
-> - [postgresql-event-store](postgresql-event-store/README.md)
-> - [eventsourced-aggregates](eventsourced-aggregates/README.md)
+> - [postgresql-distributed-fenced-lock](components/postgresql-distributed-fenced-lock/README.md)
+> - [springdata-mongo-distributed-fenced-lock](components/springdata-mongo-distributed-fenced-lock/README.md)
+> - [postgresql-queue](components/postgresql-queue/README.md)
+> - [springdata-mongo-queue](components/springdata-mongo-queue/README.md)
+> - [postgresql-event-store](components/postgresql-event-store/README.md)
+> - [eventsourced-aggregates](components/eventsourced-aggregates/README.md)
 > - [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
 > - [spring-boot-starter-postgresql-event-store](components/spring-boot-starter-postgresql-event-store/README.md)
 > - [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
