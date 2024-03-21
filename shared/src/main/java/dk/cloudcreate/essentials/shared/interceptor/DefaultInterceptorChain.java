@@ -31,7 +31,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * @param <OPERATION> the type of operation to intercept, aka. the argument to the interceptor
  * @param <RESULT>    the result of the operation
  */
-public class DefaultInterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE extends Interceptor> implements InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE> {
+public final class DefaultInterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE extends Interceptor> implements InterceptorChain<OPERATION, RESULT, INTERCEPTOR_TYPE> {
     private static final Logger                                                                                      log = LoggerFactory.getLogger(dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.class);
     private final        OPERATION                                                                                   operation;
     private final        Iterator<INTERCEPTOR_TYPE>                                                                  interceptorIterator;

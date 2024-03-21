@@ -28,7 +28,7 @@ import java.util.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
-public class DurableQueuesMicrometerTracingInterceptor implements DurableQueuesInterceptor {
+public final class DurableQueuesMicrometerTracingInterceptor implements DurableQueuesInterceptor {
     public static final String QUEUE_ENTRY_ID = "queueEntryId";
     public static final String QUEUE_NAME = "queueName";
     private final Tracer tracer;

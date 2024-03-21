@@ -23,7 +23,7 @@ import dk.cloudcreate.essentials.types.*;
 
 import java.io.IOException;
 
-public class MoneyDeserializer extends StdDeserializer<Money> {
+public final class MoneyDeserializer extends StdDeserializer<Money> {
     public MoneyDeserializer() {
         this(null);
     }

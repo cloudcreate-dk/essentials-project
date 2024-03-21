@@ -24,7 +24,7 @@ import java.util.Objects;
 /**
  * Represents a base notification, which is a change to a given table caused by a specific {@link SqlOperation}
  */
-public class TableChangeNotification {
+public abstract class TableChangeNotification {
     @JsonProperty(ListenNotify.TABLE_NAME)
     private String       tableName;
     @JsonProperty(ListenNotify.SQL_OPERATION)

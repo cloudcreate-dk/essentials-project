@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.types.*;
 /**
  * Contains the name of a {@link FencedLock}
  */
-public class LockName extends CharSequenceType<LockName> implements Identifier {
+public final class LockName extends CharSequenceType<LockName> implements Identifier {
     public LockName(CharSequence value) {
         super(value);
     }

@@ -26,5 +26,5 @@ import java.util.Optional;
  * Until then you have to use {@link EventStore#pollEvents(AggregateType, long, Optional, Optional, Optional, Optional)} which
  * uses periodic event store polling
  */
-public class PostgresqlEventStreamListener /* implements Lifecycle */ {
+public final  class PostgresqlEventStreamListener /* implements Lifecycle */ {
 }

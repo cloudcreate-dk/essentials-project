@@ -27,7 +27,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  * by performing a lookup in the set returned from {@link Locale#getISOCountries(Locale.IsoCountryCode)} using 
  * {@link java.util.Locale.IsoCountryCode#PART1_ALPHA2}
  */
-public class CountryCode extends CharSequenceType<CountryCode> {
+public final class CountryCode extends CharSequenceType<CountryCode> {
     private static final Set<String> KNOWN_ISO_3166_2_CHARACTER_COUNTRY_CODES = Locale.getISOCountries(Locale.IsoCountryCode.PART1_ALPHA2);
     
     /**

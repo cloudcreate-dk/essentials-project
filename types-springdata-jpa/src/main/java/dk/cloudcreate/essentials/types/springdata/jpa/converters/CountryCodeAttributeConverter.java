@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.types.CountryCode;
 import javax.persistence.Converter;
 
 @Converter(autoApply = true)
-public class CountryCodeAttributeConverter extends BaseCharSequenceTypeAttributeConverter<CountryCode> {
+public final class CountryCodeAttributeConverter extends BaseCharSequenceTypeAttributeConverter<CountryCode> {
     @Override
     protected Class<CountryCode> getConcreteCharSequenceType() {
         return CountryCode.class;

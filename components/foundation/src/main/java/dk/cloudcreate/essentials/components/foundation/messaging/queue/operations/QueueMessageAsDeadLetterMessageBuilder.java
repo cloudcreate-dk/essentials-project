@@ -23,7 +23,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 /**
  * Builder for {@link QueueMessageAsDeadLetterMessage}
  */
-public class QueueMessageAsDeadLetterMessageBuilder {
+public final class QueueMessageAsDeadLetterMessageBuilder {
     private QueueName queueName;
     private Object    payload;
     private Exception causeOfError;

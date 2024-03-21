@@ -41,7 +41,6 @@ class PostgresqlFencedLockManagerIT extends DBFencedLockManagerIT<PostgresqlFenc
         return new PostgresqlFencedLockManager(jdbi2,
                                                new JdbiUnitOfWorkFactory(jdbi2),
                                                Optional.of("node2"),
-                                               Optional.empty(),
                                                Duration.ofSeconds(3),
                                                Duration.ofSeconds(1));
     }
@@ -54,7 +53,6 @@ class PostgresqlFencedLockManagerIT extends DBFencedLockManagerIT<PostgresqlFenc
         return new PostgresqlFencedLockManager(jdbi1,
                                                new JdbiUnitOfWorkFactory(jdbi1),
                                                Optional.of("node1"),
-                                               Optional.empty(),
                                                Duration.ofSeconds(3),
                                                Duration.ofSeconds(1));
     }

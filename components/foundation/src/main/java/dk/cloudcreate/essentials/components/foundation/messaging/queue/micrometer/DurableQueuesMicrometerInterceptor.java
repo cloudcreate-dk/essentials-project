@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
-public class DurableQueuesMicrometerInterceptor implements DurableQueuesInterceptor {
+public final class DurableQueuesMicrometerInterceptor implements DurableQueuesInterceptor {
     public static final String PROCESSED_QUEUED_MESSAGES_COUNTER_NAME         = "DurableQueues_QueuedMessages_Processed_";
     public static final String PROCESSED_QUEUED_MESSAGES_RETRIES_COUNTER_NAME = "DurableQueues_QueuedMessages_Retries_";
     public static final String PROCESSED_DEAD_LETTER_MESSAGES_COUNTER_NAME    = "DurableQueues_DeadLetterMessages_Processed_";

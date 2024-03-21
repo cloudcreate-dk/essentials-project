@@ -36,11 +36,11 @@
     <url>https://github.com/cloudcreate-dk/essentials</url>
 
     <scm>
-        <url>https://github.com/cloudcreate-dk/essentials</url>
-        <developerConnection>scm:https://github.com/cloudcreate-dk/essentials.git</developerConnection>
-        <connection>scm:https://github.com/cloudcreate-dk/essentials.git</connection>
+        <url>https://github.com/cloudcreate-dk/essentials-project</url>
+        <developerConnection>scm:https://github.com/cloudcreate-dk/essentials-project.git</developerConnection>
+        <connection>scm:https://github.com/cloudcreate-dk/essentials-project.git</connection>
     </scm>
-
+  
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -61,33 +61,37 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>11</java.version>
+        <kotlin.version>1.9.23</kotlin.version>
         <revision>DEV-SNAPSHOT</revision>
         <skipDependencyCheck>false</skipDependencyCheck>
 
         <objenesis.version>3.3</objenesis.version>
-        <postgresql.version>42.7.1</postgresql.version>
+        <postgresql.version>42.7.3</postgresql.version>
         <slf4j.version>1.7.36</slf4j.version>
         <spring-boot.version>2.7.18</spring-boot.version>
-        <awaitility.version>4.2.0</awaitility.version>
+        <awaitility.version>4.2.1</awaitility.version>
         <spring-data-mongodb.version>3.4.18</spring-data-mongodb.version>
         <spring-data-jpa.version>2.7.18</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
         <assertj.version>3.25.3</assertj.version>
         <mongodb-driver-sync.version>4.11.1</mongodb-driver-sync.version>
-        <log4j-to-slf4j.version>2.22.1</log4j-to-slf4j.version>
+        <log4j-to-slf4j.version>2.23.1</log4j-to-slf4j.version>
         <json-smart.version>2.5.0</json-smart.version>
+        <json-path.version>2.9.0</json-path.version>
         <snakeyaml.version>2.2</snakeyaml.version>
-        <micrometer.version>1.12.2</micrometer.version>
-        <micrometer-tracing.version>1.2.2</micrometer-tracing.version>
-        <netty-bom.version>4.1.106.Final</netty-bom.version>
+        <micrometer.version>1.12.4</micrometer.version>
+        <micrometer-tracing.version>1.2.4</micrometer-tracing.version>
+        <netty-bom.version>4.1.107.Final</netty-bom.version>
         <junit-bom.version>5.10.2</junit-bom.version>
-        <testcontainers-bom.version>1.19.4</testcontainers-bom.version>
-        <jdbi3-bom.version>3.44.0</jdbi3-bom.version>
-        <jackson-bom.version>2.16.1</jackson-bom.version>
-        <reactor-bom.version>2020.0.40</reactor-bom.version>
-        <spring-framework-bom.version>5.3.31</spring-framework-bom.version>
-        <mockito-bom.version>5.10.0</mockito-bom.version>
+        <testcontainers-bom.version>1.19.7</testcontainers-bom.version>
+        <jdbi3-bom.version>3.45.1</jdbi3-bom.version>
+        <jackson-bom.version>2.17.0</jackson-bom.version>
+        <reactor-bom.version>2020.0.42</reactor-bom.version>
+        <spring-framework-bom.version>5.3.33</spring-framework-bom.version>
+        <mockito-bom.version>5.11.0</mockito-bom.version>
         <logback.version>1.2.13</logback.version>
+        <avro.version>1.11.3</avro.version>
+        <commons-compress.version>1.26.1</commons-compress.version>
 
         <maven-dependency-plugin.version>3.6.1</maven-dependency-plugin.version>
         <maven-project-info-reports-plugin.version>3.5.0</maven-project-info-reports-plugin.version>
@@ -101,14 +105,14 @@
         <maven-javadoc-plugin.version>3.6.3</maven-javadoc-plugin.version>
         <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
-        <maven-compiler-plugin.version>3.12.1</maven-compiler-plugin.version>
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <versions-maven-plugin.version>2.16.2</versions-maven-plugin.version>
         <maven-enforcer-plugin.version>3.4.1</maven-enforcer-plugin.version>
         <minimum-maven-version>3.8.8</minimum-maven-version>
-        <dependency-check-maven.version>9.0.9</dependency-check-maven.version>
+        <dependency-check-maven.version>9.0.10</dependency-check-maven.version>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
         <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
-        <maven-gpg-plugin.version>3.1.0</maven-gpg-plugin.version>
+        <maven-gpg-plugin.version>3.2.1</maven-gpg-plugin.version>
     </properties>
 
     <modules>
@@ -124,6 +128,7 @@
         <module>immutable-jackson</module>
         <module>reactive</module>
         <module>components/foundation</module>
+        <module>components/foundation-types</module>
         <module>components/foundation-test</module>
         <module>components/eventsourced-aggregates</module>
         <module>components/spring-boot-starter-postgresql</module>
@@ -135,6 +140,7 @@
         <module>components/spring-postgresql-event-store</module>
         <module>components/springdata-mongo-distributed-fenced-lock</module>
         <module>components/springdata-mongo-queue</module>
+<!--        <module>components/kotlin-eventsourcing</module>-->
     </modules>
 
 
@@ -196,6 +202,13 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Due to CVE-2023-42503, CVE-2024-26308, CVE-2024-25710 -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>${commons-compress.version}</version>
+                <scope>provided</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -237,8 +250,8 @@
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
-            <scope>test</scope>
             <version>${awaitility.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

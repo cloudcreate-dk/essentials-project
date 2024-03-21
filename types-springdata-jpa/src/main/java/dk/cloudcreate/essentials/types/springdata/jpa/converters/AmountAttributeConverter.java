@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.types.Amount;
 import javax.persistence.Converter;
 
 @Converter(autoApply = true)
-public class AmountAttributeConverter extends BaseBigDecimalTypeAttributeConverter<Amount> {
+public final class AmountAttributeConverter extends BaseBigDecimalTypeAttributeConverter<Amount> {
     @Override
     protected Class<Amount> getConcreteBigDecimalType() {
         return Amount.class;

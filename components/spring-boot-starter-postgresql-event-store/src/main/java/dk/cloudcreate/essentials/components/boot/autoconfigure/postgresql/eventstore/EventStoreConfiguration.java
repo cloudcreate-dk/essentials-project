@@ -22,6 +22,8 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.EssentialsComponentsConfiguration;
+import dk.cloudcreate.essentials.components.eventsourced.aggregates.decider.Handler;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
@@ -43,6 +45,7 @@ import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableL
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.reactive.OnErrorHandler;
+import dk.cloudcreate.essentials.reactive.command.*;
 import org.jdbi.v3.core.Jdbi;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.*;
@@ -54,7 +57,23 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.util.*;
 
 /**
- * {@link PostgresqlEventStore} auto configuration
+ * {@link PostgresqlEventStore} auto configuration<br>
+ * <br>
+ * <u><b>Security:</b></u><br>
+ * If you in your own Spring Boot application choose to override the Beans defined by this starter,
+ * then you need to check the component document to learn about the Security implications of each configuration.
+ * <br>
+ * Also see {@link EssentialsComponentsConfiguration} for security information related to common Essentials components.
+ *
+ * @see PostgresqlDurableSubscriptionRepository
+ * @see SeparateTablePerAggregateTypePersistenceStrategy
+ * @see SeparateTablePerAggregateTypeEventStreamConfigurationFactory
+ * @see SeparateTablePerAggregateEventStreamConfiguration
+ * @see EventStreamTableColumnNames
+ * @see dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues
+ * @see dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager
+ * @see dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage
+ * @see dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener
  */
 @AutoConfiguration
 @ConditionalOnClass(name = "dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore")
@@ -122,7 +141,7 @@ public class EventStoreConfiguration {
         return EventStoreSubscriptionManager.builder()
                                             .setEventStore(eventStore)
                                             .setFencedLockManager(fencedLockManager)
-                                            .setDurableSubscriptionRepository(new PostgresqlDurableSubscriptionRepository(jdbi))
+                                            .setDurableSubscriptionRepository(new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory()))
                                             .setEventStorePollingBatchSize(properties.getSubscriptionManager().getEventStorePollingBatchSize())
                                             .setEventStorePollingInterval(properties.getSubscriptionManager().getEventStorePollingInterval())
                                             .setSnapshotResumePointsEvery(properties.getSubscriptionManager().getSnapshotResumePointsEvery())

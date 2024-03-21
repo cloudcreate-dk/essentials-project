@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.types.Percentage;
 import javax.persistence.Converter;
 
 @Converter(autoApply = true)
-public class PercentageAttributeConverter extends BaseBigDecimalTypeAttributeConverter<Percentage> {
+public final class PercentageAttributeConverter extends BaseBigDecimalTypeAttributeConverter<Percentage> {
     @Override
     protected Class<Percentage> getConcreteBigDecimalType() {
         return Percentage.class;

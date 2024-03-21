@@ -22,5 +22,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link Percentage} {@link ColumnMapper}
  */
-public class PercentageColumnMapper extends BigDecimalTypeColumnMapper<Percentage> {
+public final class PercentageColumnMapper extends BigDecimalTypeColumnMapper<Percentage> {
 }

@@ -37,7 +37,7 @@ import static dk.cloudcreate.essentials.shared.reflection.Parameters.*;
  *
  * @see Interfaces
  */
-public class Reflector {
+public final class Reflector {
     /**
      * Cache of Reflect instances
      */

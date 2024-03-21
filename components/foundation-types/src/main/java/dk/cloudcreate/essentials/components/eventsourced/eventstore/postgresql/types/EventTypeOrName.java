@@ -16,9 +16,8 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
-import dk.cloudcreate.essentials.shared.functional.tuple.*;
+import dk.cloudcreate.essentials.shared.functional.tuple.Either;
+import dk.cloudcreate.essentials.shared.functional.tuple.Tuple;
 
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -27,7 +26,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * Represents an {@link Either} variant that represent a choice between having either an {@link EventType} or an {@link EventName} element value
- * (i.e. only one element can have a value at a time) for a given {@link EventJSON} payload (as used by {@link PersistedEvent})<br>
+ * (i.e., only one element can have a value at a time) for a given EventJSON payload (as used by PersistedEvent)<br>
  * <br>
  * Use {@link #with(EventType)}/{@link #with(EventName)} (or {@link #EventTypeOrName(EventType, EventName)}) to create
  * a new {@link EventTypeOrName} instance<br>
@@ -37,7 +36,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * <br>
  * Conditional logic can be applied using {@link #ifHasEventType(Consumer)} or {@link #ifHasEventName(Consumer)}
  */
-public class EventTypeOrName extends Either<EventType, EventName> {
+public final class EventTypeOrName extends Either<EventType, EventName> {
     public EventTypeOrName(EventType eventType, EventName eventName) {
         super(eventType, eventName);
     }

@@ -23,5 +23,5 @@ import org.jdbi.v3.core.mapper.ColumnMapper;
 /**
  * {@link EventOrder} {@link ColumnMapper}
  */
-public class EventOrderColumnMapper extends LongTypeColumnMapper<EventOrder> {
+public final class EventOrderColumnMapper extends LongTypeColumnMapper<EventOrder> {
 }

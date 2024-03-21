@@ -26,7 +26,7 @@ import java.sql.*;
  * Base implementation for a {@link OffsetDateTimeType}.<br>
  * Extend this class to support your concrete {@link OffsetDateTimeType} sub-type:
  * <pre>{@code
- * public class TransferTimeArgumentFactory extends OffsetDateTimeTypeArgumentFactory<TransferTime> {
+ * public final class TransferTimeArgumentFactory extends OffsetDateTimeTypeArgumentFactory<TransferTime> {
  * }}</pre>
  *
  * @param <T> the concrete {@link OffsetDateTimeType} subclass

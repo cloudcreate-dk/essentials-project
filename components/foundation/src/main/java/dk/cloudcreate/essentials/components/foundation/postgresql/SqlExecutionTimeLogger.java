@@ -27,7 +27,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 /**
  * Log the execution time for SQL statements
  */
-public class SqlExecutionTimeLogger implements org.jdbi.v3.core.statement.SqlLogger {
+public final class SqlExecutionTimeLogger implements org.jdbi.v3.core.statement.SqlLogger {
     private final Logger log;
 
     public SqlExecutionTimeLogger() {

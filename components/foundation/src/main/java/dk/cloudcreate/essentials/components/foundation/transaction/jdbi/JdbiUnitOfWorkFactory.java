@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.transaction.jdbi;
 
 import org.jdbi.v3.core.Jdbi;
 
-public class JdbiUnitOfWorkFactory extends GenericHandleAwareUnitOfWorkFactory<GenericHandleAwareUnitOfWorkFactory.GenericHandleAwareUnitOfWork> {
+public final class JdbiUnitOfWorkFactory extends GenericHandleAwareUnitOfWorkFactory<GenericHandleAwareUnitOfWorkFactory.GenericHandleAwareUnitOfWork> {
     /**
      * @param jdbi the jdbi instance which provides access to the underlying database
      */

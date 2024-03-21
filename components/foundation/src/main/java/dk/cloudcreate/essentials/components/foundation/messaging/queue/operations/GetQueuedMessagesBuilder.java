@@ -21,7 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 /**
  * Builder for {@link GetQueuedMessages}
  */
-public class GetQueuedMessagesBuilder {
+public final class GetQueuedMessagesBuilder {
     private QueueName queueName;
     private DurableQueues.QueueingSortOrder queueingSortOrder = DurableQueues.QueueingSortOrder.ASC;
     private long                            startIndex;

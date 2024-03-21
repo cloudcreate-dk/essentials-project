@@ -164,4 +164,10 @@ public class AnnotatedCommandHandler implements CommandHandler {
                                                                });
     }
 
+    @Override
+    public String toString() {
+        return "AnnotatedCommandHandler{" +
+                "handling-command(s)=" + commandTypeToHandlerMethodCache.keySet() +
+                '}';
+    }
 }

@@ -36,7 +36,7 @@ import static dk.cloudcreate.essentials.types.avro.CountryCodeLogicalTypeFactory
  * }
  * }</pre>
  */
-public class CountryCodeConversion extends BaseCharSequenceConversion<CountryCode> {
+public final class CountryCodeConversion extends BaseCharSequenceConversion<CountryCode> {
     @Override
     public Class<CountryCode> getConvertedType() {
         return CountryCode.class;
