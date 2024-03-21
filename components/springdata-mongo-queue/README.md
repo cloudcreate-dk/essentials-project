@@ -2,7 +2,7 @@
 
 The `DurableQueues` concept supports intra-service point-to-point messaging using durable Queues that guarantee At-Least-Once delivery of messages.  
 The only requirement is that message producers and message consumers can access the same underlying durable Queue storage.  
-See [foundation](foundation/README.md) for more information about how to use the `DurableQueues`
+See [foundation](../foundation/README.md) for more information about how to use the `DurableQueues`
 
 > **NOTE:**  
 > **The library is WORK-IN-PROGRESS**
