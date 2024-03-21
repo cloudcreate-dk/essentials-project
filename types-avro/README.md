@@ -17,7 +17,7 @@ To use `Types-Avro` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-avro</artifactId>
-    <version>0.30.6</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 

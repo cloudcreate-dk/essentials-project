@@ -18,7 +18,7 @@ To use `spring-boot-starter-mongodb` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-mongodb</artifactId>
-    <version>0.30.6</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 

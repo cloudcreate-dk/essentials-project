@@ -50,7 +50,7 @@ To use `foundation-types` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>foundation-types</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 

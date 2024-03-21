@@ -21,15 +21,15 @@ By using naming conventions for Postgresql table/column/index names and MongoDB 
 
 **Insufficient attention to these practices may leave the application vulnerable to attacks, endangering the security and integrity of the database.**
 
-> Please see the **Security** notices for [components README.md](../README.md), as well as **Security** notices for the individual components, to familiarize yourself with the security
+> Please see the **Security** notices for [components README.md](components/README.md), as well as **Security** notices for the individual components, to familiarize yourself with the security
 > risks related to using the Components:
-> - [foundation-types](foundation-types/README.md)
-> - [postgresql-distributed-fenced-lock](postgresql-distributed-fenced-lock/README.md)
-> - [springdata-mongo-distributed-fenced-lock](springdata-mongo-distributed-fenced-lock/README.md)
-> - [postgresql-queue](postgresql-queue/README.md)
-> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
-> - [postgresql-event-store](postgresql-event-store/README.md)
-> - [eventsourced-aggregates](eventsourced-aggregates/README.md)
+> - [foundation-types](components/foundation-types/README.md)
+> - [postgresql-distributed-fenced-lock](components/postgresql-distributed-fenced-lock/README.md)
+> - [springdata-mongo-distributed-fenced-lock](components/springdata-mongo-distributed-fenced-lock/README.md)
+> - [postgresql-queue](components/postgresql-queue/README.md)
+> - [springdata-mongo-queue](components/springdata-mongo-queue/README.md)
+> - [postgresql-event-store](components/postgresql-event-store/README.md)
+> - [eventsourced-aggregates](components/eventsourced-aggregates/README.md)
 > - [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
 > - [spring-boot-starter-postgresql-event-store](components/spring-boot-starter-postgresql-event-store/README.md)
 > - [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
@@ -113,7 +113,7 @@ To use `Shared` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>shared</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
@@ -153,7 +153,7 @@ To use `Types` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
@@ -168,7 +168,7 @@ To use `Reactive` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>reactive</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
@@ -246,7 +246,7 @@ To use `Immutable` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
@@ -294,7 +294,7 @@ To use `Immutable-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable-jackson</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
@@ -316,7 +316,7 @@ To use `Types-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jackson</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
@@ -361,7 +361,7 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-mongo</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
@@ -407,7 +407,7 @@ To use `Types-Spring-Web` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-spring-web</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
@@ -479,7 +479,7 @@ To use `Types-JDBI` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jdbi</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
@@ -493,7 +493,7 @@ To use `Types-Avro` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-avro</artifactId>
-    <version>0.40.4</version>
+    <version>0.30.7</version>
 </dependency>
 ```
 
