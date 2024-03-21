@@ -20,6 +20,8 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.E
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.EventMetaData;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
+import dk.cloudcreate.essentials.components.foundation.types.*;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
 

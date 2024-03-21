@@ -26,6 +26,7 @@ import dk.cloudcreate.essentials.components.foundation.types.*;
 import java.util.function.Function;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
+import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
  * Helper Factory for creating {@link SeparateTablePerAggregateEventStreamConfiguration}

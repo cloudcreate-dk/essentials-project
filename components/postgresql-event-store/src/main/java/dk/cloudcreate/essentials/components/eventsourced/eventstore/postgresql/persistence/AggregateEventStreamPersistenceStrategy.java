@@ -23,6 +23,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWork;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil;
+import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.types.LongRange;
 
 import java.util.*;

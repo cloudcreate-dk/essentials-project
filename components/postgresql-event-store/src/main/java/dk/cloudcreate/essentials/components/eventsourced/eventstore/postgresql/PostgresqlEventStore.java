@@ -25,6 +25,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.p
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
+import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.reactive.EventBus;
 import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.types.LongRange;

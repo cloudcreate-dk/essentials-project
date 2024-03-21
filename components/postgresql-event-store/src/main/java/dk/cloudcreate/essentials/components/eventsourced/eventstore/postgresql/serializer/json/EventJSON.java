@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json;
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
 import dk.cloudcreate.essentials.types.CharSequenceType;
 
@@ -34,7 +35,7 @@ public final class EventJSON {
     /**
      * Cache or the {@link #json} deserialized back to its {@link #eventTypeOrName} form
      */
-    private transient Optional<Object>    jsonDeserialized;
+    private transient Optional<Object> jsonDeserialized;
     private final     EventTypeOrName  eventTypeOrName;
     private final     String           json;
 
