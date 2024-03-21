@@ -26,7 +26,7 @@
     <version>${revision}</version>
     <name>essentials-parent</name>
     <description>
-        Essentials is a set of Java version 17 (and later) building blocks built from the ground up to have no
+        Essentials is a set of Java version 11 (and later) building blocks built from the ground up to have no
         dependencies on other libraries, unless explicitly mentioned.
 
         The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise
@@ -60,18 +60,18 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>17</java.version>
+        <java.version>11</java.version>
         <kotlin.version>1.9.23</kotlin.version>
         <revision>DEV-SNAPSHOT</revision>
         <skipDependencyCheck>false</skipDependencyCheck>
 
         <objenesis.version>3.3</objenesis.version>
         <postgresql.version>42.7.3</postgresql.version>
-        <slf4j.version>2.0.12</slf4j.version>
-        <spring-boot.version>3.2.3</spring-boot.version>
+        <slf4j.version>1.7.36</slf4j.version>
+        <spring-boot.version>2.7.18</spring-boot.version>
         <awaitility.version>4.2.1</awaitility.version>
-        <spring-data-mongodb.version>4.2.4</spring-data-mongodb.version>
-        <spring-data-jpa.version>3.2.4</spring-data-jpa.version>
+        <spring-data-mongodb.version>3.4.18</spring-data-mongodb.version>
+        <spring-data-jpa.version>2.7.18</spring-data-jpa.version>
         <objenesis.version>3.3</objenesis.version>
         <assertj.version>3.25.3</assertj.version>
         <mongodb-driver-sync.version>4.11.1</mongodb-driver-sync.version>
@@ -86,10 +86,10 @@
         <testcontainers-bom.version>1.19.7</testcontainers-bom.version>
         <jdbi3-bom.version>3.45.1</jdbi3-bom.version>
         <jackson-bom.version>2.17.0</jackson-bom.version>
-        <reactor-bom.version>2023.0.4</reactor-bom.version>
-        <spring-framework-bom.version>6.1.5</spring-framework-bom.version>
+        <reactor-bom.version>2020.0.42</reactor-bom.version>
+        <spring-framework-bom.version>5.3.33</spring-framework-bom.version>
         <mockito-bom.version>5.11.0</mockito-bom.version>
-        <logback.version>1.5.3</logback.version>
+        <logback.version>1.2.13</logback.version>
         <avro.version>1.11.3</avro.version>
         <commons-compress.version>1.26.1</commons-compress.version>
 

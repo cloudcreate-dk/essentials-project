@@ -1,6 +1,6 @@
 # Essentials Java building blocks
 
-Essentials is a set of Java version 17 (and later) building blocks built from the ground up to have no dependencies
+Essentials is a set of Java version 11 (and later) building blocks built from the ground up to have no dependencies
 on other libraries, unless explicitly mentioned.
 
 > **NOTE:**  
