@@ -5,13 +5,13 @@
 
 > Please see the **Security** notices for [components README.md](../README.md), as well as **Security** notices for the individual components, to familiarize yourself with the security risks related to using the Components
 > Such as:
-> - [foundation-types](foundation-types/README.md)
-> - [postgresql-distributed-fenced-lock](postgresql-distributed-fenced-lock/README.md) 
-> - [springdata-mongo-distributed-fenced-lock](springdata-mongo-distributed-fenced-lock/README.md)
-> - [postgresql-queue](postgresql-queue/README.md)
-> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
-> - [postgresql-event-store](postgresql-event-store/README.md)
-> - [eventsourced-aggregates](eventsourced-aggregates/README.md)
+> - [foundation-types](../foundation-types/README.md)
+> - [postgresql-distributed-fenced-lock](../postgresql-distributed-fenced-lock/README.md) 
+> - [springdata-mongo-distributed-fenced-lock](../springdata-mongo-distributed-fenced-lock/README.md)
+> - [postgresql-queue](../postgresql-queue/README.md)
+> - [springdata-mongo-queue](../springdata-mongo-queue/README.md)
+> - [postgresql-event-store](../postgresql-event-store/README.md)
+> - [eventsourced-aggregates](../eventsourced-aggregates/README.md)
 
 This library focuses purely on providing foundational patterns, such as queue, inbox, outbox, etc. used in modern java solutions:
 
@@ -63,8 +63,8 @@ and comes in two flavours
 `PostgresqlDurableQueues` and `MongoDurableQueues` which both implement the `DurableQueues` interface.
 
 > For more information and security related information see
-> - [postgresql-queue](postgresql-queue/README.md)
-> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
+> - [postgresql-queue](../postgresql-queue/README.md)
+> - [springdata-mongo-queue](../springdata-mongo-queue/README.md)
 
 ### `QueueName`
 
@@ -169,14 +169,14 @@ To use `DurableQueues` you must create an instance of a concrete `DurableQueues`
 An implementation using PostgreSQL to provide DurableQueues
 
 > For more information and security related information see
-> - [postgresql-queue](postgresql-queue/README.md)
+> - [postgresql-queue](../postgresql-queue/README.md)
 
 ### `MongoDurableQueues`
 
 An implementation using MongoDB and the SpringData MongoDB library to provide DurableQueues
 
 > For more information and security related information see
-> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
+> - [springdata-mongo-queue](../springdata-mongo-queue/README.md)
 
 ## `DurableLocalCommandBus`
 
@@ -533,7 +533,7 @@ lockManager.acquireLockAsync(LockName.of("MyLock"),
 An implementation using Postgresql to coordinate the different locks
 
 > For more information and security related information see
-> - [postgresql-distributed-fenced-lock](postgresql-distributed-fenced-lock/README.md) 
+> - [postgresql-distributed-fenced-lock](../postgresql-distributed-fenced-lock/README.md) 
 
 
 ## MongoFencedLockManager
@@ -541,7 +541,7 @@ An implementation using Postgresql to coordinate the different locks
 An implementation using MongoDB and the SpringData MongoDB library to coordinate the different locks.
 
 > For more information and security related information see
-> - [springdata-mongo-distributed-fenced-lock](springdata-mongo-distributed-fenced-lock/README.md) 
+> - [springdata-mongo-distributed-fenced-lock](../springdata-mongo-distributed-fenced-lock/README.md) 
 
 
 
