@@ -9,9 +9,9 @@ All `@Beans` auto-configured by this library use `@ConditionalOnMissingBean` to 
 
 > Please see the **Security** notices below, as well as **Security** notices for the individual components included, to familiarize yourself with the security risks related to Collection name configurations
 > Such as:
-> - [foundation-types](foundation-types/README.md)
-> - [springdata-mongo-distributed-fenced-lock](springdata-mongo-distributed-fenced-lock/README.md)
-> - [springdata-mongo-queue](springdata-mongo-queue/README.md)
+> - [foundation-types](../foundation-types/README.md)
+> - [springdata-mongo-distributed-fenced-lock](../springdata-mongo-distributed-fenced-lock/README.md)
+> - [springdata-mongo-queue](../springdata-mongo-queue/README.md)
 
 To use `spring-boot-starter-mongodb` to add the following dependency:
 ```
