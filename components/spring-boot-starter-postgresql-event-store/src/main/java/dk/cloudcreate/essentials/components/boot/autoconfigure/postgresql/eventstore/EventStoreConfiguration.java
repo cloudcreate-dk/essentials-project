@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.eventstore;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,6 +58,9 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.spring.SpringTransactionAwareEventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.PostgresqlDurableSubscriptionRepository;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring.EventStoreSubscriptionMonitor;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring.EventStoreSubscriptionMonitorManager;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring.SubscriberGlobalOrderMicrometerMonitor;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWork;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventOrder;
@@ -74,6 +78,7 @@ import dk.cloudcreate.essentials.reactive.Handler;
 import dk.cloudcreate.essentials.reactive.OnErrorHandler;
 import dk.cloudcreate.essentials.reactive.command.CmdHandler;
 import dk.cloudcreate.essentials.reactive.command.CommandBus;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
@@ -86,6 +91,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.PlatformTransactionManager;
+
+import static dk.cloudcreate.essentials.shared.FailFast.requireTrue;
 
 /**
  * {@link PostgresqlEventStore} auto configuration<br>
@@ -311,4 +318,29 @@ public class EventStoreConfiguration {
 
         return new JacksonJSONEventSerializer(objectMapper);
     }
+
+    /**
+     * @param eventStoreProperties The properties for event store
+     * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} that contains all current subscriptions to monitor
+     * @param monitors The List of {@link EventStoreSubscriptionMonitor}s each implementing monitoring rules
+     * @return The {@link EventStoreSubscriptionMonitorManager} responsible for scheduling monitoring tasks
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EventStoreSubscriptionMonitorManager eventStoreSubscriptionMonitorManager(EssentialsEventStoreProperties eventStoreProperties,
+                                                                                     EventStoreSubscriptionManager eventStoreSubscriptionManager,
+                                                                                     List<EventStoreSubscriptionMonitor> monitors) {
+        boolean enabled = eventStoreProperties.getSubscriptionMonitor().isEnabled();
+        Duration interval = eventStoreProperties.getSubscriptionMonitor().getInterval();
+        return new EventStoreSubscriptionMonitorManager(enabled, interval, eventStoreSubscriptionManager, monitors);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
+    public SubscriberGlobalOrderMicrometerMonitor subscriberGlobalOrderMicrometerMonitor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
+                                                                                         Optional<MeterRegistry> meterRegistry) {
+        requireTrue(meterRegistry.isPresent(), "MeterRegistry is not configured");
+        return new SubscriberGlobalOrderMicrometerMonitor(eventStoreSubscriptionManager, meterRegistry.orElse(null));
+    }
+
 }

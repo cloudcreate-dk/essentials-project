@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -481,6 +482,10 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
 
     boolean hasSubscription(SubscriberId subscriberId, AggregateType aggregateType);
 
+    Set<Pair<SubscriberId, AggregateType>> getActiveSubscriptions();
+
+    GlobalEventOrder getCurrentEventOrder(SubscriberId subscriberId, AggregateType aggregateType);
+
     /**
      * Default implementation of the {@link EventStoreSubscriptionManager} interface
      */
@@ -581,6 +586,19 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         @Override
         public EventStore getEventStore() {
             return eventStore;
+        }
+
+        @Override
+        public Set<Pair<SubscriberId, AggregateType>> getActiveSubscriptions() {
+            return this.subscribers.keySet();
+        }
+
+        @Override
+        public GlobalEventOrder getCurrentEventOrder(SubscriberId subscriberId, AggregateType aggregateType) {
+            return Optional.ofNullable(this.subscribers.get(Pair.of(subscriberId, aggregateType)))
+                .flatMap(EventStoreSubscription::currentResumePoint)
+                .map(SubscriptionResumePoint::getResumeFromAndIncluding)
+                .orElse(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER);
         }
 
         private void saveResumePointsForAllSubscribers() {
