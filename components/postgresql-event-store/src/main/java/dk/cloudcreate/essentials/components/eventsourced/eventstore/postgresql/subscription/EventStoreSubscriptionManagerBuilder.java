@@ -28,6 +28,7 @@ public final class EventStoreSubscriptionManagerBuilder {
     private FencedLockManager             fencedLockManager;
     private Duration                      snapshotResumePointsEvery  = Duration.ofSeconds(1);
     private DurableSubscriptionRepository durableSubscriptionRepository;
+    private boolean startLifeCycles = true;
 
     /**
      * @param eventStore the event store that the created {@link EventStoreSubscriptionManager} can manage event subscriptions against
@@ -83,12 +84,18 @@ public final class EventStoreSubscriptionManagerBuilder {
         return this;
     }
 
+    public EventStoreSubscriptionManagerBuilder setStartLifeCycles(boolean startLifeCycles) {
+        this.startLifeCycles = startLifeCycles;
+        return this;
+    }
+
     public EventStoreSubscriptionManager.DefaultEventStoreSubscriptionManager build() {
         return new EventStoreSubscriptionManager.DefaultEventStoreSubscriptionManager(eventStore,
                                                                                       eventStorePollingBatchSize,
                                                                                       eventStorePollingInterval,
                                                                                       fencedLockManager,
                                                                                       snapshotResumePointsEvery,
-                                                                                      durableSubscriptionRepository);
+                                                                                      durableSubscriptionRepository,
+                                                                                      startLifeCycles);
     }
 }

@@ -16,16 +16,20 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 
-import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.*;
+import java.time.Duration;
+
+import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
+import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
-import dk.cloudcreate.essentials.components.foundation.postgresql.*;
+import dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener;
+import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil;
 import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Duration;
 
 /**
  * Properties for the Postgresql focused Essentials Components auto-configuration<br>
@@ -430,7 +434,7 @@ public class EssentialsComponentsProperties {
          *
          * @return the property that determined if lifecycle beans should be started automatically
          */
-        public boolean isStartLifecycles() {
+        public boolean isStartLifeCycles() {
             return startLifeCycles;
         }
 
