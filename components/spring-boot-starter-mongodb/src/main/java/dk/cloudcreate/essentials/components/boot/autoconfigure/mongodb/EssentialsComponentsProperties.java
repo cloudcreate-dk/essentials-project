@@ -370,7 +370,7 @@ public class EssentialsComponentsProperties {
          *
          * @return the property that determined if lifecycle beans should be started automatically
          */
-        public boolean isStartLifecycles() {
+        public boolean isStartLifeCycles() {
             return startLifeCycles;
         }
 

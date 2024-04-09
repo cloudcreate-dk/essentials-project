@@ -471,7 +471,7 @@ public class EssentialsComponentsConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public LifecycleManager lifecycleController(EssentialsComponentsProperties properties) {
-        return new DefaultLifecycleManager(properties.getLifeCycles().isStartLifecycles());
+        return new DefaultLifecycleManager(properties.getLifeCycles().isStartLifeCycles());
     }
 
 }
