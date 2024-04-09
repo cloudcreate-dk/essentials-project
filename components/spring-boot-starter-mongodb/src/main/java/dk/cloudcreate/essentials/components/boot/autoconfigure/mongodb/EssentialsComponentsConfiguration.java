@@ -91,7 +91,6 @@ import org.springframework.core.convert.converter.GenericConverter;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.convert.MongoConverter;
 import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
 
 /**
@@ -473,4 +472,5 @@ public class EssentialsComponentsConfiguration {
     public LifecycleManager lifecycleController(EssentialsComponentsProperties properties) {
         return new DefaultLifecycleManager(properties.getLifeCycles().isStartLifecycles());
     }
+
 }

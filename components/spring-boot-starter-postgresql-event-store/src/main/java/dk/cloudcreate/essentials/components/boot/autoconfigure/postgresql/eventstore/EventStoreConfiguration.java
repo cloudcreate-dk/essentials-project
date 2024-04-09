@@ -16,48 +16,83 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.eventstore;
 
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.EssentialsComponentsConfiguration;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
+import dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.EssentialsComponentsProperties;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.ConfigurableEventStore;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStoreSubscription;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.EventStoreEventBus;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.PersistedEvents;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.EventStreamTableColumnNames;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.NoEventStreamGapHandler;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.PostgresqlEventStreamGapHandler;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.micrometer.MicrometerTracingEventStoreInterceptor;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.processor.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.AggregateEventStreamConfiguration;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.AggregateEventStreamPersistenceStrategy;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.PersistableEvent;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.PersistableEventMapper;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.PersistableEventEnricher;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateEventStreamConfiguration;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypePersistenceStrategy;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.processor.EventProcessor;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.processor.EventProcessorDependencies;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JSONEventSerializer;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JacksonJSONEventSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.spring.SpringTransactionAwareEventStoreUnitOfWorkFactory;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.PostgresqlDurableSubscriptionRepository;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring.EventStoreSubscriptionMonitor;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring.EventStoreSubscriptionMonitorManager;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring.SubscriberGlobalOrderMicrometerMonitor;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWork;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventOrder;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventTypeOrName;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
 import dk.cloudcreate.essentials.components.foundation.messaging.MessageHandler;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inbox;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inboxes;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.MessageHandlerInterceptor;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
 import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
-import dk.cloudcreate.essentials.reactive.*;
-import dk.cloudcreate.essentials.reactive.command.*;
+import dk.cloudcreate.essentials.reactive.Handler;
+import dk.cloudcreate.essentials.reactive.OnErrorHandler;
+import dk.cloudcreate.essentials.reactive.command.CmdHandler;
+import dk.cloudcreate.essentials.reactive.command.CommandBus;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
 import org.jdbi.v3.core.Jdbi;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.*;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.util.*;
+import static dk.cloudcreate.essentials.shared.FailFast.requireTrue;
 
 /**
  * {@link PostgresqlEventStore} auto configuration<br>
@@ -140,14 +175,16 @@ public class EventStoreConfiguration {
     public EventStoreSubscriptionManager eventStoreSubscriptionManager(EventStore eventStore,
                                                                        FencedLockManager fencedLockManager,
                                                                        Jdbi jdbi,
-                                                                       EssentialsEventStoreProperties properties) {
+                                                                       EssentialsEventStoreProperties eventStoreProperties,
+                                                                       EssentialsComponentsProperties essentialsComponentsProperties) {
         return EventStoreSubscriptionManager.builder()
                                             .setEventStore(eventStore)
                                             .setFencedLockManager(fencedLockManager)
                                             .setDurableSubscriptionRepository(new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory()))
-                                            .setEventStorePollingBatchSize(properties.getSubscriptionManager().getEventStorePollingBatchSize())
-                                            .setEventStorePollingInterval(properties.getSubscriptionManager().getEventStorePollingInterval())
-                                            .setSnapshotResumePointsEvery(properties.getSubscriptionManager().getSnapshotResumePointsEvery())
+                                            .setEventStorePollingBatchSize(eventStoreProperties.getSubscriptionManager().getEventStorePollingBatchSize())
+                                            .setEventStorePollingInterval(eventStoreProperties.getSubscriptionManager().getEventStorePollingInterval())
+                                            .setSnapshotResumePointsEvery(eventStoreProperties.getSubscriptionManager().getSnapshotResumePointsEvery())
+                                            .setStartLifeCycles(essentialsComponentsProperties.getLifeCycles().isStartLifeCycles())
                                             .build();
     }
 
@@ -281,4 +318,29 @@ public class EventStoreConfiguration {
 
         return new JacksonJSONEventSerializer(objectMapper);
     }
+
+    /**
+     * @param eventStoreProperties The properties for event store
+     * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} that contains all current subscriptions to monitor
+     * @param monitors The List of {@link EventStoreSubscriptionMonitor}s each implementing monitoring rules
+     * @return The {@link EventStoreSubscriptionMonitorManager} responsible for scheduling monitoring tasks
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EventStoreSubscriptionMonitorManager eventStoreSubscriptionMonitorManager(EssentialsEventStoreProperties eventStoreProperties,
+                                                                                     EventStoreSubscriptionManager eventStoreSubscriptionManager,
+                                                                                     List<EventStoreSubscriptionMonitor> monitors) {
+        boolean enabled = eventStoreProperties.getSubscriptionMonitor().isEnabled();
+        Duration interval = eventStoreProperties.getSubscriptionMonitor().getInterval();
+        return new EventStoreSubscriptionMonitorManager(enabled, interval, eventStoreSubscriptionManager, monitors);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
+    public SubscriberGlobalOrderMicrometerMonitor subscriberGlobalOrderMicrometerMonitor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
+                                                                                         Optional<MeterRegistry> meterRegistry) {
+        requireTrue(meterRegistry.isPresent(), "MeterRegistry is not configured");
+        return new SubscriberGlobalOrderMicrometerMonitor(eventStoreSubscriptionManager, meterRegistry.orElse(null));
+    }
+
 }

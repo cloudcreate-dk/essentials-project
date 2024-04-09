@@ -384,7 +384,7 @@ public class EssentialsComponentsConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public LifecycleManager lifecycleController(EssentialsComponentsProperties properties) {
-        return new DefaultLifecycleManager(this::onContextRefreshedEvent, properties.getLifeCycles().isStartLifecycles());
+        return new DefaultLifecycleManager(this::onContextRefreshedEvent, properties.getLifeCycles().isStartLifeCycles());
     }
 
     private void onContextRefreshedEvent(ApplicationContext applicationContext) {

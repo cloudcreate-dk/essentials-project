@@ -16,29 +16,43 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription;
 
+import java.time.Duration;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
 import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStoreException;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStoreSubscription;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.CommitStage;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.PersistedEvents;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.LockCallback;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.LockName;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inbox;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.components.foundation.types.*;
+import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
+import dk.cloudcreate.essentials.components.foundation.types.Tenant;
 import dk.cloudcreate.essentials.shared.FailFast;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
 import org.reactivestreams.Subscription;
-import org.slf4j.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.BaseSubscriber;
-
-import java.time.Duration;
-import java.util.Optional;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -450,7 +464,13 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                    FencedLockManager fencedLockManager,
                                                    Duration snapshotResumePointsEvery,
                                                    DurableSubscriptionRepository durableSubscriptionRepository) {
-        return builder().setEventStore(eventStore).setEventStorePollingBatchSize(eventStorePollingBatchSize).setEventStorePollingInterval(eventStorePollingInterval).setFencedLockManager(fencedLockManager).setSnapshotResumePointsEvery(snapshotResumePointsEvery).setDurableSubscriptionRepository(durableSubscriptionRepository).build();
+        return builder().setEventStore(eventStore)
+            .setEventStorePollingBatchSize(eventStorePollingBatchSize)
+            .setEventStorePollingInterval(eventStorePollingInterval)
+            .setFencedLockManager(fencedLockManager)
+            .setSnapshotResumePointsEvery(snapshotResumePointsEvery)
+            .setDurableSubscriptionRepository(durableSubscriptionRepository)
+            .build();
     }
 
     void unsubscribe(EventStoreSubscription eventStoreSubscription);
@@ -461,6 +481,10 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
     }
 
     boolean hasSubscription(SubscriberId subscriberId, AggregateType aggregateType);
+
+    Set<Pair<SubscriberId, AggregateType>> getActiveSubscriptions();
+
+    GlobalEventOrder getCurrentEventOrder(SubscriberId subscriberId, AggregateType aggregateType);
 
     /**
      * Default implementation of the {@link EventStoreSubscriptionManager} interface
@@ -479,13 +503,15 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         private final    ConcurrentMap<Pair<SubscriberId, AggregateType>, EventStoreSubscription> subscribers = new ConcurrentHashMap<>();
         private volatile boolean                                                                  started;
         private          ScheduledFuture<?>                                                       saveResumePointsFuture;
+        private final boolean startLifeCycles;
 
         public DefaultEventStoreSubscriptionManager(EventStore eventStore,
                                                     int eventStorePollingBatchSize,
                                                     Duration eventStorePollingInterval,
                                                     FencedLockManager fencedLockManager,
                                                     Duration snapshotResumePointsEvery,
-                                                    DurableSubscriptionRepository durableSubscriptionRepository) {
+                                                    DurableSubscriptionRepository durableSubscriptionRepository,
+                                                    boolean startLifeCycles) {
             FailFast.requireTrue(eventStorePollingBatchSize >= 1, "eventStorePollingBatchSize must be >= 1");
             this.eventStore = requireNonNull(eventStore, "No eventStore provided");
             this.eventStorePollingBatchSize = eventStorePollingBatchSize;
@@ -493,19 +519,26 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             this.fencedLockManager = requireNonNull(fencedLockManager, "No fencedLockManager provided");
             this.durableSubscriptionRepository = requireNonNull(durableSubscriptionRepository, "No durableSubscriptionRepository provided");
             this.snapshotResumePointsEvery = requireNonNull(snapshotResumePointsEvery, "No snapshotResumePointsEvery provided");
+            this.startLifeCycles = startLifeCycles;
 
-            log.info("[{}] Using {} using {} with snapshotResumePointsEvery: {}, eventStorePollingBatchSize: {}, eventStorePollingInterval: {}",
+            log.info("[{}] Using {} using {} with snapshotResumePointsEvery: {}, eventStorePollingBatchSize: {}, eventStorePollingInterval: {}, " +
+                    "startLifeCycles: {}",
                      fencedLockManager.getLockManagerInstanceId(),
                      fencedLockManager,
                      durableSubscriptionRepository.getClass().getSimpleName(),
                      snapshotResumePointsEvery,
                      eventStorePollingBatchSize,
-                     eventStorePollingInterval
+                     eventStorePollingInterval,
+                     startLifeCycles
                     );
         }
 
         @Override
         public void start() {
+            if (!startLifeCycles) {
+                log.debug("Start of lifecycle beans is disabled");
+                return;
+            }
             if (!started) {
                 log.info("[{}] Starting EventStore Subscription Manager", fencedLockManager.getLockManagerInstanceId());
 
@@ -553,6 +586,19 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         @Override
         public EventStore getEventStore() {
             return eventStore;
+        }
+
+        @Override
+        public Set<Pair<SubscriberId, AggregateType>> getActiveSubscriptions() {
+            return this.subscribers.keySet();
+        }
+
+        @Override
+        public GlobalEventOrder getCurrentEventOrder(SubscriberId subscriberId, AggregateType aggregateType) {
+            return Optional.ofNullable(this.subscribers.get(Pair.of(subscriberId, aggregateType)))
+                .flatMap(EventStoreSubscription::currentResumePoint)
+                .map(SubscriptionResumePoint::getResumeFromAndIncluding)
+                .orElse(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER);
         }
 
         private void saveResumePointsForAllSubscribers() {

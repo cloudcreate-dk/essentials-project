@@ -16,16 +16,23 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.eventstore;
 
+import java.time.Duration;
+
 import dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.EssentialsComponentsConfiguration;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.EventStreamTableColumnNames;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.IdentifierColumnType;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.JSONColumnType;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.NoEventStreamGapHandler;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.PostgresqlEventStreamGapHandler;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateEventStreamConfiguration;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypePersistenceStrategy;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.PostgresqlDurableSubscriptionRepository;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.SubscriptionResumePoint;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Duration;
 
 /**
  * Properties for the Postgresql EventStore<br>
@@ -56,6 +63,8 @@ public class EssentialsEventStoreProperties {
     private boolean verboseTracing = false;
 
     private final EventStoreSubscriptionManagerProperties subscriptionManager = new EventStoreSubscriptionManagerProperties();
+
+    private final EventStoreSubscriptionMonitorProperties subscriptionMonitor = new EventStoreSubscriptionMonitorProperties();
 
 
     /**
@@ -138,6 +147,14 @@ public class EssentialsEventStoreProperties {
     }
 
     /**
+     * Get the {@link dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring.EventStoreSubscriptionMonitorManager} properties
+     * @return the {@link dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring.EventStoreSubscriptionMonitorManager} properties
+     */
+    public EventStoreSubscriptionMonitorProperties getSubscriptionMonitor() {
+        return this.subscriptionMonitor;
+    }
+
+    /**
      * {@link EventStoreSubscriptionManager} properties
      */
     public static class EventStoreSubscriptionManagerProperties {
@@ -197,6 +214,44 @@ public class EssentialsEventStoreProperties {
          */
         public void setSnapshotResumePointsEvery(Duration snapshotResumePointsEvery) {
             this.snapshotResumePointsEvery = snapshotResumePointsEvery;
+        }
+    }
+
+    public static class EventStoreSubscriptionMonitorProperties {
+        private boolean enabled = true;
+        private Duration interval = Duration.ofMinutes(1);
+
+        /**
+         * Is monitoring of event store subscribers enabled
+         * @return Is monitoring of event store subscribers enabled
+         */
+        public boolean isEnabled() {
+            return this.enabled;
+        }
+
+        /**
+         * Monitoring of event store subscribers using implementations of
+         * {@link dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring.EventStoreSubscriptionMonitor}
+         * @param enabled Monitoring of event store subscribers
+         */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /**
+         * Monitoring interval
+         * @param interval Monitoring interval
+         */
+        public void setInterval(Duration interval) {
+            this.interval = interval;
+        }
+
+        /**
+         * The interval to execute the {@link dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring.EventStoreSubscriptionMonitor}s
+         * @return monitoring interval
+         */
+        public Duration getInterval() {
+            return this.interval;
         }
     }
 }

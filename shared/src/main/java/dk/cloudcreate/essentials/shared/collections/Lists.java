@@ -82,4 +82,8 @@ public final class Lists {
         }
         return Optional.of(list.get(list.size() - 1));
     }
+
+    public static <T> List<T> nullSafeList(List<T> list) {
+        return Optional.ofNullable(list).orElse(List.of());
+    }
 }
