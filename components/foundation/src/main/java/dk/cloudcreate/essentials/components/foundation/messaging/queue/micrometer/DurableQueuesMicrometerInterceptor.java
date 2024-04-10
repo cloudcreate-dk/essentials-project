@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,22 +36,27 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.operation
 import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 public final class DurableQueuesMicrometerInterceptor implements DurableQueuesInterceptor {
-    public static final String PROCESSED_QUEUED_MESSAGES_COUNTER_NAME         = "DurableQueues_QueuedMessages_Processed_";
-    public static final String PROCESSED_QUEUED_MESSAGES_RETRIES_COUNTER_NAME = "DurableQueues_QueuedMessages_Retries_";
-    public static final String PROCESSED_DEAD_LETTER_MESSAGES_COUNTER_NAME    = "DurableQueues_DeadLetterMessages_Processed_";
+    public static final String PROCESSED_QUEUED_MESSAGES_COUNTER_NAME         = "DurableQueues_QueuedMessages_Processed";
+    public static final String PROCESSED_QUEUED_MESSAGES_RETRIES_COUNTER_NAME = "DurableQueues_QueuedMessages_Retries";
+    public static final String PROCESSED_DEAD_LETTER_MESSAGES_COUNTER_NAME    = "DurableQueues_DeadLetterMessages_Processed";
     public static final String QUEUE_NAME_TAG_NAME                            = "QueueName";
+    public static final String MODULE_TAG_NAME                               = "Module";
 
     private final MeterRegistry                             meterRegistry;
     private final ConcurrentHashMap<QueueName, QueueGauges> queueGauges = new ConcurrentHashMap<>();
     private       DurableQueues                             durableQueues;
+    private final List<Tag>                                 commonTags = new ArrayList<>();
 
 
-    public DurableQueuesMicrometerInterceptor(MeterRegistry meterRegistry) {
+    public DurableQueuesMicrometerInterceptor(MeterRegistry meterRegistry,
+                                              String moduleTag) {
         this.meterRegistry = requireNonNull(meterRegistry, "No meterRegistry instance provided");
+        Optional.ofNullable(moduleTag).map(t -> Tag.of(MODULE_TAG_NAME, t)).ifPresent(commonTags::add);
     }
 
     @Override
@@ -68,11 +74,11 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
         var gauges = new QueueGauges();
         gauges.queuedMessagesGauge = Gauge
                 .builder("DurableQueues_QueuedMessages_Size", () -> durableQueues.getTotalMessagesQueuedFor(queueName))
-                .tag(QUEUE_NAME_TAG_NAME, queueName.toString())
+                .tags(buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
                 .register(meterRegistry);
         gauges.deadLetterMessagesGauge = Gauge
                 .builder("DurableQueues_DeadLetterMessages_Size", () -> durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName))
-                .tag(QUEUE_NAME_TAG_NAME, queueName.toString())
+                .tags(buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
                 .register(meterRegistry);
         return gauges;
     }
@@ -144,30 +150,35 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
 
     protected void incProcessedQueuedMessagesCount(QueueName queueName) {
         requireNonNull(queueName, "No queueName provided");
-        meterRegistry.counter(PROCESSED_QUEUED_MESSAGES_COUNTER_NAME + queueName.toString(), QUEUE_NAME_TAG_NAME, queueName.toString())
+        meterRegistry.counter(PROCESSED_QUEUED_MESSAGES_COUNTER_NAME, buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
                      .increment();
     }
 
 
     protected void incProcessedQueuedMessagesCount(QueueName queueName, int countIncrease) {
         requireNonNull(queueName, "No queueName provided");
-        meterRegistry.counter(PROCESSED_QUEUED_MESSAGES_COUNTER_NAME + queueName.toString(), QUEUE_NAME_TAG_NAME, queueName.toString())
+        meterRegistry.counter(PROCESSED_QUEUED_MESSAGES_COUNTER_NAME, buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
                      .increment(countIncrease);
     }
 
 
     protected void incProcessedQueuedDeadLetterMessagesCount(QueueName queueName) {
         requireNonNull(queueName, "No queueName provided");
-        meterRegistry.counter(PROCESSED_DEAD_LETTER_MESSAGES_COUNTER_NAME + queueName.toString(), QUEUE_NAME_TAG_NAME, queueName.toString())
+        meterRegistry.counter(PROCESSED_DEAD_LETTER_MESSAGES_COUNTER_NAME, buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
                      .increment();
     }
 
     protected void incQueuedMessagesRetriesCount(QueueName queueName) {
         requireNonNull(queueName, "No queueName provided");
-        meterRegistry.counter(PROCESSED_QUEUED_MESSAGES_RETRIES_COUNTER_NAME + queueName.toString(), QUEUE_NAME_TAG_NAME, queueName.toString())
+        meterRegistry.counter(PROCESSED_QUEUED_MESSAGES_RETRIES_COUNTER_NAME, buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
                      .increment();
     }
 
+    private List<Tag> buildTagList(String key, String value) {
+        ArrayList<Tag> tagList = new ArrayList<>(this.commonTags);
+        tagList.add(Tag.of(key, value));
+        return tagList;
+    }
 
     private static class QueueGauges {
         private Gauge queuedMessagesGauge;
