@@ -33,7 +33,7 @@ then you need to check the component document to learn about the Security implic
 ### Beans provided by the `EssentialsComponentsConfiguration` auto-configuration:
 - Jackson/FasterXML JSON modules:
     - `EssentialTypesJacksonModule`
-    - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath)
+    - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath AND `essentials.immutable-jackson-module-enabled` has value `true`)
 - `JacksonJSONSerializer` which uses an internally configured `ObjectMapper`, which provides good defaults for JSON serialization, and includes all Jackson `Module`'s defined in the `ApplicationContext`
 - `SingleValueTypeRandomIdGenerator` to support server generated Id creations for SpringData Mongo classes with @Id fields of type `SingleValueType`
 - `MongoCustomConversions` with a `SingleValueTypeConverter` covering `LockName`, `QueueEntryId` and `QueueName`

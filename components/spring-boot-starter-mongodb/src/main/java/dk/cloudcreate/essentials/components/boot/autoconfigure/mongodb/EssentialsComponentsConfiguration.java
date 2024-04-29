@@ -182,7 +182,7 @@ public class EssentialsComponentsConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public com.fasterxml.jackson.databind.Module essentialJacksonModule() {
+    public EssentialTypesJacksonModule essentialJacksonModule() {
         return new EssentialTypesJacksonModule();
     }
 
@@ -193,6 +193,7 @@ public class EssentialsComponentsConfiguration {
      */
     @Bean
     @ConditionalOnClass(name = "org.objenesis.ObjenesisStd")
+    @ConditionalOnProperty(prefix = "essentials", name = "immutable-jackson-module-enabled", havingValue = "true")
     @ConditionalOnMissingBean
     public EssentialsImmutableJacksonModule essentialsImmutableJacksonModule() {
         return new EssentialsImmutableJacksonModule();
@@ -425,15 +426,13 @@ public class EssentialsComponentsConfiguration {
      * {@link JSONSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
      * (including handling {@link DurableQueues} message payload serialization and deserialization)
      *
-     * @param optionalEssentialsImmutableJacksonModule the optional {@link EssentialsImmutableJacksonModule}
      * @param additionalModules                        additional {@link Module}'s found in the {@link ApplicationContext}
      * @return the {@link JSONSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
      */
     @Bean
     @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JSONEventSerializer")
     @ConditionalOnMissingBean
-    public JSONSerializer jsonSerializer(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule,
-                                         List<Module> additionalModules) {
+    public JSONSerializer jsonSerializer(List<Module> additionalModules) {
         var objectMapperBuilder = JsonMapper.builder()
                                             .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                             .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
@@ -449,8 +448,6 @@ public class EssentialsComponentsConfiguration {
                                             .addModule(new JavaTimeModule());
 
         additionalModules.forEach(objectMapperBuilder::addModule);
-
-        optionalEssentialsImmutableJacksonModule.ifPresent(objectMapperBuilder::addModule);
 
         var objectMapper = objectMapperBuilder.build();
         objectMapper.setVisibility(objectMapper.getSerializationConfig().getDefaultVisibilityChecker()

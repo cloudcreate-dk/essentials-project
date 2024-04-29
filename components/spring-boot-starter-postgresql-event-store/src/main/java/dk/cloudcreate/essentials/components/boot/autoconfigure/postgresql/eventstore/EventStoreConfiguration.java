@@ -73,7 +73,6 @@ import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_f
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
 import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.reactive.Handler;
 import dk.cloudcreate.essentials.reactive.OnErrorHandler;
 import dk.cloudcreate.essentials.reactive.command.CmdHandler;
@@ -283,14 +282,12 @@ public class EventStoreConfiguration {
     /**
      * The {@link JSONEventSerializer} that handles both {@link EventStore} event/metadata serialization as well as {@link DurableQueues} message payload serialization and deserialization
      *
-     * @param optionalEssentialsImmutableJacksonModule the optional {@link EssentialsImmutableJacksonModule}
      * @param additionalModules                        additional {@link Module}'s found in the {@link ApplicationContext}
      * @return the {@link JSONEventSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
      */
     @Bean
     @ConditionalOnMissingBean
-    public JSONEventSerializer jsonSerializer(Optional<EssentialsImmutableJacksonModule> optionalEssentialsImmutableJacksonModule,
-                                              List<Module> additionalModules) {
+    public JSONEventSerializer jsonSerializer(List<Module> additionalModules) {
         var objectMapperBuilder = JsonMapper.builder()
                                             .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                             .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
@@ -306,8 +303,6 @@ public class EventStoreConfiguration {
                                             .addModule(new JavaTimeModule());
 
         additionalModules.forEach(objectMapperBuilder::addModule);
-
-        optionalEssentialsImmutableJacksonModule.ifPresent(objectMapperBuilder::addModule);
 
         var objectMapper = objectMapperBuilder.build();
         objectMapper.setVisibility(objectMapper.getSerializationConfig().getDefaultVisibilityChecker()
