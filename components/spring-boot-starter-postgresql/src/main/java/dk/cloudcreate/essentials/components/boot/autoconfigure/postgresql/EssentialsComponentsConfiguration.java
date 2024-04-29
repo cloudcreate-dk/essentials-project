@@ -126,8 +126,9 @@ public class EssentialsComponentsConfiguration {
 
     @Bean
     @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
-    public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(Optional<MeterRegistry> meterRegistry) {
-        return new DurableQueuesMicrometerInterceptor(meterRegistry.get());
+    public DurableQueuesMicrometerInterceptor durableQueuesMicrometerInterceptor(Optional<MeterRegistry> meterRegistry,
+                                                                                 EssentialsComponentsProperties properties) {
+        return new DurableQueuesMicrometerInterceptor(meterRegistry.get(), properties.getTracingProperties().getModuleTag());
     }
 
     /**

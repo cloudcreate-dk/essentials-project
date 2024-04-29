@@ -85,6 +85,7 @@ public class EssentialsComponentsProperties {
     private final MultiTableChangeListenerProperties multiTableChangeListener = new MultiTableChangeListenerProperties();
 
     private final LifeCycleProperties lifeCycles = new LifeCycleProperties();
+    private final TracingProperties tracingProperties = new TracingProperties();
 
 
     public FencedLockManagerProperties getFencedLockManager() {
@@ -101,6 +102,10 @@ public class EssentialsComponentsProperties {
 
     public LifeCycleProperties getLifeCycles() {
         return this.lifeCycles;
+    }
+
+    public TracingProperties getTracingProperties() {
+        return this.tracingProperties;
     }
 
     public static class MultiTableChangeListenerProperties {
@@ -445,6 +450,26 @@ public class EssentialsComponentsProperties {
          */
         public void setStartLifeCycles(boolean startLifeCycles) {
             this.startLifeCycles = startLifeCycles;
+        }
+    }
+
+    public static class TracingProperties {
+        private String moduleTag;
+
+        /**
+         * Get property to set as 'module' tag value for all micrometer metrics. This to differentiate metrics across different modules.
+         * @return property to set as 'module' tag value for all micrometer metrics
+         */
+        public String getModuleTag() {
+            return moduleTag;
+        }
+
+        /**
+         * Set property to use as 'module' tag value for all micrometer metrics. This to differentiate metrics across different modules.
+         * @param moduleTag property to set as 'module' tag value for all micrometer metrics
+         */
+        public void setModuleTag(String moduleTag) {
+            this.moduleTag = moduleTag;
         }
     }
 }

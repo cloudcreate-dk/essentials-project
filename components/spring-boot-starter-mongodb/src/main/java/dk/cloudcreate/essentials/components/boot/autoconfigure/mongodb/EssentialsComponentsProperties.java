@@ -16,16 +16,18 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.mongodb;
 
-import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.*;
+import java.time.Duration;
+
+import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockManager;
+import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockStorage;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
 import dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Duration;
 
 /**
  * Properties for the MongoDB focused Essentials Components auto-configuration<br>
@@ -74,6 +76,7 @@ public class EssentialsComponentsProperties {
     private final FencedLockManager   fencedLockManager = new FencedLockManager();
     private final DurableQueues       durableQueues     = new DurableQueues();
     private final LifeCycleProperties lifeCycles        = new LifeCycleProperties();
+    private final TracingProperties tracingProperties = new TracingProperties();
 
     public FencedLockManager getFencedLockManager() {
         return fencedLockManager;
@@ -85,6 +88,10 @@ public class EssentialsComponentsProperties {
 
     public LifeCycleProperties getLifeCycles() {
         return this.lifeCycles;
+    }
+
+    public TracingProperties getTracingProperties() {
+        return this.tracingProperties;
     }
 
     public static class DurableQueues {
@@ -376,4 +383,25 @@ public class EssentialsComponentsProperties {
             this.startLifeCycles = startLifeCycles;
         }
     }
+
+    public static class TracingProperties {
+        private String moduleTag;
+
+        /**
+         * Get property to set as 'module' tag value for all micrometer metrics. This to differentiate metrics across different modules.
+         * @return property to set as 'module' tag value for all micrometer metrics
+         */
+        public String getModuleTag() {
+            return moduleTag;
+        }
+
+        /**
+         * Set property to use as 'module' tag value for all micrometer metrics. This to differentiate metrics across different modules.
+         * @param moduleTag property to set as 'module' tag value for all micrometer metrics
+         */
+        public void setModuleTag(String moduleTag) {
+            this.moduleTag = moduleTag;
+        }
+    }
+
 }

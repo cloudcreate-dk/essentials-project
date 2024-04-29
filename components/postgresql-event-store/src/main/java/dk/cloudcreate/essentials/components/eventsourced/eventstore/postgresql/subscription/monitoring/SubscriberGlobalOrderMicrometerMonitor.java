@@ -1,6 +1,8 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
@@ -13,6 +15,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import org.jetbrains.annotations.NotNull;
 
+import static dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerInterceptor.MODULE_TAG_NAME;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static java.lang.Long.max;
 
@@ -28,11 +31,14 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
     private final EventStoreSubscriptionManager eventStoreSubscriptionManager;
     private final MeterRegistry meterRegistry;
     private final ConcurrentHashMap<Pair<SubscriberId, AggregateType>, Gauge> subscriberGauges = new ConcurrentHashMap<>();
+    private final List<Tag> commonTags = new ArrayList<>();
 
     public SubscriberGlobalOrderMicrometerMonitor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
-                                                  MeterRegistry meterRegistry) {
+                                                  MeterRegistry meterRegistry,
+                                                  String moduleTag) {
         this.eventStoreSubscriptionManager = requireNonNull(eventStoreSubscriptionManager, "EventStoreSubscriptionManager must be provided");
         this.meterRegistry = requireNonNull(meterRegistry, "MeterRegistry must be provided");
+        Optional.ofNullable(moduleTag).map(t -> Tag.of(MODULE_TAG_NAME, t)).ifPresent(commonTags::add);
     }
 
     @Override
@@ -45,8 +51,12 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
     private Gauge buildGauge(Pair<SubscriberId, AggregateType> pair) {
         SubscriberId subscriberId = pair._1;
         AggregateType aggregateType = pair._2;
+
+        List<Tag> tags = new ArrayList<>(commonTags);
+        tags.add(Tag.of(SUBSCRIBER_ID_TAG, subscriberId.toString()));
+        tags.add(Tag.of(AGGREGATE_TYPE_TAG, aggregateType.toString()));
         return Gauge.builder(SUBSCRIPTION_EVENT_ORDER_DIFF_METRIC, () -> calculateEventOrderDiff(subscriberId, aggregateType))
-            .tags(List.of(Tag.of(SUBSCRIBER_ID_TAG, subscriberId.toString()), Tag.of(AGGREGATE_TYPE_TAG, aggregateType.toString())))
+            .tags(tags)
             .register(meterRegistry);
     }
 
