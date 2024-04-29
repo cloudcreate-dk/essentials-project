@@ -21,6 +21,10 @@ import java.io.Serializable
 /**
  * Semantic [String] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface StringValueType : Serializable {
+interface StringValueType<SELF: StringValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: String
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

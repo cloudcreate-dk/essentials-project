@@ -30,7 +30,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [LocalDateValueType] value class
  */
-abstract class LocalDateValueTypeArgumentFactory<T : LocalDateValueType> : AbstractArgumentFactory<T>(Types.DATE) {
+abstract class LocalDateValueTypeArgumentFactory<T : LocalDateValueType<T>> : AbstractArgumentFactory<T>(Types.DATE) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setDate(

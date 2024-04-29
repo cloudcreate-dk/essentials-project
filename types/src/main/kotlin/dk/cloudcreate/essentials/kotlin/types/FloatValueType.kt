@@ -21,6 +21,10 @@ import java.io.Serializable
 /**
  * Semantic [Float] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface FloatValueType : Serializable {
+interface FloatValueType<SELF: FloatValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: Float
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

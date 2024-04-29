@@ -87,6 +87,26 @@ public class EssentialsComponentsProperties {
     private final LifeCycleProperties lifeCycles = new LifeCycleProperties();
     private final TracingProperties tracingProperties = new TracingProperties();
 
+    private boolean             immutableJacksonModuleEnabled = true;
+
+    /**
+     * Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration - default is true<br>
+     * Setting this value to false will not include the EssentialsImmutableJacksonModule, in the ObjectMapper configuration, even if Objenesis is on the classpath
+     * @return Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration
+     */
+    public boolean isImmutableJacksonModuleEnabled() {
+        return immutableJacksonModuleEnabled;
+    }
+
+    /**
+     /**
+     * Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration - default is true<br>
+     * Setting this value to false will not include the EssentialsImmutableJacksonModule, in the ObjectMapper configuration, even if Objenesis is on the classpath
+     * @param immutableJacksonModuleEnabled Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration
+     */
+    public void setImmutableJacksonModuleEnabled(boolean immutableJacksonModuleEnabled) {
+        this.immutableJacksonModuleEnabled = immutableJacksonModuleEnabled;
+    }
 
     public FencedLockManagerProperties getFencedLockManager() {
         return fencedLockManager;

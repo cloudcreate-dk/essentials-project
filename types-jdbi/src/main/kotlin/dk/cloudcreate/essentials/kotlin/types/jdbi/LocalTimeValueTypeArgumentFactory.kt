@@ -30,7 +30,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [LocalTimeValueType] value class
  */
-abstract class LocalTimeValueTypeArgumentFactory<T : LocalTimeValueType> : AbstractArgumentFactory<T>(Types.TIME) {
+abstract class LocalTimeValueTypeArgumentFactory<T : LocalTimeValueType<T>> : AbstractArgumentFactory<T>(Types.TIME) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setTime(

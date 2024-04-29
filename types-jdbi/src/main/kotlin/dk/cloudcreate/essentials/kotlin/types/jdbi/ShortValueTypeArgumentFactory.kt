@@ -29,7 +29,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [ShortValueType] value class
  */
-abstract class ShortValueTypeArgumentFactory<T : ShortValueType> : AbstractArgumentFactory<T>(Types.SMALLINT) {
+abstract class ShortValueTypeArgumentFactory<T : ShortValueType<T>> : AbstractArgumentFactory<T>(Types.SMALLINT) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setShort(

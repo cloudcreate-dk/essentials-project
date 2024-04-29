@@ -30,7 +30,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [ZonedDateTimeValueType] value class
  */
-abstract class ZonedDateTimeValueTypeArgumentFactory<T : ZonedDateTimeValueType> : AbstractArgumentFactory<T>(Types.TIMESTAMP) {
+abstract class ZonedDateTimeValueTypeArgumentFactory<T : ZonedDateTimeValueType<T>> : AbstractArgumentFactory<T>(Types.TIMESTAMP) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setTimestamp(

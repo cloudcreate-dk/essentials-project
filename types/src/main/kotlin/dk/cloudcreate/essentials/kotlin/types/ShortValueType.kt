@@ -21,6 +21,10 @@ import java.io.Serializable
 /**
  * Semantic [Short] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface ShortValueType : Serializable {
+interface ShortValueType<SELF: ShortValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: Short
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

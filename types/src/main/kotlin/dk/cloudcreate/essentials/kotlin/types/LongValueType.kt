@@ -21,6 +21,10 @@ import java.io.Serializable
 /**
  * Semantic [Long] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface LongValueType : Serializable {
+interface LongValueType<SELF: LongValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: Long
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

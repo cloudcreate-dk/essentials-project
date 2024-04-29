@@ -30,7 +30,7 @@ import kotlin.reflect.full.primaryConstructor
  *
  * @param <T> the concrete [BigDecimalValueType] this instance is mapping
  */
-abstract class BigDecimalValueTypeColumnMapper<T : BigDecimalValueType> : ColumnMapper<T?> {
+abstract class BigDecimalValueTypeColumnMapper<T : BigDecimalValueType<T>> : ColumnMapper<T?> {
     private val concreteType: KClass<T>
 
     constructor() {

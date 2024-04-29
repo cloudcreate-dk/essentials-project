@@ -29,7 +29,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [BigDecimalValueType] value class
  */
-abstract class BigDecimalValueTypeArgumentFactory<T : BigDecimalValueType> : AbstractArgumentFactory<T>(Types.NUMERIC) {
+abstract class BigDecimalValueTypeArgumentFactory<T : BigDecimalValueType<T>> : AbstractArgumentFactory<T>(Types.NUMERIC) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setBigDecimal(

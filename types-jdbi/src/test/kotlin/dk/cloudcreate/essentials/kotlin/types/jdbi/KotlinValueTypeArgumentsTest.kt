@@ -283,44 +283,44 @@ internal class SingleValueTypeArgumentsTest {
                         ).toLocalTime()
                     )
                 }
-                if (columnValue is InstantValueType) {
+                if (columnValue is InstantValueType<*>) {
                     Assertions.assertThat(columnValue.value)
                         .describedAs(
                             "Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
                             column._1, column._2!!.javaClass, compareWithValue, columnValue, columnValue.javaClass
                         )
                         .isCloseTo(
-                            (compareWithValue as InstantValueType).value,
+                            (compareWithValue as InstantValueType<*>).value,
                             Assertions.within(100, ChronoUnit.MICROS)
                         )
-                } else if (columnValue is LocalDateTimeValueType) {
+                } else if (columnValue is LocalDateTimeValueType<*>) {
                     Assertions.assertThat(columnValue.value)
                         .describedAs(
                             "Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
                             column._1, column._2!!.javaClass, compareWithValue, columnValue, columnValue.javaClass
                         )
                         .isCloseTo(
-                            (compareWithValue as LocalDateTimeValueType)!!.value,
+                            (compareWithValue as LocalDateTimeValueType<*>).value,
                             Assertions.within(100, ChronoUnit.MICROS)
                         )
-                } else if (columnValue is OffsetDateTimeValueType) {
+                } else if (columnValue is OffsetDateTimeValueType<*>) {
                     Assertions.assertThat(columnValue.value)
                         .describedAs(
                             "Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
                             column._1, column._2!!.javaClass, compareWithValue, columnValue, columnValue.javaClass
                         )
                         .isCloseTo(
-                            (compareWithValue as OffsetDateTimeValueType).value,
+                            (compareWithValue as OffsetDateTimeValueType<*>).value,
                             Assertions.within(100, ChronoUnit.MICROS)
                         )
-                } else if (columnValue is ZonedDateTimeValueType) {
+                } else if (columnValue is ZonedDateTimeValueType<*>) {
                     Assertions.assertThat(columnValue.value)
                         .describedAs(
                             "Column: '%s' of type '%s' with original value: '%s' and returned value '%s' of type '%s'",
                             column._1, column._2!!.javaClass, compareWithValue, columnValue, columnValue.javaClass
                         )
                         .isCloseTo(
-                            (compareWithValue as ZonedDateTimeValueType).value,
+                            (compareWithValue as ZonedDateTimeValueType<*>).value,
                             Assertions.within(100, ChronoUnit.MICROS)
                         )
                 } else {

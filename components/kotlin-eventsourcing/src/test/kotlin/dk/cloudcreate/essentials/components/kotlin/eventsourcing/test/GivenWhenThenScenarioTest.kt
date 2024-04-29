@@ -175,7 +175,7 @@ data class OrderAccepted(override val id: OrderId) : OrderEvent
 data class OrderShipped(override val id: OrderId) : OrderEvent
 
 @JvmInline
-value class OrderId(override val value: String) : StringValueType {
+value class OrderId(override val value: String) : StringValueType<OrderId> {
     companion object {
         fun random(): OrderId {
             return OrderId(RandomIdGenerator.generate())

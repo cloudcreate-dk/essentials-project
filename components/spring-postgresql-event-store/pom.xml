@@ -53,6 +53,12 @@
             <optional>true</optional>
         </dependency>
         <dependency>
+            <groupId>dk.cloudcreate.essentials</groupId>
+            <artifactId>immutable-jackson</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-tx</artifactId>
             <scope>provided</scope>

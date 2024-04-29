@@ -22,6 +22,10 @@ import java.time.OffsetDateTime
 /**
  * Semantic [OffsetDateTime] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface OffsetDateTimeValueType : Serializable {
+interface OffsetDateTimeValueType<SELF: OffsetDateTimeValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: OffsetDateTime
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

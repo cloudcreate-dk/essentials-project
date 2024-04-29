@@ -22,6 +22,10 @@ import java.time.Instant
 /**
  * Semantic [Instant] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface InstantValueType : Serializable {
+interface InstantValueType<SELF: InstantValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: Instant
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

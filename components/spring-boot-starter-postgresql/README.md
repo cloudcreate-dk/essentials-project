@@ -18,7 +18,7 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-postgresql</artifactId>
-    <version>0.40.6</version>
+    <version>0.40.7</version>
 </dependency>
 ```
 
@@ -34,7 +34,7 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 ### Beans provided by the `EssentialsComponentsConfiguration` auto-configuration:
 - Jackson/FasterXML JSON modules:
     - `EssentialTypesJacksonModule`
-    - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath)
+    - `EssentialsImmutableJacksonModule` (if `Objenesis` is on the classpath AND `essentials.immutable-jackson-module-enabled` has value `true`)
 - `JSONSerializer` which uses an internally configured `ObjectMapper`, which provides good defaults for JSON serialization, and includes all Jackson `Module`'s defined in the `ApplicationContext`
     - This `JSONSerializer` will only be auto-registered if the `JSONEventSerializer` is not on the classpath (see `EventStoreConfiguration`)
 - `Jdbi` to use the provided Spring `DataSource`

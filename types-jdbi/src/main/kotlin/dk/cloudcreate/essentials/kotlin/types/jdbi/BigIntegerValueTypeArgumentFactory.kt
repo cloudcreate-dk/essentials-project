@@ -29,7 +29,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [BigIntegerValueType] value class
  */
-abstract class BigIntegerValueTypeArgumentFactory<T : BigIntegerValueType> : AbstractArgumentFactory<T>(Types.VARBINARY) {
+abstract class BigIntegerValueTypeArgumentFactory<T : BigIntegerValueType<T>> : AbstractArgumentFactory<T>(Types.VARBINARY) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setBytes(

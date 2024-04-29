@@ -31,7 +31,7 @@ import kotlin.reflect.full.primaryConstructor
  *
  * @param <T> the concrete [BigIntegerValueType] this instance is mapping
  */
-abstract class BigIntegerValueTypeColumnMapper<T : BigIntegerValueType> : ColumnMapper<T?> {
+abstract class BigIntegerValueTypeColumnMapper<T : BigIntegerValueType<T>> : ColumnMapper<T?> {
     private val concreteType: KClass<T>
 
     constructor() {

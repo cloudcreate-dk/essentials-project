@@ -21,6 +21,10 @@ import java.io.Serializable
 /**
  * Semantic [Double] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface DoubleValueType : Serializable {
+interface DoubleValueType<SELF: DoubleValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: Double
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

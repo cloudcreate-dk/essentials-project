@@ -32,7 +32,7 @@ import kotlin.reflect.full.primaryConstructor
  *
  * @param <T> the concrete [ZonedDateTimeValueType] this instance is mapping
  */
-abstract class ZonedDateTimeValueTypeColumnMapper<T : ZonedDateTimeValueType> : ColumnMapper<T?> {
+abstract class ZonedDateTimeValueTypeColumnMapper<T : ZonedDateTimeValueType<T>> : ColumnMapper<T?> {
     private val concreteType: KClass<T>
 
     constructor() {

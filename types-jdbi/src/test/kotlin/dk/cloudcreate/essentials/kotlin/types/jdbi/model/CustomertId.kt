@@ -23,7 +23,7 @@ import dk.cloudcreate.essentials.types.Identifier
 import java.util.*
 
 @JvmInline
-value class CustomerId(override val value: String) : StringValueType, Identifier {
+value class CustomerId(override val value: String) : StringValueType<CustomerId>, Identifier {
     companion object {
         fun of(value: String): CustomerId {
             return CustomerId(value)

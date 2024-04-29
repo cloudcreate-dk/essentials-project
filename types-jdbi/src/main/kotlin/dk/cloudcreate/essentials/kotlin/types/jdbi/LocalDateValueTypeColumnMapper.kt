@@ -30,7 +30,7 @@ import kotlin.reflect.full.primaryConstructor
  *
  * @param <T> the concrete [LocalDateValueType] this instance is mapping
  */
-abstract class LocalDateValueTypeColumnMapper<T : LocalDateValueType> : ColumnMapper<T?> {
+abstract class LocalDateValueTypeColumnMapper<T : LocalDateValueType<T>> : ColumnMapper<T?> {
     private val concreteType: KClass<T>
 
     constructor() {

@@ -22,6 +22,10 @@ import java.time.LocalDate
 /**
  * Semantic [LocalDate] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface LocalDateValueType : Serializable {
+interface LocalDateValueType<SELF: LocalDateValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: LocalDate
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

@@ -307,9 +307,9 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         lockManagerNode1.resume();
         assertThat(lockNode2Callback.lockAcquired.isLocked()).isTrue();
         assertThat((CharSequence) lockNode2Callback.lockAcquired.getName()).isEqualTo(lockName);
-        assertThat(lockNode2Callback.lockAcquired.getCurrentToken()).isEqualTo(lockNode1Callback.lockReleased.getCurrentToken() + 1L);
-        assertThat(lockNode2Callback.lockAcquired.getLockAcquiredTimestamp()).isAfter(lastLockConfirmedTimestamp);
         assertThat(lockNode2Callback.lockAcquired.isLockedByThisLockManagerInstance()).isTrue();
+        assertThat(lockNode2Callback.lockAcquired.getLockAcquiredTimestamp()).isAfter(lastLockConfirmedTimestamp);
+        assertThat(lockNode2Callback.lockAcquired.getCurrentToken()).isEqualTo(lockNode1Callback.lockReleased.getCurrentToken() + 1L);
 
         assertThat(lockManagerNode1.isLockedByThisLockManagerInstance(lockName)).isFalse();
         assertThat(lockManagerNode1.isLockAcquired(lockName)).isTrue();

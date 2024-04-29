@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.kotlin.types.jdbi.LocalDateTimeValueTypeColumnM
 import java.time.LocalDateTime
 
 @JvmInline
-value class Created(override val value: LocalDateTime) : LocalDateTimeValueType {
+value class Created(override val value: LocalDateTime) : LocalDateTimeValueType<Created> {
     companion object {
         fun of(value: LocalDateTime): Created {
             return Created(value)

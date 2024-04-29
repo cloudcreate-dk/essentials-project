@@ -23,7 +23,7 @@ import dk.cloudcreate.essentials.types.Identifier
 import java.util.*
 
 @JvmInline
-value class OrderId(override val value: Long) : LongValueType, Identifier {
+value class OrderId(override val value: Long) : LongValueType<OrderId>, Identifier {
     companion object {
         private val RANDOM_ID_GENERATOR = Random()
 

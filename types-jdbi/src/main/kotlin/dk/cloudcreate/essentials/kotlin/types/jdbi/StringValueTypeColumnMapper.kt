@@ -30,7 +30,7 @@ import kotlin.reflect.full.primaryConstructor
  *
  * @param <T> the concrete [StringValueType] this instance is mapping
  */
-abstract class StringValueTypeColumnMapper<T : StringValueType> : ColumnMapper<T?> {
+abstract class StringValueTypeColumnMapper<T : StringValueType<T>> : ColumnMapper<T?> {
     private val concreteType: KClass<T>
 
     constructor() {
