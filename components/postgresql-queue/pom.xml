@@ -71,6 +71,7 @@
             <groupId>dk.cloudcreate.essentials</groupId>
             <artifactId>immutable-jackson</artifactId>
             <version>${project.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.jdbi</groupId>
