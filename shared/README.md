@@ -17,7 +17,7 @@ To use `Shared` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>shared</artifactId>
-    <version>0.40.6</version>
+    <version>0.40.7</version>
 </dependency>
 ```
 
