@@ -30,7 +30,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [InstantValueType] value class
  */
-abstract class InstantValueTypeArgumentFactory<T : InstantValueType> : AbstractArgumentFactory<T>(Types.TIMESTAMP) {
+abstract class InstantValueTypeArgumentFactory<T : InstantValueType<T>> : AbstractArgumentFactory<T>(Types.TIMESTAMP) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setTimestamp(

@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.kotlin.types.jdbi.InstantValueTypeColumnMapper
 import java.time.Instant
 
 @JvmInline
-value class LastUpdated(override val value: Instant) : InstantValueType {
+value class LastUpdated(override val value: Instant) : InstantValueType<LastUpdated> {
     companion object {
         fun of(value: Instant): LastUpdated {
             return LastUpdated(value)

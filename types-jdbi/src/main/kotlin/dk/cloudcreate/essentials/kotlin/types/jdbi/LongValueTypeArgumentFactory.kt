@@ -29,7 +29,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [LongValueType] value class
  */
-abstract class LongValueTypeArgumentFactory<T : LongValueType> : AbstractArgumentFactory<T>(Types.BIGINT) {
+abstract class LongValueTypeArgumentFactory<T : LongValueType<T>> : AbstractArgumentFactory<T>(Types.BIGINT) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setLong(

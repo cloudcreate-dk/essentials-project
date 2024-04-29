@@ -29,7 +29,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [DoubleValueType] value class
  */
-abstract class DoubleValueTypeArgumentFactory<T : DoubleValueType> : AbstractArgumentFactory<T>(Types.DOUBLE) {
+abstract class DoubleValueTypeArgumentFactory<T : DoubleValueType<T>> : AbstractArgumentFactory<T>(Types.DOUBLE) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setDouble(

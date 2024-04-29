@@ -29,7 +29,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [StringValueType] value class
  */
-abstract class StringValueTypeArgumentFactory<T : StringValueType> : AbstractArgumentFactory<T>(Types.VARCHAR) {
+abstract class StringValueTypeArgumentFactory<T : StringValueType<T>> : AbstractArgumentFactory<T>(Types.VARCHAR) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setString(

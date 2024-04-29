@@ -34,7 +34,7 @@ value class CountryCode
  * @param countryCode the ISO-3166 2 character country code with the `countryCode` as UPPER CASE value
  * @throws IllegalArgumentException in case the  ISO-3166 2 character country code is not known or otherwise invalid.
  */
-    (override val value: String) : StringValueType {
+    (override val value: String) : StringValueType<CountryCode> {
 
     init {
         validate(value)

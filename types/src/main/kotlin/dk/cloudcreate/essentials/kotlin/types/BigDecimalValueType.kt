@@ -22,6 +22,10 @@ import java.math.BigDecimal
 /**
  * Semantic [BigDecimal] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface BigDecimalValueType : Serializable {
+interface BigDecimalValueType<SELF: BigDecimalValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: BigDecimal
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

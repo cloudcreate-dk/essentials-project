@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.kotlin.types.jdbi.LocalDateValueTypeColumnMappe
 import java.time.LocalDate
 
 @JvmInline
-value class DueDate(override val value: LocalDate) : LocalDateValueType {
+value class DueDate(override val value: LocalDate) : LocalDateValueType<DueDate> {
     companion object {
         fun of(value: LocalDate): DueDate {
             return DueDate(value)

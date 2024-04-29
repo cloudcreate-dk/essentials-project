@@ -22,6 +22,10 @@ import java.time.ZonedDateTime
 /**
  * Semantic [ZonedDateTime] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface ZonedDateTimeValueType : Serializable {
+interface ZonedDateTimeValueType<SELF: ZonedDateTimeValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: ZonedDateTime
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

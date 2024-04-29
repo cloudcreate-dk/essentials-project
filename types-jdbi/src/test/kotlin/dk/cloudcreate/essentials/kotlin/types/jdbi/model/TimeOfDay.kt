@@ -19,10 +19,11 @@ package dk.cloudcreate.essentials.kotlin.types.jdbi.model
 import dk.cloudcreate.essentials.kotlin.types.LocalTimeValueType
 import dk.cloudcreate.essentials.kotlin.types.jdbi.LocalTimeValueTypeArgumentFactory
 import dk.cloudcreate.essentials.kotlin.types.jdbi.LocalTimeValueTypeColumnMapper
+import java.sql.Time
 import java.time.LocalTime
 
 @JvmInline
-value class TimeOfDay(override val value: LocalTime) : LocalTimeValueType {
+value class TimeOfDay(override val value: LocalTime) : LocalTimeValueType<TimeOfDay> {
     companion object {
         fun of(value: LocalTime): TimeOfDay {
             return TimeOfDay(value)

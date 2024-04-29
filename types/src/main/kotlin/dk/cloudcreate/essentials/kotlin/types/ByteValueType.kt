@@ -21,6 +21,10 @@ import java.io.Serializable
 /**
  * Semantic [Byte] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface ByteValueType : Serializable {
+interface ByteValueType<SELF: ByteValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: Byte
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

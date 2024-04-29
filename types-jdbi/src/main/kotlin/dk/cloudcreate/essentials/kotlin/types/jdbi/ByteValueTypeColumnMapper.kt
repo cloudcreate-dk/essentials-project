@@ -30,7 +30,7 @@ import kotlin.reflect.full.primaryConstructor
  *
  * @param <T> the concrete [ByteValueType] this instance is mapping
  */
-abstract class ByteValueTypeColumnMapper<T : ByteValueType> : ColumnMapper<T?> {
+abstract class ByteValueTypeColumnMapper<T : ByteValueType<T>> : ColumnMapper<T?> {
     private val concreteType: KClass<T>
 
     constructor() {

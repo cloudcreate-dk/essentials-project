@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.kotlin.types.jdbi.ZonedDateTimeValueTypeColumnM
 import java.time.ZonedDateTime
 
 @JvmInline
-value class TransactionTime(override val value: ZonedDateTime) : ZonedDateTimeValueType {
+value class TransactionTime(override val value: ZonedDateTime) : ZonedDateTimeValueType<TransactionTime> {
     companion object {
         fun of(value: ZonedDateTime): TransactionTime {
             return TransactionTime(value)

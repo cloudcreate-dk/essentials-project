@@ -23,7 +23,7 @@ import dk.cloudcreate.essentials.types.Identifier
 import java.util.*
 
 @JvmInline
-value class AccountId(override val value: Long) : LongValueType, Identifier {
+value class AccountId(override val value: Long) : LongValueType<AccountId>, Identifier {
     companion object {
         private val RANDOM_ID_GENERATOR = Random()
 

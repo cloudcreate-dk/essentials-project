@@ -23,7 +23,7 @@ import kotlin.reflect.full.primaryConstructor
 /**
  * [AggregateIdSerializer] for semantic [StringValueType]'s
  */
-data class StringValueTypeAggregateIdSerializer<T : StringValueType>(private val concreteType: KClass<T>) : AggregateIdSerializer {
+data class StringValueTypeAggregateIdSerializer<T : StringValueType<T>>(private val concreteType: KClass<T>) : AggregateIdSerializer {
     override fun aggregateIdType(): Class<*> {
         return concreteType.java
     }

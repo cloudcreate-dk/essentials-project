@@ -22,6 +22,10 @@ import java.math.BigInteger
 /**
  * Semantic [BigInteger] value type interface that allows infrastructure code to easily access the [value] of the value type
  */
-interface BigIntegerValueType : Serializable {
+interface BigIntegerValueType<SELF: BigIntegerValueType<SELF>> : Serializable, Comparable<SELF> {
     val value: BigInteger
+
+    override fun compareTo(other: SELF): Int {
+        return this.value.compareTo(other.value)
+    }
 }

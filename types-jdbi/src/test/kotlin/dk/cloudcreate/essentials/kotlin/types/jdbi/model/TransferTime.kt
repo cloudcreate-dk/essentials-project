@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.kotlin.types.jdbi.OffsetDateTimeValueTypeColumn
 import java.time.OffsetDateTime
 
 @JvmInline
-value class TransferTime(override val value: OffsetDateTime) : OffsetDateTimeValueType {
+value class TransferTime(override val value: OffsetDateTime) : OffsetDateTimeValueType<TransferTime> {
     companion object {
         fun of(value: OffsetDateTime): TransferTime {
             return TransferTime(value)

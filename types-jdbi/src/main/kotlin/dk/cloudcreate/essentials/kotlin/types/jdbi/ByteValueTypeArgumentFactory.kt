@@ -29,7 +29,7 @@ import java.sql.Types
  *
  * @param <T> the concrete [ByteValueType] value class
  */
-abstract class ByteValueTypeArgumentFactory<T : ByteValueType> : AbstractArgumentFactory<T>(Types.TINYINT) {
+abstract class ByteValueTypeArgumentFactory<T : ByteValueType<T>> : AbstractArgumentFactory<T>(Types.TINYINT) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
             statement.setByte(

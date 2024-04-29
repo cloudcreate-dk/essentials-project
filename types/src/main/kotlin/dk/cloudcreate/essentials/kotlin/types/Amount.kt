@@ -28,7 +28,7 @@ import java.math.MathContext
  * @see Money
  */
 @JvmInline
-value class Amount(override val value: BigDecimal) : BigDecimalValueType {
+value class Amount(override val value: BigDecimal) : BigDecimalValueType<Amount> {
 
     constructor(value: Long) : this(BigDecimal.valueOf(value))
 

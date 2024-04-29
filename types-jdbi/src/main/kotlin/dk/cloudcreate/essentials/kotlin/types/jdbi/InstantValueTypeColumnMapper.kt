@@ -30,7 +30,7 @@ import kotlin.reflect.full.primaryConstructor
  *
  * @param <T> the concrete [InstantValueType] this instance is mapping
  */
-abstract class InstantValueTypeColumnMapper<T : InstantValueType> : ColumnMapper<T?> {
+abstract class InstantValueTypeColumnMapper<T : InstantValueType<T>> : ColumnMapper<T?> {
     private val concreteType: KClass<T>
 
     constructor() {
