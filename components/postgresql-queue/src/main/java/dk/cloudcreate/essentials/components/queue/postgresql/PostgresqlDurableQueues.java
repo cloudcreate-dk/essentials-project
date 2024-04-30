@@ -527,10 +527,10 @@ public final class PostgresqlDurableQueues implements DurableQueues {
     }
 
     protected final QueueEntryId queueMessage(QueueName queueName,
-                                        Message message,
-                                        boolean isDeadLetterMessage,
-                                        Optional<Exception> causeOfEnqueuing,
-                                        Optional<Duration> deliveryDelay) {
+                                              Message message,
+                                              boolean isDeadLetterMessage,
+                                              Optional<Exception> causeOfEnqueuing,
+                                              Optional<Duration> deliveryDelay) {
         requireNonNull(queueName, "You must provide a queueName");
         requireNonNull(message, "You must provide a message");
         requireNonNull(causeOfEnqueuing, "You must provide a causeOfEnqueuing option");
@@ -1014,6 +1014,27 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                                                                arg("tableName", sharedQueueTableName)))
                                                                                                                                     .bind("queueName", operation.queueName)
                                                                                                                                     .mapTo(Long.class)
+                                                                                                                                    .one()))
+                .proceed();
+    }
+
+    @Override
+    public QueuedMessageCounts getQueuedMessageCountsFor(GetQueuedMessageCountsFor operation) {
+        requireNonNull(operation, "You must specify a GetTotalMessagesQueuedFor instance");
+        return newInterceptorChainForOperation(operation,
+                                               interceptors,
+                                               (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
+                                               () -> unitOfWorkFactory.withUnitOfWork(handleAwareUnitOfWork -> handleAwareUnitOfWork.handle().createQuery(bind("SELECT \n" +
+                                                                                                                                                                       "    COUNT(*) FILTER (WHERE is_dead_letter_message = FALSE) AS regular_count,\n" +
+                                                                                                                                                                       "    COUNT(*) FILTER (WHERE is_dead_letter_message = TRUE) AS dead_letter_count\n" +
+                                                                                                                                                                       "FROM {:tableName} \n" +
+                                                                                                                                                                       " WHERE \n" +
+                                                                                                                                                                       "    queue_name = :queueName",
+                                                                                                                                                               arg("tableName", sharedQueueTableName)))
+                                                                                                                                    .bind("queueName", operation.queueName)
+                                                                                                                                    .map((rs, ctx) -> new QueuedMessageCounts(operation.queueName,
+                                                                                                                                                                              rs.getLong("regular_count"),
+                                                                                                                                                                              rs.getLong("dead_letter_count")))
                                                                                                                                     .one()))
                 .proceed();
     }

@@ -107,6 +107,8 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
                                       () -> durableQueues.queueMessages(queueName, messages)));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(numberOfMessages);
+        assertThat(durableQueues.getQueuedMessageCountsFor(queueName)).isEqualTo(new QueuedMessageCounts(queueName, numberOfMessages, 0));
+
 
         var recordingQueueMessageHandler = new RecordingQueuedMessageHandler();
 

@@ -16,46 +16,34 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueuesInterceptor;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueEntryId;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.DeleteMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.MarkAsDeadLetterMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.QueueMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.QueueMessageAsDeadLetterMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.QueueMessages;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ResurrectDeadLetterMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.RetryMessage;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
+import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
 import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
-import org.apache.commons.lang3.tuple.ImmutablePair;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 public final class DurableQueuesMicrometerInterceptor implements DurableQueuesInterceptor {
-    private static final String QUEUED_MESSAGES_GAUGE_NAME = "DurableQueues_QueuedMessages_Size";
-    private static final String DEAD_LETTER_MESSAGES_GAUGE_NAME = "DurableQueues_DeadLetterMessages_Size";
-    public static final String PROCESSED_QUEUED_MESSAGES_COUNTER_NAME         = "DurableQueues_QueuedMessages_Processed";
-    public static final String PROCESSED_QUEUED_MESSAGES_RETRIES_COUNTER_NAME = "DurableQueues_QueuedMessages_Retries";
-    public static final String PROCESSED_DEAD_LETTER_MESSAGES_COUNTER_NAME    = "DurableQueues_DeadLetterMessages_Processed";
-    public static final String QUEUE_NAME_TAG_NAME                            = "QueueName";
-    public static final String MODULE_TAG_NAME                               = "Module";
+    private static final String QUEUED_MESSAGES_GAUGE_NAME                     = "DurableQueues_QueuedMessages_Size";
+    private static final String DEAD_LETTER_MESSAGES_GAUGE_NAME                = "DurableQueues_DeadLetterMessages_Size";
+    public static final  String PROCESSED_QUEUED_MESSAGES_COUNTER_NAME         = "DurableQueues_QueuedMessages_Processed";
+    public static final  String PROCESSED_QUEUED_MESSAGES_RETRIES_COUNTER_NAME = "DurableQueues_QueuedMessages_Retries";
+    public static final  String PROCESSED_DEAD_LETTER_MESSAGES_COUNTER_NAME    = "DurableQueues_DeadLetterMessages_Processed";
+    public static final  String QUEUE_NAME_TAG_NAME                            = "QueueName";
+    public static final  String MODULE_TAG_NAME                                = "Module";
 
-    private final MeterRegistry                             meterRegistry;
-    private final ConcurrentHashMap<QueueName, GaugeWrapper> queuedMessagesGauges = new ConcurrentHashMap<>();
+    private final MeterRegistry                              meterRegistry;
+    private final ConcurrentHashMap<QueueName, GaugeWrapper> queuedMessagesGauges     = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<QueueName, GaugeWrapper> deadLetterMessagesGauges = new ConcurrentHashMap<>();
-    private       DurableQueues                             durableQueues;
-    private final List<Tag>                                 commonTags = new ArrayList<>();
+    private       DurableQueues durableQueues;
+    private final List<Tag>     commonTags = new ArrayList<>();
 
 
     public DurableQueuesMicrometerInterceptor(MeterRegistry meterRegistry,
@@ -75,28 +63,29 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
     }
 
     private void updateQueueGaugeValues(QueueName queueName) {
+        var messageCounts = durableQueues.getQueuedMessageCountsFor(queueName);
         this.queuedMessagesGauges.computeIfAbsent(queueName, this::buildQueuedMessagesGauge)
-            .setValue(durableQueues.getTotalMessagesQueuedFor(queueName));
+                                 .setMessageCount(messageCounts.numberOfQueuedMessages());
         this.deadLetterMessagesGauges.computeIfAbsent(queueName, this::buildDeadLetterMessagesGauge)
-            .setValue(durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName));
+                                     .setMessageCount(messageCounts.numberOfQueuedDeadLetterMessages());
     }
 
     private GaugeWrapper buildDeadLetterMessagesGauge(QueueName queueName) {
-        AtomicLong atomicLong = new AtomicLong();
+        var deadLetterMessagesQueuedCount = new AtomicLong();
         var gauge = Gauge
-            .builder(DEAD_LETTER_MESSAGES_GAUGE_NAME, atomicLong::get)
-            .tags(buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
-            .register(meterRegistry);
-        return new GaugeWrapper(gauge, atomicLong);
+                .builder(DEAD_LETTER_MESSAGES_GAUGE_NAME, deadLetterMessagesQueuedCount::get)
+                .tags(buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
+                .register(meterRegistry);
+        return new GaugeWrapper(gauge, deadLetterMessagesQueuedCount);
     }
 
     private GaugeWrapper buildQueuedMessagesGauge(QueueName queueName) {
-        AtomicLong atomicLong = new AtomicLong();
+        var queuedMessagesQueuedCount = new AtomicLong();
         var gauge = Gauge
-            .builder(QUEUED_MESSAGES_GAUGE_NAME, atomicLong::get)
-            .tags(buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
-            .register(meterRegistry);
-        return new GaugeWrapper(gauge, atomicLong);
+                .builder(QUEUED_MESSAGES_GAUGE_NAME, queuedMessagesQueuedCount::get)
+                .tags(buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
+                .register(meterRegistry);
+        return new GaugeWrapper(gauge, queuedMessagesQueuedCount);
     }
 
     @Override
@@ -192,14 +181,14 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
         return tagList;
     }
 
-    private static class GaugeWrapper extends ImmutablePair<Gauge, AtomicLong> {
+    private static class GaugeWrapper extends Pair<Gauge, AtomicLong> {
 
-        private GaugeWrapper(Gauge left, AtomicLong right) {
-            super(left, right);
+        private GaugeWrapper(Gauge gauge, AtomicLong messageCount) {
+            super(gauge, messageCount);
         }
 
-        public void setValue(long value) {
-            this.right.set(value);
+        private void setMessageCount(long messageCount) {
+            this._2.set(messageCount);
         }
     }
 

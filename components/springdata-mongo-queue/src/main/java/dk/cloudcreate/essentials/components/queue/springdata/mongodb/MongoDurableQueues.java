@@ -41,6 +41,7 @@ import org.springframework.data.annotation.*;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.UncategorizedMongoDbException;
 import org.springframework.data.mongodb.core.*;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.messaging.*;
@@ -396,7 +397,7 @@ public final class MongoDurableQueues implements DurableQueues {
                 mongoTemplate.createCollection(this.sharedQueueCollectionName);
             } catch (Exception e) {
                 if (!mongoTemplate.collectionExists(this.sharedQueueCollectionName)) {
-                    throw new RuntimeException(msg("Failed to create Queue collection '{}'", this.sharedQueueCollectionName),e);
+                    throw new RuntimeException(msg("Failed to create Queue collection '{}'", this.sharedQueueCollectionName), e);
                 }
             }
         }
@@ -1207,6 +1208,39 @@ public final class MongoDurableQueues implements DurableQueues {
                                                () -> mongoTemplate.count(query(where("queueName").is(operation.queueName)
                                                                                                  .and("isDeadLetterMessage").is(false)),
                                                                          this.sharedQueueCollectionName))
+                .proceed();
+    }
+
+    @Override
+    public QueuedMessageCounts getQueuedMessageCountsFor(GetQueuedMessageCountsFor operation) {
+        requireNonNull(operation, "You must specify a GetQueuedMessageCountsFor instance");
+        return newInterceptorChainForOperation(operation,
+                                               interceptors,
+                                               (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
+                                               () -> {
+                                                   var matchOperation = Aggregation.match(Criteria.where("queueName").is(operation.queueName));
+                                                   var aggregation = Aggregation.newAggregation(
+                                                           matchOperation,
+                                                           Aggregation.group("isDeadLetterMessage")
+                                                                      .count().as("count")
+                                                                      .first("isDeadLetterMessage").as("isDeadLetterMessage"));
+                                                   var results = mongoTemplate.aggregate(aggregation, this.sharedQueueCollectionName, Map.class);
+
+                                                   var numberOfQueuedMessages           = 0L;
+                                                   var numberOfQueuedDeadLetterMessages = 0L;
+
+                                                   for (var result : results.getMappedResults()) {
+                                                       boolean isDeadLetter = (boolean) result.get("isDeadLetterMessage");
+                                                       int    count        = (int) result.get("count");
+                                                       if (isDeadLetter) {
+                                                           numberOfQueuedDeadLetterMessages = count;
+                                                       } else {
+                                                           numberOfQueuedMessages = count;
+                                                       }
+                                                   }
+
+                                                   return new QueuedMessageCounts(operation.queueName, numberOfQueuedMessages, numberOfQueuedDeadLetterMessages);
+                                               })
                 .proceed();
     }
 

@@ -184,6 +184,17 @@ public interface DurableQueuesInterceptor extends Interceptor {
     }
 
     /**
+     * Intercept {@link GetQueuedMessageCountsFor} calls
+     *
+     * @param operation        the operation
+     * @param interceptorChain the interceptor chain (call {@link InterceptorChain#proceed()} to continue the processing chain)
+     * @return the total number of (non-dead-letter) messages queued and number of queued dead-letter Messages for the given queue
+     */
+    default QueuedMessageCounts intercept(GetQueuedMessageCountsFor operation, InterceptorChain<GetQueuedMessageCountsFor, QueuedMessageCounts, DurableQueuesInterceptor> interceptorChain) {
+        return interceptorChain.proceed();
+    }
+
+    /**
      * Intercept {@link GetTotalDeadLetterMessagesQueuedFor} calls
      *
      * @param operation        the operation
