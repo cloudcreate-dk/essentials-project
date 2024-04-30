@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueuesInterceptor;
@@ -37,10 +38,13 @@ import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 public final class DurableQueuesMicrometerInterceptor implements DurableQueuesInterceptor {
+    private static final String QUEUED_MESSAGES_GAUGE_NAME = "DurableQueues_QueuedMessages_Size";
+    private static final String DEAD_LETTER_MESSAGES_GAUGE_NAME = "DurableQueues_DeadLetterMessages_Size";
     public static final String PROCESSED_QUEUED_MESSAGES_COUNTER_NAME         = "DurableQueues_QueuedMessages_Processed";
     public static final String PROCESSED_QUEUED_MESSAGES_RETRIES_COUNTER_NAME = "DurableQueues_QueuedMessages_Retries";
     public static final String PROCESSED_DEAD_LETTER_MESSAGES_COUNTER_NAME    = "DurableQueues_DeadLetterMessages_Processed";
@@ -48,7 +52,8 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
     public static final String MODULE_TAG_NAME                               = "Module";
 
     private final MeterRegistry                             meterRegistry;
-    private final ConcurrentHashMap<QueueName, QueueGauges> queueGauges = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<QueueName, GaugeWrapper> queuedMessagesGauges = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<QueueName, GaugeWrapper> deadLetterMessagesGauges = new ConcurrentHashMap<>();
     private       DurableQueues                             durableQueues;
     private final List<Tag>                                 commonTags = new ArrayList<>();
 
@@ -62,31 +67,42 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
     @Override
     public void setDurableQueues(DurableQueues durableQueues) {
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
-        durableQueues.getQueueNames()
-                     .forEach(this::addQueueGaugeIfMissing);
+        durableQueues.getQueueNames().forEach(this::updateQueueGaugeValues);
     }
 
-    private void addQueueGaugeIfMissing(QueueName queueName) {
-        queueGauges.computeIfAbsent(queueName, this::buildQueueGauges);
+    private void updateQueueGaugeValues(QueuedMessage message) {
+        updateQueueGaugeValues(message.getQueueName());
     }
 
-    private QueueGauges buildQueueGauges(QueueName queueName) {
-        var gauges = new QueueGauges();
-        gauges.queuedMessagesGauge = Gauge
-                .builder("DurableQueues_QueuedMessages_Size", () -> durableQueues.getTotalMessagesQueuedFor(queueName))
-                .tags(buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
-                .register(meterRegistry);
-        gauges.deadLetterMessagesGauge = Gauge
-                .builder("DurableQueues_DeadLetterMessages_Size", () -> durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName))
-                .tags(buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
-                .register(meterRegistry);
-        return gauges;
+    private void updateQueueGaugeValues(QueueName queueName) {
+        this.queuedMessagesGauges.computeIfAbsent(queueName, this::buildQueuedMessagesGauge)
+            .setValue(durableQueues.getTotalMessagesQueuedFor(queueName));
+        this.deadLetterMessagesGauges.computeIfAbsent(queueName, this::buildDeadLetterMessagesGauge)
+            .setValue(durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName));
+    }
+
+    private GaugeWrapper buildDeadLetterMessagesGauge(QueueName queueName) {
+        AtomicLong atomicLong = new AtomicLong();
+        var gauge = Gauge
+            .builder(DEAD_LETTER_MESSAGES_GAUGE_NAME, atomicLong::get)
+            .tags(buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
+            .register(meterRegistry);
+        return new GaugeWrapper(gauge, atomicLong);
+    }
+
+    private GaugeWrapper buildQueuedMessagesGauge(QueueName queueName) {
+        AtomicLong atomicLong = new AtomicLong();
+        var gauge = Gauge
+            .builder(QUEUED_MESSAGES_GAUGE_NAME, atomicLong::get)
+            .tags(buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
+            .register(meterRegistry);
+        return new GaugeWrapper(gauge, atomicLong);
     }
 
     @Override
     public QueueEntryId intercept(QueueMessage operation, InterceptorChain<QueueMessage, QueueEntryId, DurableQueuesInterceptor> interceptorChain) {
         var queueEntryId = interceptorChain.proceed();
-        addQueueGaugeIfMissing(operation.queueName);
+        updateQueueGaugeValues(operation.queueName);
         incProcessedQueuedMessagesCount(operation.queueName);
         return queueEntryId;
     }
@@ -95,7 +111,7 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
     @Override
     public List<QueueEntryId> intercept(QueueMessages operation, InterceptorChain<QueueMessages, List<QueueEntryId>, DurableQueuesInterceptor> interceptorChain) {
         var queueEntryIds = interceptorChain.proceed();
-        addQueueGaugeIfMissing(operation.queueName);
+        updateQueueGaugeValues(operation.queueName);
         incProcessedQueuedMessagesCount(operation.queueName, queueEntryIds.size());
         return queueEntryIds;
     }
@@ -104,7 +120,7 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
     @Override
     public QueueEntryId intercept(QueueMessageAsDeadLetterMessage operation, InterceptorChain<QueueMessageAsDeadLetterMessage, QueueEntryId, DurableQueuesInterceptor> interceptorChain) {
         var queueEntryId = interceptorChain.proceed();
-        addQueueGaugeIfMissing(operation.queueName);
+        updateQueueGaugeValues(operation.queueName);
         incProcessedQueuedDeadLetterMessagesCount(operation.queueName);
         return queueEntryId;
     }
@@ -114,7 +130,7 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
     public Optional<QueuedMessage> intercept(MarkAsDeadLetterMessage operation, InterceptorChain<MarkAsDeadLetterMessage, Optional<QueuedMessage>, DurableQueuesInterceptor> interceptorChain) {
         var optionalQueuedMessage = interceptorChain.proceed();
         optionalQueuedMessage.ifPresent(queuedMessage -> {
-            addQueueGaugeIfMissing(queuedMessage.getQueueName());
+            updateQueueGaugeValues(queuedMessage.getQueueName());
             incProcessedQueuedDeadLetterMessagesCount(queuedMessage.getQueueName());
         });
         return optionalQueuedMessage;
@@ -125,7 +141,7 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
         var queueName = durableQueues.getQueueNameFor(operation.queueEntryId).orElse(null);
         var succeeded = interceptorChain.proceed();
         if (succeeded && queueName != null) {
-            addQueueGaugeIfMissing(queueName);
+            updateQueueGaugeValues(queueName);
         }
         return succeeded;
     }
@@ -133,42 +149,38 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
     @Override
     public Optional<QueuedMessage> intercept(ResurrectDeadLetterMessage operation, InterceptorChain<ResurrectDeadLetterMessage, Optional<QueuedMessage>, DurableQueuesInterceptor> interceptorChain) {
         var optionalQueuedMessage = interceptorChain.proceed();
-        optionalQueuedMessage.ifPresent(queuedMessage -> {
-            addQueueGaugeIfMissing(queuedMessage.getQueueName());
-        });
+        optionalQueuedMessage.ifPresent(this::updateQueueGaugeValues);
         return optionalQueuedMessage;
     }
 
     @Override
     public Optional<QueuedMessage> intercept(RetryMessage operation, InterceptorChain<RetryMessage, Optional<QueuedMessage>, DurableQueuesInterceptor> interceptorChain) {
         var optionalQueuedMessage = interceptorChain.proceed();
-        optionalQueuedMessage.ifPresent(queuedMessage -> {
-            addQueueGaugeIfMissing(queuedMessage.getQueueName());
-        });
+        optionalQueuedMessage.ifPresent(this::updateQueueGaugeValues);
         return optionalQueuedMessage;
     }
 
-    protected void incProcessedQueuedMessagesCount(QueueName queueName) {
+    private void incProcessedQueuedMessagesCount(QueueName queueName) {
         requireNonNull(queueName, "No queueName provided");
         meterRegistry.counter(PROCESSED_QUEUED_MESSAGES_COUNTER_NAME, buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
                      .increment();
     }
 
 
-    protected void incProcessedQueuedMessagesCount(QueueName queueName, int countIncrease) {
+    private void incProcessedQueuedMessagesCount(QueueName queueName, int countIncrease) {
         requireNonNull(queueName, "No queueName provided");
         meterRegistry.counter(PROCESSED_QUEUED_MESSAGES_COUNTER_NAME, buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
                      .increment(countIncrease);
     }
 
 
-    protected void incProcessedQueuedDeadLetterMessagesCount(QueueName queueName) {
+    private void incProcessedQueuedDeadLetterMessagesCount(QueueName queueName) {
         requireNonNull(queueName, "No queueName provided");
         meterRegistry.counter(PROCESSED_DEAD_LETTER_MESSAGES_COUNTER_NAME, buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
                      .increment();
     }
 
-    protected void incQueuedMessagesRetriesCount(QueueName queueName) {
+    private void incQueuedMessagesRetriesCount(QueueName queueName) {
         requireNonNull(queueName, "No queueName provided");
         meterRegistry.counter(PROCESSED_QUEUED_MESSAGES_RETRIES_COUNTER_NAME, buildTagList(QUEUE_NAME_TAG_NAME, queueName.toString()))
                      .increment();
@@ -180,8 +192,15 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
         return tagList;
     }
 
-    private static class QueueGauges {
-        private Gauge queuedMessagesGauge;
-        private Gauge deadLetterMessagesGauge;
+    private static class GaugeWrapper extends ImmutablePair<Gauge, AtomicLong> {
+
+        private GaugeWrapper(Gauge left, AtomicLong right) {
+            super(left, right);
+        }
+
+        public void setValue(long value) {
+            this.right.set(value);
+        }
     }
+
 }

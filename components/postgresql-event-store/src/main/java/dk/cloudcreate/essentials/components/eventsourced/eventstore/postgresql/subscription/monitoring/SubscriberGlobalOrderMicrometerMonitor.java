@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
@@ -13,6 +14,7 @@ import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.jetbrains.annotations.NotNull;
 
 import static dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerInterceptor.MODULE_TAG_NAME;
@@ -30,7 +32,7 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
 
     private final EventStoreSubscriptionManager eventStoreSubscriptionManager;
     private final MeterRegistry meterRegistry;
-    private final ConcurrentHashMap<Pair<SubscriberId, AggregateType>, Gauge> subscriberGauges = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Pair<SubscriberId, AggregateType>, ImmutablePair<Gauge, AtomicLong>> subscriberGauges = new ConcurrentHashMap<>();
     private final List<Tag> commonTags = new ArrayList<>();
 
     public SubscriberGlobalOrderMicrometerMonitor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
@@ -44,18 +46,22 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
     @Override
     public void monitor(SubscriberId subscriberId, AggregateType aggregateType) {
         var key = Pair.of(subscriberId, aggregateType);
-        subscriberGauges.computeIfAbsent(key, this::buildGauge);
+        ImmutablePair<Gauge, AtomicLong> subscriberGauge = subscriberGauges.computeIfAbsent(key, key1 -> {
+            AtomicLong atomicLong = new AtomicLong();
+            return new ImmutablePair<>(buildGauge(key1, atomicLong), atomicLong);
+        });
+        subscriberGauge.right.set(calculateEventOrderDiff(subscriberId, aggregateType));
     }
 
     @NotNull
-    private Gauge buildGauge(Pair<SubscriberId, AggregateType> pair) {
+    private Gauge buildGauge(Pair<SubscriberId, AggregateType> pair, AtomicLong atomicLong) {
         SubscriberId subscriberId = pair._1;
         AggregateType aggregateType = pair._2;
 
         List<Tag> tags = new ArrayList<>(commonTags);
         tags.add(Tag.of(SUBSCRIBER_ID_TAG, subscriberId.toString()));
         tags.add(Tag.of(AGGREGATE_TYPE_TAG, aggregateType.toString()));
-        return Gauge.builder(SUBSCRIPTION_EVENT_ORDER_DIFF_METRIC, () -> calculateEventOrderDiff(subscriberId, aggregateType))
+        return Gauge.builder(SUBSCRIPTION_EVENT_ORDER_DIFF_METRIC, atomicLong::get)
             .tags(tags)
             .register(meterRegistry);
     }
