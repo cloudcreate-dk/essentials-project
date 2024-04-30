@@ -105,7 +105,9 @@ public abstract class DistributedCompetingConsumersDurableQueuesIT<DURABLE_QUEUE
         usingDurableQueue(() -> durableQueues1.queueMessages(queueName, messages));
 
         assertThat(durableQueues1.getTotalMessagesQueuedFor(queueName)).isEqualTo(numberOfMessages);
+        assertThat(durableQueues1.getQueuedMessageCountsFor(queueName)).isEqualTo(new QueuedMessageCounts(queueName, numberOfMessages, 0));
         assertThat(durableQueues2.getTotalMessagesQueuedFor(queueName)).isEqualTo(numberOfMessages);
+        assertThat(durableQueues2.getQueuedMessageCountsFor(queueName)).isEqualTo(new QueuedMessageCounts(queueName, numberOfMessages, 0));
         var recordingQueueMessageHandler1 = new RecordingQueuedMessageHandler();
         var recordingQueueMessageHandler2 = new RecordingQueuedMessageHandler();
 

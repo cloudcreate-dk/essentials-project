@@ -625,6 +625,22 @@ public interface DurableQueues extends Lifecycle {
     long getTotalMessagesQueuedFor(GetTotalMessagesQueuedFor operation);
 
     /**
+     * Get the total number of (non-dead-letter) messages queued and number of queued dead-letter Messages for the given queue
+     * @param queueName  the name of the Queue where we will query for the number of queued messages
+     * @return the total number of (non-dead-letter) messages queued and number of queued dead-letter Messages for the given queue
+     */
+    default QueuedMessageCounts getQueuedMessageCountsFor(QueueName queueName) {
+        return getQueuedMessageCountsFor(new GetQueuedMessageCountsFor(queueName));
+    }
+
+    /**
+     * Get the total number of (non-dead-letter) messages queued and number of queued dead-letter Messages for the given queue
+     * @param operation the {@link GetQueuedMessageCountsFor} operation
+     * @return the total number of (non-dead-letter) messages queued and number of queued dead-letter Messages for the given queue
+     */
+    QueuedMessageCounts getQueuedMessageCountsFor(GetQueuedMessageCountsFor operation);
+
+    /**
      * Get the total number of dead-letter-messages/poison-messages queued for the given queue
      *
      * @param queueName the name of the Queue where we will query for the number of dead-letter-messages/poison-messages

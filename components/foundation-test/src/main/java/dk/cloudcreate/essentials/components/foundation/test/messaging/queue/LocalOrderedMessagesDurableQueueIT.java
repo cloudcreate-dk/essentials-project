@@ -129,6 +129,7 @@ public abstract class LocalOrderedMessagesDurableQueueIT<DURABLE_QUEUES extends 
                                       () -> durableQueues.queueMessages(queueName, messages)));
 
         assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(numberOfMessages);
+        assertThat(durableQueues.getQueuedMessageCountsFor(queueName)).isEqualTo(new QueuedMessageCounts(queueName, numberOfMessages, 0));
 
         var recordingQueueMessageHandler = new RecordingQueuedMessageHandler();
 
