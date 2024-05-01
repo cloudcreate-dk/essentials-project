@@ -45,10 +45,13 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
     @Override
     public void monitor(SubscriberId subscriberId, AggregateType aggregateType) {
         var key = Pair.of(subscriberId, aggregateType);
-        subscriberGauges.computeIfAbsent(key, key_ -> {
-            var eventOrderDifferenceCount = new AtomicLong(calculateSubscriberGlobalEventOrderDiff(subscriberId, aggregateType));
-            return Pair.of(buildGauge(key, eventOrderDifferenceCount), eventOrderDifferenceCount);
-        });
+        subscriberGauges.computeIfAbsent(key, this::initializeEventOrderDiffCountGauge)
+            ._2.set(calculateSubscriberGlobalEventOrderDiff(subscriberId, aggregateType));
+    }
+
+    private Pair<Gauge, AtomicLong> initializeEventOrderDiffCountGauge(Pair<SubscriberId, AggregateType> key) {
+        var eventOrderDifferenceCount = new AtomicLong();
+        return Pair.of(buildGauge(key, eventOrderDifferenceCount), eventOrderDifferenceCount);
     }
 
     @NotNull
