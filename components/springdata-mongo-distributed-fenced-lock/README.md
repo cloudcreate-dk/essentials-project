@@ -30,7 +30,7 @@ To use `Spring Data MongoDB Distributed Fenced Lock` just add the following Mave
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>springdata-mongo-distributed-fenced-lock</artifactId>
-    <version>0.40.8</version>
+    <version>0.40.9</version>
 </dependency>
 ```
 
