@@ -39,130 +39,145 @@ public final class PostgresqlUtil {
                      .first();
     }
 
+    /**
+     * Matches strings that:
+     * - Starts with a letter (either uppercase or lowercase) or an underscore.
+     * - Followed by zero or more letters (either uppercase or lowercase), digits, or underscores.
+     * - The entire string must match this pattern from start to end.
+     */
     private static final Pattern VALID_SQL_TABLE_AND_COLUMN_NAME_PATTERN = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*$");
 
     /**
-     * This list incorporates a broad range of reserved keywords, including those specific to PostgreSQL as well as standard SQL keywords.
+     * This list incorporates a broad range of reserved names, including those specific to PostgreSQL as well as standard SQL keywords, that cannot
+     * be used as COLUMN, TABLE and INDEX names.
      * Developers should use this list cautiously and always cross-reference against the current version of PostgreSQL they are working with,
      * as database systems frequently update their list of reserved keywords.<br>
      * <br>
      * The primary goal of this list is to avoid naming conflicts and ensure compatibility with SQL syntax, in an attempt to reduce errors
      * and potential SQL injection vulnerabilities.
      */
-    public static final Set<String> RESERVED_KEYWORDS = Set.of(
-            "ABORT", "ABS", "ABSOLUTE", "ACCESS", "ACTION", "ADA", "ADD", "ADMIN",
-            "AFTER", "AGGREGATE", "ALSO", "ALTER", "ALWAYS", "ANALYSE", "ANALYZE",
-            "AND", "ANY", "ARRAY", "AS", "ASC", "ASENSITIVE", "ASSERTION", "ASSIGNMENT",
-            "ASYMMETRIC", "AT", "ATOMIC", "ATTRIBUTE", "ATTRIBUTES", "AUTHORIZATION",
-            "AVG", "BACKWARD", "BEFORE", "BEGIN", "BERNOULLI", "BETWEEN", "BIGINT",
-            "BINARY", "BIT", "BITVAR", "BIT_LENGTH", "BLOB", "BOOLEAN", "BOTH",
-            "BREADTH", "BY", "C", "CACHE", "CALL", "CALLED", "CARDINALITY", "CASCADE",
-            "CASCADED", "CASE", "CAST", "CATALOG", "CATALOG_NAME", "CEIL", "CEILING",
-            "CHAIN", "CHAR", "CHARACTER", "CHARACTERISTICS", "CHARACTERS", "CHARACTER_LENGTH",
-            "CHARACTER_SET_CATALOG", "CHARACTER_SET_NAME", "CHARACTER_SET_SCHEMA",
-            "CHAR_LENGTH", "CHECK", "CHECKED", "CHECKPOINT", "CLASS", "CLASS_ORIGIN",
-            "CLOB", "CLOSE", "CLUSTER", "COALESCE", "COBOL", "COLLATE", "COLLATION",
-            "COLLATION_CATALOG", "COLLATION_NAME", "COLLATION_SCHEMA", "COLLECT",
-            "COLUMN", "COLUMN_NAME", "COMMAND_FUNCTION", "COMMAND_FUNCTION_CODE",
-            "COMMENT", "COMMIT", "COMMITTED", "COMPLETION", "CONDITION", "CONDITION_NUMBER",
-            "CONNECT", "CONNECTION", "CONNECTION_NAME", "CONSTRAINT", "CONSTRAINTS",
-            "CONSTRAINT_CATALOG", "CONSTRAINT_NAME", "CONSTRAINT_SCHEMA", "CONSTRUCTOR",
-            "CONTAINS", "CONTINUE", "CONVERSION", "CONVERT", "COPY", "CORR", "CORRESPONDING",
-            "COUNT", "COVAR_POP", "COVAR_SAMP", "CREATE", "CROSS", "CSV", "CUBE", "CUME_DIST",
-            "CURRENT", "CURRENT_DATE", "CURRENT_DEFAULT_TRANSFORM_GROUP", "CURRENT_PATH",
-            "CURRENT_ROLE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_TRANSFORM_GROUP_FOR_TYPE",
-            "CURRENT_USER", "CURSOR", "CURSOR_NAME", "CYCLE", "DATA", "DATABASE", "DATE",
-            "DATETIME_INTERVAL_CODE", "DATETIME_INTERVAL_PRECISION", "DAY", "DEALLOCATE",
-            "DEC", "DECIMAL", "DECLARE", "DEFAULT", "DEFAULTS", "DEFERRABLE", "DEFERRED",
-            "DEFINED", "DEFINER", "DEGREE", "DELETE", "DELIMITER", "DELIMITERS", "DENSE_RANK",
-            "DEPTH", "DEREF", "DERIVED", "DESC", "DESCRIBE", "DESCRIPTOR", "DETERMINISTIC",
-            "DIAGNOSTICS", "DICTIONARY", "DISABLE", "DISCONNECT", "DISPATCH", "DISTINCT",
-            "DLNEWCOPY", "DLPREVIOUSCOPY", "DLURLCOMPLETE", "DLURLCOMPLETEONLY", "DLURLCOMPLETEWRITE",
-            "DLURLPATH", "DLURLPATHONLY", "DLURLPATHWRITE", "DLURLSCHEME", "DLURLSERVER",
-            "DLVALUE", "DO", "DOCUMENT", "DOMAIN", "DOUBLE", "DROP", "DYNAMIC", "DYNAMIC_FUNCTION",
-            "DYNAMIC_FUNCTION_CODE", "EACH", "ELEMENT", "ELSE", "ENABLE", "ENCODING",
-            "ENCRYPTED", "END", "ENUM", "EQUALS", "ESCAPE", "EVENT", "EXCEPT", "EXCEPTION",
-            "EXCLUDE", "EXCLUDING", "EXCLUSIVE", "EXEC", "EXECUTE", "EXISTING", "EXISTS",
-            "EXP", "EXPLAIN", "EXTENSION", "EXTERNAL", "EXTRACT", "FALSE", "FETCH", "FILTER",
-            "FINAL", "FIRST", "FLOAT", "FLOOR", "FOLLOWING", "FOR", "FORCE", "FOREIGN",
-            "FORTRAN", "FORWARD", "FOUND", "FREE", "FREEZE", "FROM", "FULL", "FUNCTION",
-            "FUNCTIONS", "FUSION", "G", "GENERAL", "GENERATED", "GET", "GLOBAL", "GO",
-            "GOTO", "GRANT", "GRANTED", "GREATEST", "GROUP", "GROUPING", "HANDLER", "HAVING",
-            "HEADER", "HEX", "HIERARCHY", "HOLD", "HOUR", "IDENTITY", "IF", "IGNORE",
-            "ILIKE", "IMMEDIATE", "IMMEDIATELY", "IMMUTABLE", "IMPLEMENTATION", "IMPLICIT",
-            "IN", "INCLUDING", "INCREMENT", "INDEX", "INDICATOR", "INHERIT", "INHERITS",
-            "INITIALLY", "INLINE", "INNER", "INOUT", "INPUT", "INSENSITIVE", "INSERT",
-            "INSTANCE", "INSTANTIABLE", "INSTEAD", "INT", "INTEGER", "INTEGRITY", "INTERSECT",
-            "INTERSECTION", "INTERVAL", "INTO", "INVOKER", "IS", "ISNULL", "ISOLATION",
-            "JOIN", "K", "KEY", "KEY_MEMBER", "KEY_TYPE", "LABEL", "LAG", "LANGUAGE",
-            "LARGE", "LAST", "LATERAL", "LEAD", "LEADING", "LEAKPROOF", "LEAST", "LEFT",
-            "LENGTH", "LEVEL", "LIKE", "LIMIT", "LISTEN", "LN", "LOAD", "LOCAL", "LOCALTIME",
-            "LOCALTIMESTAMP", "LOCATION", "LOCK", "LOCKED", "LOGGED", "LOWER", "M", "MAP",
-            "MAPPING", "MATCH", "MATCHED", "MATERIALIZED", "MAX", "MAXVALUE", "MEASURE",
-            "MEMBER", "MERGE", "MESSAGE_LENGTH", "MESSAGE_OCTET_LENGTH", "MESSAGE_TEXT",
-            "METHOD", "MIN", "MINUTE", "MINVALUE", "MOD", "MODE", "MODIFIES", "MODULE",
-            "MONTH", "MORE", "MOVE", "MULTISET", "MUMPS", "NAME", "NAMES", "NAMESPACE",
-            "NATIONAL", "NATURAL", "NCHAR", "NCLOB", "NESTING", "NEW", "NEXT", "NFC",
-            "NFD", "NFKC", "NFKD", "NIL", "NO", "NONE", "NORMALIZE", "NORMALIZED", "NOT",
-            "NOTHING", "NOTIFY", "NOTNULL", "NOWAIT", "NTH_VALUE", "NTILE", "NULL", "NULLABLE",
-            "NULLIF", "NULLS", "NUMBER", "NUMERIC", "OBJECT", "OCCURRENCES_REGEX", "OCTETS",
-            "OCTET_LENGTH", "OF", "OFF", "OFFSET", "OIDS", "OLD", "ON", "ONLY", "OPEN",
-            "OPERATOR", "OPTION", "OPTIONS", "OR", "ORDER", "ORDERING", "ORDINALITY",
-            "OTHERS", "OUT", "OUTER", "OUTPUT", "OVER", "OVERLAPS", "OVERLAY", "OVERRIDING",
-            "OWNED", "OWNER", "P", "PAD", "PARAMETER", "PARAMETER_MODE", "PARAMETER_NAME",
-            "PARAMETER_ORDINAL_POSITION", "PARAMETER_SPECIFIC_CATALOG", "PARAMETER_SPECIFIC_NAME",
-            "PARAMETER_SPECIFIC_SCHEMA", "PARTIAL", "PARTITION", "PASCAL", "PASSING",
-            "PASSWORD", "PATH", "PERCENT", "PERCENTILE_CONT", "PERCENTILE_DISC",
-            "PERCENT_RANK", "PERIOD", "PERMISSION", "PLACING", "PLANS", "PLI",
-            "POSITION", "POSITION_REGEX", "POSTFIX", "POWER", "PRECEDING", "PRECISION",
-            "PREPARE", "PREPARED", "PRESERVE", "PRIMARY", "PRIOR", "PRIVILEGES",
-            "PROCEDURAL", "PROCEDURE", "PROGRAM", "QUOTE", "RANGE", "RANK", "READ",
-            "READS", "REAL", "REASSIGN", "RECHECK", "RECURSIVE", "REF", "REFERENCES",
-            "REFERENCING", "REFRESH", "REGR_AVGX", "REGR_AVGY", "REGR_COUNT",
-            "REGR_INTERCEPT", "REGR_R2", "REGR_SLOPE", "REGR_SXX", "REGR_SXY",
-            "REGR_SYY", "REINDEX", "RELATIVE", "RELEASE", "RENAME", "REPEATABLE",
-            "REPLACE", "REPLICA", "REQUIRING", "RESET", "RESPECT", "RESTART",
-            "RESTORE", "RESTRICT", "RESULT", "RETURN", "RETURNED_CARDINALITY",
-            "RETURNED_LENGTH", "RETURNED_OCTET_LENGTH", "RETURNED_SQLSTATE",
-            "RETURNING", "RETURNS", "REVOKE", "RIGHT", "ROLE", "ROLLBACK", "ROLLUP",
-            "ROUTINE", "ROUTINES", "ROUTINE_CATALOG", "ROUTINE_NAME", "ROUTINE_SCHEMA",
-            "ROW", "ROWS", "ROW_COUNT", "ROW_NUMBER", "RULE", "SAVEPOINT", "SCALE",
-            "SCHEMA", "SCHEMA_NAME", "SCOPE", "SCOPE_CATALOG", "SCOPE_NAME",
-            "SCOPE_SCHEMA", "SCROLL", "SEARCH", "SECOND", "SECTION", "SECURITY",
-            "SELECT", "SELECTIVE", "SELF", "SENSITIVE", "SEQUENCE", "SEQUENCES",
-            "SERIALIZABLE", "SERVER", "SERVER_NAME", "SESSION", "SESSION_USER",
-            "SET", "SETOF", "SETS", "SHARE", "SHOW", "SIMILAR", "SIMPLE", "SIZE",
-            "SKIP", "SMALLINT", "SNAPSHOT", "SOME", "SOURCE", "SPACE", "SPECIFIC",
-            "SPECIFICTYPE", "SPECIFIC_NAME", "SQL", "SQLCODE", "SQLERROR", "SQLEXCEPTION",
-            "SQLSTATE", "SQLWARNING", "SQRT", "STABLE", "STANDALONE", "START",
-            "STATE", "STATEMENT", "STATIC", "STATISTICS", "STDDEV_POP", "STDDEV_SAMP",
-            "STDIN", "STDOUT", "STORAGE", "STRICT", "STRIP", "STRUCTURE", "STYLE",
-            "SUBCLASS_ORIGIN", "SUBLIST", "SUBMULTISET", "SUBSTRING", "SUBSTRING_REGEX",
-            "SUCCEEDS", "SUM", "SYMMETRIC", "SYSID", "SYSTEM", "SYSTEM_USER", "TABLE",
-            "TABLES", "TABLESAMPLE", "TABLESPACE", "TABLE_NAME", "TEMP", "TEMPLATE",
-            "TEMPORARY", "TEXT", "THEN", "TIES", "TIME", "TIMEZONE_HOUR",
-            "TIMEZONE_MINUTE", "TO", "TOKEN", "TOP_LEVEL_COUNT", "TRAILING", "TRANSACTION",
-            "TRANSACTIONS_COMMITTED", "TRANSACTIONS_ROLLED_BACK", "TRANSACTION_ACTIVE",
-            "TRANSFORM", "TRANSFORMS", "TRANSLATE", "TRANSLATE_REGEX", "TRANSLATION",
-            "TREAT", "TRIGGER", "TRIGGER_CATALOG", "TRIGGER_NAME", "TRIGGER_SCHEMA",
-            "TRIM", "TRIM_ARRAY", "TRUE", "TRUNCATE", "TRUSTED", "TYPE", "TYPES",
-            "UESCAPE", "UNBOUNDED", "UNCOMMITTED", "UNDER", "UNENCRYPTED", "UNION", "UNIQUE",
-            "UNKNOWN", "UNLISTEN", "UNLOGGED", "UNTIL", "UPDATE", "UPPER", "USAGE",
-            "USER", "USER_DEFINED_TYPE_CATALOG", "USER_DEFINED_TYPE_CODE", "USER_DEFINED_TYPE_NAME",
-            "USER_DEFINED_TYPE_SCHEMA", "USING", "VACUUM", "VALID", "VALIDATE", "VALIDATOR",
-            "VALUE", "VALUES", "VARCHAR", "VARIADIC", "VARYING", "VAR_POP", "VAR_SAMP",
-            "VERBOSE", "VERSION", "VIEW", "VIEWS", "VOLATILE", "WHEN", "WHENEVER", "WHERE",
-            "WHITESPACE", "WIDTH_BUCKET", "WINDOW", "WITH", "WITHIN", "WITHOUT", "WORK",
-            "WRAPPER", "WRITE", "XML", "XMLATTRIBUTES", "XMLCONCAT", "XMLELEMENT",
-            "XMLEXISTS", "XMLFOREST", "XMLNAMESPACES", "XMLPARSE", "XMLPI", "XMLROOT",
-            "XMLSERIALIZE", "XMLTABLE", "YEAR", "YES", "ZONE");
+    public static final Set<String> RESERVED_NAMES = Set.of(
+            // Data Types from "Table 8.1. Data Types" on https://www.postgresql.org/docs/current/datatype.html (excluding TIMESTAMP as this is used by the EventStore)
+            "BIGINT", "INT8", "BIGSERIAL", "SERIAL8", "BIT", "VARBIT", "BOOLEAN", "BOOL",
+            "BOX", "BYTEA", "CHARACTER", "CHAR", "VARYING", "VARCHAR", "CIDR",
+            "CIRCLE", "DATE", "DOUBLE", "PRECISION", "FLOAT8", "INET", "INTEGER", "INT", "INT4",
+            "INTERVAL", "JSON", "JSONB", "LINE", "LSEG", "MACADDR", "MACADDR8", "MONEY",
+            "NUMERIC", "DECIMAL", "PATH", "PG_LSN", "POINT", "POLYGON", "REAL", "FLOAT4",
+            "SMALLINT", "INT2", "SMALLSERIAL", "SERIAL2", "SERIAL", "SERIAL4", "TEXT",
+            "TIME", "TIMETZ", "TIMESTAMPTZ", "TSQUERY", "TSVECTOR",
+            "TXID_SNAPSHOT", "UUID", "XML",
+
+            // Reserved Keywords from "Table C.1. SQL Key Words" on https://www.postgresql.org/docs/current/sql-keywords-appendix.html
+            // where the "PostgreSQL" column specifies "reserved"
+            "ALL", "ANALYSE", "ANALYZE", "AND", "ANY", "ARRAY", "AS", "ASC", "ASYMMETRIC",
+            "AUTHORIZATION", "BINARY", "BOTH", "CASE", "CAST", "CHECK", "COLLATE",
+            "COLLATION", "COLUMN", "CONSTRAINT", "CREATE", "CROSS", "CURRENT_CATALOG",
+            "CURRENT_DATE", "CURRENT_ROLE", "CURRENT_SCHEMA", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "DEFAULT", "DEFERRABLE", "DESC", "DISTINCT", "DO", "ELSE", "END", "EXCEPT",
+            "FALSE", "FETCH", "FOR", "FOREIGN", "FREEZE", "FROM", "FULL", "GRANT", "GROUP",
+            "HAVING", "ILIKE", "IN", "INITIALLY", "INNER", "INTERSECT", "INTO", "IS",
+            "ISNULL", "JOIN", "LEADING", "LEFT", "LIKE", "LIMIT", "LOCALTIME", "LOCALTIMESTAMP",
+            "NATURAL", "NOT", "NOTNULL", "NULL", "OFFSET", "ON", "ONLY", "OR", "ORDER",
+            "OUTER", "OVERLAPS", "PLACING", "PRIMARY", "REFERENCES", "RETURNING", "RIGHT",
+            "SELECT", "SESSION_USER", "SIMILAR", "SOME", "SYMMETRIC", "TABLE", "THEN",
+            "TO", "TRAILING", "TRUE", "UNION", "UNIQUE", "USER", "USING", "VARIADIC",
+            "VERBOSE", "WHEN", "WHERE", "WINDOW", "WITH",
+
+            // Additional
+            "DROP", "EXISTS", "EXPLAIN",
+            "CLOB", "BLOB", "NBLOB", "NCHAR",
+            "SAVEPOINT", "TIMESTAMPZ",
+            "VACUUM",  "VIEW",
+
+            // Reserved Keywords  "Table C.1. SQL Key Words" on https://www.postgresql.org/docs/current/sql-keywords-appendix.html where
+            // the "SQL:2023", "SQL:2016" or "SQL-92" columns  specifies "reserved
+            "ABS", "ALLOCATE", "ALTER", "ARE", "ASENSITIVE", "AT", "ATOMIC", "BEGIN",
+            "BETWEEN", "CALL", "CALLED", "CEIL", "CEILING", "CLOSE", "COALESCE", "COMMIT",
+            "CONNECT", "CONNECTION", "CONVERT", "CORR", "CORRESPONDING", "COUNT", "COVAR_POP",
+            "COVAR_SAMP", "CUBE", "CUME_DIST", "CURRENT", "CURRENT_DEFAULT_TRANSFORM_GROUP",
+            "CURRENT_PATH", "CURRENT_ROW", "CURRENT_TRANSFORM_GROUP_FOR_TYPE", "CURSOR", "CYCLE",
+            "DAY", "DEALLOCATE", "DECLARE", "DELETE", "DENSE_RANK", "DEREF", "DESCRIBE",
+            "DETERMINISTIC", "DISCONNECT", "END-EXEC", "ESCAPE", "EVERY", "EXEC", "EXCEPTION", "EXECUTE",
+            "EXIT", "EXP", "EXTERNAL", "EXTRACT", "FILTER", "FIRST", "FLOOR", "FOUND",
+            "FUNCTION", "FUSION", "GET", "GLOBAL", "GROUPING", "HOLD", "HOUR",
+            "IDENTITY", "IMMEDIATE", "INDICATOR", "INOUT", "INPUT", "INSENSITIVE", "INSERT",
+            "KEY", "LAG", "LANGUAGE", "LARGE", "LAST", "LATERAL", "LEAD",
+            "LEVEL", "LOCAL", "MATCH", "MAX", "MEMBER", "MERGE", "METHOD", "MIN", "MINUTE",
+            "MOD", "MODIFIES", "MODULE", "MONTH", "MULTISET", "NCLOB", "NEW", "NO", "NONE",
+            "NORMALIZE", "NULLIF", "OBJECT", "OCCURRENCES_REGEX", "OCTETS", "OF", "OLD",
+            "OPEN", "OPERATION", "OPTIONS", "ORDINALITY", "OUT", "OUTPUT", "OVER", "OVERLAY",
+            "PAD", "PARAMETER", "PARTITION", "PERCENT", "PERCENT_RANK", "PERCENTILE_CONT",
+            "PERCENTILE_DISC", "POSITION", "POWER", "PRECEDING", "PREPARE",
+            "PROCEDURE", "RANGE", "RANK", "READS", "RECURSIVE", "REF", "REFERENCING",
+            "REGR_AVGX", "REGR_AVGY", "REGR_COUNT", "REGR_INTERCEPT", "REGR_R2", "REGR_SLOPE",
+            "REGR_SXX", "REGR_SXY", "REGR_SYY", "RELATIVE", "RELEASE", "REPEAT", "RESIGNAL",
+            "RESTRICT", "RESULT", "RETURN", "RETURNS", "REVOKE", "ROLE", "ROLLUP", "ROW",
+            "ROW_NUMBER", "ROWS", "SCOPE", "SCROLL", "SEARCH", "SECOND", "SECTION", "SENSITIVE",
+            "SET", "SIGNAL","SPECIFIC", "SPECIFICTYPE", "SQL", "SQLEXCEPTION",
+            "SQLSTATE", "SQLWARNING", "SQRT", "STACKED", "START", "STATIC", "STDDEV_POP",
+            "STDDEV_SAMP", "SUBSTRING", "SUM", "SYSTEM", "SYSTEM_USER", "TABLESAMPLE",
+            "TIMEZONE_HOUR", "TIMEZONE_MINUTE", "TRANSLATE",
+            "TRANSLATE_REGEX", "TRANSLATION", "TREAT", "TRIGGER", "TRIM", "UESCAPE",
+            "UNBOUNDED", "UNKNOWN", "UNNEST", "UNTIL", "UPDATE", "VALUE", "VALUES",
+            "VAR_POP", "VAR_SAMP", "VARBINARY", "WIDTH_BUCKET", "WITHIN", "WITHOUT",
+            "WORK", "WRITE", "XMLATTRIBUTES", "XMLBINARY", "XMLCAST", "XMLCOMMENT",
+            "XMLCONCAT", "XMLELEMENT", "XMLEXISTS", "XMLFOREST", "XMLITERATE", "XMLNAMESPACES",
+            "XMLPARSE", "XMLPI", "XMLQUERY", "XMLROOT", "XMLSCHEMA", "XMLSERIALIZE", "XMLTABLE",
+            "YEAR", "ZONE");
+
+            /**
+             * Validates whether the provided table or column name is valid according to PostgreSQL naming conventions
+             * and does not conflict with reserved keywords.<br>
+             * <br>
+             * The method provided is designed as an initial layer of defense against SQL injection by applying naming conventions intended to reduce the risk of malicious input.<br>
+             * However, Essentials components as well as {@link PostgresqlUtil#checkIsValidTableOrColumnName(String, String)} does not offer exhaustive protection, nor does it assure
+             * the complete security of the resulting SQL against SQL injection threats.<br>
+             * <b>The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
+             * Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.<br>
+             * Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.<br>
+             * <p>
+             * The method checks if the {@code tableOrColumnName}:
+             * <ul>
+             *     <li>Is not null, empty, and does not consist solely of whitespace.</li>
+             *     <li>Does not match any PostgreSQL reserved keyword (case-insensitive check).</li>
+             *     <li>Contains only characters valid for PostgreSQL identifiers: letters, digits, and underscores,
+             *         and does not start with a digit.</li>
+             * </ul>
+             * <p>
+             *
+             * @param tableOrColumnName the table or column name to validate.
+             * @param context           optional context that will be included in any error message. null value means no context is provided
+             * @throws InvalidTableOrColumnNameException if the provided name is null, empty, matches a reserved keyword,
+             *                                           or contains invalid characters.
+             */
+
+    public static void checkIsValidTableOrColumnName(String tableOrColumnName, String context) {
+        if (tableOrColumnName == null || tableOrColumnName.trim().isEmpty()) {
+            throw new InvalidTableOrColumnNameException("Table or column name cannot be null or empty.");
+        }
+
+        // Check against reserved keywords
+        String upperCaseName = tableOrColumnName.toUpperCase().trim();
+        if (RESERVED_NAMES.contains(upperCaseName)) {
+            throw new InvalidTableOrColumnNameException(msg("The name '{}'{} is a reserved keyword and cannot be used as a table or column name.", tableOrColumnName, context != null ? (" in context: " + context) : ""));
+        }
+
+        // Validate characters in the name
+        if (!VALID_SQL_TABLE_AND_COLUMN_NAME_PATTERN.matcher(tableOrColumnName).matches()) {
+            throw new InvalidTableOrColumnNameException(msg("Invalid table or column name: '{}'{}. Names must start with a letter or underscore, followed by letters, digits, or underscores.",
+                                                            tableOrColumnName, context != null ? (" in context: " + context) : ""));
+        }
+    }
+
 
     /**
      * Validates whether the provided table or column name is valid according to PostgreSQL naming conventions
      * and does not conflict with reserved keywords.<br>
+     * This method calls {@link #checkIsValidTableOrColumnName(String, String)} with a null context.<br>
      * <br>
      * The method provided is designed as an initial layer of defense against SQL injection by applying naming conventions intended to reduce the risk of malicious input.<br>
-     * However, Essentials components as well as {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting SQL against SQL injection threats.<br>
+     * However, Essentials components as well as {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting
+     * SQL against SQL injection threats.<br>
      * <b>The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
      * Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.<br>
      * Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.<br>
@@ -181,19 +196,6 @@ public final class PostgresqlUtil {
      *                                           or contains invalid characters.
      */
     public static void checkIsValidTableOrColumnName(String tableOrColumnName) {
-        if (tableOrColumnName == null || tableOrColumnName.trim().isEmpty()) {
-            throw new InvalidTableOrColumnNameException("Table or column name cannot be null or empty.");
-        }
-
-        // Check against reserved keywords
-        String upperCaseName = tableOrColumnName.toUpperCase().trim();
-        if (RESERVED_KEYWORDS.contains(upperCaseName)) {
-            throw new InvalidTableOrColumnNameException(msg("The name '{}' is a reserved keyword and cannot be used as a table or column name.", tableOrColumnName));
-        }
-
-        // Validate characters in the name
-        if (!VALID_SQL_TABLE_AND_COLUMN_NAME_PATTERN.matcher(tableOrColumnName).matches()) {
-            throw new InvalidTableOrColumnNameException(msg("Invalid table or column name: '{}'. Names must start with a letter or underscore, followed by letters, digits, or underscores.", tableOrColumnName));
-        }
+        checkIsValidTableOrColumnName(tableOrColumnName, null);
     }
 }
