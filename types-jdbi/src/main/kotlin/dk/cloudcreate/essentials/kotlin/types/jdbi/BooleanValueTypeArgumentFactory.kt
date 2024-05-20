@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.kotlin.types.jdbi
 
-import dk.cloudcreate.essentials.kotlin.types.BigIntegerValueType
+import dk.cloudcreate.essentials.kotlin.types.BooleanValueType
 import org.jdbi.v3.core.argument.AbstractArgumentFactory
 import org.jdbi.v3.core.argument.Argument
 import org.jdbi.v3.core.config.ConfigRegistry
@@ -25,16 +25,16 @@ import java.sql.PreparedStatement
 import java.sql.Types
 
 /**
- * Base implementation for a value class that implements [BigIntegerValueType]<br>
+ * Base implementation for a value class that implements [BooleanValueType]<br>
  *
- * @param <T> the concrete [BigIntegerValueType] value class
+ * @param <T> the concrete [BooleanValueType] value class
  */
-abstract class BigIntegerValueTypeArgumentFactory<T : BigIntegerValueType<T>> : AbstractArgumentFactory<T>(Types.NUMERIC) {
+abstract class BooleanValueTypeArgumentFactory<T : BooleanValueType<T>> : AbstractArgumentFactory<T>(Types.BOOLEAN) {
     override fun build(value: T, config: ConfigRegistry?): Argument {
         return Argument { position: Int, statement: PreparedStatement, ctx: StatementContext? ->
-            statement.setBytes(
+            statement.setBoolean(
                 position,
-                value.value.toByteArray()
+                value.value
             )
         }
     }
