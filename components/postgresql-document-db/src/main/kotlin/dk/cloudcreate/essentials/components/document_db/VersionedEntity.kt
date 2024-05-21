@@ -77,7 +77,7 @@ import dk.cloudcreate.essentials.kotlin.types.StringValueType
  * ** Security notice**
  * The [dk.cloudcreate.essentials.components.document_db.postgresql.PostgresqlDocumentDbRepository] instance created,
  * e.g. by [dk.cloudcreate.essentials.components.document_db.DocumentDbRepositoryFactory.create],will call the [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] to check table name
- * (see [dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity]) and JSON property names, that are resulting from the JSON serialization of the concrete [VersionedEntity] being persisted,
+ * (see [dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity.tableName]) and the [VersionedEntity] JSON property names, that are resulting from the JSON serialization of the concrete [VersionedEntity] being persisted,
  * using [dk.cloudcreate.essentials.components.document_db.postgresql.EntityConfiguration.checkPropertyNames], since the table name and JSON property names will be used in SQL string concatenations,
  *  which exposes the components (such as [dk.cloudcreate.essentials.components.document_db.postgresql.PostgresqlDocumentDbRepository]) to SQL injection attacks.
  *
@@ -85,7 +85,7 @@ import dk.cloudcreate.essentials.kotlin.types.StringValueType
  * provides an initial layer of defense against SQL injection by applying naming conventions intended to reduce the risk of malicious input.
  *
  * However, Essentials components as well as [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] and
- * [dk.cloudcreate.essentials.components.document_db.postgresql.EntityConfiguration.Companion.checkPropertyNames] does not offer exhaustive protection,
+ * [dk.cloudcreate.essentials.components.document_db.postgresql.EntityConfiguration.checkPropertyNames] does not offer exhaustive protection,
  * nor does it assure the complete security of the resulting SQL against SQL injection threats.
  *
  * **The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes**
@@ -97,16 +97,20 @@ import dk.cloudcreate.essentials.kotlin.types.StringValueType
  * It is highly recommended that the table name and JSON property name values are only derived from a controlled and trusted source.
  *
  * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide these values.
+ * @see dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity
+ * @see dk.cloudcreate.essentials.components.document_db.annotations.Id
+ * @see dk.cloudcreate.essentials.components.document_db.annotations.Indexed
+ * @see dk.cloudcreate.essentials.components.document_db.DocumentDbRepository
  */
 interface VersionedEntity<ID, SELF_TYPE : VersionedEntity<ID, SELF_TYPE>> {
     /**
-     * Name of version property. Aligned with [VERSION_PROPERTY_NAME].
+     * Name of version property. Aligned with [dk.cloudcreate.essentials.components.document_db.postgresql.VERSION_PROPERTY_NAME].
      * Default value should be [Version.NOT_SAVED_YET]
      */
     var version: Version
 
     /**
-     * When was the entity last updated - this value is automatically maintained by the [DocumentDBRepository]
+     * When was the entity last updated - this value is automatically maintained by the [dk.cloudcreate.essentials.components.document_db.DocumentDbRepository]
      */
     var lastUpdated: OffsetDateTime
 }

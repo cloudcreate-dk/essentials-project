@@ -23,6 +23,8 @@ import dk.cloudcreate.essentials.kotlin.types.LongValueType
  * [dk.cloudcreate.essentials.components.document_db.VersionedEntity] support versioning of Entities with the goal
  * of ensuring Optimistic Locking for each update to
  * an Entity persisted using [dk.cloudcreate.essentials.components.document_db.DocumentDbRepository]
+ * @see VersionedEntity
+ * @see DocumentDbRepository
  */
 @JvmInline
 value class Version(override val value: Long) : LongValueType<Version> {

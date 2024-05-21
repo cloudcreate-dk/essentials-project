@@ -17,7 +17,9 @@
 package dk.cloudcreate.essentials.components.document_db.postgresql
 
 import dk.cloudcreate.essentials.components.document_db.DocumentDbRepository
+import dk.cloudcreate.essentials.components.document_db.DocumentDbRepositoryFactory
 import dk.cloudcreate.essentials.components.document_db.VersionedEntity
+import dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity
 import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer
 import dk.cloudcreate.essentials.kotlin.types.*
 import java.math.BigDecimal
@@ -31,6 +33,7 @@ import kotlin.reflect.full.isSuperclassOf
 
 
 /**
+ * Query condition
  * **See [VersionedEntity]'s security warning.***
  */
 class Condition<T>(val jsonSerializer: JSONSerializer) {
@@ -44,31 +47,165 @@ class Condition<T>(val jsonSerializer: JSONSerializer) {
         return "${property.name()}__$bindCounter".also { bindCounter++ }
     }
 
+    /**
+     * Provide the constraints on the Query by applying a [Condition]
+     * (which is created by calling [DocumentDbRepository.condition])
+     *
+     * Example:
+     * ```
+     * val result = orderRepository.queryBuilder()
+     *             .where(orderRepository.condition()
+     *                 .matching {
+     *                     (Order::personName like "%John%").or(Order::personName like "%Jane%")
+     *                         .and(Order::description like "%unique%")
+     *                 })
+     *             .find()
+     * ```
+     * or
+     * ```
+     * val query = repository.queryBuilder()
+     *     .where(repository.condition()
+     *         .matching {
+     *             Order::additionalProperty lt 50
+     *         })
+     *     .orderBy(Order::additionalProperty, QueryBuilder.Order.ASC)
+     *     .limit(200)
+     *     .offset(0)
+     *     .build()
+     *
+     * val result = repository.find(query)
+     * ```
+     *
+     * ### Security
+     * The [DocumentEntity.tableName]` and `all the names of the properties in your entity classes` will be directly used in constructing SQL statements through string concatenation.
+     * This can potentially expose components, such as [PostgresqlDocumentDbRepository], to SQL injection attacks.
+     *
+     * **It is the responsibility of the user of this component to sanitize both the [DocumentEntity.tableName] and `all Entity property names` to ensure the security of all the SQL statements generated
+     * by this component.**
+     *
+     * The [PostgresqlDocumentDbRepository] instance, e.g. created by [DocumentDbRepositoryFactory.create],
+     * will through [EntityConfiguration.configureEntity] call the [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] method to validate the table name
+     * and Entity property names as a first line of defense.
+     *
+     * The  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] provides an initial layer of defense against SQL injection by applying naming conventions intended to
+     * reduce the risk of malicious input.
+     * **However, Essentials components as well as  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] does not offer exhaustive protection,
+     * nor does it assure the complete security of the resulting SQL against SQL injection threats.**
+     * > The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.
+     * > Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.
+     *
+     * **Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.**
+     *
+     * It is highly recommended that the [DocumentEntity.tableName] and `all the Entity property names` are only derived from controlled and trusted sources.
+     *
+     * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the `tableName` or entity property names.
+     */
     infix fun matching(init: Condition<T>.() -> Unit): Condition<T> {
         this.init()
         return this
     }
 
+    /**
+     * Similar to SQL equals =
+     */
     infix fun <R> KProperty1<T, R>.eq(value: R) = applyCondition(this, "=", value)
+
+    /**
+     * Similar to SQL <
+     */
     infix fun <R> KProperty1<T, R>.lt(value: R) = applyCondition(this, "<", value)
+    /**
+     * Similar to SQL >
+     */
     infix fun <R> KProperty1<T, R>.gt(value: R) = applyCondition(this, ">", value)
-    infix fun <R> KProperty1<T, R>.contains(value: R): Condition<T> = applyCondition(this, "@>", value)
+
+//    infix fun <R> KProperty1<T, R>.contains(value: R): Condition<T> = applyCondition(this, "@>", value)
+
+    /**
+     * Similar to SQL like
+     *
+     * Example:
+     * ```
+     * result = orderRepository.queryBuilder()
+     *     .where(orderRepository.condition()
+     *         .matching {
+     *             (Order::personName like "%John%").or(Order::personName like "%Jane%")
+     *                 .and(Order::description like "%unique%")
+     *         })
+     *     .find()
+     * ```
+     */
     infix fun KProperty1<T, String>.like(value: String): Condition<T> = applyCondition(this, "LIKE", value)
 
-    infix fun KProperty1<T, Collection<String>>.anyLike(value: String): KProperty1<T, Collection<String>> {
-        val conditionProperty = SingleProperty(this)
-        val bindName = uniqueBindName(conditionProperty)
-        conditions.add("EXISTS (SELECT 1 FROM jsonb_array_elements_text(${conditionProperty.toJSONValueArrowPath()}) AS elem WHERE elem LIKE :$bindName)")
-        bindings[bindName] = value
-        return this
-    }
+//    infix fun KProperty1<T, Collection<String>>.anyLike(value: String): KProperty1<T, Collection<String>> {
+//        val conditionProperty = SingleProperty(this)
+//        val bindName = uniqueBindName(conditionProperty)
+//        conditions.add("EXISTS (SELECT 1 FROM jsonb_array_elements_text(${conditionProperty.toJSONValueArrowPath()}) AS elem WHERE elem LIKE :$bindName)")
+//        bindings[bindName] = value
+//        return this
+//    }
 
-
+    /**
+     * Chain [KProperty1]'s to create a [NestedProperty]
+     *
+     * Example:
+     * ```
+     *  val result = orderRepository.queryBuilder()
+     *             .where(orderRepository.condition()
+     *                 .matching {
+     *                     Order::contactDetails then ContactDetails::address then Address::city like "Some Other%"
+     *                 })
+     *             .orderBy(Order::contactDetails then ContactDetails::address then Address::city, QueryBuilder.Order.ASC)
+     *             .limit(200)
+     *             .find()
+     * ```
+     */
     infix fun <R, V> KProperty1<T, R>.then(property: KProperty1<R, V>): NestedProperty<T, V> {
         return NestedProperty(this@Condition, listOf(this, property))
     }
 
-    internal fun <R> applyCondition(property: KProperty1<T, R>, operator: String, value: R): Condition<T> {
+
+    /**
+     * Combine two conditions with an **and** statement:
+     *
+     * Example:
+     * ```
+     * result = orderRepository.queryBuilder()
+     *     .where(orderRepository.condition()
+     *         .matching {
+     *             (Order::personName like "%John%").or(Order::personName like "%Jane%")
+     *                 .and(Order::description like "%unique%")
+     *         })
+     *     .find()
+     * ```
+     */
+    infix fun and(other: Condition<T>): Condition<T> = apply {
+        val lastCondition = conditions.removeLast()
+        val previousCondition = conditions.removeLast()
+        conditions.add("($previousCondition AND $lastCondition)")
+    }
+
+    /**
+     * Combine two conditions with an **or** statement:
+     *
+     * Example:
+     * ```
+     * result = orderRepository.queryBuilder()
+     *     .where(orderRepository.condition()
+     *         .matching {
+     *             (Order::personName like "%John%").or(Order::personName like "%Jane%")
+     *                 .and(Order::description like "%unique%")
+     *         })
+     *     .find()
+     * ```
+     */
+    infix fun or(other: Condition<T>): Condition<T> = apply {
+        val lastCondition = conditions.removeLast()
+        val previousCondition = conditions.removeLast()
+        conditions.add("($previousCondition OR $lastCondition)")
+    }
+
+    private fun <R> applyCondition(property: KProperty1<T, R>, operator: String, value: R): Condition<T> {
         return applyCondition(SingleProperty(property), operator, value)
     }
 
@@ -129,22 +266,12 @@ class Condition<T>(val jsonSerializer: JSONSerializer) {
         return this
     }
 
-
-    infix fun and(other: Condition<T>): Condition<T> = apply {
-        val lastCondition = conditions.removeLast()
-        val previousCondition = conditions.removeLast()
-        conditions.add("($previousCondition AND $lastCondition)")
-    }
-
-    infix fun or(other: Condition<T>): Condition<T> = apply {
-        val lastCondition = conditions.removeLast()
-        val previousCondition = conditions.removeLast()
-        conditions.add("($previousCondition OR $lastCondition)")
-    }
-
     internal fun build(): Pair<String, Map<String, Any?>> = Pair(conditions.joinToString(" AND "), bindings)
 }
 
+/**
+ * Reference to a property of a [VersionedEntity]
+ */
 interface Property<T, R> {
     fun toJSONValueArrowPath(): String
     fun toJSONArrowPath(): String
@@ -152,6 +279,9 @@ interface Property<T, R> {
     fun name(): String
 }
 
+/**
+ * Wrapper for a single [KProperty1]
+ */
 data class SingleProperty<T, R>(val property: KProperty1<T, R>) : Property<T, R> {
     override fun toJSONValueArrowPath(): String {
         return "data->>'${property.name}'"
@@ -170,21 +300,60 @@ data class SingleProperty<T, R>(val property: KProperty1<T, R>) : Property<T, R>
     }
 }
 
+/**
+ * Wrapper for a chain of [KProperty1]'s
+ *
+ * Example:
+ * ```
+ *  val result = orderRepository.queryBuilder()
+ *             .where(orderRepository.condition()
+ *                 .matching {
+ *                     Order::contactDetails then ContactDetails::address then Address::city like "Some Other%"
+ *                 })
+ *             .orderBy(Order::contactDetails then ContactDetails::address then Address::city, QueryBuilder.Order.ASC)
+ *             .limit(200)
+ *             .find()
+ * ```
+ */
 data class NestedProperty<T, R>(
     val condition: Condition<T>,
     val properties: List<KProperty1<*, *>>
 ) : Property<T, R> {
 
+    /**
+     * Chain [KProperty1]'s on a [NestedProperty] to create a new [NestedProperty]
+     *
+     * Example:
+     * ```
+     *  val result = orderRepository.queryBuilder()
+     *             .where(orderRepository.condition()
+     *                 .matching {
+     *                     Order::contactDetails then ContactDetails::address then Address::city like "Some Other%"
+     *                 })
+     *             .orderBy(Order::contactDetails then ContactDetails::address then Address::city, QueryBuilder.Order.ASC)
+     *             .limit(200)
+     *             .find()
+     * ```
+     */
     infix fun <V> then(next: KProperty1<R, V>): NestedProperty<T, V> = NestedProperty(condition, properties + next)
 
+    /**
+     * Similar to SQL equals =
+     */
     infix fun eq(value: R): Condition<T> {
         return condition.applyCondition(this, "=", value)
     }
 
+    /**
+     * Similar to SQL <
+     */
     infix fun lt(value: R): Condition<T> {
         return condition.applyCondition(this, "<", value)
     }
 
+    /**
+     * Similar to SQL >
+     */
     infix fun gt(value: R): Condition<T> {
         return condition.applyCondition(this, ">", value)
     }
@@ -193,23 +362,65 @@ data class NestedProperty<T, R>(
         return condition.applyCondition(this, "@>", value)
     }
 
+    /**
+     * Similar to SQL like
+     *
+     * Example:
+     * ```
+     * result = orderRepository.queryBuilder()
+     *     .where(orderRepository.condition()
+     *         .matching {
+     *             (Order::personName like "%John%").or(Order::personName like "%Jane%")
+     *                 .and(Order::description like "%unique%")
+     *         })
+     *     .find()
+     * ```
+     */
     infix fun like(value: R): Condition<T> {
         return condition.applyCondition(this, "LIKE", value)
     }
 
-    infix fun anyLike(value: String): Condition<T> {
-        val bindName = condition.uniqueBindName(this)
-        condition.conditions.add("EXISTS (SELECT 1 FROM jsonb_array_elements_text(${this.toJSONValueArrowPath()}) AS elem WHERE elem LIKE :$bindName)")
-        condition.bindings[bindName] = value
-        return condition
-    }
+//    infix fun anyLike(value: String): Condition<T> {
+//        val bindName = condition.uniqueBindName(this)
+//        condition.conditions.add("EXISTS (SELECT 1 FROM jsonb_array_elements_text(${this.toJSONValueArrowPath()}) AS elem WHERE elem LIKE :$bindName)")
+//        condition.bindings[bindName] = value
+//        return condition
+//    }
 
+    /**
+     * Combine two conditions with an **and** statement:
+     *
+     * Example:
+     * ```
+     * result = orderRepository.queryBuilder()
+     *     .where(orderRepository.condition()
+     *         .matching {
+     *             (Order::personName like "%John%").or(Order::personName like "%Jane%")
+     *                 .and(Order::description like "%unique%")
+     *         })
+     *     .find()
+     * ```
+     */
     infix fun and(other: Condition<T>): Condition<T> = condition.apply {
         val lastCondition = conditions.removeLast()
         val previousCondition = conditions.removeLast()
         conditions.add("($previousCondition AND $lastCondition)")
     }
 
+    /**
+     * Combine two conditions with an **or** statement:
+     *
+     * Example:
+     * ```
+     * result = orderRepository.queryBuilder()
+     *     .where(orderRepository.condition()
+     *         .matching {
+     *             (Order::personName like "%John%").or(Order::personName like "%Jane%")
+     *                 .and(Order::description like "%unique%")
+     *         })
+     *     .find()
+     * ```
+     */
     infix fun or(other: Condition<T>): Condition<T> = condition.apply {
         val lastCondition = conditions.removeLast()
         val previousCondition = conditions.removeLast()
@@ -238,7 +449,58 @@ data class NestedProperty<T, R>(
 }
 
 /**
- * **See [VersionedEntity]'s security warning.***
+ * Query Builder
+ *
+ * Example:
+ * ```
+ * val result = orderRepository.queryBuilder()
+ *             .where(orderRepository.condition()
+ *                 .matching {
+ *                     (Order::personName like "%John%").or(Order::personName like "%Jane%")
+ *                         .and(Order::description like "%unique%")
+ *                 })
+ *             .find()
+ * ```
+ * or
+ * ```
+ * val query = repository.queryBuilder()
+ *     .where(repository.condition()
+ *         .matching {
+ *             Order::additionalProperty lt 50
+ *         })
+ *     .orderBy(Order::additionalProperty, QueryBuilder.Order.ASC)
+ *     .limit(200)
+ *     .offset(0)
+ *     .build()
+ *
+ * val result = repository.find(query)
+ * ```
+ *
+ * ### Security
+ * The [DocumentEntity.tableName] and `all the names of the properties in your entity classes` will be directly used in constructing SQL statements through string concatenation.
+ * This can potentially expose components, such as [PostgresqlDocumentDbRepository], to SQL injection attacks.
+ *
+ * **It is the responsibility of the user of this component to sanitize both the [DocumentEntity.tableName] and `all Entity property names` to ensure the security of all the SQL statements generated
+ * by this component.**
+ *
+ * The [PostgresqlDocumentDbRepository] instance, e.g. created by [DocumentDbRepositoryFactory.create],
+ * will through [EntityConfiguration.configureEntity] call the [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] method to validate the table name
+ * and Entity property names as a first line of defense.
+ *
+ * The  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] provides an initial layer of defense against SQL injection by applying naming conventions intended to
+ * reduce the risk of malicious input.
+ * **However, Essentials components as well as  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] does not offer exhaustive protection,
+ * nor does it assure the complete security of the resulting SQL against SQL injection threats.**
+ * > The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.
+ * > Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.
+ *
+ * **Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.**
+ *
+ * It is highly recommended that the [DocumentEntity.tableName] and `all the Entity property names` are only derived from controlled and trusted sources.
+ *
+ * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the `tableName` or entity property names.
+ *
+ * **See [VersionedEntity]'s and [DocumentDbRepository]'s security warning.***
  */
 class QueryBuilder<ID, ENTITY : VersionedEntity<ID, ENTITY>>(
     private val entityConfiguration: EntityConfiguration<ID, ENTITY>,
@@ -252,16 +514,154 @@ class QueryBuilder<ID, ENTITY : VersionedEntity<ID, ENTITY>>(
 
     enum class Order { ASC, DESC }
 
+    /**
+     * Provide the constraints on the Query by applying a [Condition]
+     * (which is created by calling [DocumentDbRepository.condition])
+     *
+     * Example:
+     * ```
+     * val result = orderRepository.queryBuilder()
+     *             .where(orderRepository.condition()
+     *                 .matching {
+     *                     (Order::personName like "%John%").or(Order::personName like "%Jane%")
+     *                         .and(Order::description like "%unique%")
+     *                 })
+     *             .find()
+     * ```
+     * or
+     * ```
+     * val query = repository.queryBuilder()
+     *     .where(repository.condition()
+     *         .matching {
+     *             Order::additionalProperty lt 50
+     *         })
+     *     .orderBy(Order::additionalProperty, QueryBuilder.Order.ASC)
+     *     .limit(200)
+     *     .offset(0)
+     *     .build()
+     *
+     * val result = repository.find(query)
+     * ```
+     *
+     * ### Security
+     * The [DocumentEntity.tableName]` and `all the names of the properties in your entity classes` will be directly used in constructing SQL statements through string concatenation.
+     * This can potentially expose components, such as [PostgresqlDocumentDbRepository], to SQL injection attacks.
+     *
+     * **It is the responsibility of the user of this component to sanitize both the [DocumentEntity.tableName] and `all Entity property names` to ensure the security of all the SQL statements generated
+     * by this component.**
+     *
+     * The [PostgresqlDocumentDbRepository] instance, e.g. created by [DocumentDbRepositoryFactory.create],
+     * will through [EntityConfiguration.configureEntity] call the [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] method to validate the table name
+     * and Entity property names as a first line of defense.
+     *
+     * The  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] provides an initial layer of defense against SQL injection by applying naming conventions intended to
+     * reduce the risk of malicious input.
+     * **However, Essentials components as well as  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] does not offer exhaustive protection,
+     * nor does it assure the complete security of the resulting SQL against SQL injection threats.**
+     * > The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.
+     * > Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.
+     *
+     * **Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.**
+     *
+     * It is highly recommended that the [DocumentEntity.tableName] and `all the Entity property names` are only derived from controlled and trusted sources.
+     *
+     * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the `tableName` or entity property names.
+     */
     infix fun where(condition: Condition<ENTITY>) = apply { conditions.add(condition) }
 
+    /**
+     * Order by a single property
+     *
+     * Example:
+     * ```
+     * val query = orderRepository.queryBuilder()
+     *     .where(orderRepository.condition()
+     *         .matching {
+     *             Order::additionalProperty lt 50
+     *         })
+     *     .orderBy(Order::additionalProperty, QueryBuilder.Order.ASC)
+     *     .limit(200)
+     *     .offset(0)
+     * ```
+     *
+     * ### Security
+     * The [DocumentEntity.tableName]` and `all the names of the properties in your entity classes`, and thereby also the [property] provided to this method, will be directly used in constructing SQL statements through string concatenation.
+     * This can potentially expose components, such as [PostgresqlDocumentDbRepository], to SQL injection attacks.
+     *
+     * **It is the responsibility of the user of this component to sanitize both the [DocumentEntity.tableName] and `all Entity property names` to ensure the security of all the SQL statements generated
+     * by this component.**
+     *
+     * The [PostgresqlDocumentDbRepository] instance, e.g. created by [DocumentDbRepositoryFactory.create],
+     * will through [EntityConfiguration.configureEntity] call the [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] method to validate the table name
+     * and Entity property names as a first line of defense.
+     *
+     * The  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] provides an initial layer of defense against SQL injection by applying naming conventions intended to
+     * reduce the risk of malicious input.
+     * **However, Essentials components as well as  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] does not offer exhaustive protection,
+     * nor does it assure the complete security of the resulting SQL against SQL injection threats.**
+     * > The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.
+     * > Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.
+     *
+     * **Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.**
+     *
+     * It is highly recommended that the [DocumentEntity.tableName] and `all the Entity property names` are only derived from controlled and trusted sources.
+     *
+     * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the `tableName` or entity property names.
+     */
     fun orderBy(property: KProperty1<ENTITY, *>, order: Order = Order.ASC) = apply { orderByFields.add(SingleProperty(property) to order) }
+
+    /**
+     * Order by a single nested property
+     *
+     * Example:
+     * ```
+     * val result = orderRepository.queryBuilder()
+     *     .where(orderRepository.condition()
+     *         .matching {
+     *             Order::contactDetails then ContactDetails::address then Address::city like "Some Other%"
+     *         })
+     *     .orderBy(Order::contactDetails then ContactDetails::address then Address::city, QueryBuilder.Order.ASC)
+     *     .limit(200)
+     *     .find()
+     * ```
+     *
+     * ### Security
+     * The [DocumentEntity.tableName]` and `all the names of the properties in your entity classes`, and thereby also the [property] provided to this method, will be directly used in constructing SQL statements through string concatenation.
+     * This can potentially expose components, such as [PostgresqlDocumentDbRepository], to SQL injection attacks.
+     *
+     * **It is the responsibility of the user of this component to sanitize both the [DocumentEntity.tableName] and `all Entity property names` to ensure the security of all the SQL statements generated
+     * by this component.**
+     *
+     * The [PostgresqlDocumentDbRepository] instance, e.g. created by [DocumentDbRepositoryFactory.create],
+     * will through [EntityConfiguration.configureEntity] call the [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] method to validate the table name
+     * and Entity property names as a first line of defense.
+     *
+     * The  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] provides an initial layer of defense against SQL injection by applying naming conventions intended to
+     * reduce the risk of malicious input.
+     * **However, Essentials components as well as  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] does not offer exhaustive protection,
+     * nor does it assure the complete security of the resulting SQL against SQL injection threats.**
+     * > The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.
+     * > Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.
+     *
+     * **Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.**
+     *
+     * It is highly recommended that the [DocumentEntity.tableName] and `all the Entity property names` are only derived from controlled and trusted sources.
+     *
+     * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the `tableName` or entity property names.
+     */
     fun orderBy(property: NestedProperty<ENTITY, *>, order: Order = Order.ASC) = apply { orderByFields.add(property to order) }
 
 //    fun groupBy(vararg properties: KProperty1<ENTITY, *>) = apply { groupByFields.addAll(properties.map { SingleProperty(it) }) }
 //    fun groupBy(vararg properties: NestedProperty<ENTITY, *>) = apply { groupByFields.addAll(properties) }
 
+    /**
+     * Limit the number of matching entities returned - can be combined with [offset] to provide pagination support
+     */
     infix fun limit(value: Int) = apply { this.limitValue = value }
 
+    /**
+     * Defines how many entities to skip before beginning to return any entities - can be combined with [limit] to provide pagination support
+     */
     infix fun offset(value: Int) = apply { this.offsetValue = value }
 
     private fun castOrderBy(propertyPair: Pair<Property<ENTITY, *>, Order>): String {
@@ -340,10 +740,28 @@ class QueryBuilder<ID, ENTITY : VersionedEntity<ID, ENTITY>>(
 
 internal data class JdbiQuery<ID, ENTITY : VersionedEntity<ID, ENTITY>>(val sql: String, val bindings: Map<String, Any?>)
 
+/**
+ * Chain [KProperty1]'s to create a [NestedProperty]
+ *
+ * Example:
+ * ```
+ *  val result = orderRepository.queryBuilder()
+ *             .where(orderRepository.condition()
+ *                 .matching {
+ *                     Order::contactDetails then ContactDetails::address then Address::city like "Some Other%"
+ *                 })
+ *             .orderBy(Order::contactDetails then ContactDetails::address then Address::city, QueryBuilder.Order.ASC)
+ *             .limit(200)
+ *             .find()
+ * ```
+ */
 infix fun <T, R, V> KProperty1<T, R>.then(property: KProperty1<R, V>): NestedProperty<T, V> {
     return NestedProperty(Condition(NoJSONSerializer()), listOf(this, property))
 }
 
+/**
+ * Converts a [KProperty1] to a [SingleProperty]
+ */
 fun <T, R,> KProperty1<T, R>.asProperty(): Property<T, R> {
     return SingleProperty(this)
 }

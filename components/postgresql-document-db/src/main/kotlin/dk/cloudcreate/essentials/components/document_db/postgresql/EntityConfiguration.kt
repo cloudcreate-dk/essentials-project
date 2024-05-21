@@ -126,7 +126,8 @@ class EntityConfiguration<ID, T : VersionedEntity<ID, T>>(private val entityClas
     fun build(): EntityConfiguration<ID, T> {
         requireNotNull(tableName) { "Table name must not be null. Have you applied the @DocumentEntity at the type level?" }
         requireNotNull(idProperty) { "@Id property must not be null" }
-        requireNotNull(versionProperty) { "@Version property must not be null" }
+        requireNotNull(versionProperty) { "version property must not be null" }
+        requireNotNull(lastUpdatedProperty) { "lastUpdated property must not be null" }
         return this
     }
 
@@ -138,10 +139,8 @@ class EntityConfiguration<ID, T : VersionedEntity<ID, T>>(private val entityClas
          */
         fun <T : VersionedEntity<ID, T>, ID> configureEntity(entityClass: KClass<T>): EntityConfiguration<ID, T> {
             val config = EntityConfiguration(entityClass)
-            val documentEntityAnnotation = entityClass.findAnnotation<DocumentEntity>()
-            if (documentEntityAnnotation == null) {
-                throw IllegalArgumentException("Entity class ${entityClass.qualifiedName} doesn't contain a @${DocumentEntity::class.simpleName} annotation")
-            }
+            val documentEntityAnnotation = entityClass.findAnnotation<DocumentEntity>() ?: throw IllegalArgumentException("Entity class ${entityClass.qualifiedName} doesn't contain a @${DocumentEntity::class.simpleName} annotation")
+
             documentEntityAnnotation!!.let {
                 config.tableName(it.tableName)
             }
@@ -159,10 +158,12 @@ class EntityConfiguration<ID, T : VersionedEntity<ID, T>>(private val entityClas
         }
 
         /**
+         * Check [KProperty1.name] and sub property names of the [KProperty1.returnType] properties, using [KClass.memberProperties], recursively using [PostgresqlUtil.checkIsValidTableOrColumnName]
+         *
          * ** Security notice**
          * The [dk.cloudcreate.essentials.components.document_db.postgresql.PostgresqlDocumentDbRepository] instance created,
-         * e.g. by [dk.cloudcreate.essentials.components.document_db.DocumentDbRepositoryFactory.create], will call the [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] to check table name
-         * (see [dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity]) and JSON property names, that are resulting from the JSON serialization of the concrete [VersionedEntity] being persisted,
+         * e.g. by [dk.cloudcreate.essentials.components.document_db.DocumentDbRepositoryFactory.create], will call the [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName]
+         * to check table name (see [dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity]) and JSON property names, that are resulting from the JSON serialization of the concrete [VersionedEntity] being persisted,
          * using [dk.cloudcreate.essentials.components.document_db.postgresql.EntityConfiguration.checkPropertyNames], since the table name and JSON property names will be used in SQL string concatenations,
          * which exposes the components (such as [dk.cloudcreate.essentials.components.document_db.postgresql.PostgresqlDocumentDbRepository]) to SQL injection attacks.
          *
@@ -174,7 +175,7 @@ class EntityConfiguration<ID, T : VersionedEntity<ID, T>>(private val entityClas
          *
          * **The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes**
          *
-         * Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.
+         * Users must ensure thorough sanitization and validation of API input parameters, column, table, and index names.
          *
          * Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.
          */
@@ -218,7 +219,7 @@ class EntityConfiguration<ID, T : VersionedEntity<ID, T>>(private val entityClas
         }
 
         /**
-         * Not an exhaustive check for whether a type is a Kotlin or Java built in type.
+         * Check for whether a type is a Kotlin or Java built in type - the test is not an exhaustive and may fail to identify some types as Kotlin/Java built-in types
          *
          * Check is it's a [Number], [CharSequence], [dk.cloudcreate.essentials.shared.reflection.BoxedTypes.isBoxedType],
          * [dk.cloudcreate.essentials.shared.reflection.BoxedTypes.isPrimitiveType] or if the type belongs to these package names:
@@ -236,7 +237,7 @@ class EntityConfiguration<ID, T : VersionedEntity<ID, T>>(private val entityClas
         }
 
         /**
-         * Checks of the `type.javaObjectType` is a Java Collection or Map (and thereby also a Kotlin Collection and Map)
+         * Checks if the [type]'s [KClass.javaObjectType] is a Java [Collection] or [Map] (and thereby it should also be a Kotlin Collection and Map)
          */
         fun isKotlinCollectionOrMapType(type: KClass<*>): Boolean {
             return type.javaObjectType.let {

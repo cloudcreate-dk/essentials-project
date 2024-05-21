@@ -17,12 +17,15 @@
 package dk.cloudcreate.essentials.components.document_db.postgresql
 
 import dk.cloudcreate.essentials.components.document_db.*
+import dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity
 import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer
 import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWork
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWorkFactory
 import dk.cloudcreate.essentials.components.foundation.types.RandomIdGenerator
 import dk.cloudcreate.essentials.kotlin.types.StringValueType
+import dk.cloudcreate.essentials.kotlin.types.jdbi.LongValueTypeArgumentFactory
+import dk.cloudcreate.essentials.kotlin.types.jdbi.LongValueTypeColumnMapper
 import org.slf4j.LoggerFactory
 import java.time.OffsetDateTime
 import java.time.ZoneOffset.UTC
@@ -31,9 +34,61 @@ import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.primaryConstructor
 
 /**
- * Default [DocumentDbRepository] returned by the [DocumentDbRepositoryFactory.create]
+ * Postgresql specific variant of the [DocumentDbRepository] interface
+ * and the default [DocumentDbRepository] returned by the [DocumentDbRepositoryFactory.create]
  *
- * **See [VersionedEntity]'s security warning.***
+ * ```
+ * @DocumentEntity("orders")
+ * data class Order(
+ *     @Id
+ *     val orderId: OrderId,
+ *     var description: String,
+ *     var amount: Amount,
+ *     var additionalProperty: Int,
+ *     var orderDate: LocalDateTime,
+ *     @Indexed
+ *     var personName: String,
+ *     var invoiceAddress: Address,
+ *     var contactDetails: ContactDetails,
+ *     override var version: Version = Version.NOT_SAVED_YET,
+ *     override var lastUpdated: OffsetDateTime = OffsetDateTime.now(UTC)
+ * ) : VersionedEntity<OrderId, Order>
+ *
+ * val repositoryFactory: DocumentDbRepositoryFactory = getDocumentDbRepositoryFactory()
+ * val orderRepository: DocumentDbRepository<Order, OrderId> = repositoryFactory.create(Order::class)
+ * ```
+ *
+ * ## Security
+ * To support customization of which PostgreSQL table each entity type is stored you can provide your own `tableName` through the [DocumentEntity.tableName] annotation.
+ *
+ * The [DocumentEntity.tableName]` and `all the names of the properties in your entity classes` will be directly used in constructing SQL statements through string concatenation.
+ * This can potentially expose components, such as [PostgresqlDocumentDbRepository], to SQL injection attacks.
+ *
+ * **It is the responsibility of the user of this component to sanitize both the [DocumentEntity.tableName] and `all Entity property names` to ensure the security of all the SQL statements generated
+ * by this component.**
+ *
+ * The [PostgresqlDocumentDbRepository] instance, e.g. created by [DocumentDbRepositoryFactory.create],
+ * will through [EntityConfiguration.configureEntity] call the [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] method to validate the table name
+ * and Entity property names as a first line of defense.
+ *
+ * The  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] provides an initial layer of defense against SQL injection by applying naming conventions intended to
+ * reduce the risk of malicious input.
+ * **However, Essentials components as well as  [dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil.checkIsValidTableOrColumnName] does not offer exhaustive protection,
+ * nor does it assure the complete security of the resulting SQL against SQL injection threats.**
+ * > The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.
+ * > Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.
+ *
+ * **Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.**
+ *
+ * It is highly recommended that the [DocumentEntity.tableName] and `all the Entity property names` are only derived from controlled and trusted sources.
+ *
+ * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the `tableName` or entity property names.
+ *
+ * **See also [VersionedEntity]'s and [DocumentDbRepository]'s security warning.***
+ *
+ * @see VersionedEntity
+ * @see DocumentDbRepository
+ * @see DocumentDbRepositoryFactory
  */
 class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     private val unitOfWorkFactory: HandleAwareUnitOfWorkFactory<out HandleAwareUnitOfWork>,
@@ -97,21 +152,22 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
         if (indexesAdded.contains(index)) {
             return this
         }
-        val indexName = index.name
-        PostgresqlUtil.checkIsValidTableOrColumnName(indexName)
-        indexesAdded.add(index)
+        PostgresqlUtil.checkIsValidTableOrColumnName(index.name)
+        require(index.properties.isNotEmpty()) { "You have to specify at least 1 property" }
+        index.properties.forEach { PostgresqlUtil.checkIsValidTableOrColumnName(it.name()) }
 
+        indexesAdded.add(index)
         val properties = index.properties.joinToString(", ") { "(" + it.toJSONValueArrowPath()+ ")" }
         val tableName = entityConfiguration().tableName()
         val createIndexSQL = """
-            CREATE INDEX IF NOT EXISTS idx_${entityConfiguration.tableName()}_$indexName ON $tableName (${properties})
+            CREATE INDEX IF NOT EXISTS idx_${entityConfiguration.tableName()}_${index.name} ON $tableName (${properties})
         """.trimIndent()
 
         unitOfWorkFactory.usingUnitOfWork {
             it.handle().execute(createIndexSQL)
             log.info(
                 "Ensured index '{}' on Entity '{}' table '{}' exists",
-                indexName,
+                index.name,
                 entityConfiguration.entityClass(),
                 entityConfiguration.tableName()
             )
@@ -208,7 +264,7 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     }
 
     override fun update(entity: ENTITY, nextVersion: Version): ENTITY {
-        var id: ID = getRequiredEntityId(entity)
+        val id: ID = getRequiredEntityId(entity)
         val loadedVersion = getRequiredEntityVersion(entity)
         log.debug(
             "Update '{}' with id: '{}', loaded-version: '{}' and next-version: '{}'",
@@ -504,4 +560,10 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     companion object {
         val log = LoggerFactory.getLogger(DocumentDbRepository::class.java)
     }
+}
+
+class VersionArgumentFactory : LongValueTypeArgumentFactory<Version>() {
+}
+
+class VersionColumnMapper : LongValueTypeColumnMapper<Version>() {
 }
