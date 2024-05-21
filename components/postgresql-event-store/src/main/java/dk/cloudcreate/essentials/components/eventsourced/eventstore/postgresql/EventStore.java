@@ -335,6 +335,40 @@ public interface EventStore {
     Optional<PersistedEvent> loadEvent(LoadEvent operation);
 
     /**
+     * Load the events belonging to <code>aggregateType</code> which have the specified <code>eventId</code>'s
+     *
+     * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream}, for which we want to load the events specified by the <code>eventIds</code> parameter
+     * @param eventIds       the list of identifiers of the {@link PersistedEvent}'s we want to load
+     * @return list of the matching events
+     */
+    default List<PersistedEvent> loadEvents(AggregateType aggregateType,
+                                                List<EventId> eventIds) {
+        return loadEvents(new LoadEvents(aggregateType, eventIds));
+    }
+
+
+    /**
+     * Load the events belonging to <code>aggregateType</code> which have the specified <code>eventId</code>'s
+     *
+     * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream}, for which we want to load the events specified by the <code>eventIds</code> parameter
+     * @param eventIds       the identifiers of the {@link PersistedEvent}'s we want to load
+     * @return list of the matching events
+     */
+    default List<PersistedEvent> loadEvents(AggregateType aggregateType,
+                                               EventId... eventIds) {
+        return loadEvents(new LoadEvents(aggregateType, List.of(eventIds)));
+    }
+
+    /**
+     * Load the events belonging to <code>aggregateType</code> and having the specified <code>eventId</code>'s
+     *
+     * @param operation the {@link LoadEvents} operation
+     * @return list of the matching events
+     */
+    List<PersistedEvent> loadEvents(LoadEvents operation);
+
+
+    /**
      * Check if the {@link EventStore} has an {@link AggregateEventStream} for an Aggregate with type <code>aggregateType</code> and id <code>aggregateId</code><br>
      * Uses {@link #fetchStream(FetchStream)} internally
      *
