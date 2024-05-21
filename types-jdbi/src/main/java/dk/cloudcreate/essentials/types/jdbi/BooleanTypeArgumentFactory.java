@@ -16,28 +16,29 @@
 
 package dk.cloudcreate.essentials.types.jdbi;
 
-import dk.cloudcreate.essentials.types.BigIntegerType;
+import dk.cloudcreate.essentials.types.BigDecimalType;
+import dk.cloudcreate.essentials.types.BooleanType;
 import org.jdbi.v3.core.argument.*;
 import org.jdbi.v3.core.config.ConfigRegistry;
 
 import java.sql.Types;
 
 /**
- * Base implementation for a {@link BigIntegerType}.<br>
- * Extend this class to support your concrete {@link BigIntegerType} sub-type:
+ * Base implementation for a {@link BooleanType}.<br>
+ * Extend this class to support your concrete {@link BooleanType} sub-type:
  * <pre>{@code
- * public final class AmountArgumentFactory extends BigIntegerTypeArgumentFactory<Amount> {
+ * public final class FeatureFlagEnabledArgumentFactory extends BooleanTypeArgumentFactory<FeatureFlagEnabled> {
  * }}</pre>
  *
- * @param <T> the concrete {@link BigIntegerType} subclass
+ * @param <T> the concrete {@link BooleanType} subclass
  */
-public abstract class BigIntegerTypeArgumentFactory<T extends BigIntegerType<T>> extends AbstractArgumentFactory<T> {
-    public BigIntegerTypeArgumentFactory() {
-        super(Types.NUMERIC);
+public abstract class BooleanTypeArgumentFactory<T extends BooleanType<T>> extends AbstractArgumentFactory<T> {
+    protected BooleanTypeArgumentFactory() {
+        super(Types.BOOLEAN);
     }
 
     @Override
     protected Argument build(T value, ConfigRegistry config) {
-        return (position, statement, ctx) -> statement.setBytes(position, value.toByteArray());
+        return (position, statement, ctx) -> statement.setBoolean(position, value.value());
     }
 }

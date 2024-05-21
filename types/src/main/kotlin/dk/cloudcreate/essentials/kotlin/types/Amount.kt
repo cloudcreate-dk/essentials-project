@@ -31,6 +31,8 @@ import java.math.MathContext
 value class Amount(override val value: BigDecimal) : BigDecimalValueType<Amount> {
 
     constructor(value: Long) : this(BigDecimal.valueOf(value))
+    constructor(value: Double) : this(BigDecimal.valueOf(value))
+    constructor(value: String) : this(BigDecimal(value))
 
     companion object {
         val ZERO: Amount = of(BigDecimal.ZERO)
