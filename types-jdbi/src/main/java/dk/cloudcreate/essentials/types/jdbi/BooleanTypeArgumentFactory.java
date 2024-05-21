@@ -27,7 +27,7 @@ import java.sql.Types;
  * Base implementation for a {@link BooleanType}.<br>
  * Extend this class to support your concrete {@link BooleanType} sub-type:
  * <pre>{@code
- * public final class FeatureFlagEnabledArgumentFactory extends BooleanTypeArgumentFactory<Amount> {
+ * public final class FeatureFlagEnabledArgumentFactory extends BooleanTypeArgumentFactory<FeatureFlagEnabled> {
  * }}</pre>
  *
  * @param <T> the concrete {@link BooleanType} subclass

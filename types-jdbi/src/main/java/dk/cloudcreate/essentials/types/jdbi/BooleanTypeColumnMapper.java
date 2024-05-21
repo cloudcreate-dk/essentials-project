@@ -30,7 +30,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * <br>
  * Example of a concrete mapper:
  * <pre>{@code
- * public final class AmountArgumentFactory extends BooleanTypeArgumentFactory<Amount> {
+ * public final class FeatureFlagEnabledArgumentFactory extends BooleanTypeArgumentFactory<FeatureFlagEnabled> {
  * }}</pre>
  *
  * @param <T> the concrete {@link BooleanType} this instance is mapping
