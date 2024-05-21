@@ -148,10 +148,10 @@ annotation class Indexed
  * Use this annotation on a concrete class implementing [dk.cloudcreate.essentials.components.document_db.VersionedEntity]
  * to specify the single property that contains the id / primary key
  *
- * The property annotated MUST be a [String] or a String value class, such as
+ * The property annotated MUST be a [String] or a String value class, such as value class implementing [StringValueType]
  * ```
  * @JvmInline
- * value class OrderId(override val value: String) : StringValueType {
+ * value class OrderId(override val value: String) : StringValueType<OrderId> {
  *     companion object {
  *         fun random(): OrderId = OrderId(RandomIdGenerator.generate())
  *     }
