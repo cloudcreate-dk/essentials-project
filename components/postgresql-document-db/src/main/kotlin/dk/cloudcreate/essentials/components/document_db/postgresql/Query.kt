@@ -58,7 +58,7 @@ class Condition<T>(val jsonSerializer: JSONSerializer) {
     infix fun KProperty1<T, Collection<String>>.anyLike(value: String): KProperty1<T, Collection<String>> {
         val conditionProperty = SingleProperty(this)
         val bindName = uniqueBindName(conditionProperty)
-        conditions.add("EXISTS (SELECT 1 FROM jsonb_array_elements_text(${conditionProperty.toJSONArrowPath()}) AS elem WHERE elem LIKE :$bindName)")
+        conditions.add("EXISTS (SELECT 1 FROM jsonb_array_elements_text(${conditionProperty.toJSONValueArrowPath()}) AS elem WHERE elem LIKE :$bindName)")
         bindings[bindName] = value
         return this
     }
@@ -111,9 +111,9 @@ class Condition<T>(val jsonSerializer: JSONSerializer) {
         }
 
         val condition = if (dbType != null) {
-            "CAST(${property.toJSONArrowPath()} AS $dbType) $operator :$bindName"
+            "CAST(${property.toJSONValueArrowPath()} AS $dbType) $operator :$bindName"
         } else {
-            "${property.toJSONArrowPath()} $operator :$bindName"
+            "${property.toJSONValueArrowPath()} $operator :$bindName"
         }
 
         conditions.add(condition)
@@ -146,14 +146,19 @@ class Condition<T>(val jsonSerializer: JSONSerializer) {
 }
 
 interface Property<T, R> {
+    fun toJSONValueArrowPath(): String
     fun toJSONArrowPath(): String
     fun returnType(): KType
     fun name(): String
 }
 
 data class SingleProperty<T, R>(val property: KProperty1<T, R>) : Property<T, R> {
-    override fun toJSONArrowPath(): String {
+    override fun toJSONValueArrowPath(): String {
         return "data->>'${property.name}'"
+    }
+
+    override fun toJSONArrowPath(): String {
+        return "data->'${property.name}'"
     }
 
     override fun returnType(): KType {
@@ -194,7 +199,7 @@ data class NestedProperty<T, R>(
 
     infix fun anyLike(value: String): Condition<T> {
         val bindName = condition.uniqueBindName(this)
-        condition.conditions.add("EXISTS (SELECT 1 FROM jsonb_array_elements_text(${this.toJSONArrowPath()}) AS elem WHERE elem LIKE :$bindName)")
+        condition.conditions.add("EXISTS (SELECT 1 FROM jsonb_array_elements_text(${this.toJSONValueArrowPath()}) AS elem WHERE elem LIKE :$bindName)")
         condition.bindings[bindName] = value
         return condition
     }
@@ -216,9 +221,14 @@ data class NestedProperty<T, R>(
         return properties.joinToString(separator = "_") { it.name }
     }
 
-    override fun toJSONArrowPath(): String {
+    override fun toJSONValueArrowPath(): String {
         if (properties.isEmpty()) throw IllegalStateException("Cannot call on an empty Nested Property")
         return "data->" + properties.dropLast(1).joinToString(separator = "->") { "'${it.name}'" } + "->>'${properties.last().name}'"
+    }
+
+    override fun toJSONArrowPath(): String {
+        if (properties.isEmpty()) throw IllegalStateException("Cannot call on an empty Nested Property")
+        return "data->" + properties.joinToString(separator = "->") { "'${it.name}'" }
     }
 
     override fun returnType(): KType {
@@ -262,38 +272,38 @@ class QueryBuilder<ID, ENTITY : VersionedEntity<ID, ENTITY>>(
 
 
         return when {
-            classifier == LocalDate::class -> "CAST(${property.toJSONArrowPath()} AS DATE)"
-            LocalDateValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS DATE)"
+            classifier == LocalDate::class -> "CAST(${property.toJSONValueArrowPath()} AS DATE)"
+            LocalDateValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS DATE)"
 
-            classifier == LocalTime::class -> "CAST(${property.toJSONArrowPath()} AS TIME)"
-            LocalTimeValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS TIME)"
+            classifier == LocalTime::class -> "CAST(${property.toJSONValueArrowPath()} AS TIME)"
+            LocalTimeValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS TIME)"
 
-            classifier == LocalDateTime::class -> "CAST(${property.toJSONArrowPath()} AS TIMESTAMP)"
-            LocalDateTimeValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS TIMESTAMP)"
+            classifier == LocalDateTime::class -> "CAST(${property.toJSONValueArrowPath()} AS TIMESTAMP)"
+            LocalDateTimeValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS TIMESTAMP)"
 
-            classifier == Instant::class || classifier == OffsetDateTime::class || classifier == ZonedDateTime::class -> "CAST(${property.toJSONArrowPath()} AS TIMESTAMPTZ)"
-            InstantValueType::class.isSuperclassOf(classifier) || OffsetDateTimeValueType::class.isSuperclassOf(classifier) || ZonedDateTimeValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS TIMESTAMPTZ)"
+            classifier == Instant::class || classifier == OffsetDateTime::class || classifier == ZonedDateTime::class -> "CAST(${property.toJSONValueArrowPath()} AS TIMESTAMPTZ)"
+            InstantValueType::class.isSuperclassOf(classifier) || OffsetDateTimeValueType::class.isSuperclassOf(classifier) || ZonedDateTimeValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS TIMESTAMPTZ)"
 
-            IntValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS INTEGER)"
-            LongValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS BIGINT)"
-            FloatValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS REAL)"
-            DoubleValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS DOUBLE PRECISION)"
-            BigDecimalValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS DOUBLE PRECISION)"
-            BigIntegerValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS NUMERIC)"
-            BooleanValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS BOOLEAN)"
-            ShortValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS SMALLINT)"
-            ByteValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS SMALLINT)"
-            StringValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONArrowPath()} AS TEXT)"
-            classifier == Int::class -> "CAST(${property.toJSONArrowPath()} AS INTEGER)"
-            classifier == Long::class -> "CAST(${property.toJSONArrowPath()} AS BIGINT)"
-            classifier == Float::class -> "CAST(${property.toJSONArrowPath()} AS REAL)"
-            classifier == Double::class -> "CAST(${property.toJSONArrowPath()} AS DOUBLE PRECISION)"
-            classifier == BigDecimal::class -> "CAST(${property.toJSONArrowPath()} AS DOUBLE PRECISION)"
-            classifier == BigInteger::class -> "CAST(${property.toJSONArrowPath()} AS NUMERIC)"
-            classifier == Boolean::class -> "CAST(${property.toJSONArrowPath()} AS BOOLEAN)"
-            classifier == Short::class -> "CAST(${property.toJSONArrowPath()} AS SMALLINT)"
-            classifier == Byte::class -> "CAST(${property.toJSONArrowPath()} AS SMALLINT)"
-            classifier == String::class -> "CAST(${property.toJSONArrowPath()} AS TEXT)"
+            IntValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS INTEGER)"
+            LongValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS BIGINT)"
+            FloatValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS REAL)"
+            DoubleValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS DOUBLE PRECISION)"
+            BigDecimalValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS DOUBLE PRECISION)"
+            BigIntegerValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS NUMERIC)"
+            BooleanValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS BOOLEAN)"
+            ShortValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS SMALLINT)"
+            ByteValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS SMALLINT)"
+            StringValueType::class.isSuperclassOf(classifier) -> "CAST(${property.toJSONValueArrowPath()} AS TEXT)"
+            classifier == Int::class -> "CAST(${property.toJSONValueArrowPath()} AS INTEGER)"
+            classifier == Long::class -> "CAST(${property.toJSONValueArrowPath()} AS BIGINT)"
+            classifier == Float::class -> "CAST(${property.toJSONValueArrowPath()} AS REAL)"
+            classifier == Double::class -> "CAST(${property.toJSONValueArrowPath()} AS DOUBLE PRECISION)"
+            classifier == BigDecimal::class -> "CAST(${property.toJSONValueArrowPath()} AS DOUBLE PRECISION)"
+            classifier == BigInteger::class -> "CAST(${property.toJSONValueArrowPath()} AS NUMERIC)"
+            classifier == Boolean::class -> "CAST(${property.toJSONValueArrowPath()} AS BOOLEAN)"
+            classifier == Short::class -> "CAST(${property.toJSONValueArrowPath()} AS SMALLINT)"
+            classifier == Byte::class -> "CAST(${property.toJSONValueArrowPath()} AS SMALLINT)"
+            classifier == String::class -> "CAST(${property.toJSONValueArrowPath()} AS TEXT)"
             else -> throw IllegalArgumentException("Unsupported type '${classifier.qualifiedName}' for property ${property.name()}")
         }
 
@@ -332,6 +342,10 @@ internal data class JdbiQuery<ID, ENTITY : VersionedEntity<ID, ENTITY>>(val sql:
 
 infix fun <T, R, V> KProperty1<T, R>.then(property: KProperty1<R, V>): NestedProperty<T, V> {
     return NestedProperty(Condition(NoJSONSerializer()), listOf(this, property))
+}
+
+fun <T, R,> KProperty1<T, R>.asProperty(): Property<T, R> {
+    return SingleProperty(this)
 }
 
 internal class NoJSONSerializer : JSONSerializer {

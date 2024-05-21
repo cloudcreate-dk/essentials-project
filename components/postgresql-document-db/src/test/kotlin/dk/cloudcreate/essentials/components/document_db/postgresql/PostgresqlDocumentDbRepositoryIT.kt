@@ -24,6 +24,7 @@ import dk.cloudcreate.essentials.components.document_db.annotations.DocumentEnti
 import dk.cloudcreate.essentials.components.document_db.annotations.Id
 import dk.cloudcreate.essentials.components.document_db.annotations.Indexed
 import dk.cloudcreate.essentials.components.foundation.json.JacksonJSONSerializer
+import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.JdbiUnitOfWorkFactory
 import dk.cloudcreate.essentials.components.foundation.types.RandomIdGenerator
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule
@@ -93,6 +94,9 @@ class DocumentDbRepositoryImplIT {
         productRepository = repositoryFactory.create(Product::class)
         visitRepository = repositoryFactory.create(Visit::class)
         shippingOrderRepository = repositoryFactory.create(ShippingOrder::class)
+
+        orderRepository.addIndex(Index(name="city", listOf(Order::contactDetails then ContactDetails::address then Address::city)))
+        orderRepository.addIndex(Index(name="orderdate_amount", listOf(Order::orderDate.asProperty(), Order::amount.asProperty())))
 
         populateTestData()
     }
@@ -350,6 +354,20 @@ class DocumentDbRepositoryImplIT {
         var result = orderRepository.find(query)
         assertThat(result).hasSize(numberOfOrders / 2)
         assertThat(result.map { it.additionalProperty }).isEqualTo((0 until 50).toList())
+
+        // Comparison query
+        result = orderRepository.queryBuilder()
+            .where(orderRepository.condition()
+                .matching {
+                    Order::amount gt 200
+                    // Continue chaining other conditions as needed
+                })
+            .orderBy(Order::additionalProperty, QueryBuilder.Order.ASC)
+            .limit(200)
+            .offset(0)
+            .find()
+        assertThat(result).hasSize(numberOfOrders / 2)
+        assertThat(result.count { it.amount == Amount("201.00")}).isEqualTo(50)
 
         // Text query
         result = orderRepository.queryBuilder()
@@ -985,8 +1003,7 @@ data class Order(
     var contactDetails: ContactDetails,
     override var version: Version = Version.NOT_SAVED_YET,
     override var lastUpdated: OffsetDateTime = OffsetDateTime.now(UTC)
-) : VersionedEntity<OrderId, Order> {
-}
+) : VersionedEntity<OrderId, Order>
 
 data class ContactDetails(val name: String, val address: Address, val phoneNumbers: List<String>)
 data class Address(val street: String, val city: String)

@@ -41,6 +41,7 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     private val jsonSerializer: JSONSerializer
 ) : DocumentDbRepository<ENTITY, ID> {
     private var entityConfiguration: EntityConfiguration<ID, ENTITY>
+    private val indexesAdded = mutableSetOf<Index<ENTITY>>()
 
     init {
         entityConfiguration = EntityConfiguration.configureEntity(entityClass).build()
@@ -90,6 +91,48 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
                 )
             }
         }
+    }
+
+    override fun addIndex(index: Index<ENTITY>): DocumentDbRepository<ENTITY, ID> {
+        if (indexesAdded.contains(index)) {
+            return this
+        }
+        val indexName = index.name
+        PostgresqlUtil.checkIsValidTableOrColumnName(indexName)
+        indexesAdded.add(index)
+
+        val properties = index.properties.joinToString(", ") { "(" + it.toJSONValueArrowPath()+ ")" }
+        val tableName = entityConfiguration().tableName()
+        val createIndexSQL = """
+            CREATE INDEX IF NOT EXISTS idx_${entityConfiguration.tableName()}_$indexName ON $tableName (${properties})
+        """.trimIndent()
+
+        unitOfWorkFactory.usingUnitOfWork {
+            it.handle().execute(createIndexSQL)
+            log.info(
+                "Ensured index '{}' on Entity '{}' table '{}' exists",
+                indexName,
+                entityConfiguration.entityClass(),
+                entityConfiguration.tableName()
+            )
+        }
+        return this
+    }
+
+    override fun removeIndex(indexName: String): DocumentDbRepository<ENTITY, ID> {
+        PostgresqlUtil.checkIsValidTableOrColumnName(indexName)
+        if (indexesAdded.removeIf { it.name == indexName }) {
+            unitOfWorkFactory.usingUnitOfWork {
+                it.handle().execute("DROP INDEX IF EXISTS idx_${entityConfiguration.tableName()}_$indexName")
+                log.info(
+                    "Ensured index '{}' on Entity '{}' table '{}' was removed",
+                    indexName,
+                    entityConfiguration.entityClass(),
+                    entityConfiguration.tableName()
+                )
+            }
+        }
+        return this
     }
 
     override fun entityConfiguration(): EntityConfiguration<ID, ENTITY> {
