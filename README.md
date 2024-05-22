@@ -4,7 +4,7 @@ Essentials is a set of Java version 11 (and later) building blocks built from th
 on other libraries, unless explicitly mentioned.
 
 > **NOTE:**  
-> **The libraries are WORK-IN-PROGRESS** and **the Java 11-16 variant (version 0.9.*) is no longer being maintained!** 
+> **The libraries are WORK-IN-PROGRESS** and **the Java 11-16 variant (version 0.9.*) is no longer being maintained!**  
 > Please upgrade to version 0.40.9 or later!
 
 # Security
