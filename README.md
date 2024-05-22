@@ -9,14 +9,17 @@ on other libraries, unless explicitly mentioned.
 # Security
 
 Several of the components, as well as their subcomponents and/or supporting classes, allows the user of the components to provide customized:
+
 - table names
 - column names
 - collection names
 - etc.
 
-By using naming conventions for Postgresql table/column/index names and MongoDB Collection names, Essentials attempts to provide an initial layer of defense intended to reduce the risk of malicious input.    
+By using naming conventions for Postgresql table/column/index names and MongoDB Collection names, Essentials attempts to provide an initial layer of defense intended to reduce the risk of malicious
+input.    
 **However, Essentials does not offer exhaustive protection, nor does it assure the complete security of the resulting SQL and Mongo Queries/Updates against injection threats.**
-> The responsibility for implementing protective measures against malicious API input and configuration values lies exclusively with the users/developers using the Essentials components and its supporting classes.  
+> The responsibility for implementing protective measures against malicious API input and configuration values lies exclusively with the users/developers using the Essentials components and its
+> supporting classes.  
 > Users must ensure thorough sanitization and validation of API input parameters, SQL table/column/index names as well as MongoDB collection names.
 
 **Insufficient attention to these practices may leave the application vulnerable to attacks, endangering the security and integrity of the database.**
@@ -30,44 +33,53 @@ By using naming conventions for Postgresql table/column/index names and MongoDB 
 > - [springdata-mongo-queue](components/springdata-mongo-queue/README.md)
 > - [postgresql-event-store](components/postgresql-event-store/README.md)
 > - [eventsourced-aggregates](components/eventsourced-aggregates/README.md)
+> - [kotlin-eventsourcing](components/kotlin-eventsourcing/README.md)
+> - [postgresql-document-db](components/postgresql-document-db/README.md)
 > - [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
 > - [spring-boot-starter-postgresql-event-store](components/spring-boot-starter-postgresql-event-store/README.md)
 > - [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
 
 ## License
+
 Essentials is released under version 2.0 of the [Apache License](https://www.apache.org/licenses/LICENSE-2.0)
 
 ## Versions
 
-| Essentials version                                                                   | Java compatibility | Spring Boot compatibility |
-|--------------------------------------------------------------------------------------|--------------------|---------------------------|
-| [0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)            | 11-16              | 2.7.x                     |
-| [0.20.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_0_x) | 17+                | 3.0.x                     |
-| [0.30.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_1_x) | 17+                | 3.1.x                     |
-| [0.40.*](https://github.com/cloudcreate-dk/essentials-project/tree/main)             | 17+                | 3.2.x                     |
+| Essentials version                                                                   | Java compatibility | Spring Boot compatibility | Notes                      |
+|--------------------------------------------------------------------------------------|--------------------|---------------------------|----------------------------|
+| [0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)            | 11-16              | 2.7.x                     | No longer being maintained |
+| [0.20.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_0_x) | 17+                | 3.0.x                     | No longer being maintained |
+| [0.30.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_1_x) | 17+                | 3.1.x                     | No longer being maintained |
+| [0.40.*](https://github.com/cloudcreate-dk/essentials-project/tree/main)             | 17+                | 3.2.x                     | Under active development   |
 
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
 many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
 
 All essentials modules that depend on third party dependencies, such as Spring, JDBI, etc. are using the Maven `provided` scope for these dependencies.
-Dependencies with `provided` scope are only available at compile time and in the test classpath of the Essentials project. 
+Dependencies with `provided` scope are only available at compile time and in the test classpath of the Essentials project.
 This means that any dependencies with `provided` scope are not transitive (i.e. not available for projects that depend on Essentials), which also means that the user of Essentials
-need to add these third party dependencies (such as Spring, JDBI, Postgresql JDBC driver, etc.) to their project themselves.  
+need to add these third party dependencies (such as Spring, JDBI, Postgresql JDBC driver, etc.) to their project themselves.
 
 Each module's README.md will provide information about which third party dependencies that are typically for the Essentials module to be functional.
 
 ## Essentials modules overview
+
 ![Essentials modules overview](images/all-essentials-modules.png)
 
 ## Advanced Components
+
 See: [Essentials Components](components/README.md) for information about **components** such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `DurableLocalCommandbus`,
-`Inbox`, `Outbox` and `EventProcessor`
+`Inbox`, `Outbox`, `EventProcessor` and `DocumentDBRepository`
 
 Components also includes **Spring Boot** auto-configuration modules which specializes in either Postgresql or MongoDB:
+
 - See [spring-boot-starter-postgresql](components/spring-boot-starter-postgresql/README.md)
 - See [spring-boot-starter-postgresql-event-store](components/spring-boot-starter-postgresql-event-store/README.md)
 - See [spring-boot-starter-mongodb](components/spring-boot-starter-mongodb/README.md)
+- See [kotlin-eventsourcing](components/kotlin-eventsourcing/README.md)
+- See [postgresql-document-db](components/postgresql-document-db/README.md)
+
 
 ## Shared
 
@@ -81,16 +93,16 @@ This library contains the smallest set of supporting building blocks needed for 
     - E.g. `Tuple.of("Hello", 100L, new BigDecimal("125.95")).map((_1, _2, _3) -> Tuple.of(_1.toString(), _2.toString(), _3.toString))`
     - Checked variant of the classic Functional-Interfaces (`Runnable`, `Consumer`, `Supplier`, `Function`, `BiFunction` and `TripleFunction`)
       that behaves like the normal Functional-Interface, but which allows checked `Exception`'s to be thrown from their method:
-      - `CheckedRunnable`
-      - `CheckedConsumer`
-      - `CheckedSupplier`
-      - `CheckedFunction`
-      - `CheckedBiFunction`
-      - `CheckedTripleFunction`
+        - `CheckedRunnable`
+        - `CheckedConsumer`
+        - `CheckedSupplier`
+        - `CheckedFunction`
+        - `CheckedBiFunction`
+        - `CheckedTripleFunction`
 - `FailFast` argument validation (Objects.requireNonNull replacement)
     - E.g. `FailFast.requireNonBlank(fieldName, "You must supply a fieldName");`
 - **`If` expression** that supports both simple boolean predicate/condition and fixed value return values as well as lambda predicates and return value suppliers:
-  - ```
+    - ```
     String description = If(value < 0, () -> "Negative number").
                          ElseIf(() -> value == 0, "Zero").
                          Else("Positive number");
@@ -100,7 +112,7 @@ This library contains the smallest set of supporting building blocks needed for 
 - `StopWatch` for timing different methods/operations
 - `Exceptions` that allow `sneakyThrow` and getting a stacktrace as a String
 - SLF4J compatible **Message formatter**
-  - E.g. `msg("Failed to find static method '{}' on type '{}' taking arguments of {}", methodName, type.getName(), Arrays.toString(argumentTypes))`
+    - E.g. `msg("Failed to find static method '{}' on type '{}' taking arguments of {}", methodName, type.getName(), Arrays.toString(argumentTypes))`
 - High level **Reflection** API
     - E.g. `Reflector.reflectOn(someType).invokeStatic("of");`
 - `PatternMatchingMethodInvoker` which supports creating your own reflective pattern matching method invokers.
@@ -109,6 +121,7 @@ This library contains the smallest set of supporting building blocks needed for 
 ![Essentials modules](images/essentials-modules.png)
 
 To use `Shared` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
@@ -149,6 +162,7 @@ public class OrderId extends CharSequenceType<OrderId> implements Identifier {
 ```
 
 To use `Types` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
@@ -164,6 +178,7 @@ See [types](types/README.md) for more information
 This library contains the smallest set of supporting reactive building blocks needed for other Essentials libraries
 
 To use `Reactive` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
@@ -175,6 +190,7 @@ To use `Reactive` just add the following Maven dependency:
 See [reactive](reactive/README.md) for more information
 
 ### LocalEventBus
+
 Simple event bus that supports both synchronous and asynchronous subscribers that are registered and listening for events published within the local the JVM  
 You can have multiple instances of the LocalEventBus deployed with the local JVM, but usually one event bus is sufficient.
 
@@ -193,6 +209,7 @@ localEventBus.publish(new OrderCreatedEvent());
  ```
 
 ### LocalCommandBus
+
 The `LocalCommandBus` provides an indirection between a command and the `CommandHandler` that's capable of handling the command.
 Commands can be sent synchronously using `#send(Object)` or asynchronously using `#sendAsync(Object)` that returns a `Mono`.
 The handling of a command usually doesn't return any value (according to the principles of CQRS), however the `LocalCommandBus` API allows
@@ -219,6 +236,7 @@ The core feature set of `ImmutableValueObject` is that it provides default imple
 implementation.
 
 Example:
+
 ```
 public class ImmutableOrder extends ImmutableValueObject {
     public final OrderId                  orderId;
@@ -242,6 +260,7 @@ public class ImmutableOrder extends ImmutableValueObject {
 ```
 
 To use `Immutable` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
@@ -253,6 +272,7 @@ To use `Immutable` just add the following Maven dependency:
 See [immutable](immutable/README.md) for more information
 
 ## Immutable Jackson
+
 This library focuses purely on providing [Jackson (FasterXML)](https://github.com/FasterXML/jackson) deserialization support for immutable classes or other classes that don't have a suitable creator
 (constructor, or no-arg static factory method, etc.).  
 This is very useful for when you're using `Record`'s (in Java 14+) or other types supporting immutable objects, as it allows Jackson to create an object instance without requiring
@@ -260,6 +280,7 @@ a matching constructing.
 
 Using this module means that you can deserialize an immutable class such as this one that only consists of `public final` fields and a single constructor that doesn't allow initialization of
 all fields values during deserialization.
+
 ``` 
 public final class ImmutableOrder {
     public final OrderId       orderId;
@@ -290,6 +311,7 @@ objectMapper.registerModule(new EssentialsImmutableJacksonModule());
 ```
 
 To use `Immutable-Jackson` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
@@ -312,6 +334,7 @@ objectMapper.registerModule(new EssentialTypesJacksonModule());
 ```
 
 To use `Types-Jackson` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
@@ -357,6 +380,7 @@ public class Order {
 ```
 
 To use `Types-SpringData-Mongo` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
@@ -398,11 +422,12 @@ See [types-springdata-jpa](types-springdata-jpa/README.md) for more information
 
 ## Types Spring Web
 
-This library focuses purely on providing [Spring](https://spring.io/projects/spring-framework) [WebMvc/MVC](https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#spring-web) 
+This library focuses purely on providing [Spring](https://spring.io/projects/spring-framework) [WebMvc/MVC](https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#spring-web)
 and [WebFlux](https://docs.spring.io/spring-framework/docs/current/reference/html/web-reactive.html#spring-webflux) `Converter` support for the **types** defined in the
 Essentials `types` library.
 
 To use `Types-Spring-Web` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
@@ -412,6 +437,7 @@ To use `Types-Spring-Web` just add the following Maven dependency:
 ```
 
 Using this library will allow you to deserialize `@PathVariable` `@RequestParam` method parameters of type `SingleValueType` for **WebMvc**
+
 ```
 @PostMapping("/order/for-customer/{customerId}/update/total-price")
 public ResponseEntity<Order> updatePrice(@PathVariable CustomerId customerId,
@@ -419,7 +445,9 @@ public ResponseEntity<Order> updatePrice(@PathVariable CustomerId customerId,
     ...
 }
 ```
+
 and for **WebFlux**
+
 ```
 @PostMapping("/reactive-order/for-customer/{customerId}/update/total-price")
 public Mono<Order> updatePrice(@PathVariable CustomerId customerId,
@@ -475,6 +503,7 @@ public class CustomerIdArgumentFactory extends CharSequenceTypeArgumentFactory<C
 ```
 
 To use `Types-JDBI` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
@@ -486,9 +515,11 @@ To use `Types-JDBI` just add the following Maven dependency:
 See [types-jdbi](types-jdbi/README.md) for more information
 
 ## Types Avro
+
 This library focuses purely on providing [AVRO](https://avro.apache.org) serialization and deserialization support for the **types** defined in the Essentials `types` library.
 
 To use `Types-Avro` just add the following Maven dependency:
+
 ```
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
@@ -500,7 +531,7 @@ To use `Types-Avro` just add the following Maven dependency:
 See [types-avro](types-avro/README.md) for more information
 
 Some concrete `Types` such as `Amount`, `Percentage` and `CurrencyCode` come with supported our of the box.  
-This allows you to define Avro schema/IDL protocol and directly refer these logical-types in your Avro Schema/IDL protocol. 
+This allows you to define Avro schema/IDL protocol and directly refer these logical-types in your Avro Schema/IDL protocol.
 
 Example `order.avdl`:
 
