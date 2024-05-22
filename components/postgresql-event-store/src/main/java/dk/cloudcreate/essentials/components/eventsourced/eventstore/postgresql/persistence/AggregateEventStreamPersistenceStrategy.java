@@ -282,4 +282,13 @@ public interface AggregateEventStreamPersistenceStrategy<CONFIG extends Aggregat
      * @return an {@link Optional} with the {@link GlobalEventOrder} persisted or {@link Optional#empty()} if no events have been persisted
      */
     Optional<GlobalEventOrder> findHighestGlobalEventOrderPersisted(EventStoreUnitOfWork unitOfWork, AggregateType aggregateType);
+
+    /**
+     * Load all the <code>eventIds</code> related to the specified <code>aggregateType</code>
+     * @param unitOfWork the current unit of work
+     * @param aggregateType the aggregate type that the specified <code>eventIds</code> are associated with
+     * @param eventIds the {@link EventId}'s that we want to load the corresponding {@link PersistedEvent}'s for
+     * @return the matching {@link PersistedEvent}'s
+     */
+    List<PersistedEvent> loadEvents(EventStoreUnitOfWork unitOfWork, AggregateType aggregateType, List<EventId> eventIds);
 }

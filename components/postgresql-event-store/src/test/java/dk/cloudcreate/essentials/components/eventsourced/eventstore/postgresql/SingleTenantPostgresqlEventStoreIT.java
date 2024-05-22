@@ -981,6 +981,73 @@ class SingleTenantPostgresqlEventStoreIT {
         assertThat(globalEventOrdersFound).isEqualTo("3,5,6,10,11,12,13,14,15,16,17,18,19,20,45,72");
     }
 
+    @Test
+    void test_loadEvents() {
+        // Add support for the Product aggregate
+        eventStore.addAggregateEventStreamConfiguration(SeparateTablePerAggregateEventStreamConfiguration.standardSingleTenantConfiguration(PRODUCTS,
+                                                                                                                                            new JacksonJSONEventSerializer(createObjectMapper()),
+                                                                                                                                            AggregateIdSerializer.serializerFor(ProductId.class),
+                                                                                                                                            IdentifierColumnType.TEXT,
+                                                                                                                                            JSONColumnType.JSON));
+        var testEvents = createTestEvents();
+
+        // Persist all test events
+        var unitOfWork                      = unitOfWorkFactory.getOrCreateNewUnitOfWork();
+        var eventsPersistedPerAggregateType = new HashMap<AggregateType, List<PersistedEvent>>();
+        testEvents.forEach((aggregateType, aggregatesAndEvents) -> {
+            aggregatesAndEvents.forEach((aggregateId, events) -> {
+                System.out.println(msg("Persisting {} {} events related to aggregate id {}",
+                                       events.size(),
+                                       aggregateType,
+                                       aggregateId));
+                var aggregateEventStream = eventStore.appendToStream(aggregateType,
+                                                                     aggregateId,
+                                                                     events);
+                assertThat(aggregateEventStream.aggregateId()).isEqualTo(aggregateId);
+                assertThat(aggregateEventStream.isPartialEventStream()).isTrue();
+                assertThat(aggregateEventStream.eventList().size()).isEqualTo(events.size());
+
+                // Remember the events persisted
+                var eventsPersistedForThisAggregateType = eventsPersistedPerAggregateType.computeIfAbsent(aggregateType, _aggregateType -> new ArrayList<>());
+                eventsPersistedForThisAggregateType.addAll(aggregateEventStream.eventList());
+            });
+        });
+        unitOfWork.commit();
+
+        unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
+
+        var allPersistedProductEvents = eventsPersistedPerAggregateType.get(PRODUCTS);
+        var allPersistedOrderEvents   = eventsPersistedPerAggregateType.get(ORDERS);
+
+        // Verify we can load all PRODUCT events persisted
+        var allLoadedProductEvents = eventStore.loadEvents(PRODUCTS, allPersistedProductEvents.stream().map(PersistedEvent::eventId).toList());
+        assertThat(allLoadedProductEvents).hasSize(allPersistedProductEvents.size());
+        assertThat(allPersistedProductEvents).containsAll(allLoadedProductEvents);
+        // Verify we can load all partial set of PRODUCT events persisted
+        var partialListOfPersistedProductIds = allPersistedProductEvents.stream().map(PersistedEvent::eventId).limit(4).toList();
+        var partialLoadedProductEvents     = eventStore.loadEvents(PRODUCTS, partialListOfPersistedProductIds);
+        assertThat(partialLoadedProductEvents).hasSize(4);
+        assertThat(partialLoadedProductEvents.stream().map(PersistedEvent::eventId).toList()).containsAll(partialListOfPersistedProductIds);
+        assertThat(allPersistedProductEvents).containsAll(partialLoadedProductEvents);
+        // Verify we can NOT load PRODUCT events using persisted ORDER event-ids
+        var listExpectedToBeEmpty = eventStore.loadEvents(PRODUCTS, allPersistedOrderEvents.stream().map(PersistedEvent::eventId).limit(4).toList());
+        assertThat(listExpectedToBeEmpty).isEmpty();
+
+        // Verify we can load all ORDER events persisted
+        var allLoadedOrderEvents = eventStore.loadEvents(ORDERS, allPersistedOrderEvents.stream().map(PersistedEvent::eventId).toList());
+        assertThat(allLoadedOrderEvents).hasSize(allPersistedOrderEvents.size());
+        assertThat(allPersistedOrderEvents).containsAll(allLoadedOrderEvents);
+        // Verify we can load all partial set of ORDER events persisted
+        var partialListOfPersistedOrderIds = allPersistedOrderEvents.stream().map(PersistedEvent::eventId).limit(10).toList();
+        var partialLoadedOrderEvents     = eventStore.loadEvents(ORDERS, partialListOfPersistedOrderIds);
+        assertThat(partialLoadedOrderEvents).hasSize(10);
+        assertThat(partialLoadedOrderEvents.stream().map(PersistedEvent::eventId).toList()).containsAll(partialListOfPersistedOrderIds);
+        assertThat(allPersistedOrderEvents).containsAll(partialLoadedOrderEvents);
+        // Verify we can NOT load ORDER events using persisted PRODUCT event-ids
+        listExpectedToBeEmpty = eventStore.loadEvents(ORDERS, allPersistedProductEvents.stream().map(PersistedEvent::eventId).limit(4).toList());
+        assertThat(listExpectedToBeEmpty).isEmpty();
+    }
+
     private void testSimpleEventPolling(Function<SubscriberId, Flux<PersistedEvent>> productsFluxSupplier,
                                         Function<SubscriberId, Flux<PersistedEvent>> ordersFluxSupplier) {
         requireNonNull(productsFluxSupplier);

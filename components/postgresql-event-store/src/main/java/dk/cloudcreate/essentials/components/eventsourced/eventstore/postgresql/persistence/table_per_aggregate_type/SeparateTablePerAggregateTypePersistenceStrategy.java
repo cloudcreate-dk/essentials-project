@@ -40,7 +40,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.*;
 
-import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
+import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.NamedArgumentBinding.arg;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.*;
 
@@ -844,6 +844,22 @@ public final class SeparateTablePerAggregateTypePersistenceStrategy implements A
     }
 
     @Override
+    public List<PersistedEvent> loadEvents(EventStoreUnitOfWork unitOfWork, AggregateType aggregateType, List<EventId> eventIds) {
+        requireNonNull(unitOfWork, "No unitOfWork provided");
+        requireNonNull(aggregateType, "No aggregateType provided");
+        requireNonNull(eventIds, "No eventIds list provided");
+        requireNonEmpty(eventIds, "No eventIds provided");
+
+        var configuration = getAggregateEventStreamConfiguration(aggregateType);
+        return unitOfWork.handle()
+                         .createQuery(loadEventsQuerySql(configuration))
+                         .bindList("eventIds", configuration.eventIdColumnType == IdentifierColumnType.UUID ? eventIds.stream().map(eventId -> UUID.fromString(eventId.toString())).toList() : eventIds)
+                         .setFetchSize(eventIds.size())
+                         .map(new PersistedEventRowMapper(this, configuration))
+                         .list();
+    }
+
+    @Override
     public Optional<GlobalEventOrder> findHighestGlobalEventOrderPersisted(EventStoreUnitOfWork unitOfWork, AggregateType aggregateType) {
         requireNonNull(unitOfWork, "No unitOfWork provided");
         requireNonNull(aggregateType, "No aggregateType provided");
@@ -866,6 +882,17 @@ public final class SeparateTablePerAggregateTypePersistenceStrategy implements A
     private String loadEventQuerySql(SeparateTablePerAggregateEventStreamConfiguration configuration) {
         String sql = "SELECT * FROM {:tableName} WHERE \n" +
                 "   {:eventIdColumn} = :eventId";
+
+        return bind(sql,
+                    // Column names
+                    arg("tableName", configuration.eventStreamTableName),
+                    arg("eventIdColumn", configuration.eventStreamTableColumnNames.eventIdColumn)
+                   );
+    }
+
+    private String loadEventsQuerySql(SeparateTablePerAggregateEventStreamConfiguration configuration) {
+        String sql = "SELECT * FROM {:tableName} WHERE \n" +
+                "   {:eventIdColumn} IN (<eventIds>)";
 
         return bind(sql,
                     // Column names

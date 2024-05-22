@@ -159,6 +159,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
 
     /**
      * Please see {@link AggregateEventStreamPersistenceStrategy} documentation regarding <b>Security</b> considerations
+     *
      * @return the chosen persistenceStrategy
      */
     public AggregateEventStreamPersistenceStrategy<CONFIG> getPersistenceStrategy() {
@@ -255,6 +256,18 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                                () -> persistenceStrategy.loadEvent(unitOfWorkFactory.getRequiredUnitOfWork(),
                                                                                    operation.aggregateType,
                                                                                    operation.eventId))
+                .proceed();
+    }
+
+    @Override
+    public List<PersistedEvent> loadEvents(LoadEvents operation) {
+        requireNonNull(operation, "You must supply an LoadEvents operation instance");
+        return newInterceptorChainForOperation(operation,
+                                               eventStoreInterceptors,
+                                               (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
+                                               () -> persistenceStrategy.loadEvents(unitOfWorkFactory.getRequiredUnitOfWork(),
+                                                                                    operation.aggregateType,
+                                                                                    operation.eventIds))
                 .proceed();
     }
 

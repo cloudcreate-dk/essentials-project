@@ -1,6 +1,6 @@
 # Essentials Components - Kotlin EventSourcing
 
-This library provides an **experimental** Kotlin focused `Decider`/`Evolver` approach to EventSourcing
+This library provides an **experimental** Kotlin focused `Decider`/`Evolver` approach to EventSourcing, compatible with the `CommandBus` and integrating with the [postgresql-event-store](components/postgresql-event-store/README.md) library.
 
 > **NOTE:**  
 > **The library is WORK-IN-PROGRESS**
