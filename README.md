@@ -4,7 +4,8 @@ Essentials is a set of Java version 17 (and later) building blocks built from th
 on other libraries, unless explicitly mentioned.
 
 > **NOTE:**  
-> **The libraries are WORK-IN-PROGRESS**
+> **The libraries are WORK-IN-PROGRESS** and **the Spring Boot 3.1.x and Java 17 variant (version 0.30.*) is no longer being maintained!**     
+> Please upgrade to version 0.40.9 or later!
 
 # Security
 
@@ -39,12 +40,13 @@ Essentials is released under version 2.0 of the [Apache License](https://www.apa
 
 ## Versions
 
-| Essentials version                                                                   | Java compatibility | Spring Boot compatibility |
-|--------------------------------------------------------------------------------------|--------------------|---------------------------|
-| [0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)            | 11-16              | 2.7.x                     |
-| [0.20.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_0_x) | 17+                | 3.0.x                     |
-| [0.30.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_1_x) | 17+                | 3.1.x                     |
-| [0.40.*](https://github.com/cloudcreate-dk/essentials-project/tree/main)             | 17+                | 3.2.x                     |
+| Essentials version                                                                   | Java compatibility | Spring Boot compatibility | Notes                      |
+|--------------------------------------------------------------------------------------|--------------------|---------------------------|----------------------------|
+| [0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)            | 11-16              | 2.7.x                     | No longer being maintained |
+| [0.20.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_0_x) | 17+                | 3.0.x                     | No longer being maintained |
+| [0.30.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_1_x) | 17+                | 3.1.x                     | No longer being maintained |
+| [0.40.*](https://github.com/cloudcreate-dk/essentials-project/tree/main)             | 17+                | 3.2.x                     | Under active development   |
+
 
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
