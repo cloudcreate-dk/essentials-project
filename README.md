@@ -4,7 +4,7 @@ Essentials is a set of Java version 17 (and later) building blocks built from th
 on other libraries, unless explicitly mentioned.
 
 > **NOTE:**  
-> **The libraries are WORK-IN-PROGRESS**
+> **The libraries are WORK-IN-PROGRESS** and only **the Spring Boot 3.2.x and Java 17+ variant (version 0.40.*) is being maintained!**     
 
 # Security
 
