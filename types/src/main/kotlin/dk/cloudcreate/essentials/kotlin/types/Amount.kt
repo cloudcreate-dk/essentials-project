@@ -34,6 +34,14 @@ value class Amount(override val value: BigDecimal) : BigDecimalValueType<Amount>
     constructor(value: Double) : this(BigDecimal.valueOf(value))
     constructor(value: String) : this(BigDecimal(value))
 
+    operator fun plus(other: Amount) = Amount(value + other.value)
+    operator fun minus(other: Amount) = Amount(value - other.value)
+    operator fun times(other: Amount) = Amount(value * other.value)
+    operator fun div(other: Amount) = Amount(value / other.value)
+    operator fun unaryPlus() = this
+    operator fun unaryMinus() = Amount(-value)
+    fun abs() = Amount(value.abs())
+
     companion object {
         val ZERO: Amount = of(BigDecimal.ZERO)
 
