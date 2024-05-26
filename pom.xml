@@ -72,7 +72,7 @@
         <awaitility.version>4.2.1</awaitility.version>
         <spring-data-mongodb.version>4.2.6</spring-data-mongodb.version>
         <spring-data-jpa.version>3.2.6</spring-data-jpa.version>
-        <assertj.version>3.25.3</assertj.version>
+        <assertj.version>3.26.0</assertj.version>
         <mongodb-driver-sync.version>4.11.2</mongodb-driver-sync.version>
         <log4j-to-slf4j.version>2.23.1</log4j-to-slf4j.version>
         <json-smart.version>2.5.1</json-smart.version>
