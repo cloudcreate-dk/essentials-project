@@ -20,18 +20,10 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.cloudcreate.essentials.components.document_db.*
-import dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity
-import dk.cloudcreate.essentials.components.document_db.annotations.Id
-import dk.cloudcreate.essentials.components.document_db.annotations.Indexed
 import dk.cloudcreate.essentials.components.foundation.json.JacksonJSONSerializer
-import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.JdbiUnitOfWorkFactory
-import dk.cloudcreate.essentials.components.foundation.types.RandomIdGenerator
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule
 import dk.cloudcreate.essentials.kotlin.types.Amount
-import dk.cloudcreate.essentials.kotlin.types.StringValueType
-import dk.cloudcreate.essentials.kotlin.types.jdbi.StringValueTypeArgumentFactory
-import dk.cloudcreate.essentials.kotlin.types.jdbi.StringValueTypeColumnMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.jdbi.v3.core.Jdbi
@@ -41,8 +33,6 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.LocalDateTime
-import java.time.OffsetDateTime
-import java.time.ZoneOffset.UTC
 import kotlin.reflect.KMutableProperty1
 
 
@@ -95,8 +85,8 @@ class DocumentDbRepositoryImplIT {
         visitRepository = repositoryFactory.create(Visit::class)
         shippingOrderRepository = repositoryFactory.create(ShippingOrder::class)
 
-        orderRepository.addIndex(Index(name="city", listOf(Order::contactDetails then ContactDetails::address then Address::city)))
-        orderRepository.addIndex(Index(name="orderdate_amount", listOf(Order::orderDate.asProperty(), Order::amount.asProperty())))
+        orderRepository.addIndex(Index(name = "city", listOf(Order::contactDetails then ContactDetails::address then Address::city)))
+        orderRepository.addIndex(Index(name = "orderdate_amount", listOf(Order::orderDate.asProperty(), Order::amount.asProperty())))
 
         populateTestData()
     }
@@ -110,8 +100,8 @@ class DocumentDbRepositoryImplIT {
                 amount = Amount(100.0),
                 orderDate = LocalDateTime.now(),
                 personName = "John Doe",
-                invoiceAddress = Address("123 Some Street", "Springfield"),
-                contactDetails = ContactDetails("John Doe", Address("123 Some Street", "Springfield"), listOf("Some Phone Number")),
+                invoiceAddress = Address("123 Some Street", 1000, "Springfield"),
+                contactDetails = ContactDetails("John Doe", Address("123 Some Street", 1000, "Springfield"), listOf("Some Phone Number")),
                 additionalProperty = 10
             )
         )
@@ -123,8 +113,8 @@ class DocumentDbRepositoryImplIT {
                 amount = Amount(200.0),
                 orderDate = LocalDateTime.now(),
                 personName = "Jane Smith",
-                invoiceAddress = Address("456 Some Other Street", "Shelbyville"),
-                contactDetails = ContactDetails("Jane Smith", Address("456 Some Other Street", "Shelbyville"), listOf("Some Other Phone Number")),
+                invoiceAddress = Address("456 Some Other Street", 1000, "Shelbyville"),
+                contactDetails = ContactDetails("Jane Smith", Address("456 Some Other Street", 1000, "Shelbyville"), listOf("Some Other Phone Number")),
                 additionalProperty = 20
             )
         )
@@ -153,7 +143,7 @@ class DocumentDbRepositoryImplIT {
                 shippingOrderId = ShippingOrderId("shippingOrder1"),
                 orderReference = "order1",
                 shippingDate = LocalDateTime.now(),
-                destination = Address("123 Main St", "Springfield"),
+                destination = Address("123 Main St", 1000, "Springfield"),
                 status = "Pending"
             )
         )
@@ -179,10 +169,10 @@ class DocumentDbRepositoryImplIT {
             50,
             LocalDateTime.now(),
             "John Doe",
-            Address("Some Street", "Some City"),
+            Address("Some Street", 1000, "Some City"),
             ContactDetails(
                 "John Doe",
-                Address("Some Other Street", "Some Other City"),
+                Address("Some Other Street", 1000, "Some Other City"),
                 listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
             )
         )
@@ -246,10 +236,10 @@ class DocumentDbRepositoryImplIT {
             50,
             LocalDateTime.now(),
             "John Doe",
-            Address("Some Street", "Some City"),
+            Address("Some Street", 1000, "Some City"),
             ContactDetails(
                 "John Doe",
-                Address("Some Other Street", "Some Other City"),
+                Address("Some Other Street", 1000, "Some Other City"),
                 listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
             )
         )
@@ -266,10 +256,10 @@ class DocumentDbRepositoryImplIT {
                     80,
                     LocalDateTime.now(),
                     "John Doe",
-                    Address("Some Street", "Some City"),
+                    Address("Some Street", 1000, "Some City"),
                     ContactDetails(
                         "John Doe",
-                        Address("Some Other Street", "Some Other City"),
+                        Address("Some Other Street", 1000, "Some Other City"),
                         listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
                     )
                 )
@@ -288,10 +278,10 @@ class DocumentDbRepositoryImplIT {
             50,
             LocalDateTime.now(),
             "John Doe",
-            Address("Some Street", "Some City"),
+            Address("Some Street", 1000, "Some City"),
             ContactDetails(
                 "John Doe",
-                Address("Some Other Street", "Some Other City"),
+                Address("Some Other Street", 1000, "Some Other City"),
                 listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
             )
         )
@@ -317,117 +307,6 @@ class DocumentDbRepositoryImplIT {
     }
 
     @Test
-    fun `Find Orders`() {
-        orderRepository.deleteAll()
-
-        val numberOfOrders = 100
-        for (i in 0 until numberOfOrders) {
-            orderRepository.save(
-                Order(
-                    OrderId.random(),
-                    "Some description that's not unique",
-                    Amount.of(if (i % 2 == 0) "100.50" else "201.00"),
-                    i,
-                    LocalDateTime.now().minusDays(i.toLong()),
-                    if (i % 2 == 0) "John Doe" else "Jane Doe",
-                    Address("Some Street", "Some City"),
-                    ContactDetails(
-                        if (i % 2 == 0) "John Doe" else "Jane Doe",
-                        Address("Some Other Street", "Some Other City"),
-                        listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
-                    )
-                )
-            )
-        }
-
-        // Simple query
-        val query = orderRepository.queryBuilder()
-            .where(orderRepository.condition()
-                .matching {
-                    Order::additionalProperty lt 50
-                    // Continue chaining other conditions as needed
-                })
-            .orderBy(Order::additionalProperty, QueryBuilder.Order.ASC)
-            .limit(200)
-            .offset(0)
-
-        var result = orderRepository.find(query)
-        assertThat(result).hasSize(numberOfOrders / 2)
-        assertThat(result.map { it.additionalProperty }).isEqualTo((0 until 50).toList())
-
-        // Comparison query
-        result = orderRepository.queryBuilder()
-            .where(orderRepository.condition()
-                .matching {
-                    Order::amount gt 200
-                    // Continue chaining other conditions as needed
-                })
-            .orderBy(Order::additionalProperty, QueryBuilder.Order.ASC)
-            .limit(200)
-            .offset(0)
-            .find()
-        assertThat(result).hasSize(numberOfOrders / 2)
-        assertThat(result.count { it.amount == Amount("201.00")}).isEqualTo(50)
-
-        // Text query
-        result = orderRepository.queryBuilder()
-            .where(orderRepository.condition()
-                .matching {
-                    (Order::personName like "%John%").or(Order::personName like "%Jane%")
-                        .and(Order::description like "%unique%")
-                })
-            .find()
-        assertThat(result).hasSize(numberOfOrders)
-    }
-
-    @Test
-    fun `find by city`() {
-        orderRepository.save(
-            Order(
-                OrderId.random(),
-                "Some description that's not unique",
-                Amount.of("201.00"),
-                10,
-                LocalDateTime.now(),
-                "John Doe",
-                Address("Some Street", "Some City"),
-                ContactDetails(
-                    "John Doe",
-                    Address("Some Other Street", "Some Other City"),
-                    listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
-                )
-            )
-        )
-        orderRepository.save(
-            Order(
-                OrderId.random(),
-                "Some description that's not unique",
-                Amount.of("105.00"),
-                20,
-                LocalDateTime.now(),
-                "Jane Doe",
-                Address("Some Road", "Some Town"),
-                ContactDetails(
-                    "Jane Doe",
-                    Address("Some Other Road", "Some Other Town"),
-                    listOf("PhoneNumber11", "PhoneNumber12", "PhoneNumber13")
-                )
-            )
-        )
-
-        val result = orderRepository.queryBuilder()
-            .where(orderRepository.condition()
-                .matching {
-                    Order::contactDetails then ContactDetails::address then Address::city like "Some Other%"
-                })
-            .orderBy(Order::contactDetails then ContactDetails::address then Address::city, QueryBuilder.Order.ASC)
-            .limit(200)
-            .find()
-
-        assertThat(result).hasSize(2)
-    }
-
-    @Test
     fun findById_ShouldReturnEntityForExistingEntity() {
         val orderId = OrderId.random()
         val orderToSave = Order(
@@ -437,10 +316,10 @@ class DocumentDbRepositoryImplIT {
             50,
             LocalDateTime.now(),
             "John Doe",
-            Address("Some Street", "Some City"),
+            Address("Some Street", 1000, "Some City"),
             ContactDetails(
                 "John Doe",
-                Address("Some Other Street", "Some Other City"),
+                Address("Some Other Street", 1000, "Some Other City"),
                 listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
             )
         )
@@ -471,10 +350,10 @@ class DocumentDbRepositoryImplIT {
             50,
             LocalDateTime.now(),
             "John Doe",
-            Address("Some Street", "Some City"),
+            Address("Some Street", 1000, "Some City"),
             ContactDetails(
                 "John Doe",
-                Address("Some Other Street", "Some Other City"),
+                Address("Some Other Street", 1000, "Some Other City"),
                 listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
             )
         )
@@ -500,10 +379,10 @@ class DocumentDbRepositoryImplIT {
             50,
             LocalDateTime.now(),
             "John Doe",
-            Address("Some Street", "Some City"),
+            Address("Some Street", 1000, "Some City"),
             ContactDetails(
                 "John Doe",
-                Address("Some Other Street", "Some Other City"),
+                Address("Some Other Street", 1000, "Some Other City"),
                 listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
             )
         )
@@ -515,10 +394,10 @@ class DocumentDbRepositoryImplIT {
             100,
             LocalDateTime.now(),
             "Jane Doe",
-            Address("Some Street", "Some City"),
+            Address("Some Street", 2000, "Some City"),
             ContactDetails(
                 "John Doe",
-                Address("Some Other Street", "Some Other City"),
+                Address("Some Other Street", 2000, "Some Other City"),
                 listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
             )
         )
@@ -553,10 +432,10 @@ class DocumentDbRepositoryImplIT {
                 50,
                 LocalDateTime.now(),
                 "John Doe",
-                Address("Some Street", "Some City"),
+                Address("Some Street", 1000, "Some City"),
                 ContactDetails(
                     "John Doe",
-                    Address("Some Other Street", "Some Other City"),
+                    Address("Some Other Street", 1000, "Some Other City"),
                     listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
                 )
             ), Order(
@@ -566,10 +445,10 @@ class DocumentDbRepositoryImplIT {
                 100,
                 LocalDateTime.now(),
                 "Jane Doe",
-                Address("Another Street", "Another City"),
+                Address("Another Street", 2000, "Another City"),
                 ContactDetails(
                     "Jane Doe",
-                    Address("Some Another Street", "Some Another City"),
+                    Address("Some Another Street", 2000, "Some Another City"),
                     listOf("PhoneNumber4", "PhoneNumber5", "PhoneNumber6")
                 )
             )
@@ -608,10 +487,10 @@ class DocumentDbRepositoryImplIT {
                 50,
                 LocalDateTime.now(),
                 "John Doe",
-                Address("Some Street", "Some City"),
+                Address("Some Street", 1000, "Some City"),
                 ContactDetails(
                     "John Doe",
-                    Address("Some Other Street", "Some Other City"),
+                    Address("Some Other Street", 1000, "Some Other City"),
                     listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
                 )
             ), Order(
@@ -621,10 +500,10 @@ class DocumentDbRepositoryImplIT {
                 100,
                 LocalDateTime.now(),
                 "Jane Doe",
-                Address("Another Street", "Another City"),
+                Address("Another Street", 1000, "Another City"),
                 ContactDetails(
                     "Jane Doe",
-                    Address("Some Another Street", "Some Another City"),
+                    Address("Some Another Street", 1000, "Some Another City"),
                     listOf("PhoneNumber4", "PhoneNumber5", "PhoneNumber6")
                 )
             )
@@ -652,10 +531,10 @@ class DocumentDbRepositoryImplIT {
                 50,
                 LocalDateTime.now(),
                 "John Doe",
-                Address("Some Street", "Some City"),
+                Address("Some Street", 1000, "Some City"),
                 ContactDetails(
                     "John Doe",
-                    Address("Some Other Street", "Some Other City"),
+                    Address("Some Other Street", 1000, "Some Other City"),
                     listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
                 )
             ), Order(
@@ -665,10 +544,10 @@ class DocumentDbRepositoryImplIT {
                 100,
                 LocalDateTime.now(),
                 "Jane Doe",
-                Address("Another Street", "Another City"),
+                Address("Another Street", 1000, "Another City"),
                 ContactDetails(
                     "Jane Doe",
-                    Address("Some Another Street", "Some Another City"),
+                    Address("Some Another Street", 1000, "Some Another City"),
                     listOf("PhoneNumber4", "PhoneNumber5", "PhoneNumber6")
                 )
             )
@@ -695,10 +574,10 @@ class DocumentDbRepositoryImplIT {
             50,
             LocalDateTime.now(),
             "John Doe",
-            Address("Some Street", "Some City"),
+            Address("Some Street", 1000, "Some City"),
             ContactDetails(
                 "John Doe",
-                Address("Some Other Street", "Some Other City"),
+                Address("Some Other Street", 1000, "Some Other City"),
                 listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
             )
         )
@@ -709,10 +588,10 @@ class DocumentDbRepositoryImplIT {
             100,
             LocalDateTime.now(),
             "Jane Doe",
-            Address("Another Street", "Another City"),
+            Address("Another Street", 1000, "Another City"),
             ContactDetails(
                 "Jane Doe",
-                Address("Some Another Street", "Some Another City"),
+                Address("Some Another Street", 1000, "Some Another City"),
                 listOf("PhoneNumber4", "PhoneNumber5", "PhoneNumber6")
             )
         )
@@ -744,10 +623,10 @@ class DocumentDbRepositoryImplIT {
                 50,
                 LocalDateTime.now(),
                 "John Doe",
-                Address("Some Street", "Some City"),
+                Address("Some Street", 1000, "Some City"),
                 ContactDetails(
                     "John Doe",
-                    Address("Some Other Street", "Some Other City"),
+                    Address("Some Other Street", 1000, "Some Other City"),
                     listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
                 )
             ), Order(
@@ -757,10 +636,10 @@ class DocumentDbRepositoryImplIT {
                 100,
                 LocalDateTime.now(),
                 "Jane Doe",
-                Address("Another Street", "Another City"),
+                Address("Another Street", 2000, "Another City"),
                 ContactDetails(
                     "Jane Doe",
-                    Address("Some Another Street", "Some Another City"),
+                    Address("Some Another Street", 2000, "Some Another City"),
                     listOf("PhoneNumber4", "PhoneNumber5", "PhoneNumber6")
                 )
             )
@@ -788,10 +667,10 @@ class DocumentDbRepositoryImplIT {
                 50,
                 LocalDateTime.now(),
                 "John Doe",
-                Address("Some Street", "Some City"),
+                Address("Some Street", 1000, "Some City"),
                 ContactDetails(
                     "John Doe",
-                    Address("Some Other Street", "Some Other City"),
+                    Address("Some Other Street", 1000, "Some Other City"),
                     listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
                 )
             ), Order(
@@ -801,10 +680,10 @@ class DocumentDbRepositoryImplIT {
                 100,
                 LocalDateTime.now(),
                 "Jane Doe",
-                Address("Another Street", "Another City"),
+                Address("Another Street", 2000, "Another City"),
                 ContactDetails(
                     "Jane Doe",
-                    Address("Some Another Street", "Some Another City"),
+                    Address("Some Another Street", 2000, "Some Another City"),
                     listOf("PhoneNumber4", "PhoneNumber5", "PhoneNumber6")
                 )
             )
@@ -831,10 +710,10 @@ class DocumentDbRepositoryImplIT {
                     i,
                     LocalDateTime.now().minusDays(i.toLong()),
                     if (i % 2 == 0) "John Doe" else "Jane Doe",
-                    Address("Another Street", "Another City"),
+                    Address("Another Street", if (i % 2 == 0) 1000 else 2000, "Another City"),
                     ContactDetails(
-                        "Jane Doe",
-                        Address("Some Another Street", "Some Another City"),
+                        if (i % 2 == 0) "John Doe" else "Jane Doe",
+                        Address("Some Another Street", if (i % 2 == 0) 1000 else 2000, "Some Another City"),
                         listOf("PhoneNumber4", "PhoneNumber5", "PhoneNumber6")
                     )
                 )
@@ -859,10 +738,10 @@ class DocumentDbRepositoryImplIT {
                     i,
                     LocalDateTime.now().minusDays(i.toLong()),
                     if (i % 2 == 0) "John Doe" else "Jane Doe",
-                    Address("Some Street", "Some City"),
+                    Address("Some Street", 1000, "Some City"),
                     ContactDetails(
                         "John Doe",
-                        Address("Some Other Street", "Some Other City"),
+                        Address("Some Other Street", 1000, "Some Other City"),
                         listOf("PhoneNumber1", "PhoneNumber2", "PhoneNumber3")
                     )
                 )
@@ -873,7 +752,7 @@ class DocumentDbRepositoryImplIT {
         )
 
         var count = orderRepository.count()
-        assertThat(count).isEqualTo(50+2) // +2 are for the orders added in populateTestData
+        assertThat(count).isEqualTo(50 + 2) // +2 are for the orders added in populateTestData
     }
 
     @Test
@@ -887,10 +766,10 @@ class DocumentDbRepositoryImplIT {
                     i,
                     LocalDateTime.now().minusDays(i.toLong()),
                     if (i % 2 == 0) "John Doe" else "Jane Doe",
-                    Address("Another Street", "Another City"),
+                    Address("Another Street", if (i % 2 == 0) 1000 else 2000, "Another City"),
                     ContactDetails(
-                        "Jane Doe",
-                        Address("Some Another Street", "Some Another City"),
+                        if (i % 2 == 0) "John Doe" else "Jane Doe",
+                        Address("Some Another Street", if (i % 2 == 0) 1000 else 2000, "Some Another City"),
                         listOf("PhoneNumber4", "PhoneNumber5", "PhoneNumber6")
                     )
                 )
@@ -903,166 +782,4 @@ class DocumentDbRepositoryImplIT {
         var allOrdersFound = orderRepository.findAllById(orders.map { it.orderId })
         assertThat(allOrdersFound).containsAll(orders)
     }
-
-    @Test
-    fun `test where clause with eq`() {
-        val result = orderRepository.queryBuilder()
-            .where(orderRepository.condition()
-                .matching {
-                    Order::personName eq "John Doe"
-                })
-            .find()
-
-        assertThat(result).hasSize(1)
-        assertThat(result[0].personName).isEqualTo("John Doe")
-    }
-
-    @Test
-    fun `test where clause with like`() {
-        val result = orderRepository.queryBuilder()
-            .where(orderRepository.condition()
-                .matching {
-                    Order::description like "%Order%"
-                })
-            .find()
-
-        assertThat(result).hasSize(2)
-        assertThat(result).extracting("description").contains("Test Order 1", "Test Order 2")
-    }
-
-    @Test
-    fun `test where clause with nested properties`() {
-        val result = orderRepository.queryBuilder()
-            .where(orderRepository.condition()
-                .matching {
-                    Order::contactDetails then ContactDetails::address then Address::city eq "Springfield"
-                })
-            .find()
-
-        assertThat(result).hasSize(1)
-        assertThat(result[0].invoiceAddress.city).isEqualTo("Springfield")
-    }
-
-    @Test
-    fun `test orderBy clause`() {
-        val result = orderRepository.queryBuilder()
-            .orderBy(Order::amount, QueryBuilder.Order.ASC)
-            .find()
-
-        assertThat(result).hasSize(2)
-        assertThat(result[0].amount).isLessThan(result[1].amount)
-    }
-
-    @Test
-    fun `test limit clause`() {
-        val result = orderRepository.queryBuilder()
-            .limit(1)
-            .find()
-
-        assertThat(result).hasSize(1)
-    }
-
-    @Test
-    fun `test offset clause`() {
-        val result = orderRepository.queryBuilder()
-            .offset(1)
-            .find()
-
-        assertThat(result).hasSize(1)
-    }
-
-    @Test
-    fun `test combination of where, orderBy, limit, and offset`() {
-        val result = orderRepository.queryBuilder()
-            .where(orderRepository.condition()
-                .matching {
-                    Order::description like "%Order%"
-                })
-            .orderBy(Order::amount, QueryBuilder.Order.DESC)
-            .limit(1)
-            .offset(1)
-            .find()
-
-        assertThat(result).hasSize(1)
-        assertThat(result[0].description).isEqualTo("Test Order 1")
-    }
 }
-
-
-@DocumentEntity("orders")
-data class Order(
-    @Id
-    val orderId: OrderId,
-    var description: String,
-    var amount: Amount,
-    var additionalProperty: Int,
-    var orderDate: LocalDateTime,
-    @Indexed
-    var personName: String,
-    var invoiceAddress: Address,
-    var contactDetails: ContactDetails,
-    override var version: Version = Version.NOT_SAVED_YET,
-    override var lastUpdated: OffsetDateTime = OffsetDateTime.now(UTC)
-) : VersionedEntity<OrderId, Order>
-
-data class ContactDetails(val name: String, val address: Address, val phoneNumbers: List<String>)
-data class Address(val street: String, val city: String)
-
-
-@JvmInline
-value class OrderId(override val value: String) : StringValueType<OrderId> {
-    companion object {
-        fun random(): OrderId = OrderId(RandomIdGenerator.generate())
-    }
-}
-
-@JvmInline
-value class ProductId(override val value: String) : StringValueType<ProductId>
-
-@JvmInline
-value class VisitId(override val value: String) : StringValueType<VisitId>
-
-@JvmInline
-value class ShippingOrderId(override val value: String) : StringValueType<ShippingOrderId>
-
-class OrderIdArgumentFactory : StringValueTypeArgumentFactory<OrderId>()
-class OrderIdColumnMapper : StringValueTypeColumnMapper<OrderId>()
-class ProductIdArgumentFactory : StringValueTypeArgumentFactory<ProductId>()
-class ProductIdColumnMapper : StringValueTypeColumnMapper<ProductId>()
-class VisitIdArgumentFactory : StringValueTypeArgumentFactory<VisitId>()
-class VisitIdColumnMapper : StringValueTypeColumnMapper<VisitId>()
-class ShippingOrderIdArgumentFactory : StringValueTypeArgumentFactory<ShippingOrderId>()
-class ShippingOrderIdColumnMapper : StringValueTypeColumnMapper<ShippingOrderId>()
-
-
-@DocumentEntity("products")
-data class Product(
-    @Id val productId: ProductId,
-    var name: String,
-    var price: Double,
-    var category: String,
-    var stock: Int,
-    override var version: Version = Version.NOT_SAVED_YET,
-    override var lastUpdated: OffsetDateTime = OffsetDateTime.now(UTC)
-) : VersionedEntity<ProductId, Product>
-
-@DocumentEntity("visits")
-data class Visit(
-    @Id val visitId: VisitId,
-    var visitorName: String,
-    var visitDate: LocalDateTime,
-    var location: String,
-    override var version: Version = Version.NOT_SAVED_YET,
-    override var lastUpdated: OffsetDateTime = OffsetDateTime.now(UTC)
-) : VersionedEntity<VisitId, Visit>
-
-@DocumentEntity("shipping_orders")
-data class ShippingOrder(
-    @Id val shippingOrderId: ShippingOrderId,
-    var orderReference: String,
-    var shippingDate: LocalDateTime,
-    var destination: Address,
-    var status: String,
-    override var version: Version = Version.NOT_SAVED_YET,
-    override var lastUpdated: OffsetDateTime = OffsetDateTime.now(UTC)
-) : VersionedEntity<ShippingOrderId, ShippingOrder>
