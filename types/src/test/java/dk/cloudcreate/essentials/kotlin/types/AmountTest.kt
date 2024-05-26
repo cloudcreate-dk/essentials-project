@@ -14,6 +14,14 @@ class AmountTest {
     }
 
     @Test
+    fun `equals with different values`() {
+        val amount1 = Amount("100.00")
+        val amount2 = Amount("100.01")
+
+        assertThat(amount1).isNotEqualTo(amount2)
+    }
+
+    @Test
     fun `should add amounts correctly`() {
         val amount1 = Amount("100.50")
         val amount2 = Amount("50.25")
