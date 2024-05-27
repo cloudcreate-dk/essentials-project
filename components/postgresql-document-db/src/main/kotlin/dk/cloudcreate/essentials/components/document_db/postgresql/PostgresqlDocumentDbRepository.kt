@@ -157,7 +157,7 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
         index.properties.forEach { PostgresqlUtil.checkIsValidTableOrColumnName(it.name()) }
 
         indexesAdded.add(index)
-        val properties = index.properties.joinToString(", ") { "(" + it.toJSONValueArrowPath()+ ")" }
+        val properties = index.properties.joinToString(", ") { "(" + it.toJSONValueArrowPath() + ")" }
         val tableName = entityConfiguration().tableName()
         val createIndexSQL = """
             CREATE INDEX IF NOT EXISTS idx_${entityConfiguration.tableName()}_${index.name} ON $tableName (${properties})

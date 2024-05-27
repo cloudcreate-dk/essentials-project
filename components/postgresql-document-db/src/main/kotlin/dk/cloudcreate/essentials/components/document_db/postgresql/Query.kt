@@ -114,10 +114,21 @@ class Condition<T>(val jsonSerializer: JSONSerializer) {
      * Similar to SQL <
      */
     infix fun <R> KProperty1<T, R>.lt(value: R) = applyCondition(this, "<", value)
+
+    /**
+     * Similar to SQL <=
+     */
+    infix fun <R> KProperty1<T, R>.lte(value: R) = applyCondition(this, "<=", value)
+
     /**
      * Similar to SQL >
      */
     infix fun <R> KProperty1<T, R>.gt(value: R) = applyCondition(this, ">", value)
+
+    /**
+     * Similar to SQL >=
+     */
+    infix fun <R> KProperty1<T, R>.gte(value: R) = applyCondition(this, ">=", value)
 
 //    infix fun <R> KProperty1<T, R>.contains(value: R): Condition<T> = applyCondition(this, "@>", value)
 
@@ -352,15 +363,28 @@ data class NestedProperty<T, R>(
     }
 
     /**
+     * Similar to SQL <=
+     */
+    infix fun lte(value: R): Condition<T> {
+        return condition.applyCondition(this, "<=", value)
+    }
+
+    /**
      * Similar to SQL >
      */
     infix fun gt(value: R): Condition<T> {
         return condition.applyCondition(this, ">", value)
     }
-
-    infix fun contains(value: R): Condition<T> {
-        return condition.applyCondition(this, "@>", value)
+    /**
+     * Similar to SQL >=
+     */
+    infix fun gte(value: R): Condition<T> {
+        return condition.applyCondition(this, ">=", value)
     }
+
+//    infix fun contains(value: R): Condition<T> {
+//        return condition.applyCondition(this, "@>", value)
+//    }
 
     /**
      * Similar to SQL like
@@ -508,7 +532,8 @@ class QueryBuilder<ID, ENTITY : VersionedEntity<ID, ENTITY>>(
 ) {
     private val conditions = mutableListOf<Condition<ENTITY>>()
     private val orderByFields = mutableListOf<Pair<Property<ENTITY, *>, Order>>()
-//    private val groupByFields = mutableListOf<Property<ENTITY, *>>()
+
+    //    private val groupByFields = mutableListOf<Property<ENTITY, *>>()
     private var limitValue: Int? = null
     private var offsetValue: Int? = null
 
@@ -762,7 +787,7 @@ infix fun <T, R, V> KProperty1<T, R>.then(property: KProperty1<R, V>): NestedPro
 /**
  * Converts a [KProperty1] to a [SingleProperty]
  */
-fun <T, R,> KProperty1<T, R>.asProperty(): Property<T, R> {
+fun <T, R> KProperty1<T, R>.asProperty(): Property<T, R> {
     return SingleProperty(this)
 }
 
