@@ -16,43 +16,29 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription;
 
-import java.time.Duration;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStoreException;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStoreSubscription;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.CommitStage;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.PersistedEvents;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.LockCallback;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.LockName;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inbox;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
-import dk.cloudcreate.essentials.components.foundation.types.Tenant;
+import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.shared.FailFast;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
 import org.reactivestreams.Subscription;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.slf4j.*;
 import reactor.core.publisher.BaseSubscriber;
+
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -465,12 +451,12 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                    Duration snapshotResumePointsEvery,
                                                    DurableSubscriptionRepository durableSubscriptionRepository) {
         return builder().setEventStore(eventStore)
-            .setEventStorePollingBatchSize(eventStorePollingBatchSize)
-            .setEventStorePollingInterval(eventStorePollingInterval)
-            .setFencedLockManager(fencedLockManager)
-            .setSnapshotResumePointsEvery(snapshotResumePointsEvery)
-            .setDurableSubscriptionRepository(durableSubscriptionRepository)
-            .build();
+                        .setEventStorePollingBatchSize(eventStorePollingBatchSize)
+                        .setEventStorePollingInterval(eventStorePollingInterval)
+                        .setFencedLockManager(fencedLockManager)
+                        .setSnapshotResumePointsEvery(snapshotResumePointsEvery)
+                        .setDurableSubscriptionRepository(durableSubscriptionRepository)
+                        .build();
     }
 
     void unsubscribe(EventStoreSubscription eventStoreSubscription);
@@ -503,7 +489,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         private final    ConcurrentMap<Pair<SubscriberId, AggregateType>, EventStoreSubscription> subscribers = new ConcurrentHashMap<>();
         private volatile boolean                                                                  started;
         private          ScheduledFuture<?>                                                       saveResumePointsFuture;
-        private final boolean startLifeCycles;
+        private final    boolean                                                                  startLifeCycles;
 
         public DefaultEventStoreSubscriptionManager(EventStore eventStore,
                                                     int eventStorePollingBatchSize,
@@ -522,7 +508,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             this.startLifeCycles = startLifeCycles;
 
             log.info("[{}] Using {} using {} with snapshotResumePointsEvery: {}, eventStorePollingBatchSize: {}, eventStorePollingInterval: {}, " +
-                    "startLifeCycles: {}",
+                             "startLifeCycles: {}",
                      fencedLockManager.getLockManagerInstanceId(),
                      fencedLockManager,
                      durableSubscriptionRepository.getClass().getSimpleName(),
@@ -596,9 +582,9 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         @Override
         public GlobalEventOrder getCurrentEventOrder(SubscriberId subscriberId, AggregateType aggregateType) {
             return Optional.ofNullable(this.subscribers.get(Pair.of(subscriberId, aggregateType)))
-                .flatMap(EventStoreSubscription::currentResumePoint)
-                .map(SubscriptionResumePoint::getResumeFromAndIncluding)
-                .orElse(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER);
+                           .flatMap(EventStoreSubscription::currentResumePoint)
+                           .map(SubscriptionResumePoint::getResumeFromAndIncluding)
+                           .orElse(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER);
         }
 
         private void saveResumePointsForAllSubscribers() {
@@ -741,6 +727,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                 this.subscriberId = requireNonNull(subscriberId, "No subscriberId provided");
                 this.onlyIncludeEventsForTenant = requireNonNull(onlyIncludeEventsForTenant, "No onlyIncludeEventsForTenant provided");
                 this.eventHandler = requireNonNull(eventHandler, "No eventHandler provided");
+
             }
 
             @Override
@@ -778,25 +765,30 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                 }
 
                 var persistedEvents = (PersistedEvents) e;
-                if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
+                if (persistedEvents.commitStage == CommitStage.BeforeCommit || persistedEvents.commitStage == CommitStage.Flush) {
                     persistedEvents.events.stream()
                                           .filter(event -> event.aggregateType().equals(aggregateType))
                                           .forEach(event -> {
-                                              log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {}",
+                                              log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {} during commit-stage '{}'",
                                                         subscriberId,
                                                         aggregateType,
                                                         event.globalEventOrder(),
                                                         event.event().getEventTypeOrName().toString(),
                                                         event.eventId(),
                                                         event.aggregateId(),
-                                                        event.eventOrder()
+                                                        event.eventOrder(),
+                                                        persistedEvents.commitStage
                                                        );
                                               try {
                                                   eventHandler.handle(event, persistedEvents.unitOfWork);
+                                                  if (persistedEvents.commitStage == CommitStage.Flush) {
+                                                      persistedEvents.unitOfWork.removeFlushedEventPersisted(event);
+                                                  }
                                               } catch (Exception cause) {
                                                   onErrorHandlingEvent(event, cause);
                                               }
                                           });
+
                 }
             }
 

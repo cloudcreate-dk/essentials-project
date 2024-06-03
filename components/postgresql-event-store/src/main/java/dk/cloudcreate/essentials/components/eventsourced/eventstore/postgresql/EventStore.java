@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql;
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.operations.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.AggregateEventStreamConfiguration;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
@@ -66,6 +67,14 @@ public interface EventStore {
      * @return the local event bus
      */
     EventBus localEventBus();
+
+    /**
+     * Get an immutable list of all registered {@link EventStoreInterceptor}'s ordered according to their {@link dk.cloudcreate.essentials.shared.interceptor.InterceptorOrder}
+     * @return an immutable list of all registered {@link EventStoreInterceptor}'s ordered according to their {@link dk.cloudcreate.essentials.shared.interceptor.InterceptorOrder}
+     * @see ConfigurableEventStore#addEventStoreInterceptor(EventStoreInterceptor)
+     * @see ConfigurableEventStore#removeEventStoreInterceptor(EventStoreInterceptor)
+     */
+    List<EventStoreInterceptor> getEventStoreInterceptors();
 
     /**
      * Append the <code>eventsToAppend</code> to the {@link AggregateEventStream} related to the aggregate with id <code>aggregateId</code> and which

@@ -126,7 +126,8 @@ public interface ConfigurableEventStore<CONFIG extends AggregateEventStreamConfi
     ConfigurableEventStore<CONFIG> removeSpecificInMemoryProjector(Class<?> projectionType);
 
     /**
-     * Add an {@link EventStoreInterceptor} to the {@link ConfigurableEventStore}
+     * Add an {@link EventStoreInterceptor} to the {@link ConfigurableEventStore}.<br>
+     * {@link EventStoreInterceptor}'s added will be ordered according to they {@link dk.cloudcreate.essentials.shared.interceptor.InterceptorOrder}
      *
      * @param eventStoreInterceptor the interceptor to add
      * @return this event store instance
@@ -152,6 +153,4 @@ public interface ConfigurableEventStore<CONFIG extends AggregateEventStreamConfi
      * @return this event store instance
      */
     ConfigurableEventStore<CONFIG> removeEventStoreInterceptor(EventStoreInterceptor eventStoreInterceptor);
-
-
 }

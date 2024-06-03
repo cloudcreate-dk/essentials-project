@@ -82,17 +82,17 @@ public final class EventStoreEventBus implements EventBus {
     private void addUnitOfWorkLifeCycleCallback(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory) {
         unitOfWorkFactory.registerPersistedEventsCommitLifeCycleCallback(new PersistedEventsCommitLifecycleCallback() {
             @Override
-            public void beforeCommit(UnitOfWork unitOfWork, List<PersistedEvent> persistedEvents) {
+            public void beforeCommit(EventStoreUnitOfWork unitOfWork, List<PersistedEvent> persistedEvents) {
                 eventBus.publish(new PersistedEvents(CommitStage.BeforeCommit, unitOfWork, persistedEvents));
             }
 
             @Override
-            public void afterCommit(UnitOfWork unitOfWork, List<PersistedEvent> persistedEvents) {
+            public void afterCommit(EventStoreUnitOfWork unitOfWork, List<PersistedEvent> persistedEvents) {
                 eventBus.publish(new PersistedEvents(CommitStage.AfterCommit, unitOfWork, persistedEvents));
             }
 
             @Override
-            public void afterRollback(UnitOfWork unitOfWork, List<PersistedEvent> persistedEvents) {
+            public void afterRollback(EventStoreUnitOfWork unitOfWork, List<PersistedEvent> persistedEvents) {
                 eventBus.publish(new PersistedEvents(CommitStage.AfterRollback, unitOfWork, persistedEvents));
             }
         });

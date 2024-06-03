@@ -47,6 +47,18 @@ final class EventStoreManagedUnitOfWork extends GenericHandleAwareUnitOfWorkFact
     }
 
     @Override
+    public void removeFlushedEventsPersisted(List<PersistedEvent> eventsPersistedToRemoveFromThisUnitOfWork) {
+        requireNonNull(eventsPersistedToRemoveFromThisUnitOfWork, "No eventsPersistedToRemoveFromThisUnitOfWork provided");
+        this.eventsPersisted.removeAll(eventsPersistedToRemoveFromThisUnitOfWork);
+    }
+
+    @Override
+    public void removeFlushedEventPersisted(PersistedEvent eventPersistedToRemoveFromThisUnitOfWork) {
+        requireNonNull(eventPersistedToRemoveFromThisUnitOfWork, "No eventPersistedToRemoveFromThisUnitOfWork provided");
+        this.eventsPersisted.remove(eventPersistedToRemoveFromThisUnitOfWork);
+    }
+
+    @Override
     protected void beforeCommitting() {
         for (PersistedEventsCommitLifecycleCallback callback : lifecycleCallbacks) {
             try {

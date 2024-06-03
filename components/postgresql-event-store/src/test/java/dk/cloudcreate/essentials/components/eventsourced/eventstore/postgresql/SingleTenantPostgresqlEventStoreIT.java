@@ -188,6 +188,7 @@ class SingleTenantPostgresqlEventStoreIT {
         assertThat(lastPersistedEventOrder2.get().correlationId()).isEqualTo(Optional.of(eventMapper.correlationId));
 
         // And both events were published on the local events
+        assertThat(recordingLocalEventBusConsumer.flushPersistedEvents).isEmpty();
         assertThat(recordingLocalEventBusConsumer.beforeCommitPersistedEvents.size()).isEqualTo(2);
         assertThat((CharSequence) recordingLocalEventBusConsumer.beforeCommitPersistedEvents.get(0).eventId()).isEqualTo(lastPersistedEventOrder1.get().eventId());
         assertThat((CharSequence) recordingLocalEventBusConsumer.beforeCommitPersistedEvents.get(1).eventId()).isEqualTo(lastPersistedEventOrder2.get().eventId());
@@ -1532,11 +1533,14 @@ class SingleTenantPostgresqlEventStoreIT {
         private final List<PersistedEvent> beforeCommitPersistedEvents  = new ArrayList<>();
         private final List<PersistedEvent> afterCommitPersistedEvents   = new ArrayList<>();
         private final List<PersistedEvent> afterRollbackPersistedEvents = new ArrayList<>();
+        private final List<PersistedEvent> flushPersistedEvents = new ArrayList<>();
 
         @Override
         public void handle(Object event) {
             var persistedEvents = (PersistedEvents) event;
-            if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
+            if (persistedEvents.commitStage == CommitStage.Flush) {
+                flushPersistedEvents.addAll(persistedEvents.events);
+            } else if (persistedEvents.commitStage == CommitStage.BeforeCommit) {
                 beforeCommitPersistedEvents.addAll(persistedEvents.events);
             } else if (persistedEvents.commitStage == CommitStage.AfterCommit) {
                 afterCommitPersistedEvents.addAll(persistedEvents.events);
@@ -1549,6 +1553,7 @@ class SingleTenantPostgresqlEventStoreIT {
             beforeCommitPersistedEvents.clear();
             afterCommitPersistedEvents.clear();
             afterRollbackPersistedEvents.clear();
+            flushPersistedEvents.clear();
         }
     }
 }
