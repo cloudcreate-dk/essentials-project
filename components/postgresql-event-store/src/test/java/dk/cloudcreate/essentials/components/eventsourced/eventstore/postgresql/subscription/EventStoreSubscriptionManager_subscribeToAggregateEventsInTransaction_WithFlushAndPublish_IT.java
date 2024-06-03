@@ -55,7 +55,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
-class EventStoreSubscriptionManager_subscribeToAggregateEventsInTransaction_IT {
+class EventStoreSubscriptionManager_subscribeToAggregateEventsInTransaction_WithFlushAndPublish_IT {
     public static final EventMetaData META_DATA = EventMetaData.of("Key1", "Value1", "Key2", "Value2");
     public static final AggregateType PRODUCTS  = AggregateType.of("Products");
     public static final AggregateType ORDERS    = AggregateType.of("Orders");
@@ -117,8 +117,10 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsInTransaction_IT {
         recordingLocalEventBusConsumer.clear();
     }
 
+
     @Test
-    void subscribe() {
+    void subscribe_using_FlushAndPublishPersistedEventsToEventBusRightAfterAppendToStream() {
+        eventStore.addEventStoreInterceptor(new FlushAndPublishPersistedEventsToEventBusRightAfterAppendToStream());
         var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory());
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
@@ -221,9 +223,8 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsInTransaction_IT {
                                      .collect(Collectors.toList()));
 
         // Verify event bus publishing
-        assertThat(recordingLocalEventBusConsumer.flushPersistedEvents).isEmpty();
-        assertThat(recordingLocalEventBusConsumer.beforeCommitPersistedEvents).hasSize(totalNumberOfOrderEvents + totalNumberOfProductEvents);
-        assertThat(recordingLocalEventBusConsumer.beforeCommitPersistedEvents.stream()
+        assertThat(recordingLocalEventBusConsumer.flushPersistedEvents).hasSize(totalNumberOfOrderEvents + totalNumberOfProductEvents);
+        assertThat(recordingLocalEventBusConsumer.flushPersistedEvents.stream()
                                                                              .filter(persistedEvent -> persistedEvent.aggregateType().equals(ORDERS))
                                                                              .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
                                                                              .collect(Collectors.toList()))
@@ -231,7 +232,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsInTransaction_IT {
                                                   totalNumberOfOrderEvents)
                                      .boxed()
                                      .collect(Collectors.toList()));
-        assertThat(recordingLocalEventBusConsumer.beforeCommitPersistedEvents.stream()
+        assertThat(recordingLocalEventBusConsumer.flushPersistedEvents.stream()
                                                                              .filter(persistedEvent -> persistedEvent.aggregateType().equals(PRODUCTS))
                                                                              .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
                                                                              .collect(Collectors.toList()))
@@ -240,29 +241,15 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsInTransaction_IT {
                                      .boxed()
                                      .collect(Collectors.toList()));
 
-        assertThat(recordingLocalEventBusConsumer.afterCommitPersistedEvents).hasSize(totalNumberOfOrderEvents + totalNumberOfProductEvents);
-        assertThat(recordingLocalEventBusConsumer.afterCommitPersistedEvents.stream()
-                                                                             .filter(persistedEvent -> persistedEvent.aggregateType().equals(ORDERS))
-                                                                             .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
-                                                                             .collect(Collectors.toList()))
-                .isEqualTo(LongStream.rangeClosed(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER.longValue(),
-                                                  totalNumberOfOrderEvents)
-                                     .boxed()
-                                     .collect(Collectors.toList()));
-        assertThat(recordingLocalEventBusConsumer.afterCommitPersistedEvents.stream()
-                                                                             .filter(persistedEvent -> persistedEvent.aggregateType().equals(PRODUCTS))
-                                                                             .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
-                                                                             .collect(Collectors.toList()))
-                .isEqualTo(LongStream.rangeClosed(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER.longValue(),
-                                                  totalNumberOfProductEvents)
-                                     .boxed()
-                                     .collect(Collectors.toList()));
 
+        assertThat(recordingLocalEventBusConsumer.beforeCommitPersistedEvents).isEmpty();
+        assertThat(recordingLocalEventBusConsumer.afterCommitPersistedEvents).isEmpty();
         assertThat(recordingLocalEventBusConsumer.afterRollbackPersistedEvents).isEmpty();
 
         productsSubscription.stop();
         ordersSubscription.stop();
     }
+
 
     private Map<AggregateType, Map<?, List<?>>> createTestEvents() {
         var eventsPerAggregateType = new HashMap<AggregateType, Map<?, List<?>>>();

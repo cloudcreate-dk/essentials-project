@@ -29,22 +29,22 @@ import java.util.List;
  */
 public interface PersistedEventsCommitLifecycleCallback {
     /**
-     * Before the {@link UnitOfWork} is committed.<br/>
+     * Before the {@link EventStoreUnitOfWork} is committed.<br/>
      * This method is called AFTER {@link UnitOfWorkLifecycleCallback#beforeCommit(UnitOfWork, java.util.List)}!
      *
      * @param unitOfWork      the unit of work
      * @param persistedEvents ALL the {@link PersistedEvent}'s that were associated with the {@link UnitOfWork}
      */
-    void beforeCommit(UnitOfWork unitOfWork, List<PersistedEvent> persistedEvents);
+    void beforeCommit(EventStoreUnitOfWork unitOfWork, List<PersistedEvent> persistedEvents);
 
     /**
-     * After the {@link UnitOfWork} was committed.<br/>
+     * After the {@link EventStoreUnitOfWork} was committed.<br/>
      * This method is called AFTER {@link UnitOfWorkLifecycleCallback#afterCommit(UnitOfWork, java.util.List)}
      *
      * @param unitOfWork      the unit of work
      * @param persistedEvents ALL the {@link PersistedEvent}'s that were associated with the {@link UnitOfWork}
      */
-    void afterCommit(UnitOfWork unitOfWork, List<PersistedEvent> persistedEvents);
+    void afterCommit(EventStoreUnitOfWork unitOfWork, List<PersistedEvent> persistedEvents);
 
-    void afterRollback(UnitOfWork unitOfWork, List<PersistedEvent> persistedEvents);
+    void afterRollback(EventStoreUnitOfWork unitOfWork, List<PersistedEvent> persistedEvents);
 }

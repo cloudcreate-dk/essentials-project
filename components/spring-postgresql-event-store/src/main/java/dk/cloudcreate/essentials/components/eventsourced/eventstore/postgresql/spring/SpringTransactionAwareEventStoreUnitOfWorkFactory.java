@@ -142,5 +142,17 @@ public class SpringTransactionAwareEventStoreUnitOfWorkFactory
             requireNonNull(eventsPersistedInThisUnitOfWork, "No eventsPersistedInThisUnitOfWork provided");
             this.eventsPersisted.addAll(eventsPersistedInThisUnitOfWork);
         }
+
+        @Override
+        public void removeFlushedEventsPersisted(List<PersistedEvent> eventsPersistedToRemoveFromThisUnitOfWork) {
+            requireNonNull(eventsPersistedToRemoveFromThisUnitOfWork, "No eventsPersistedToRemoveFromThisUnitOfWork provided");
+            this.eventsPersisted.removeAll(eventsPersistedToRemoveFromThisUnitOfWork);
+        }
+
+        @Override
+        public void removeFlushedEventPersisted(PersistedEvent eventPersistedToRemoveFromThisUnitOfWork) {
+            requireNonNull(eventPersistedToRemoveFromThisUnitOfWork, "No eventPersistedToRemoveFromThisUnitOfWork provided");
+            this.eventsPersisted.remove(eventPersistedToRemoveFromThisUnitOfWork);
+        }
     }
 }

@@ -33,6 +33,8 @@ import org.jdbi.v3.core.ConnectionException;
 import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
 import org.slf4j.*;
 import reactor.core.publisher.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
@@ -216,20 +218,30 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
     }
 
     @Override
+    public List<EventStoreInterceptor> getEventStoreInterceptors() {
+        return Collections.unmodifiableList(this.eventStoreInterceptors);
+    }
+
+    @Override
     public <ID> AggregateEventStream<ID> appendToStream(AppendToStream<ID> operation) {
         requireNonNull(operation, "You must supply an AppendToStream operation instance");
         var unitOfWork = unitOfWorkFactory.getRequiredUnitOfWork();
 
         var aggregateEventStream = newInterceptorChainForOperation(operation,
+                                                                   this,
                                                                    eventStoreInterceptors,
                                                                    (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
-                                                                   () -> persistenceStrategy.persist(unitOfWork,
-                                                                                                     operation.aggregateType,
-                                                                                                     operation.aggregateId,
-                                                                                                     operation.getAppendEventsAfterEventOrder(),
-                                                                                                     operation.getEventsToAppend()))
+                                                                   () -> {
+                                                                       var stream = persistenceStrategy.persist(unitOfWork,
+                                                                                                          operation.aggregateType,
+                                                                                                          operation.aggregateId,
+                                                                                                          operation.getAppendEventsAfterEventOrder(),
+                                                                                                          operation.getEventsToAppend());
+                                                                       unitOfWork.registerEventsPersisted(stream.eventList());
+                                                                       return stream;
+                                                                   })
                 .proceed();
-        unitOfWork.registerEventsPersisted(aggregateEventStream.eventList());
+
         return aggregateEventStream;
     }
 
@@ -238,6 +250,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
     public <ID> Optional<PersistedEvent> loadLastPersistedEventRelatedTo(LoadLastPersistedEventRelatedTo<ID> operation) {
         requireNonNull(operation, "You must supply an LoadLastPersistedEventRelatedTo operation instance");
         return newInterceptorChainForOperation(operation,
+                                               this,
                                                eventStoreInterceptors,
                                                (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                () -> persistenceStrategy.loadLastPersistedEventRelatedTo(unitOfWorkFactory.getRequiredUnitOfWork(),
@@ -251,6 +264,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
     public Optional<PersistedEvent> loadEvent(LoadEvent operation) {
         requireNonNull(operation, "You must supply an LoadEvent operation instance");
         return newInterceptorChainForOperation(operation,
+                                               this,
                                                eventStoreInterceptors,
                                                (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                () -> persistenceStrategy.loadEvent(unitOfWorkFactory.getRequiredUnitOfWork(),
@@ -263,6 +277,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
     public List<PersistedEvent> loadEvents(LoadEvents operation) {
         requireNonNull(operation, "You must supply an LoadEvents operation instance");
         return newInterceptorChainForOperation(operation,
+                                               this,
                                                eventStoreInterceptors,
                                                (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                () -> persistenceStrategy.loadEvents(unitOfWorkFactory.getRequiredUnitOfWork(),
@@ -276,6 +291,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
         requireNonNull(operation, "You must supply an LoadEvent operation instance");
 
         return newInterceptorChainForOperation(operation,
+                                               this,
                                                eventStoreInterceptors,
                                                (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                () -> persistenceStrategy.loadAggregateEvents(unitOfWorkFactory.getRequiredUnitOfWork(),
@@ -336,6 +352,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
         requireNonNull(operation, "You must supply an LoadEventsByGlobalOrder operation instance");
 
         return newInterceptorChainForOperation(operation,
+                                               this,
                                                eventStoreInterceptors,
                                                (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                () -> persistenceStrategy.loadEventsByGlobalOrder(unitOfWorkFactory.getRequiredUnitOfWork(),

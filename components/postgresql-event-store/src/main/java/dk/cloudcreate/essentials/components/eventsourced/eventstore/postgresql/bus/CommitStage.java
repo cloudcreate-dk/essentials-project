@@ -20,6 +20,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
  * Commit stage
  */
 public enum CommitStage {
+    Flush,
     BeforeCommit,
     AfterCommit,
     AfterRollback;

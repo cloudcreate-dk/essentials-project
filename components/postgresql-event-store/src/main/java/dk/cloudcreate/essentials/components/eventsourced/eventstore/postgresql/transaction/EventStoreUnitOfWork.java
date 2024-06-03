@@ -17,12 +17,17 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction;
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.EventStoreEventBus;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.FlushAndPublishPersistedEventsToEventBusRightAfterAppendToStream;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager.DefaultEventStoreSubscriptionManager;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.TransactionalPersistedEventHandler;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 
-import java.util.List;
+import java.util.*;
 
 /**
  * Variant of the {@link UnitOfWork} that allows the {@link EventStore}
@@ -30,5 +35,37 @@ import java.util.List;
  * such that these events can be published on the {@link EventStoreEventBus}
  */
 public interface EventStoreUnitOfWork extends HandleAwareUnitOfWork {
+    /**
+     * Register {@link PersistedEvent}'s in the {@link EventStoreUnitOfWork} that will be published during {@link CommitStage#BeforeCommit},
+     * {@link CommitStage#AfterCommit} and  {@link CommitStage#AfterRollback}
+     *
+     * @param eventsPersistedInThisUnitOfWork the {@link PersistedEvent}'s to add
+     * @see #removeFlushedEventsPersisted(List)
+     * @see #removeFlushedEventPersisted(PersistedEvent)
+     */
     void registerEventsPersisted(List<PersistedEvent> eventsPersistedInThisUnitOfWork);
+
+    /**
+     * Remove {@link PersistedEvent}'s from the {@link EventStoreUnitOfWork} such that it won't be published during {@link CommitStage#BeforeCommit},
+     * {@link CommitStage#AfterCommit} and  {@link CommitStage#AfterRollback}<br>
+     * Used by {@link DefaultEventStoreSubscriptionManager#subscribeToAggregateEventsInTransaction(SubscriberId, AggregateType, Optional, TransactionalPersistedEventHandler)}
+     * if {@link PersistedEvents#commitStage} is {@link CommitStage#Flush}
+     *
+     * @param eventsPersistedToRemoveFromThisUnitOfWork the {@link PersistedEvent}'s to remove
+     * @see EventStoreSubscriptionManager#subscribeToAggregateEventsInTransaction(SubscriberId, AggregateType, Optional, TransactionalPersistedEventHandler)
+     * @see FlushAndPublishPersistedEventsToEventBusRightAfterAppendToStream
+     */
+    void removeFlushedEventsPersisted(List<PersistedEvent> eventsPersistedToRemoveFromThisUnitOfWork);
+
+    /**
+     * Remove {@link PersistedEvent} from the {@link EventStoreUnitOfWork} such that it won't be published during {@link CommitStage#BeforeCommit},
+     * {@link CommitStage#AfterCommit} and  {@link CommitStage#AfterRollback}<br>
+     * Used by {@link DefaultEventStoreSubscriptionManager#subscribeToAggregateEventsInTransaction(SubscriberId, AggregateType, Optional, TransactionalPersistedEventHandler)}
+     * if {@link PersistedEvents#commitStage} is {@link CommitStage#Flush}
+     *
+     * @param eventPersistedToRemoveFromThisUnitOfWork the {@link PersistedEvent} to remove
+     * @see EventStoreSubscriptionManager#subscribeToAggregateEventsInTransaction(SubscriberId, AggregateType, Optional, TransactionalPersistedEventHandler)
+     * @see FlushAndPublishPersistedEventsToEventBusRightAfterAppendToStream
+     */
+    void removeFlushedEventPersisted(PersistedEvent eventPersistedToRemoveFromThisUnitOfWork);
 }

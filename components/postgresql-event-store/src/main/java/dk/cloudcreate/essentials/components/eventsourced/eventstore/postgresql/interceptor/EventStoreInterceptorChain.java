@@ -49,9 +49,17 @@ public interface EventStoreInterceptorChain<OPERATION, RESULT> {
     OPERATION operation();
 
     /**
+     * The {@link EventStore} the operation is being performed on
+     *
+     * @return
+     */
+    EventStore eventStore();
+
+    /**
      * Create a new {@link EventStoreInterceptorChain} instance for the provided <code>operation</code>
      *
      * @param operation                  the {@link EventStore} operation to intercept, aka. the argument to the interceptor
+     * @param eventStore                 the {@link EventStore} the operation is being performed on
      * @param interceptors               the {@link EventStoreInterceptor}'s (can be an empty List if no interceptors have been configured)
      * @param interceptorMethodInvoker   the function that's responsible for invoking the matching {@link EventStoreInterceptor} method
      * @param defaultEventStoreBehaviour the default {@link EventStore} behaviour for the given <code>operation</code> in case none of the interceptors provided a different result and stopped the interceptor chain
@@ -60,14 +68,15 @@ public interface EventStoreInterceptorChain<OPERATION, RESULT> {
      * @return a new {@link EventStoreInterceptorChain} instance for the provided <code>operation</code>
      */
     static <OPERATION, RESULT> EventStoreInterceptorChain<OPERATION, RESULT> newInterceptorChainForOperation(OPERATION operation,
+                                                                                                             EventStore eventStore,
                                                                                                              List<EventStoreInterceptor> interceptors,
                                                                                                              BiFunction<EventStoreInterceptor, EventStoreInterceptorChain<OPERATION, RESULT>, RESULT> interceptorMethodInvoker,
                                                                                                              Supplier<RESULT> defaultEventStoreBehaviour) {
-        return new DefaultEventStoreInterceptorChain<>(operation, interceptors, interceptorMethodInvoker, defaultEventStoreBehaviour);
+        return new DefaultEventStoreInterceptorChain<>(operation, eventStore, interceptors, interceptorMethodInvoker, defaultEventStoreBehaviour);
     }
 
     /**
-     * Default implementation for the {@link EventStoreInterceptorChain}. It's recommended to use {@link EventStoreInterceptorChain#newInterceptorChainForOperation(Object, List, BiFunction, Supplier)} to create a new chain
+     * Default implementation for the {@link EventStoreInterceptorChain}. It's recommended to use {@link EventStoreInterceptorChain#newInterceptorChainForOperation(Object, EventStore, List, BiFunction, Supplier)} to create a new chain
      * instance for a given operation
      *
      * @param <OPERATION> the type of {@link EventStore} operation to intercept, aka. the argument to the interceptor
@@ -76,7 +85,8 @@ public interface EventStoreInterceptorChain<OPERATION, RESULT> {
     class DefaultEventStoreInterceptorChain<OPERATION, RESULT> implements EventStoreInterceptorChain<OPERATION, RESULT> {
         private static final Logger                                                                                   log = LoggerFactory.getLogger(DefaultEventStoreInterceptorChain.class);
         private final        OPERATION                                                                                operation;
-        private final        Iterator<EventStoreInterceptor>                                                          interceptorIterator;
+        private final        EventStore                                                                               eventStore;
+        private final Iterator<EventStoreInterceptor> interceptorIterator;
         private final        BiFunction<EventStoreInterceptor, EventStoreInterceptorChain<OPERATION, RESULT>, RESULT> interceptorMethodInvoker;
         private final        Supplier<RESULT>                                                                         defaultEventStoreBehaviour;
 
@@ -84,18 +94,26 @@ public interface EventStoreInterceptorChain<OPERATION, RESULT> {
          * Create a new {@link EventStoreInterceptorChain} instance for the provided <code>operation</code>
          *
          * @param operation                  the {@link EventStore} operation to intercept, aka. the argument to the interceptor
+         * @param eventStore                 the {@link EventStore} the operation is being performed on
          * @param interceptors               the ordered {@link EventStoreInterceptor}'s (can be an empty List if no interceptors have been configured)
          * @param interceptorMethodInvoker   the function that's responsible for invoking the matching {@link EventStoreInterceptor} method
          * @param defaultEventStoreBehaviour the default {@link EventStore} behaviour for the given <code>operation</code> in case none of the interceptors provided a different result and stopped the interceptor chain
          */
         public DefaultEventStoreInterceptorChain(OPERATION operation,
+                                                 EventStore eventStore,
                                                  List<EventStoreInterceptor> interceptors,
                                                  BiFunction<EventStoreInterceptor, EventStoreInterceptorChain<OPERATION, RESULT>, RESULT> interceptorMethodInvoker,
                                                  Supplier<RESULT> defaultEventStoreBehaviour) {
             this.operation = requireNonNull(operation, "No operation provided");
+            this.eventStore = requireNonNull(eventStore, "No eventStore provided");
             this.interceptorIterator = requireNonNull(interceptors, "No interceptors provided").iterator();
             this.interceptorMethodInvoker = requireNonNull(interceptorMethodInvoker, "No interceptorMethodInvoker provided");
             this.defaultEventStoreBehaviour = requireNonNull(defaultEventStoreBehaviour, "No defaultEventStoreBehaviour supplier provided");
+        }
+
+        @Override
+        public EventStore eventStore() {
+            return eventStore;
         }
 
         @Override

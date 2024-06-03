@@ -18,12 +18,19 @@ package dk.cloudcreate.essentials.shared.interceptor;
 
 import java.lang.annotation.*;
 
+/**
+ * Annotation that can be applied to interceptors to control their order of execution
+ * in the {@link InterceptorChain}<br>
+ * The lower the number the higher the priority.<br>
+ * An interceptor with order 1 will be invoked before an interceptor with order 10.
+ */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface InterceptorOrder {
     /**
      * The interceptor order. The lower the number the higher the priority.<br>
      * An interceptor with order 1 will be invoked before an interceptor with order 10.
+     *
      * @return
      */
     int value() default 10;

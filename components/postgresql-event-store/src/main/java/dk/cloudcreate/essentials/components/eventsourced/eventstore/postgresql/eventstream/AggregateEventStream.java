@@ -152,6 +152,20 @@ public interface AggregateEventStream<AGGREGATE_ID> {
      */
     PersistedEvent firstEvent();
 
+    /**
+     * Is this {@link AggregateEventStream#eventList()} NOT empty?
+     * @return true if this {@link AggregateEventStream#eventList()} is NOT empty
+     */
+    default boolean isNotEmpty() {
+        return !isEmpty();
+    }
+
+    /**
+     * Is this {@link AggregateEventStream#eventList()} is empty?
+     * @return true if this {@link AggregateEventStream#eventList()} is empty
+     */
+    boolean isEmpty();
+
     class DefaultAggregateEventStream<AGGREGATE_ID> implements AggregateEventStream<AGGREGATE_ID> {
 
         private final AggregateEventStreamConfiguration configuration;
@@ -207,6 +221,12 @@ public interface AggregateEventStream<AGGREGATE_ID> {
                 stream = null;
             }
             return eventList;
+        }
+
+
+        @Override
+        public boolean isEmpty() {
+            return eventList().isEmpty();
         }
 
         @Override
