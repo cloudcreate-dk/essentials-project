@@ -20,6 +20,7 @@ import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockEven
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.*;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
+import dk.cloudcreate.essentials.shared.functional.*;
 import dk.cloudcreate.essentials.shared.network.Network;
 import org.slf4j.*;
 import reactor.core.publisher.Mono;
@@ -27,6 +28,7 @@ import reactor.core.publisher.Mono;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -34,7 +36,8 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
  * Common super base class for implementing persistent/durable {@link FencedLockManager}'s
- * @param <UOW> the type of {@link UnitOfWork} required
+ *
+ * @param <UOW>  the type of {@link UnitOfWork} required
  * @param <LOCK> the concrete type of {@link DBFencedLock} used
  */
 public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends DBFencedLock> implements FencedLockManager {
@@ -57,8 +60,9 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
     private final Duration                                    lockConfirmationInterval;
     private final String                                      lockManagerInstanceId;
 
-    protected final UnitOfWorkFactory<? extends UOW> unitOfWorkFactory;
-    private final   Optional<EventBus>               eventBus;
+    private final UnitOfWorkFactory<? extends UOW> unitOfWorkFactory;
+    private final Optional<EventBus>               eventBus;
+    private final ReentrantLock                    lock = new ReentrantLock(true);
 
     private volatile boolean started;
     private volatile boolean stopping;
@@ -112,7 +116,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                  lockStorage.getClass().getName(),
                  lockConfirmationInterval.toMillis(),
                  lockTimeOut.toMillis());
-        unitOfWorkFactory.usingUnitOfWork(uow -> lockStorage.initializeLockStorage(this, uow));
+        usingUnitOfWork(uow -> lockStorage.initializeLockStorage(this, uow));
     }
 
     @Override
@@ -165,7 +169,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
             log.debug("[{}] Shutting down, skipping confirmAllLocallyAcquiredLocks", lockManagerInstanceId);
             return;
         }
-        if (locksAcquiredByThisLockManager.size() == 0) {
+        if (locksAcquiredByThisLockManager.isEmpty()) {
             log.debug("[{}] No locks to confirm for this Lock Manager instance", lockManagerInstanceId);
             return;
         }
@@ -181,7 +185,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
             log.debug("[{}] Confirming {} locks acquired by this Lock Manager Instance", lockManagerInstanceId, locksAcquiredByThisLockManager.size());
         }
         var confirmedTimestamp = OffsetDateTime.now(Clock.systemUTC());
-        unitOfWorkFactory.usingUnitOfWork(uow -> {
+        usingUnitOfWork(uow -> {
             locksAcquiredByThisLockManager.forEach((lockName, fencedLock) -> {
                 if (fencedLock.getLockedByLockManagerInstanceId() == null) {
                     log.debug("[{}] Skipping confirming lock '{}' since lockedByLockManagerInstanceId is NULL: {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
@@ -233,13 +237,13 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
         if (locksAcquiredByThisLockManager.containsKey(lock.getName())) {
             lock.markAsReleased();
             locksAcquiredByThisLockManager.remove(lock.getName());
-            var releaseWithSuccess = unitOfWorkFactory.withUnitOfWork(uow -> lockStorage.releaseLockInDB(this, uow, lock));
+            var releaseWithSuccess = withUnitOfWork(uow -> lockStorage.releaseLockInDB(this, uow, lock));
             notify(new LockReleased(lock, this));
             if (releaseWithSuccess) {
                 log.debug("[{}] Released Lock '{}': {}", lockManagerInstanceId, lock.getName(), lock);
             } else {
                 // We didn't release the lock after all, someone else acquired the lock in the meantime
-                unitOfWorkFactory.usingUnitOfWork(uow -> {
+                usingUnitOfWork(uow -> {
                     lockStorage.lookupLockInDB(this, uow, lock.getName()).ifPresent(lockAcquiredByAnotherLockManager -> {
                         log.debug("[{}] Couldn't release Lock '{}' as it was already acquired by another JVM Node: {}", lockManagerInstanceId, lock.getName(), lockAcquiredByAnotherLockManager.getLockedByLockManagerInstanceId());
                     });
@@ -257,7 +261,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
             throw new IllegalStateException(msg("The {} isn't started", this.getClass().getSimpleName()));
         }
 
-        var fencedLock = unitOfWorkFactory.withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName).map(FencedLock.class::cast));
+        var fencedLock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName).map(FencedLock.class::cast));
         log.trace("[{}] Lookup FencedLock with name '{}' result: {}",
                   lockManagerInstanceId,
                   lockName,
@@ -334,7 +338,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                 releaseLock(alreadyAcquiredLock);
             }
         }
-        return unitOfWorkFactory.withUnitOfWork(uow -> {
+        return withUnitOfWork(uow -> {
             var lock = lockStorage.lookupLockInDB(this, uow, lockName)
                                   .orElseGet(() -> lockStorage.createUninitializedLock(this, lockName));
             return resolveLock(uow, lock);
@@ -451,7 +455,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
 
     @Override
     public boolean isLockAcquired(LockName lockName) {
-        var lock = unitOfWorkFactory.withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName));
+        var lock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName));
         if (lock.isEmpty()) {
             return false;
         }
@@ -460,7 +464,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
 
     @Override
     public boolean isLockedByThisLockManagerInstance(LockName lockName) {
-        var lock = unitOfWorkFactory.withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName));
+        var lock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName));
         if (lock.isEmpty()) {
             return false;
         }
@@ -469,7 +473,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
 
     @Override
     public boolean isLockAcquiredByAnotherLockManagerInstance(LockName lockName) {
-        var lock = unitOfWorkFactory.withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName));
+        var lock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName));
         if (lock.isEmpty()) {
             return false;
         }
@@ -567,6 +571,36 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
     }
 
     public void deleteAllLocksInDB() {
-        unitOfWorkFactory.usingUnitOfWork(uow -> lockStorage.deleteAllLocksInDB(this, uow));
+        usingUnitOfWork(uow -> lockStorage.deleteAllLocksInDB(this, uow));
+    }
+
+    /**
+     * Use a {@link UnitOfWork} to perform transactional changes
+     *
+     * @param unitOfWorkConsumer the consumer of the created {@link UnitOfWork}
+     */
+    protected void usingUnitOfWork(CheckedConsumer<UOW> unitOfWorkConsumer) {
+        lock.lock();
+        try {
+            unitOfWorkFactory.usingUnitOfWork(unitOfWorkConsumer::accept);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Use a {@link UnitOfWork} to perform transactional changes
+     *
+     * @param unitOfWorkFunction The function that consumes the creatd {@link UnitOfWork}
+     * @param <R> the return value from the <code>unitOfWorkFunction</code>
+     * @return the result of the calling the <code>unitOfWorkFunction</code>
+     */
+    protected <R> R withUnitOfWork(CheckedFunction<UOW, R> unitOfWorkFunction) {
+        lock.lock();
+        try {
+            return unitOfWorkFactory.withUnitOfWork(unitOfWorkFunction::apply);
+        } finally {
+            lock.unlock();
+        }
     }
 }
