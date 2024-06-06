@@ -166,7 +166,7 @@ public class AnnotatedCommandHandler implements CommandHandler {
 
     @Override
     public String toString() {
-        return "AnnotatedCommandHandler{" +
+        return this.getClass().getSimpleName() + "::AnnotatedCommandHandler {" +
                 "handling-command(s)=" + commandTypeToHandlerMethodCache.keySet() +
                 '}';
     }
