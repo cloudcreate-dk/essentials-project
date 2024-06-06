@@ -26,6 +26,8 @@ import dk.cloudcreate.essentials.components.foundation.json.JacksonJSONSerialize
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.JdbiUnitOfWorkFactory
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule
 import dk.cloudcreate.essentials.kotlin.types.Amount
+import dk.cloudcreate.essentials.kotlin.types.jdbi.AmountArgumentFactory
+import dk.cloudcreate.essentials.kotlin.types.jdbi.AmountColumnMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.jdbi.v3.core.Jdbi
 import org.junit.jupiter.api.BeforeEach
@@ -39,7 +41,7 @@ import java.time.LocalDateTime
 @Testcontainers
 class QueryIT {
     private lateinit var jdbi: Jdbi
-    private lateinit var orderRepository: DocumentDbRepository<Order, OrderId>
+    private lateinit var orderRepository: OrderRepository
     private lateinit var productRepository: DocumentDbRepository<Product, ProductId>
     private lateinit var visitRepository: DocumentDbRepository<Visit, VisitId>
     private lateinit var shippingOrderRepository: DocumentDbRepository<ShippingOrder, ShippingOrderId>
@@ -67,6 +69,8 @@ class QueryIT {
             this.registerColumnMapper(VisitIdColumnMapper())
             this.registerArgument(ShippingOrderIdArgumentFactory())
             this.registerColumnMapper(ShippingOrderIdColumnMapper())
+            this.registerArgument(AmountArgumentFactory())
+            this.registerColumnMapper(AmountColumnMapper())
         }
 
         val repositoryFactory = DocumentDbRepositoryFactory(
@@ -80,7 +84,7 @@ class QueryIT {
             )
         )
 
-        orderRepository = repositoryFactory.create(Order::class)
+        orderRepository =  OrderRepository(repositoryFactory.create(Order::class))
         productRepository = repositoryFactory.create(Product::class)
         visitRepository = repositoryFactory.create(Visit::class)
         shippingOrderRepository = repositoryFactory.create(ShippingOrder::class)
@@ -169,6 +173,20 @@ class QueryIT {
         val result = orderRepository.find(query)
         assertThat(result).hasSize(1)
         assertThat(result[0].additionalProperty).isEqualTo(50)
+    }
+
+    @Test
+    fun `Test using the findOrdersWithAmountGreaterThan query method defined on the OrderRepository class`() {
+        orderRepository.deleteAll()
+
+        storeOrders(100)
+
+        // Simple query
+        val amount = Amount("150.00")
+        val result = orderRepository.findOrdersWithAmountGreaterThan(amount)
+
+        assertThat(result).hasSize(50)
+        assertThat(result.map { it.amount }).allMatch { it > amount }
     }
 
     @Test
