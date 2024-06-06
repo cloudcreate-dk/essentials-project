@@ -16,17 +16,15 @@
 
 package dk.cloudcreate.essentials.components.document_db
 
+import dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity
 import dk.cloudcreate.essentials.components.document_db.postgresql.*
 import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer
+import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWork
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWorkFactory
 import dk.cloudcreate.essentials.components.foundation.types.RandomIdGenerator
 import org.jdbi.v3.core.Jdbi
 import kotlin.reflect.KClass
-import dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity
-import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil
-import kotlin.reflect.KProperty1
-import kotlin.reflect.KType
 
 /**
  * Common interface for a Repository that can persist an [ENTITY] in the underlying
@@ -561,3 +559,82 @@ data class Index<T>(
     }
 }
 
+/**
+ * Base class that can delegate all [DocumentDbRepository] method calls onto a delegate instance of
+ * [DocumentDbRepository] such as [PostgresqlDocumentDbRepository] (which by design cannot be used as superclass)
+ *
+ * The [DelegatingDocumentDbRepository] can be used to create Entity specific repositories with custom query methods
+ *
+ * Example `OrderRepository`:
+ * ```
+ * class OrderRepository(delegateTo: DocumentDbRepository<Order, OrderId>) : DelegatingDocumentDbRepository<Order, OrderId>(delegateTo) {
+ *     fun findOrdersWithAmountGreaterThan(amount: Amount): List<Order> {
+ *         return queryBuilder().where(
+ *             condition().matching {
+ *                 Order::amount gt amount
+ *             }
+ *         ).find()
+ *     }
+ * }
+ * ```
+ *
+ * Initializing the `OrderRepository`:
+ * ```
+ * val repositoryFactory = DocumentDbRepositoryFactory(
+ *     jdbi,
+ *     JdbiUnitOfWorkFactory(jdbi),
+ *     JacksonJSONSerializer(
+ *         EssentialsImmutableJacksonModule.createObjectMapper(
+ *             Jdk8Module(),
+ *             JavaTimeModule()
+ *         ).registerKotlinModule()
+ *     )
+ * )
+ *
+ * val orderRepository = OrderRepository(repositoryFactory.create(Order::class))
+ * ```
+ * @param delegateTo The [DocumentDbRepository] instance where all [DocumentDbRepository] method calls will be delegated to
+ */
+open class DelegatingDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(val delegateTo: DocumentDbRepository<ENTITY, ID>) : DocumentDbRepository<ENTITY, ID> {
+    override fun addIndex(index: Index<ENTITY>): DocumentDbRepository<ENTITY, ID> = delegateTo.addIndex(index)
+
+    override fun removeIndex(indexName: String): DocumentDbRepository<ENTITY, ID> = delegateTo.removeIndex(indexName)
+
+    override fun deleteAll() = delegateTo.deleteAll()
+
+    override fun findAll(): List<ENTITY> = delegateTo.findAll()
+
+    override fun count(): Long = delegateTo.count()
+
+    override fun entityConfiguration(): EntityConfiguration<ID, ENTITY> = delegateTo.entityConfiguration()
+
+    override fun queryBuilder(): QueryBuilder<ID, ENTITY> = delegateTo.queryBuilder()
+
+    override fun condition(): Condition<ENTITY> = delegateTo.condition()
+
+    override fun deleteAllById(ids: Iterable<ID>) = delegateTo.deleteAllById(ids)
+
+    override fun findAllById(ids: Iterable<ID>): List<ENTITY> = delegateTo.findAllById(ids)
+
+    override fun deleteAll(entities: Iterable<ENTITY>) = delegateTo.deleteAll(entities)
+
+    override fun delete(entity: ENTITY) = delegateTo.delete(entity)
+
+    override fun deleteById(id: ID) = delegateTo.deleteById(id)
+
+    override fun updateAll(entities: Iterable<ENTITY>): List<ENTITY> = delegateTo.updateAll(entities)
+
+    override fun saveAll(entities: Iterable<ENTITY>): List<ENTITY> = delegateTo.saveAll(entities)
+
+    override fun existsById(id: ID): Boolean = delegateTo.existsById(id)
+
+    override fun findById(id: ID): ENTITY? = delegateTo.findById(id)
+
+    override fun find(queryBuilder: QueryBuilder<ID, ENTITY>): List<ENTITY> = delegateTo.find(queryBuilder)
+
+    override fun update(entity: ENTITY, nextVersion: Version): ENTITY = delegateTo.update(entity, nextVersion)
+
+    override fun update(entity: ENTITY): ENTITY = delegateTo.update(entity)
+
+    override fun save(entity: ENTITY, initialVersion: Version): ENTITY = delegateTo.save(entity, initialVersion)
+}

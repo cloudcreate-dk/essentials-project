@@ -39,7 +39,7 @@ import kotlin.reflect.KMutableProperty1
 @Testcontainers
 class DocumentDbRepositoryImplIT {
     private lateinit var jdbi: Jdbi
-    private lateinit var orderRepository: DocumentDbRepository<Order, OrderId>
+    private lateinit var orderRepository: OrderRepository
     private lateinit var productRepository: DocumentDbRepository<Product, ProductId>
     private lateinit var visitRepository: DocumentDbRepository<Visit, VisitId>
     private lateinit var shippingOrderRepository: DocumentDbRepository<ShippingOrder, ShippingOrderId>
@@ -80,7 +80,7 @@ class DocumentDbRepositoryImplIT {
             )
         )
 
-        orderRepository = repositoryFactory.create(Order::class)
+        orderRepository = OrderRepository(repositoryFactory.create(Order::class))
         productRepository = repositoryFactory.create(Product::class)
         visitRepository = repositoryFactory.create(Visit::class)
         shippingOrderRepository = repositoryFactory.create(ShippingOrder::class)
@@ -781,5 +781,15 @@ class DocumentDbRepositoryImplIT {
 
         var allOrdersFound = orderRepository.findAllById(orders.map { it.orderId })
         assertThat(allOrdersFound).containsAll(orders)
+    }
+}
+
+class OrderRepository(delegateTo: DocumentDbRepository<Order, OrderId>) : DelegatingDocumentDbRepository<Order, OrderId>(delegateTo) {
+    fun findOrdersWithAmountGreaterThan(amount: Amount): List<Order> {
+        return queryBuilder().where(
+            condition().matching {
+                Order::amount gt amount
+            }
+        ).find()
     }
 }
