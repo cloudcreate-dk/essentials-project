@@ -334,10 +334,11 @@ public class EventStoreConfiguration {
     @ConditionalOnProperty(prefix = "management.tracing", name = "enabled", havingValue = "true")
     public SubscriberGlobalOrderMicrometerMonitor subscriberGlobalOrderMicrometerMonitor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
                                                                                          Optional<MeterRegistry> meterRegistry,
+                                                                                         EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
                                                                                          EssentialsComponentsProperties properties) {
         requireTrue(meterRegistry.isPresent(), "MeterRegistry is not configured");
         return new SubscriberGlobalOrderMicrometerMonitor(eventStoreSubscriptionManager,
-            meterRegistry.orElse(null), properties.getTracingProperties().getModuleTag());
+            meterRegistry.orElse(null), eventStoreUnitOfWorkFactory, properties.getTracingProperties().getModuleTag());
     }
 
 }

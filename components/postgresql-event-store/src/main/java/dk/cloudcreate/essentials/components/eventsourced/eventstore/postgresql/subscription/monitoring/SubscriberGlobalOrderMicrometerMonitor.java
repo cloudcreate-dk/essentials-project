@@ -8,6 +8,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWork;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
@@ -31,22 +33,27 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
 
     private final EventStoreSubscriptionManager eventStoreSubscriptionManager;
     private final MeterRegistry meterRegistry;
+    private final EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory;
     private final ConcurrentHashMap<Pair<SubscriberId, AggregateType>, Pair<Gauge, AtomicLong>> subscriberGauges = new ConcurrentHashMap<>();
     private final List<Tag> commonTags = new ArrayList<>();
 
     public SubscriberGlobalOrderMicrometerMonitor(EventStoreSubscriptionManager eventStoreSubscriptionManager,
                                                   MeterRegistry meterRegistry,
+                                                  EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
                                                   String moduleTag) {
         this.eventStoreSubscriptionManager = requireNonNull(eventStoreSubscriptionManager, "EventStoreSubscriptionManager must be provided");
         this.meterRegistry = requireNonNull(meterRegistry, "MeterRegistry must be provided");
+        this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "Unit of work factory is required");
         Optional.ofNullable(moduleTag).map(t -> Tag.of(MODULE_TAG_NAME, t)).ifPresent(commonTags::add);
     }
 
     @Override
     public void monitor(SubscriberId subscriberId, AggregateType aggregateType) {
-        var key = Pair.of(subscriberId, aggregateType);
-        subscriberGauges.computeIfAbsent(key, this::initializeEventOrderDiffCountGauge)
-            ._2.set(calculateSubscriberGlobalEventOrderDiff(subscriberId, aggregateType));
+        unitOfWorkFactory.usingUnitOfWork(() -> {
+            var key = Pair.of(subscriberId, aggregateType);
+            subscriberGauges.computeIfAbsent(key, this::initializeEventOrderDiffCountGauge)
+                ._2.set(calculateSubscriberGlobalEventOrderDiff(subscriberId, aggregateType));
+        });
     }
 
     private Pair<Gauge, AtomicLong> initializeEventOrderDiffCountGauge(Pair<SubscriberId, AggregateType> key) {
