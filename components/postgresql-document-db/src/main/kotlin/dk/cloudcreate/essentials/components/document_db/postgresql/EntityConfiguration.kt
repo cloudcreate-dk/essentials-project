@@ -62,8 +62,6 @@ class EntityConfiguration<ID, T : VersionedEntity<ID, T>>(private val entityClas
         log.info("Resolved Entity '{}' @Id property '{}'", entityClass.simpleName, idProperty)
         PostgresqlUtil.checkIsValidTableOrColumnName(idProperty.name)
         this.idProperty = idProperty
-
-        require(isValueClassWrappingString(idProperty.returnType.classifier as? KClass<*>)) { "@Id property '${idProperty.name}' is not a String or String value class" }
         this.idPropertyType = idProperty.returnType.classifier as? KClass<*>
     }
 

@@ -17,12 +17,14 @@
 package dk.cloudcreate.essentials.components.document_db
 
 import dk.cloudcreate.essentials.components.document_db.annotations.DocumentEntity
+import dk.cloudcreate.essentials.components.document_db.annotations.Id
 import dk.cloudcreate.essentials.components.document_db.postgresql.*
 import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer
 import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWork
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWorkFactory
 import dk.cloudcreate.essentials.components.foundation.types.RandomIdGenerator
+import dk.cloudcreate.essentials.kotlin.types.StringValueType
 import org.jdbi.v3.core.Jdbi
 import kotlin.reflect.KClass
 
@@ -465,6 +467,20 @@ interface DocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID> {
 class OptimisticLockingException(message: String) : Exception(message)
 
 /**
+ * Serializer for an [Id] annotated property within a [VersionedEntity],
+ * where the [Id] property isn't of type [String]/[StringValueType]
+ *
+ * Serializes a typed id instance to a String
+ *
+ * @param id the typed id
+ * @return the string version of the id
+ */
+typealias IdSerializer<ID> = (ID) -> String
+
+private val stringIdSerializer: IdSerializer<String> = { it }
+private val stringValueTypeIdSerializer: IdSerializer<StringValueType<*>> = { it.value }
+
+/**
  * Create a new [DocumentDbRepositoryFactory] which can create [DocumentDbRepository] capable of persisting
  * entities as JSON Documents in the underlying database
  *
@@ -488,6 +504,7 @@ class OptimisticLockingException(message: String) : Exception(message)
  * @param unitOfWorkFactory The [HandleAwareUnitOfWorkFactory] used to control transactions against the underlying database
  * @param jsonSerializer The [JSONSerializer] used to serialize the entity instance to and from JSON
  */
+@Suppress("UNCHECKED_CAST")
 class DocumentDbRepositoryFactory(
     jdbi: Jdbi,
     private val unitOfWorkFactory: HandleAwareUnitOfWorkFactory<out HandleAwareUnitOfWork>,
@@ -499,19 +516,63 @@ class DocumentDbRepositoryFactory(
     }
 
     /**
-     * Create a new [DocumentDbRepository] (based on [PostgresqlDocumentDbRepository]) instance for the given [entityClass]
-     *
+     * Create a new [DocumentDbRepository] (based on [PostgresqlDocumentDbRepository]) instance for the given [VersionedEntity] [entityClass],
+     * where the [Id] annotated property is of type [String]
      *
      * @param entityClass The entity class implementation (e.g. a data class such as an Order, Product, etc.)
+     * @return The [PostgresqlDocumentDbRepository]
      * @see PostgresqlDocumentDbRepository
      */
-    fun <ENTITY : VersionedEntity<ID, ENTITY>, ID> create(
+    fun <ENTITY : VersionedEntity<String, ENTITY>> createForStringId(
+        entityClass: KClass<ENTITY>
+    ): DocumentDbRepository<ENTITY, String> {
+        return PostgresqlDocumentDbRepository(
+            unitOfWorkFactory,
+            entityClass,
+            jsonSerializer,
+            stringIdSerializer
+        )
+    }
+
+
+    /**
+     * Create a new [DocumentDbRepository] (based on [PostgresqlDocumentDbRepository]) instance for the given [VersionedEntity] [entityClass],
+     * where the [Id] annotated property is of type [StringValueType]
+     *
+     * @param entityClass The entity class implementation (e.g. a data class such as an Order, Product, etc.)
+     * @return The [PostgresqlDocumentDbRepository]
+     * @see PostgresqlDocumentDbRepository
+     */
+    fun <ENTITY : VersionedEntity<ID, ENTITY>, ID : StringValueType<ID>> create(
         entityClass: KClass<ENTITY>
     ): DocumentDbRepository<ENTITY, ID> {
         return PostgresqlDocumentDbRepository(
             unitOfWorkFactory,
             entityClass,
-            jsonSerializer
+            jsonSerializer,
+            stringValueTypeIdSerializer as IdSerializer<ID>
+        )
+    }
+
+    /**
+     * Create a new [DocumentDbRepository] (based on [PostgresqlDocumentDbRepository]) instance for the given [entityClass]
+     * where the [Id] annotated property within the [VersionedEntity] isn't of type [String]/[StringValueType]
+     *
+     * @param entityClass The entity class implementation (e.g. a data class such as an Order, Product, etc.)
+     * @param idSerializer Serializer for an [Id] annotated property within a [VersionedEntity],
+     * where the [Id] property isn't of type [String]/[StringValueType]
+     * @return The [PostgresqlDocumentDbRepository]
+     * @see PostgresqlDocumentDbRepository
+     */
+    fun <ENTITY : VersionedEntity<ID, ENTITY>, ID> createForCompositeId(
+        entityClass: KClass<ENTITY>,
+        idSerializer: IdSerializer<ID>
+    ): DocumentDbRepository<ENTITY, ID> {
+        return PostgresqlDocumentDbRepository(
+            unitOfWorkFactory,
+            entityClass,
+            jsonSerializer,
+            idSerializer
         )
     }
 }

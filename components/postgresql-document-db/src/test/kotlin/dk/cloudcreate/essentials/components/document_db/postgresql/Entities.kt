@@ -49,7 +49,6 @@ data class Order(
 data class ContactDetails(val name: String, val address: Address, val phoneNumbers: List<String>)
 data class Address(val street: String, val zipCode: Int, val city: String)
 
-
 @JvmInline
 value class OrderId(override val value: String) : StringValueType<OrderId> {
     companion object {
@@ -64,7 +63,11 @@ value class ProductId(override val value: String) : StringValueType<ProductId>
 value class VisitId(override val value: String) : StringValueType<VisitId>
 
 @JvmInline
-value class ShippingOrderId(override val value: String) : StringValueType<ShippingOrderId>
+value class ShippingOrderId(override val value: String) : StringValueType<ShippingOrderId> {
+    companion object {
+        fun random(): ShippingOrderId = ShippingOrderId(RandomIdGenerator.generate())
+    }
+}
 
 class OrderIdArgumentFactory : StringValueTypeArgumentFactory<OrderId>()
 class OrderIdColumnMapper : StringValueTypeColumnMapper<OrderId>()
