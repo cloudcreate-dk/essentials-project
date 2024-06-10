@@ -16,8 +16,8 @@
 
 package dk.cloudcreate.essentials.components.document_db
 
-import java.time.OffsetDateTime
 import dk.cloudcreate.essentials.kotlin.types.StringValueType
+import java.time.OffsetDateTime
 
 /**
  * Interface which support versioning of Entities with the goal of ensuring Optimistic Locking for each update to
@@ -42,7 +42,8 @@ import dk.cloudcreate.essentials.kotlin.types.StringValueType
  * ) : VersionedEntity<OrderId, Order>
  * ```
  *
- * The `@Id` annotated property MUST be a `String` or a String value class (such as those implementing [StringValueType])
+ * The `@Id` annotated property MUST be a `String` or a String value class (such as those implementing [StringValueType]) or alternatively an [IdSerializer] MUST be specified
+ * in the call to [DocumentDbRepositoryFactory.createForCompositeId]
  *
  * To strengthen the type safety and the ubiquitous language it's a good idea to base your type on one of the Semantic types defined
  * in the `types` library.

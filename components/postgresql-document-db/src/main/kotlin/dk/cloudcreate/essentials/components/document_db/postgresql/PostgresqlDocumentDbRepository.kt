@@ -93,13 +93,13 @@ import kotlin.reflect.full.primaryConstructor
 class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     private val unitOfWorkFactory: HandleAwareUnitOfWorkFactory<out HandleAwareUnitOfWork>,
     entityClass: KClass<ENTITY>,
-    private val jsonSerializer: JSONSerializer
+    private val jsonSerializer: JSONSerializer,
+    private val idSerializer: IdSerializer<ID>
 ) : DocumentDbRepository<ENTITY, ID> {
-    private var entityConfiguration: EntityConfiguration<ID, ENTITY>
+    private var entityConfiguration: EntityConfiguration<ID, ENTITY> = EntityConfiguration.configureEntity(entityClass).build()
     private val indexesAdded = mutableSetOf<Index<ENTITY>>()
 
     init {
-        entityConfiguration = EntityConfiguration.configureEntity(entityClass).build()
         PostgresqlUtil.checkIsValidTableOrColumnName(entityConfiguration.tableName())
         ensureEntityTableExists()
         ensureEntityIndexesExists()
@@ -204,27 +204,27 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     }
 
     override fun save(entity: ENTITY, initialVersion: Version): ENTITY {
-        var id = getEntityId(entity)
+        var serializedId = getEntityId(entity)
         log.trace(
-            "Save '{}' with id: '{}' and initialVersion: '{}' called",
+            "Save '{}' with serialized-id: '{}' and initialVersion: '{}' called",
             entityConfiguration.entityClass().simpleName,
-            id,
+            serializedId,
             initialVersion
         )
 
-        if (id == null) {
+        if (serializedId == null) {
             if (entityConfiguration.idProperty() is KMutableProperty1) {
                 if (entityConfiguration.idProperty().returnType.classifier == String::class ||
                     entityConfiguration.idProperty().returnType.classifier == StringValueType::class
                 ) {
                     // Assign a random id
-                    id =
-                        entityConfiguration.idPropertyType().primaryConstructor!!.call(RandomIdGenerator.generate()) as ID
-                    (entityConfiguration.idProperty() as KMutableProperty1<ENTITY, ID>).setter(entity, id)
+                    val typedId = createStringOrStringValueTypeId()
+                    serializedId = idSerializer(typedId)
+                    (entityConfiguration.idProperty() as KMutableProperty1<ENTITY, ID>).setter(entity, typedId)
                     log.debug(
-                        "Entity: '{}' -  Assigned random-id with value '{}'",
+                        "Entity: '{}' -  Assigned random-id with id '{}'",
                         entityConfiguration.entityClass().simpleName,
-                        id
+                        typedId
                     )
                 } else {
                     throw IllegalArgumentException("${entityConfiguration.entityClass().simpleName}.${entityConfiguration.idProperty().name} is null, but cannot assign a random id value because the property is not of type String or StringValueType.")
@@ -240,7 +240,7 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
         val rowsUpdated = unitOfWorkFactory.withUnitOfWork {
             it.handle()
                 .createUpdate("INSERT INTO ${entityConfiguration.tableName()} (id, data, version, last_updated) VALUES (:id, :data::jsonb, :version, :lastUpdated) ON CONFLICT DO NOTHING")
-                .bind("id", id)
+                .bind("id", serializedId)
                 .bind("data", json)
                 .bind("version", initialVersion)
                 .bind("lastUpdated", entity.lastUpdated)
@@ -250,26 +250,28 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
             throw OptimisticLockingException("Failed to save entity of type '${entityConfiguration.entityClass().simpleName}' since was already saved. If you're trying to update an existing entity please use the update method.")
         }
         log.debug(
-            "Saved '{}' with id: '{}' and initialVersion: '{}'",
+            "Saved '{}' with serialized-id: '{}' and initialVersion: '{}'",
             entityConfiguration.entityClass().simpleName,
-            id,
+            serializedId,
             initialVersion
         )
 
         return entity
     }
 
+    private fun createStringOrStringValueTypeId() = entityConfiguration.idPropertyType().primaryConstructor!!.call(RandomIdGenerator.generate()) as ID
+
     override fun update(entity: ENTITY): ENTITY {
         return update(entity, getRequiredEntityVersion(entity).increment())
     }
 
     override fun update(entity: ENTITY, nextVersion: Version): ENTITY {
-        val id: ID = getRequiredEntityId(entity)
+        val serializedId = getRequiredEntityId(entity)
         val loadedVersion = getRequiredEntityVersion(entity)
         log.debug(
-            "Update '{}' with id: '{}', loaded-version: '{}' and next-version: '{}'",
+            "Update '{}' with serialized-id: '{}', loaded-version: '{}' and next-version: '{}'",
             entityConfiguration.entityClass().simpleName,
-            id,
+            serializedId,
             loadedVersion,
             nextVersion
         )
@@ -287,7 +289,7 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
                 .bind("nextVersion", nextVersion)
                 .bind("loadedVersion", loadedVersion)
                 .bind("lastUpdated", entity.lastUpdated)
-                .bind("id", id)
+                .bind("id", serializedId)
                 .execute()
         }
 
@@ -295,28 +297,29 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
             throw OptimisticLockingException("Failed to update entity of type ${entityConfiguration.entityClass().simpleName} due to version mismatch.")
         }
         log.debug(
-            "Updated '{}' with id: '{}' and version: '{}'",
+            "Updated '{}' with serialized-id: '{}' and version: '{}'",
             entityConfiguration.entityClass().simpleName,
-            id,
+            serializedId,
             nextVersion
         )
         return entity
     }
 
     override fun deleteById(id: ID) {
+        val serializedId = idSerializer(id)
         unitOfWorkFactory.usingUnitOfWork {
-            var rowsUpdated = it.handle().execute("DELETE FROM ${entityConfiguration.tableName()} WHERE id = ?", id)
+            var rowsUpdated = it.handle().execute("DELETE FROM ${entityConfiguration.tableName()} WHERE id = ?", serializedId)
             if (rowsUpdated == 1) {
                 log.debug(
-                    "Deleted Entity '{}' with id '{}'",
+                    "Deleted Entity '{}' with serialized-id '{}'",
                     entityConfiguration.entityClass().simpleName,
-                    id
+                    serializedId
                 )
             } else {
                 log.debug(
-                    "Entity '{}' with id '{}' was already deleted",
+                    "Entity '{}' with serialized-id '{}' was already deleted",
                     entityConfiguration.entityClass().simpleName,
-                    id
+                    serializedId
                 )
             }
         }
@@ -342,9 +345,10 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     }
 
     override fun findById(id: ID): ENTITY? {
+        val serializedId = idSerializer(id)
         val matchingEntity = unitOfWorkFactory.withUnitOfWork {
             it.handle().createQuery("SELECT data FROM ${entityConfiguration.tableName()} WHERE id = :id")
-                .bind("id", id)
+                .bind("id", serializedId)
                 .mapTo(String::class.java)
                 .findOne()
                 .map { json -> jsonSerializer.deserialize(json, entityConfiguration.entityClass().java) }
@@ -352,42 +356,43 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
         }
         if (matchingEntity != null) {
             log.debug(
-                "Found Entity '{}' with id: '{}'",
+                "Found Entity '{}' with serialized-id: '{}'",
                 entityConfiguration.entityClass().simpleName,
-                id
+                serializedId
             )
         } else {
             log.debug(
-                "Did NOT find Entity '{}' with id: '{}'",
+                "Did NOT find Entity '{}' with serialized-id: '{}'",
                 entityConfiguration.entityClass().simpleName,
-                id
+                serializedId
             )
         }
         return matchingEntity
     }
 
     override fun delete(entity: ENTITY) {
-        deleteById(getRequiredEntityId(entity))
+        deleteById(getRequiredTypedEntityId(entity))
     }
 
     override fun existsById(id: ID): Boolean {
+        val serializedId = idSerializer(id)
         val exists = unitOfWorkFactory.withUnitOfWork {
             it.handle().createQuery("SELECT COUNT(*) FROM ${entityConfiguration.tableName()} WHERE id = :id")
-                .bind("id", id)
+                .bind("id", serializedId)
                 .mapTo(Int::class.java)
                 .one() > 0
         }
         if (exists) {
             log.debug(
-                "Exists -> Entity '{}' Entity with id: '{}'",
+                "Exists -> Entity '{}' Entity with serialized-id: '{}'",
                 entityConfiguration.entityClass().simpleName,
-                id
+                serializedId
             )
         } else {
             log.debug(
-                "Does NOT Exist -> Entity '{}' with id: '{}'",
+                "Does NOT Exist -> Entity '{}' with serialized-id: '{}'",
                 entityConfiguration.entityClass().simpleName,
-                id
+                serializedId
             )
         }
         return exists
@@ -466,9 +471,9 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
             entityConfiguration.entityClass().simpleName,
             ids.count()
         )
-        val matches = unitOfWorkFactory.withUnitOfWork {
-            it.handle().createQuery("SELECT data FROM ${entityConfiguration.tableName()} WHERE id IN (<ids>)")
-                .bindList("ids", ids)
+        val matches = unitOfWorkFactory.withUnitOfWork { uow ->
+            uow.handle().createQuery("SELECT data FROM ${entityConfiguration.tableName()} WHERE id IN (<ids>)")
+                .bindList("ids", ids.map { idSerializer(it) })
                 .mapTo(String::class.java)
                 .map { json -> jsonSerializer.deserialize(json, entityConfiguration.entityClass().java) as ENTITY }
                 .list()
@@ -488,10 +493,10 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
             entityConfiguration.entityClass().simpleName,
             ids.count()
         )
-        val numberOfDeletedRows = unitOfWorkFactory.withUnitOfWork {
-            it.handle()
+        val numberOfDeletedRows = unitOfWorkFactory.withUnitOfWork { uow ->
+            uow.handle()
                 .createUpdate("DELETE FROM ${entityConfiguration.tableName()} WHERE id IN (<ids>)")
-                .bindList("ids", ids)
+                .bindList("ids", ids.map { idSerializer(it) })
                 .execute()
         }
         log.debug(
@@ -527,7 +532,7 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     private fun updateVersionedEntityProperties(entity: ENTITY, version: Version): ENTITY {
         if (log.isTraceEnabled) {
             log.trace(
-                "Entity '{}' with id '{}' setting '{}' to '{}'",
+                "Entity '{}' with serialized-id '{}' setting '{}' to '{}'",
                 entityConfiguration.entityClass().simpleName,
                 getEntityId(entity),
                 VERSION_PROPERTY_NAME,
@@ -543,12 +548,21 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
         return entityConfiguration.versionProperty().getter.call(entity)
     }
 
-    private fun getEntityId(entity: ENTITY): ID? {
+    private fun getEntityId(entity: ENTITY): String? {
+        val id = getTypedEntityId(entity)
+        return if (id != null) idSerializer(id) else null
+    }
+
+    private fun getTypedEntityId(entity: ENTITY): ID? {
         return entityConfiguration.idProperty().getter.call(entity)
     }
 
-    private fun getRequiredEntityId(entity: ENTITY): ID {
-        return getEntityId(entity)
+    private fun getRequiredEntityId(entity: ENTITY): String {
+        return idSerializer(getRequiredTypedEntityId(entity))
+    }
+
+    private fun getRequiredTypedEntityId(entity: ENTITY): ID {
+        return getTypedEntityId(entity)
             ?: throw IllegalArgumentException("${entityConfiguration.entityClass().simpleName}.${entityConfiguration.idProperty().name} has value null. Expected a non-null value")
     }
 
