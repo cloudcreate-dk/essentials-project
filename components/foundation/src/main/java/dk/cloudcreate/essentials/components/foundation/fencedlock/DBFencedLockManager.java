@@ -235,9 +235,9 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
     protected void releaseLock(LOCK lock) {
         requireNonNull(lock, "No lock was provided");
         if (locksAcquiredByThisLockManager.containsKey(lock.getName())) {
-            lock.markAsReleased();
             locksAcquiredByThisLockManager.remove(lock.getName());
             var releaseWithSuccess = withUnitOfWork(uow -> lockStorage.releaseLockInDB(this, uow, lock));
+            lock.markAsReleased();
             notify(new LockReleased(lock, this));
             if (releaseWithSuccess) {
                 log.debug("[{}] Released Lock '{}': {}", lockManagerInstanceId, lock.getName(), lock);
