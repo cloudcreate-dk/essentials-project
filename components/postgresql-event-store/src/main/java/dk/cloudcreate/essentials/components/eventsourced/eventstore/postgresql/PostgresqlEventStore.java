@@ -33,8 +33,6 @@ import org.jdbi.v3.core.ConnectionException;
 import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
 import org.slf4j.*;
 import reactor.core.publisher.*;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
@@ -828,7 +826,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                               aggregateType,
                                               nextFromInclusiveGlobalOrder.get()),
                                           e);
-                sink.error(e);
+                //sink.error(e);
                 return 0;
             }
         }

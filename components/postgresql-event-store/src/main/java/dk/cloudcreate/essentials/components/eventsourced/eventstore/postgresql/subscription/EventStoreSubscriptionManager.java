@@ -966,6 +966,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                 }
                             } catch (Exception cause) {
                                 onErrorHandlingEvent(e, cause);
+                                NonExclusiveAsynchronousSubscription.this.request(1);
                             } finally {
                                 resumePoint.setResumeFromAndIncluding(e.globalEventOrder().increment());
                             }
@@ -1240,6 +1241,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                         }
                                     } catch (Exception cause) {
                                         onErrorHandlingEvent(e, cause);
+                                        ExclusiveAsynchronousSubscription.this.request(1);
                                     } finally {
                                         resumePoint.setResumeFromAndIncluding(e.globalEventOrder().increment());
                                     }
