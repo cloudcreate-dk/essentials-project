@@ -78,8 +78,8 @@
         <json-smart.version>2.5.1</json-smart.version>
         <json-path.version>2.9.0</json-path.version>
         <snakeyaml.version>2.2</snakeyaml.version>
-        <micrometer.version>1.13.0</micrometer.version>
-        <micrometer-tracing.version>1.3.0</micrometer-tracing.version>
+        <micrometer.version>1.13.1</micrometer.version>
+        <micrometer-tracing.version>1.3.1</micrometer-tracing.version>
         <netty-bom.version>4.1.110.Final</netty-bom.version>
         <junit-bom.version>5.10.2</junit-bom.version>
         <testcontainers-bom.version>1.19.8</testcontainers-bom.version>
