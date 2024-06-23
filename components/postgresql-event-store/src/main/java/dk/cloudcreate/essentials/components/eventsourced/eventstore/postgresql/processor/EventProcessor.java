@@ -368,9 +368,13 @@ public abstract class EventProcessor implements Lifecycle {
 
     /**
      * Resets all {@link AggregateType} subscriptions fromAndIncluding {@link GlobalEventOrder#FIRST_GLOBAL_EVENT_ORDER}<br>
-     * {@link #onSubscriptionsReset(AggregateType, GlobalEventOrder)} will be called for each {@link AggregateType}
+     * {@link #onSubscriptionsReset(AggregateType, GlobalEventOrder)} will be called for each {@link AggregateType}<br>
+     * <br>
+     * This method also calls {@link Inbox#deleteAllMessages()}
+     * @see #resetSubscriptions(Map)
      */
     public void resetAllSubscriptions() {
+        inbox.deleteAllMessages();
         resetSubscriptions(eventStoreSubscriptions.stream()
                                                   .map(EventStoreSubscription::aggregateType)
                                                   .collect(Collectors.toMap(Function.identity(), aggregateType -> GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER)));
@@ -378,7 +382,9 @@ public abstract class EventProcessor implements Lifecycle {
 
     /**
      * Reset the specific {@link AggregateType} fromAndIncluding the specified {@link GlobalEventOrder}<br>
-     * {@link #onSubscriptionsReset(AggregateType, GlobalEventOrder)} will be called for each {@link AggregateType}
+     * {@link #onSubscriptionsReset(AggregateType, GlobalEventOrder)} will be called for each {@link AggregateType}<br>
+     * <br>
+     * Note: This method does NOT call {@link Inbox#deleteAllMessages()}
      *
      * @param resetAggregateSubscriptionsFromAndIncluding a map of {@link AggregateType} and reset-fromAndIncluding {@link GlobalEventOrder}
      */

@@ -229,6 +229,11 @@ public interface Inboxes {
             }
 
             @Override
+            public void deleteAllMessages() {
+                durableQueues.purgeQueue(inboxQueueName);
+            }
+
+            @Override
             public Inbox addMessageReceived(Message message) {
                 // An Inbox is usually used to bridge receiving messages from a Messaging system
                 // In these cases we rarely have other business logic that's already started a Transaction/UnitOfWork.
