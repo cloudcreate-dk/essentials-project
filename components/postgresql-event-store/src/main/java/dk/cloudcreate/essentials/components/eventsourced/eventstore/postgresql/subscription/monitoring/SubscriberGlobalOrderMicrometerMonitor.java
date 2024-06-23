@@ -17,6 +17,8 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerInterceptor.MODULE_TAG_NAME;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -27,6 +29,7 @@ import static java.lang.Long.max;
  * of the subscriber. This to detect subscribers that are falling behind the global event order
  */
 public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscriptionMonitor {
+    private static final Logger log = LoggerFactory.getLogger(SubscriberGlobalOrderMicrometerMonitor.class);
     private static final String SUBSCRIPTION_EVENT_ORDER_DIFF_METRIC = "DurableSubscriptions_EventOrder_Diff";
     private static final String SUBSCRIBER_ID_TAG = "SubscriberId";
     private static final String AGGREGATE_TYPE_TAG = "AggregateType";
@@ -49,11 +52,19 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
 
     @Override
     public void monitor(SubscriberId subscriberId, AggregateType aggregateType) {
-        unitOfWorkFactory.usingUnitOfWork(() -> {
-            var key = Pair.of(subscriberId, aggregateType);
-            subscriberGauges.computeIfAbsent(key, this::initializeEventOrderDiffCountGauge)
-                ._2.set(calculateSubscriberGlobalEventOrderDiff(subscriberId, aggregateType));
-        });
+        unitOfWorkFactory.usingUnitOfWork(() -> doExecuteMonitoring(subscriberId, aggregateType));
+    }
+
+    private void doExecuteMonitoring(SubscriberId subscriberId, AggregateType aggregateType) {
+        var key = Pair.of(subscriberId, aggregateType);
+        calculateSubscriberGlobalEventOrderDiff(subscriberId, aggregateType)
+            .ifPresent(currentLag -> {
+                //if (currentLag > 0) {
+                    log.info("Subscriber lag found for subscriber {} on aggregateType {}. Lag is {}", subscriberId, aggregateType, currentLag);
+                //}
+                subscriberGauges.computeIfAbsent(key, this::initializeEventOrderDiffCountGauge)
+                    ._2.set(currentLag);
+            });
     }
 
     private Pair<Gauge, AtomicLong> initializeEventOrderDiffCountGauge(Pair<SubscriberId, AggregateType> key) {
@@ -74,10 +85,12 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
             .register(meterRegistry);
     }
 
-    private long calculateSubscriberGlobalEventOrderDiff(SubscriberId subscriberId, AggregateType aggregateType) {
-        var highestGlobalEventOrderPersisted = findHighestGlobalEventOrderPersisted(aggregateType);
-        var currentSubscriberGlobalEventOrder = eventStoreSubscriptionManager.getCurrentEventOrder(subscriberId, aggregateType);
-        return max(0, highestGlobalEventOrderPersisted.longValue() - currentSubscriberGlobalEventOrder.longValue());
+    private Optional<Long> calculateSubscriberGlobalEventOrderDiff(SubscriberId subscriberId, AggregateType aggregateType) {
+        return eventStoreSubscriptionManager.getCurrentEventOrder(subscriberId, aggregateType)
+            .map(currentSubscriberGlobalEventOrder -> {
+                var highestGlobalEventOrderPersisted = findHighestGlobalEventOrderPersisted(aggregateType);
+                return max(0, highestGlobalEventOrderPersisted.longValue() - currentSubscriberGlobalEventOrder.longValue());
+            });
     }
 
     @NotNull
