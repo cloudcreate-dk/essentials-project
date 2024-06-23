@@ -104,6 +104,11 @@ public interface Inbox {
     InboxName name();
 
     /**
+     * Delete all messages (Queued or Dead letter Messages) in the underlying storage (such as a Queue)
+     */
+    void deleteAllMessages();
+
+    /**
      * Register or add a message (with meta-data) that has been received<br>
      * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer

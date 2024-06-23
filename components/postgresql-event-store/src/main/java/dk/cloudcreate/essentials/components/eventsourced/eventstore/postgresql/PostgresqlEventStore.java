@@ -718,13 +718,15 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                 unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
             } catch (Exception e) {
                 var rootCause = Exceptions.getRootCause(e);
-                if (e.getMessage().contains("has been closed") || rootCause instanceof IOException || rootCause instanceof ConnectionException || rootCause instanceof UnableToExecuteStatementException) {
+                if (e.getMessage().contains("has been closed") || e.getMessage().contains("Unable to acquire JDBC Connection") ||
+                        e.getMessage().contains("Could not open JPA EntityManager for transaction") ||
+                        rootCause instanceof IOException || rootCause instanceof ConnectionException || rootCause instanceof UnableToExecuteStatementException) {
                     eventStoreStreamLog.debug(msg("[{}] Polling worker - Experienced a Postgresql Connection issue while creating a UnitOfWork",
                                                   eventStreamLogName), e);
                 } else {
                     log.error(msg("[{}] Polling worker - Experienced an error while creating a UnitOfWork",
                                   eventStreamLogName), e);
-                    sink.error(e);
+//                    sink.error(e);
                 }
                 return 0;
             }

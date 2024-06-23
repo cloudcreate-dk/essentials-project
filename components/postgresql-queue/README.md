@@ -39,7 +39,7 @@ To use `PostgreSQL Durable Queue` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-queue</artifactId>
-    <version>0.40.11</version>
+    <version>0.40.12</version>
 </dependency>
 ```
 

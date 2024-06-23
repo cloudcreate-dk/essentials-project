@@ -228,6 +228,11 @@ public interface Outboxes {
             }
 
             @Override
+            public void deleteAllMessages() {
+                durableQueues.purgeQueue(outboxQueueName);
+            }
+
+            @Override
             public Outbox sendMessage(Message payload) {
                 durableQueues.queueMessage(outboxQueueName,
                                            payload);
