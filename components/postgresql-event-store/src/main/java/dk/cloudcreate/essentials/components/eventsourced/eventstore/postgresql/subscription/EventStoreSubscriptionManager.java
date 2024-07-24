@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
@@ -860,7 +861,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             }
 
             @Override
-            public void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder) {
+            public void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder, Consumer<GlobalEventOrder> resetProcessor) {
                 throw new EventStoreException(msg("[{}-{}] Reset of ResumePoint isn't support for an In-Transaction subscription",
                                                   subscriberId,
                                                   aggregateType));
@@ -1084,7 +1085,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             }
 
             @Override
-            public void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder) {
+            public void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder, Consumer<GlobalEventOrder> resetProcessor) {
                 if (started) {
                     log.info("[{}-{}] Resetting resume point and re-starts the subscriber from and including globalOrder {}",
                              subscriberId,
@@ -1092,9 +1093,11 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                              subscribeFromAndIncludingGlobalOrder);
                     stop();
                     overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
+                    resetProcessor.accept(subscribeFromAndIncludingGlobalOrder);
                     start();
                 } else {
                     overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
+                    resetProcessor.accept(subscribeFromAndIncludingGlobalOrder);
                 }
             }
 
@@ -1402,7 +1405,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             }
 
             @Override
-            public void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder) {
+            public void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder, Consumer<GlobalEventOrder> resetProcessor) {
                 if (isStarted() && isActive()) {
                     log.info("[{}-{}] Resetting resume point and re-starts the subscriber from and including globalOrder {}",
                              subscriberId,
@@ -1410,6 +1413,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                              subscribeFromAndIncludingGlobalOrder);
                     stop();
                     overrideResumePoint(subscribeFromAndIncludingGlobalOrder);
+                    resetProcessor.accept(subscribeFromAndIncludingGlobalOrder);
                     start();
                 } else {
                     log.info("[{}-{}] Cannot reset resume point to fromAndIncluding {} because the underlying lock hasn't been acquired. isStarted: {}, isActive (is-lock-acquired): {}",

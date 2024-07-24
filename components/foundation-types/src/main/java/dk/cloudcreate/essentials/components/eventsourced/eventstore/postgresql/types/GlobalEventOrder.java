@@ -16,13 +16,13 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
-import dk.cloudcreate.essentials.types.LongRange;
-import dk.cloudcreate.essentials.types.LongType;
-
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
+import dk.cloudcreate.essentials.types.LongRange;
+import dk.cloudcreate.essentials.types.LongType;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -89,5 +89,9 @@ public final class GlobalEventOrder extends LongType<GlobalEventOrder> {
 
     public GlobalEventOrder decrement() {
         return new GlobalEventOrder(value - 1);
+    }
+
+    public boolean isFirstGlobalEventOrder() {
+        return this.equals(FIRST_GLOBAL_EVENT_ORDER);
     }
 }
