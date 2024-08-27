@@ -16,10 +16,12 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage.DeliveryMode;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.slf4j.*;
 
@@ -47,7 +49,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>>
         implements DurableQueueConsumer, DurableQueueConsumerNotifications {
     public static final Logger   LOG                                          = LoggerFactory.getLogger(DurableQueueConsumer.class);
-    public static final Logger   MESSAGE_HANDLING_FAILURE_LOG                 = LoggerFactory.getLogger(DurableQueueConsumer.class + ".MessageHandlingFailures");
+    public static final Logger   MESSAGE_HANDLING_FAILURE_LOG                 = LoggerFactory.getLogger(DurableQueueConsumer.class.getName() + ".MessageHandlingFailures");
     public static final Runnable NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE = () -> {
     };
 
@@ -306,15 +308,25 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                                                    queuedMessage.getId(),
                                                    consumeFromQueue.consumerName,
                                                    queuedMessage), e);
-            var isPermanentError = consumeFromQueue.getRedeliveryPolicy().isPermanentError(queuedMessage, e);
+            var isPermanentError = isPermanentError(queuedMessage, e);
             if (isPermanentError || queuedMessage.getTotalDeliveryAttempts() >= consumeFromQueue.getRedeliveryPolicy().maximumNumberOfRedeliveries + 1) {
-                // Dead letter
-                MESSAGE_HANDLING_FAILURE_LOG.debug("[{}:{}] {} - Marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
-                                                   queueName,
-                                                   queuedMessage.getId(),
-                                                   consumeFromQueue.consumerName,
-                                                   isPermanentError,
-                                                   queuedMessage);
+                // Dead letter message
+                if (isPermanentError) {
+                    MESSAGE_HANDLING_FAILURE_LOG.error("[{}:{}] {} - Marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
+                                                      queueName,
+                                                      queuedMessage.getId(),
+                                                      consumeFromQueue.consumerName,
+                                                      isPermanentError,
+                                                      queuedMessage);
+                } else {
+                    MESSAGE_HANDLING_FAILURE_LOG.warn("[{}:{}] {} - Too many deliveries, marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
+                                                       queueName,
+                                                       queuedMessage.getId(),
+                                                       consumeFromQueue.consumerName,
+                                                       isPermanentError,
+                                                       queuedMessage);
+                }
+
                 try {
                     durableQueues.markAsDeadLetterMessage(queuedMessage.getId(), e);
                     orderedMessageDeliveryThreads.remove(Thread.currentThread());
@@ -365,6 +377,15 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                 }
             }
         }
+    }
+
+    protected boolean isPermanentError(QueuedMessage queuedMessage, Throwable e) {
+        var rootCause = Exceptions.getRootCause(e);
+        return consumeFromQueue.getRedeliveryPolicy().isPermanentError(queuedMessage, e) ||
+                e instanceof ClassCastException || rootCause instanceof ClassCastException ||
+                e instanceof NoClassDefFoundError || rootCause instanceof NoClassDefFoundError ||
+                rootCause instanceof MismatchedInputException ||
+                e instanceof IllegalArgumentException || rootCause instanceof IllegalArgumentException;
     }
 
     @Override
