@@ -25,17 +25,14 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.p
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.reactive.EventBus;
-import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.types.LongRange;
-import org.jdbi.v3.core.ConnectionException;
-import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
 import org.slf4j.*;
 import reactor.core.publisher.*;
 import reactor.core.scheduler.Schedulers;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -231,10 +228,10 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                                                    (eventStoreInterceptor, eventStoreInterceptorChain) -> eventStoreInterceptor.intercept(operation, eventStoreInterceptorChain),
                                                                    () -> {
                                                                        var stream = persistenceStrategy.persist(unitOfWork,
-                                                                                                          operation.aggregateType,
-                                                                                                          operation.aggregateId,
-                                                                                                          operation.getAppendEventsAfterEventOrder(),
-                                                                                                          operation.getEventsToAppend());
+                                                                                                                operation.aggregateType,
+                                                                                                                operation.aggregateId,
+                                                                                                                operation.getAppendEventsAfterEventOrder(),
+                                                                                                                operation.getEventsToAppend());
                                                                        unitOfWork.registerEventsPersisted(stream.eventList());
                                                                        return stream;
                                                                    })
@@ -442,9 +439,18 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
             EventStoreUnitOfWork unitOfWork;
             try {
                 unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
-            } catch (ConnectionException e) {
-                eventStoreStreamLog.debug(msg("[{}] Experienced a Postgresql Connection issue, will return an empty Flux",
-                                              eventStreamLogName), e);
+            } catch (Exception e) {
+                if (IOExceptionUtil.isIOException(e)) {
+                    eventStoreStreamLog.debug(msg("[{}] Experienced a IO/Connection related issue '{}'. Will return an empty Flux",
+                                                  eventStreamLogName,
+                                                  e.getClass().getSimpleName()),
+                                              e);
+                } else {
+                    eventStoreStreamLog.error(msg("[{}] Experienced a non-IO related issue '{}'. Will return an empty Flux",
+                                                  eventStreamLogName,
+                                                  e.getClass().getSimpleName()),
+                                              e);
+                }
                 return Flux.empty();
             }
 
@@ -717,16 +723,16 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
             try {
                 unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
             } catch (Exception e) {
-                var rootCause = Exceptions.getRootCause(e);
-                if (e.getMessage().contains("has been closed") || e.getMessage().contains("Unable to acquire JDBC Connection") ||
-                        e.getMessage().contains("Could not open JPA EntityManager for transaction") ||
-                        rootCause instanceof IOException || rootCause instanceof ConnectionException || rootCause instanceof UnableToExecuteStatementException) {
-                    eventStoreStreamLog.debug(msg("[{}] Polling worker - Experienced a Postgresql Connection issue while creating a UnitOfWork",
-                                                  eventStreamLogName), e);
+                if (IOExceptionUtil.isIOException(e)) {
+                    eventStoreStreamLog.debug(msg("[{}] Polling worker - Experienced an IO/Connection related issue '{}' while creating a UnitOfWork",
+                                                  eventStreamLogName,
+                                                  e.getClass().getSimpleName()),
+                                              e);
                 } else {
-                    log.error(msg("[{}] Polling worker - Experienced an error while creating a UnitOfWork",
-                                  eventStreamLogName), e);
-//                    sink.error(e);
+                    log.error(msg("[{}] Polling worker - Experienced a non IO related issue '{}' while creating a UnitOfWork",
+                                  eventStreamLogName,
+                                  e.getClass().getSimpleName()),
+                              e);
                 }
                 return 0;
             }

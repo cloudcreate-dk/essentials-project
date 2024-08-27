@@ -21,8 +21,9 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.mongodb.*;
+import com.mongodb.MongoInterruptedException;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
@@ -1022,8 +1023,8 @@ public final class MongoDurableQueues implements DurableQueues {
                                                        } else if (e instanceof UncategorizedMongoDbException && e.getCause() instanceof MongoInterruptedException) {
                                                            log.trace("[{}] MongoInterruptedException", queueName);
                                                            return Optional.<QueuedMessage>empty();
-                                                       } else if (e instanceof MongoSocketReadException) {
-                                                           log.trace("[{}] MongoSocketReadException", queueName);
+                                                       } else if (IOExceptionUtil.isIOException(e)) {
+                                                           log.trace("[{}] Experienced a Mongo related IO exception '{}'", queueName, e.getClass().getSimpleName());
                                                            return Optional.<QueuedMessage>empty();
                                                        } else if (e instanceof IllegalStateException && Objects.equals(e.getMessage(), "state should be: open")) {
                                                            log.trace("[{}] Mongo Session is not open", queueName);

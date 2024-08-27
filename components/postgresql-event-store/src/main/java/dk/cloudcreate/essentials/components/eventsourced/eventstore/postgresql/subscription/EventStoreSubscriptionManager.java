@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.b
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
-import dk.cloudcreate.essentials.components.foundation.Lifecycle;
+import dk.cloudcreate.essentials.components.foundation.*;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inbox;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
@@ -605,7 +605,11 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                                           .map(eventStoreSubscription -> eventStoreSubscription.currentResumePoint().get())
                                                                           .collect(Collectors.toList()));
             } catch (Exception e) {
-                log.error(msg("Failed to store ResumePoint's for the {} subscriber(s)", subscribers.size()), e);
+                if (IOExceptionUtil.isIOException(e)) {
+                    log.debug(msg("Failed to store ResumePoint's for the {} subscriber(s) - Experienced a Connection issue, this can happen during JVM or application shutdown", subscribers.size()));
+                } else  {
+                    log.error(msg("Failed to store ResumePoint's for the {} subscriber(s)", subscribers.size()), e);
+                }
             }
         }
 
