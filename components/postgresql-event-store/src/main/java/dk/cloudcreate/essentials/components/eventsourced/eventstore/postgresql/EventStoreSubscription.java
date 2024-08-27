@@ -24,6 +24,7 @@ import dk.cloudcreate.essentials.components.foundation.types.*;
 import org.reactivestreams.Subscription;
 
 import java.util.Optional;
+import java.util.function.Consumer;
 
 public interface EventStoreSubscription extends Lifecycle, Subscription {
     /**
@@ -52,8 +53,9 @@ public interface EventStoreSubscription extends Lifecycle, Subscription {
      *
      * @param subscribeFromAndIncludingGlobalOrder this {@link GlobalEventOrder} will become the new starting point in the
      *                                             EventStream associated with the {@link #aggregateType()}
+     * @param resetProcessor hook to add custom handling to perform when the subscriber is stopped during the reset process
      */
-    void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder);
+    void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder, Consumer<GlobalEventOrder> resetProcessor);
 
     /**
      * Get the subscriptions resume point (if supported by the subscription)
