@@ -16,14 +16,13 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage.DeliveryMode;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
-import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.slf4j.*;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -214,17 +213,20 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                 postTransactionalSideEffect.run();
             }
         } catch (Throwable e) {
-            LOG.error(msg("[{}] {} - Failed to poll queue",
-                          consumeFromQueue.consumerName,
-                          queueName), e);
+            if (IOExceptionUtil.isIOException(e)) {
+                LOG.debug(msg("[{}] {} - Experienced a Connection issue while polling queue",
+                              queueName,
+                              consumeFromQueue.consumerName), e);
+            } else {
+                LOG.error(msg("[{}] {} - Failed to poll queue",
+                              queueName,
+                              consumeFromQueue.consumerName), e);
+            }
         }
     }
 
     private void handleProcessNextMessageReadyForDeliveryException(Exception e) {
-        var rootCause = Exceptions.getRootCause(e);
-        if (e.getMessage().contains("has been closed") || e.getMessage().contains("Connection is closed") ||
-                rootCause instanceof IOException || rootCause.getClass().getSimpleName().equals("ConnectionException") ||
-                rootCause.getClass().getSimpleName().equals("MongoSocketReadException")) {
+        if (IOExceptionUtil.isIOException(e)) {
             LOG.trace(msg("[{}] {} - Experienced a Connection issue, will retry later",
                           queueName,
                           consumeFromQueue.consumerName), e);
@@ -250,7 +252,15 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                 return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
             }
         } catch (Throwable e) {
-            LOG.error(msg("[{}] Error Polling Queue", queueName), e);
+            if (IOExceptionUtil.isIOException(e)) {
+                LOG.debug(msg("[{}] {} Can't Poll Queue - Connection seems to be broken or closed, this can happen during JVM or application shutdown",
+                             queueName,
+                             consumeFromQueue.consumerName));
+            } else {
+                LOG.error(msg("[{}] {} Error Polling Queue",
+                              queueName,
+                              consumeFromQueue.consumerName), e);
+            }
             return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
         }
     }

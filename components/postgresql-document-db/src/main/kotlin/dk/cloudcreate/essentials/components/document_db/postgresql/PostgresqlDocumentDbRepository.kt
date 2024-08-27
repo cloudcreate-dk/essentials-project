@@ -107,8 +107,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
 
     private fun ensureEntityTableExists() {
         PostgresqlUtil.checkIsValidTableOrColumnName(entityConfiguration.tableName())
-        unitOfWorkFactory.usingUnitOfWork {
-            it.handle().execute(
+        unitOfWorkFactory.usingUnitOfWork { uow ->
+            uow.handle().execute(
                 """
             CREATE TABLE IF NOT EXISTS ${entityConfiguration.tableName()} (
                 id text PRIMARY KEY,
@@ -130,14 +130,14 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
         PostgresqlUtil.checkIsValidTableOrColumnName(entityConfiguration.tableName())
         val indexedFields = entityConfiguration.indexedFields()
 
-        unitOfWorkFactory.usingUnitOfWork {
+        unitOfWorkFactory.usingUnitOfWork { uow ->
             indexedFields.forEach { field ->
                 val fieldName = field.name
                 PostgresqlUtil.checkIsValidTableOrColumnName(fieldName)
 
                 val indexName = "idx_${entityConfiguration.tableName()}_${fieldName}".lowercase()
                 PostgresqlUtil.checkIsValidTableOrColumnName(indexName)
-                it.handle().execute("CREATE INDEX IF NOT EXISTS $indexName ON ${entityConfiguration.tableName()} ((data ->> '$fieldName'))")
+                uow.handle().execute("CREATE INDEX IF NOT EXISTS $indexName ON ${entityConfiguration.tableName()} ((data ->> '$fieldName'))")
                 log.info(
                     "Ensured that Entity '{}' table '{}' index '{}' exists",
                     entityConfiguration.entityClass(),
@@ -163,8 +163,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
             CREATE INDEX IF NOT EXISTS idx_${entityConfiguration.tableName()}_${index.name} ON $tableName (${properties})
         """.trimIndent()
 
-        unitOfWorkFactory.usingUnitOfWork {
-            it.handle().execute(createIndexSQL)
+        unitOfWorkFactory.usingUnitOfWork { uow ->
+            uow.handle().execute(createIndexSQL)
             log.info(
                 "Ensured index '{}' on Entity '{}' table '{}' exists",
                 index.name,
@@ -178,8 +178,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     override fun removeIndex(indexName: String): DocumentDbRepository<ENTITY, ID> {
         PostgresqlUtil.checkIsValidTableOrColumnName(indexName)
         if (indexesAdded.removeIf { it.name == indexName }) {
-            unitOfWorkFactory.usingUnitOfWork {
-                it.handle().execute("DROP INDEX IF EXISTS idx_${entityConfiguration.tableName()}_$indexName")
+            unitOfWorkFactory.usingUnitOfWork { uow ->
+                uow.handle().execute("DROP INDEX IF EXISTS idx_${entityConfiguration.tableName()}_$indexName")
                 log.info(
                     "Ensured index '{}' on Entity '{}' table '{}' was removed",
                     indexName,
@@ -237,8 +237,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
         updateVersionedEntityProperties(entity, initialVersion)
         val json = jsonSerializer.serialize(entity)
 
-        val rowsUpdated = unitOfWorkFactory.withUnitOfWork {
-            it.handle()
+        val rowsUpdated = unitOfWorkFactory.withUnitOfWork { uow ->
+            uow.handle()
                 .createUpdate("INSERT INTO ${entityConfiguration.tableName()} (id, data, version, last_updated) VALUES (:id, :data::jsonb, :version, :lastUpdated) ON CONFLICT DO NOTHING")
                 .bind("id", serializedId)
                 .bind("data", json)
@@ -283,8 +283,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
         val sql =
             "UPDATE ${entityConfiguration.tableName()} SET data = :data::jsonb, version = :nextVersion, last_updated = :lastUpdated WHERE id = :id AND version = :loadedVersion"
 
-        val rowsUpdated = unitOfWorkFactory.withUnitOfWork {
-            it.handle().createUpdate(sql)
+        val rowsUpdated = unitOfWorkFactory.withUnitOfWork { uow ->
+            uow.handle().createUpdate(sql)
                 .bind("data", json)
                 .bind("nextVersion", nextVersion)
                 .bind("loadedVersion", loadedVersion)
@@ -307,8 +307,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
 
     override fun deleteById(id: ID) {
         val serializedId = idSerializer(id)
-        unitOfWorkFactory.usingUnitOfWork {
-            var rowsUpdated = it.handle().execute("DELETE FROM ${entityConfiguration.tableName()} WHERE id = ?", serializedId)
+        unitOfWorkFactory.usingUnitOfWork { uow ->
+            var rowsUpdated = uow.handle().execute("DELETE FROM ${entityConfiguration.tableName()} WHERE id = ?", serializedId)
             if (rowsUpdated == 1) {
                 log.debug(
                     "Deleted Entity '{}' with serialized-id '{}'",
@@ -326,14 +326,14 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     }
 
     override fun find(queryBuilder: QueryBuilder<ID, ENTITY>): List<ENTITY> {
-        return unitOfWorkFactory.withUnitOfWork<List<ENTITY>> {
+        return unitOfWorkFactory.withUnitOfWork<List<ENTITY>> { uow ->
             val query = queryBuilder.build()
             log.trace(
                 "Query '{}' using SQL: '{}'",
                 entityConfiguration.entityClass().simpleName,
                 query.sql
             )
-            val result = it.handle().createQuery(query.sql)
+            val result = uow.handle().createQuery(query.sql)
             query.bindings.forEach { (key, value) ->
                 result.bind(key, value)
             }
@@ -346,8 +346,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
 
     override fun findById(id: ID): ENTITY? {
         val serializedId = idSerializer(id)
-        val matchingEntity = unitOfWorkFactory.withUnitOfWork {
-            it.handle().createQuery("SELECT data FROM ${entityConfiguration.tableName()} WHERE id = :id")
+        val matchingEntity = unitOfWorkFactory.withUnitOfWork { uow ->
+            uow.handle().createQuery("SELECT data FROM ${entityConfiguration.tableName()} WHERE id = :id")
                 .bind("id", serializedId)
                 .mapTo(String::class.java)
                 .findOne()
@@ -376,8 +376,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
 
     override fun existsById(id: ID): Boolean {
         val serializedId = idSerializer(id)
-        val exists = unitOfWorkFactory.withUnitOfWork {
-            it.handle().createQuery("SELECT COUNT(*) FROM ${entityConfiguration.tableName()} WHERE id = :id")
+        val exists = unitOfWorkFactory.withUnitOfWork { uow ->
+            uow.handle().createQuery("SELECT COUNT(*) FROM ${entityConfiguration.tableName()} WHERE id = :id")
                 .bind("id", serializedId)
                 .mapTo(Int::class.java)
                 .one() > 0
@@ -405,7 +405,7 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
             entityConfiguration.entityClass().simpleName
         )
 
-        unitOfWorkFactory.usingUnitOfWork {
+        unitOfWorkFactory.usingUnitOfWork { uow ->
             entities.forEach(this::save)
         }
         return entities.toList()
@@ -418,7 +418,7 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
             entityConfiguration.entityClass().simpleName
         )
 
-        unitOfWorkFactory.usingUnitOfWork {
+        unitOfWorkFactory.usingUnitOfWork { uow ->
             entities.forEach(this::update)
         }
         return entities.toList()
@@ -431,7 +431,7 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
             entityConfiguration.entityClass().simpleName
         )
 
-        unitOfWorkFactory.usingUnitOfWork {
+        unitOfWorkFactory.usingUnitOfWork { uow ->
             entities.forEach(this::delete)
         }
     }
@@ -452,8 +452,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     }
 
     override fun count(): Long {
-        val count = unitOfWorkFactory.withUnitOfWork {
-            it.handle().createQuery("SELECT count(*) FROM ${entityConfiguration.tableName()}")
+        val count = unitOfWorkFactory.withUnitOfWork { uow ->
+            uow.handle().createQuery("SELECT count(*) FROM ${entityConfiguration.tableName()}")
                 .mapTo(Long::class.java)
                 .one()
         }
@@ -508,8 +508,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     }
 
     override fun deleteAll() {
-        val numberOfDeletedRows = unitOfWorkFactory.withUnitOfWork {
-            it.handle().createUpdate("DELETE FROM ${entityConfiguration.tableName()}")
+        val numberOfDeletedRows = unitOfWorkFactory.withUnitOfWork { uow ->
+            uow.handle().createUpdate("DELETE FROM ${entityConfiguration.tableName()}")
                 .execute()
         }
         log.debug(
@@ -520,8 +520,8 @@ class PostgresqlDocumentDbRepository<ENTITY : VersionedEntity<ID, ENTITY>, ID>(
     }
 
     private fun executeEntityListQuery(sql: String): List<ENTITY> {
-        return unitOfWorkFactory.withUnitOfWork {
-            it.handle()
+        return unitOfWorkFactory.withUnitOfWork { uow ->
+            uow.handle()
                 .createQuery(sql)
                 .mapTo(String::class.java)
                 .map { json -> jsonSerializer.deserialize(json, entityConfiguration.entityClass().java) as ENTITY }
