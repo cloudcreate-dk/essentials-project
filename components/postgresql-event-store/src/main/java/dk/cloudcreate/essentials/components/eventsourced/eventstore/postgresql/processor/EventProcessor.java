@@ -16,53 +16,30 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.processor;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.ConfigurableEventStore;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStoreSubscription;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.FencedLockAwareSubscriber;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.SubscriptionResumePoint;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventOrder;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventType;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
-import dk.cloudcreate.essentials.components.foundation.messaging.MessageHandler;
-import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inbox;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.InboxConfig;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.InboxName;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inboxes;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.MessageConsumptionMode;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.MessageHandlerInterceptor;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.PatternMatchingMessageHandler;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.MessageMetaData;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
+import dk.cloudcreate.essentials.components.foundation.messaging.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus;
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.reactive.Handler;
-import dk.cloudcreate.essentials.reactive.command.AnnotatedCommandHandler;
-import dk.cloudcreate.essentials.reactive.command.CmdHandler;
-import dk.cloudcreate.essentials.reactive.command.CommandBus;
+import dk.cloudcreate.essentials.reactive.command.*;
 import dk.cloudcreate.essentials.types.LongRange;
-import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.slf4j.*;
+
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -397,12 +374,13 @@ public abstract class EventProcessor implements Lifecycle {
      * {@link #onSubscriptionsReset(AggregateType, GlobalEventOrder)} will be called for each {@link AggregateType}<br>
      * <br>
      * This method also calls {@link Inbox#deleteAllMessages()}
+     *
      * @see #resetSubscriptions(Map)
      */
     public void resetAllSubscriptions() {
         Map<AggregateType, GlobalEventOrder> resetParameters = eventStoreSubscriptions.stream()
-            .map(EventStoreSubscription::aggregateType)
-            .collect(toMap(identity(), aggregateType -> GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER));
+                                                                                      .map(EventStoreSubscription::aggregateType)
+                                                                                      .collect(toMap(identity(), aggregateType -> GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER));
         var resetInbox = true;
         resetSubscriptions(resetParameters, resetInbox);
     }
@@ -425,16 +403,16 @@ public abstract class EventProcessor implements Lifecycle {
         AtomicBoolean isResetInbox = new AtomicBoolean(resetInbox);
         resetAggregateSubscriptionsFromAndIncluding.forEach((aggregateType, resubscribeFromAndIncluding) -> {
             findSubscription(aggregateType).ifPresentOrElse(eventStoreSubscription -> {
-                    doResetSubscription(eventStoreSubscription, resubscribeFromAndIncluding, isResetInbox.get());
-                    isResetInbox.set(false);
-                },
-                () -> {
-                    throw new IllegalArgumentException(msg("[{}] Cannot reset subscription for {} '{}' since the {} doesn't subscribe to events for this aggregate type",
-                        getProcessorName(),
-                        AggregateType.class.getSimpleName(),
-                        aggregateType,
-                        EventProcessor.class.getSimpleName()));
-                });
+                                                                doResetSubscription(eventStoreSubscription, resubscribeFromAndIncluding, isResetInbox.get());
+                                                                isResetInbox.set(false);
+                                                            },
+                                                            () -> {
+                                                                throw new IllegalArgumentException(msg("[{}] Cannot reset subscription for {} '{}' since the {} doesn't subscribe to events for this aggregate type",
+                                                                                                       getProcessorName(),
+                                                                                                       AggregateType.class.getSimpleName(),
+                                                                                                       aggregateType,
+                                                                                                       EventProcessor.class.getSimpleName()));
+                                                            });
         });
     }
 
@@ -456,11 +434,10 @@ public abstract class EventProcessor implements Lifecycle {
         });
     }
 
-    @NotNull
     private Optional<EventStoreSubscription> findSubscription(AggregateType aggregateType) {
         return eventStoreSubscriptions.stream()
-            .filter(eventStoreSubscription -> eventStoreSubscription.aggregateType().equals(aggregateType))
-            .findFirst();
+                                      .filter(eventStoreSubscription -> eventStoreSubscription.aggregateType().equals(aggregateType))
+                                      .findFirst();
     }
 
     /**
