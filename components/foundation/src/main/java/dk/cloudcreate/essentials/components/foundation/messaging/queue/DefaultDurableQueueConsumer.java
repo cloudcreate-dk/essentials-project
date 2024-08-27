@@ -215,12 +215,12 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
         } catch (Throwable e) {
             if (IOExceptionUtil.isIOException(e)) {
                 LOG.debug(msg("[{}] {} - Experienced a Connection issue while polling queue",
-                              consumeFromQueue.consumerName,
-                              queueName), e);
+                              queueName,
+                              consumeFromQueue.consumerName), e);
             } else {
                 LOG.error(msg("[{}] {} - Failed to poll queue",
-                              consumeFromQueue.consumerName,
-                              queueName), e);
+                              queueName,
+                              consumeFromQueue.consumerName), e);
             }
         }
     }
