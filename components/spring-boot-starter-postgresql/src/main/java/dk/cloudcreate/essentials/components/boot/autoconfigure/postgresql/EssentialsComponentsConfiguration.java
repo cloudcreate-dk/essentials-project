@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.EssentialsComponentsProperties.*;
@@ -56,11 +57,15 @@ import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.event.EventListener;
+import org.springframework.context.event.*;
 import org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import java.util.*;
+
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * Postgresql focused Essentials Components auto configuration<br>
@@ -395,6 +400,34 @@ public class EssentialsComponentsConfiguration {
                          configureJdbiCallback.getClass().getName());
                 configureJdbiCallback.configure(jdbi);
             });
+        }
+    }
+
+    @Bean
+    @ConditionalOnClass(name = "org.springframework.boot.devtools.restart.RestartScope")
+    public SpringBootDevToolsClassLoaderChangeContextRefreshedListener contextRefreshedListener(JSONSerializer jsonSerializer) {
+        return new SpringBootDevToolsClassLoaderChangeContextRefreshedListener(jsonSerializer);
+    }
+
+    private static class SpringBootDevToolsClassLoaderChangeContextRefreshedListener {
+        private static final Logger log = LoggerFactory.getLogger(SpringBootDevToolsClassLoaderChangeContextRefreshedListener.class);
+        private final JacksonJSONSerializer jacksonJSONSerializer;
+
+        public SpringBootDevToolsClassLoaderChangeContextRefreshedListener(JSONSerializer jsonSerializer) {
+            requireNonNull(jsonSerializer, "No jsonSerializer provided");
+            this.jacksonJSONSerializer = jsonSerializer instanceof JacksonJSONSerializer ? (JacksonJSONSerializer) jsonSerializer : null;
+        }
+
+        @EventListener
+        public void handleContextRefresh(ContextRefreshedEvent event) {
+            if (jacksonJSONSerializer != null) {
+                log.info("Updating the '{}'s internal ObjectMapper's ClassLoader to {} from {}",
+                         jacksonJSONSerializer.getClass().getSimpleName(),
+                         event.getApplicationContext().getClassLoader(),
+                         jacksonJSONSerializer.getObjectMapper().getTypeFactory().getClassLoader()
+                        );
+                jacksonJSONSerializer.getObjectMapper().setTypeFactory(TypeFactory.defaultInstance().withClassLoader(event.getApplicationContext().getClassLoader()));
+            }
         }
     }
 }

@@ -78,8 +78,8 @@
         <json-smart.version>2.5.1</json-smart.version>
         <json-path.version>2.9.0</json-path.version>
         <snakeyaml.version>2.2</snakeyaml.version>
-        <micrometer.version>1.13.3</micrometer.version>
-        <micrometer-tracing.version>1.3.3</micrometer-tracing.version>
+        <micrometer.version>1.12.9</micrometer.version>
+        <micrometer-tracing.version>1.2.9</micrometer-tracing.version>
         <netty-bom.version>4.1.112.Final</netty-bom.version>
         <junit-bom.version>5.11.0</junit-bom.version>
         <testcontainers-bom.version>1.20.1</testcontainers-bom.version>
@@ -87,7 +87,7 @@
         <jackson-bom.version>2.17.2</jackson-bom.version>
         <reactor-bom.version>2023.0.9</reactor-bom.version>
         <spring-framework-bom.version>6.1.12</spring-framework-bom.version>
-        <mockito-bom.version>5.12.0</mockito-bom.version>
+        <mockito-bom.version>5.13.0</mockito-bom.version>
         <logback.version>1.5.7</logback.version>
         <avro.version>1.12.0</avro.version>
         <commons-compress.version>1.27.1</commons-compress.version>
@@ -103,7 +103,7 @@
         <maven-site-plugin.version>3.20.0</maven-site-plugin.version>
         <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
         <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
-        <maven-javadoc-plugin.version>3.8.0</maven-javadoc-plugin.version>
+        <maven-javadoc-plugin.version>3.7.0</maven-javadoc-plugin.version>
         <maven-failsafe-plugin.version>3.4.0</maven-failsafe-plugin.version>
         <maven-surefire-plugin.version>3.4.0</maven-surefire-plugin.version>
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
@@ -412,9 +412,6 @@
                                 <goal>jar</goal>
                             </goals>
                             <configuration>
-                                <additionalJOptions>
-                                    <additionalJOption>-J-Xmx1g</additionalJOption>
-                                </additionalJOptions>
                                 <doclint>none</doclint>
                                 <archive>
                                     <manifestEntries>

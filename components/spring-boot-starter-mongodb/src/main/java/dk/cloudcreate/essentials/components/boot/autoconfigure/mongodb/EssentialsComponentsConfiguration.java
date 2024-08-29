@@ -17,81 +17,56 @@
 package dk.cloudcreate.essentials.components.boot.autoconfigure.mongodb;
 
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.mongodb.ReadConcern;
-import com.mongodb.TransactionOptions;
-import com.mongodb.WriteConcern;
+import com.mongodb.*;
 import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockManager;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockEvents;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.LockName;
-import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
-import dk.cloudcreate.essentials.components.foundation.json.JacksonJSONSerializer;
-import dk.cloudcreate.essentials.components.foundation.lifecycle.DefaultLifecycleManager;
-import dk.cloudcreate.essentials.components.foundation.lifecycle.LifecycleManager;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.json.*;
+import dk.cloudcreate.essentials.components.foundation.lifecycle.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inboxes;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Outboxes;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueuesInterceptor;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueEntryId;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuePollingOptimizer;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerInterceptor;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerTracingInterceptor;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
-import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus;
-import dk.cloudcreate.essentials.components.foundation.reactive.command.UnitOfWorkControllingCommandBusInterceptor;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
-import dk.cloudcreate.essentials.reactive.EventBus;
-import dk.cloudcreate.essentials.reactive.EventHandler;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
-import dk.cloudcreate.essentials.reactive.OnErrorHandler;
-import dk.cloudcreate.essentials.reactive.command.CommandBus;
-import dk.cloudcreate.essentials.reactive.command.CommandHandler;
-import dk.cloudcreate.essentials.reactive.command.SendAndDontWaitErrorHandler;
+import dk.cloudcreate.essentials.reactive.*;
+import dk.cloudcreate.essentials.reactive.command.*;
 import dk.cloudcreate.essentials.reactive.command.interceptor.CommandBusInterceptor;
 import dk.cloudcreate.essentials.reactive.spring.ReactiveHandlersBeanPostProcessor;
 import dk.cloudcreate.essentials.types.CharSequenceType;
-import dk.cloudcreate.essentials.types.springdata.mongo.SingleValueTypeConverter;
-import dk.cloudcreate.essentials.types.springdata.mongo.SingleValueTypeRandomIdGenerator;
+import dk.cloudcreate.essentials.types.springdata.mongo.*;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.propagation.Propagator;
+import org.slf4j.*;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.convert.converter.Converter;
-import org.springframework.core.convert.converter.GenericConverter;
-import org.springframework.data.mongodb.MongoDatabaseFactory;
-import org.springframework.data.mongodb.MongoTransactionManager;
+import org.springframework.context.event.EventListener;
+import org.springframework.context.event.*;
+import org.springframework.core.convert.converter.*;
+import org.springframework.data.mongodb.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
+
+import java.util.*;
+import java.util.function.Function;
+
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * MongoDB focused Essentials Components auto configuration<br>
@@ -471,4 +446,31 @@ public class EssentialsComponentsConfiguration {
         return new DefaultLifecycleManager(properties.getLifeCycles().isStartLifeCycles());
     }
 
+    @Bean
+    @ConditionalOnClass(name = "org.springframework.boot.devtools.restart.RestartScope")
+    public SpringBootDevToolsClassLoaderChangeContextRefreshedListener contextRefreshedListener(JSONSerializer jsonSerializer) {
+        return new SpringBootDevToolsClassLoaderChangeContextRefreshedListener(jsonSerializer);
+    }
+
+    private static class SpringBootDevToolsClassLoaderChangeContextRefreshedListener {
+        private static final Logger log = LoggerFactory.getLogger(SpringBootDevToolsClassLoaderChangeContextRefreshedListener.class);
+        private final JacksonJSONSerializer jacksonJSONSerializer;
+
+        public SpringBootDevToolsClassLoaderChangeContextRefreshedListener(JSONSerializer jsonSerializer) {
+            requireNonNull(jsonSerializer, "No jsonSerializer provided");
+            this.jacksonJSONSerializer = jsonSerializer instanceof JacksonJSONSerializer ? (JacksonJSONSerializer) jsonSerializer : null;
+        }
+
+        @EventListener
+        public void handleContextRefresh(ContextRefreshedEvent event) {
+            if (jacksonJSONSerializer != null) {
+                log.info("Updating the '{}'s internal ObjectMapper's ClassLoader to {} from {}",
+                         jacksonJSONSerializer.getClass().getSimpleName(),
+                         event.getApplicationContext().getClassLoader(),
+                         jacksonJSONSerializer.getObjectMapper().getTypeFactory().getClassLoader()
+                        );
+                jacksonJSONSerializer.getObjectMapper().setTypeFactory(TypeFactory.defaultInstance().withClassLoader(event.getApplicationContext().getClassLoader()));
+            }
+        }
+    }
 }

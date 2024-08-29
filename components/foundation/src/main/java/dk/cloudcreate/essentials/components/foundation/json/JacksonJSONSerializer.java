@@ -90,4 +90,13 @@ public class JacksonJSONSerializer implements JSONSerializer {
                                                    e);
         }
     }
+
+    /**
+     * Direct access to the internal {@link ObjectMapper} used by the {@link JacksonJSONSerializer} (or subclasses)
+     *
+     * @return the internal {@link ObjectMapper}
+     */
+    public ObjectMapper getObjectMapper() {
+        return objectMapper;
+    }
 }
