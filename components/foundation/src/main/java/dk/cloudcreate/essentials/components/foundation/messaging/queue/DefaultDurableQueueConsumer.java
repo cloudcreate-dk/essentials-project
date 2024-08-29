@@ -256,8 +256,8 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
         } catch (Throwable e) {
             if (IOExceptionUtil.isIOException(e)) {
                 LOG.debug(msg("[{}] {} Can't Poll Queue - Connection seems to be broken or closed, this can happen during JVM or application shutdown",
-                             queueName,
-                             consumeFromQueue.consumerName));
+                              queueName,
+                              consumeFromQueue.consumerName));
             } else {
                 LOG.error(msg("[{}] {} Error Polling Queue",
                               queueName,
@@ -303,28 +303,25 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
             orderedMessageDeliveryThreads.remove(Thread.currentThread());
             return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
         } catch (Throwable e) {
-            MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - QueueMessageHandler for failed to handle message: {}",
-                                                   queueName,
-                                                   queuedMessage.getId(),
-                                                   consumeFromQueue.consumerName,
-                                                   queuedMessage), e);
             var isPermanentError = isPermanentError(queuedMessage, e);
             if (isPermanentError || queuedMessage.getTotalDeliveryAttempts() >= consumeFromQueue.getRedeliveryPolicy().maximumNumberOfRedeliveries + 1) {
                 // Dead letter message
                 if (isPermanentError) {
-                    MESSAGE_HANDLING_FAILURE_LOG.error("[{}:{}] {} - Marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
-                                                      queueName,
-                                                      queuedMessage.getId(),
-                                                      consumeFromQueue.consumerName,
-                                                      isPermanentError,
-                                                      queuedMessage);
+                    MESSAGE_HANDLING_FAILURE_LOG.error(msg("[{}:{}] {} - Marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
+                                                           queueName,
+                                                           queuedMessage.getId(),
+                                                           consumeFromQueue.consumerName,
+                                                           isPermanentError,
+                                                           queuedMessage),
+                                                       e);
                 } else {
-                    MESSAGE_HANDLING_FAILURE_LOG.warn("[{}:{}] {} - Too many deliveries, marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
-                                                       queueName,
-                                                       queuedMessage.getId(),
-                                                       consumeFromQueue.consumerName,
-                                                       isPermanentError,
-                                                       queuedMessage);
+                    MESSAGE_HANDLING_FAILURE_LOG.warn(msg("[{}:{}] {} - Too many deliveries, marking Message as Dead Letter. Is Permanent Error: {}. Message: {}",
+                                                          queueName,
+                                                          queuedMessage.getId(),
+                                                          consumeFromQueue.consumerName,
+                                                          isPermanentError,
+                                                          queuedMessage),
+                                                      e);
                 }
 
                 try {
@@ -332,25 +329,41 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                     orderedMessageDeliveryThreads.remove(Thread.currentThread());
                     return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
                 } catch (Throwable ex) {
-                    MESSAGE_HANDLING_FAILURE_LOG.error(msg("[{}:{}] {} - Failed to mark the Message as a Dead Letter Message. Details: Is Permanent Error: {}. Message: {}",
-                                                           queueName,
-                                                           queuedMessage.getId(),
-                                                           consumeFromQueue.consumerName,
-                                                           isPermanentError,
-                                                           queuedMessage), ex);
+                    var msg = msg("[{}:{}] {} - Failed to mark the Message as a Dead Letter Message. Details: Is Permanent Error: {}. Message: {}",
+                                  queueName,
+                                  queuedMessage.getId(),
+                                  consumeFromQueue.consumerName,
+                                  isPermanentError,
+                                  queuedMessage);
+                    MESSAGE_HANDLING_FAILURE_LOG.error(msg, ex);
+                    if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
+                        // throw Exception to rollback unit of work
+                        throw new DurableQueueException(msg, ex, queueName);
+                    }
                     // Note: Don't clean up orderedMessageDeliveryThreads yet
                     return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
                 }
             } else {
+                if (MESSAGE_HANDLING_FAILURE_LOG.isTraceEnabled()) {
+                    MESSAGE_HANDLING_FAILURE_LOG.trace(msg("[{}:{}] {} - QueueMessageHandler for failed to handle message: {}",
+                                                           queueName,
+                                                           queuedMessage.getId(),
+                                                           consumeFromQueue.consumerName,
+                                                           queuedMessage),
+                                                       e);
+                }
                 // Redeliver later
                 var redeliveryDelay = consumeFromQueue.getRedeliveryPolicy().calculateNextRedeliveryDelay(queuedMessage.getRedeliveryAttempts());
-                MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Using redeliveryDelay '{}' for QueueEntryId '{}' due to: {}",
-                                                       queueName,
-                                                       queuedMessage.getId(),
-                                                       consumeFromQueue.consumerName,
-                                                       redeliveryDelay,
-                                                       queuedMessage.getId(),
-                                                       e.getMessage()));
+                if (MESSAGE_HANDLING_FAILURE_LOG.isDebugEnabled()) {
+                    MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Will redeliver failed message with redeliveryDelay '{}'. Number of Redelivery-Attempts so far: {}",
+                                                           queueName,
+                                                           queuedMessage.getId(),
+                                                           consumeFromQueue.consumerName,
+                                                           redeliveryDelay,
+                                                           queuedMessage.getRedeliveryAttempts()
+                                                          ),
+                                                       e);
+                }
                 try {
                     // Don't update the polling optimizer as the message stays in the queue
                     durableQueues.retryMessage(queuedMessage.getId(),
@@ -361,16 +374,21 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                 } catch (Throwable ex) {
                     if (ex.getMessage().contains("Interrupted waiting for lock")) {
                         // Usually happening when SpringBoot is performing an unclean shutdown
-                        MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Failed to register the message for retry.",
+                        MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Failed to register the message for delayed retry. This can typically happen during JVM or Application shutdown",
                                                                queueName,
                                                                queuedMessage.getId(),
                                                                consumeFromQueue.consumerName), ex);
 
                     } else {
-                        MESSAGE_HANDLING_FAILURE_LOG.error(msg("[{}:{}] {} - Failed to register the message for retry.",
-                                                               queueName,
-                                                               queuedMessage.getId(),
-                                                               consumeFromQueue.consumerName), ex);
+                        var msg = msg("[{}:{}] {} - Failed to register the message for delayed retry.",
+                                      queueName,
+                                      queuedMessage.getId(),
+                                      consumeFromQueue.consumerName);
+                        MESSAGE_HANDLING_FAILURE_LOG.error(msg, ex);
+                        if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
+                            // throw Exception to rollback unit of work
+                            throw new DurableQueueException(msg, ex, queueName);
+                        }
                     }
                     // Note: Don't clean up orderedMessageDeliveryThreads yet
                     return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
