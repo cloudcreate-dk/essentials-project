@@ -23,6 +23,10 @@ import java.util.Random;
 public class OrderId extends LongType<OrderId> implements Identifier {
     private static Random RANDOM_ID_GENERATOR = new Random();
 
+    public OrderId(Number value) {
+        super(value.longValue());
+    }
+
     public OrderId(Long value) {
         super(value);
     }

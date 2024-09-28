@@ -27,6 +27,10 @@ public class AccountId extends LongType<AccountId> implements Identifier {
         super(value);
     }
 
+    public AccountId(Number value) {
+        super(value.longValue());
+    }
+
     public static AccountId of(long value) {
         return new AccountId(value);
     }

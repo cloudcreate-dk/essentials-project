@@ -25,6 +25,10 @@ public class ProductId extends CharSequenceType<ProductId> implements Identifier
         super(value);
     }
 
+    public ProductId(String value) {
+        super(value);
+    }
+
     public static ProductId of(CharSequence value) {
         return new ProductId(value);
     }

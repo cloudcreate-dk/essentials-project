@@ -30,6 +30,10 @@ public final class Percentage extends BigDecimalType<Percentage> {
         super(validate(value));
     }
 
+    public Percentage(Number value) {
+        super(validate(BigDecimal.valueOf(value.doubleValue())));
+    }
+
     private static BigDecimal validate(BigDecimal value) {
         requireNonNull(value, "value is null");
         return value.scale() < 2 ? value.setScale(2) : value;

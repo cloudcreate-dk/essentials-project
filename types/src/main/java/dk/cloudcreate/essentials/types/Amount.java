@@ -33,6 +33,10 @@ public final class Amount extends BigDecimalType<Amount> {
         super(value);
     }
 
+    public Amount(double value) {
+        super(BigDecimal.valueOf(value));
+    }
+
     public Amount(long value) {
         super(BigDecimal.valueOf(value));
     }
