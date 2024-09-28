@@ -465,13 +465,44 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueEntryId                    the unique id of the message that must be marked as a Dead Letter Message
-     * @param causeForBeingMarkedAsDeadLetter the reason for the message being marked as a Dead Letter Message
+     * @param causeForBeingMarkedAsDeadLetter the optional reason for the message being marked as a Dead Letter Message
      * @return the {@link QueuedMessage} message wrapped in an {@link Optional} if the operation was successful, otherwise it returns an {@link Optional#empty()}
      */
     default Optional<QueuedMessage> markAsDeadLetterMessage(QueueEntryId queueEntryId,
                                                             Throwable causeForBeingMarkedAsDeadLetter) {
         return markAsDeadLetterMessage(new MarkAsDeadLetterMessage(queueEntryId,
                                                                    causeForBeingMarkedAsDeadLetter));
+    }
+
+    /**
+     * Mark an already Queued Message as a Dead Letter Message (or Poison Message).<br>
+     * Dead Letter Messages won't be delivered to any {@link DurableQueueConsumer} (called by the {@link DurableQueueConsumer})<br>
+     * To deliver a Dead Letter Message you must first resurrect the message using {@link #resurrectDeadLetterMessage(QueueEntryId, Duration)}<br>
+     * Note this method MUST be called within an existing {@link UnitOfWork} IF
+     * using {@link TransactionalMode#FullyTransactional}
+     *
+     * @param queueEntryId                    the unique id of the message that must be marked as a Dead Letter Message
+     * @param causeForBeingMarkedAsDeadLetter the optional reason for the message being marked as a Dead Letter Message
+     * @return the {@link QueuedMessage} message wrapped in an {@link Optional} if the operation was successful, otherwise it returns an {@link Optional#empty()}
+     */
+    default Optional<QueuedMessage> markAsDeadLetterMessage(QueueEntryId queueEntryId,
+                                                            String causeForBeingMarkedAsDeadLetter) {
+        return markAsDeadLetterMessage(new MarkAsDeadLetterMessage(queueEntryId,
+                                                                   causeForBeingMarkedAsDeadLetter));
+    }
+
+    /**
+     * Mark an already Queued Message as a Dead Letter Message (or Poison Message).<br>
+     * Dead Letter Messages won't be delivered to any {@link DurableQueueConsumer} (called by the {@link DurableQueueConsumer})<br>
+     * To deliver a Dead Letter Message you must first resurrect the message using {@link #resurrectDeadLetterMessage(QueueEntryId, Duration)}<br>
+     * Note this method MUST be called within an existing {@link UnitOfWork} IF
+     * using {@link TransactionalMode#FullyTransactional}
+     *
+     * @param queueEntryId                    the unique id of the message that must be marked as a Dead Letter Message
+     * @return the {@link QueuedMessage} message wrapped in an {@link Optional} if the operation was successful, otherwise it returns an {@link Optional#empty()}
+     */
+    default Optional<QueuedMessage> markAsDeadLetterMessage(QueueEntryId queueEntryId) {
+        return markAsDeadLetterMessage(new MarkAsDeadLetterMessage(queueEntryId));
     }
 
     /**

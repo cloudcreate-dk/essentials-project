@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue.operatio
 
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
 
 import java.time.Duration;
@@ -34,7 +35,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  */
 public final class MarkAsDeadLetterMessage {
     public final QueueEntryId queueEntryId;
-    private      Throwable    causeForBeingMarkedAsDeadLetter;
+    private      String       causeForBeingMarkedAsDeadLetter;
 
     /**
      * Create a new builder that produces a new {@link MarkAsDeadLetterMessage} instance
@@ -52,15 +53,39 @@ public final class MarkAsDeadLetterMessage {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueEntryId                    the unique id of the message that must be marked as a Dead Letter Message
-     * @param causeForBeingMarkedAsDeadLetter the reason for the message being marked as a Dead Letter Message
+     */
+    public MarkAsDeadLetterMessage(QueueEntryId queueEntryId) {
+        this(queueEntryId, (String) null);
+    }
+
+    /**
+     * Mark a Message as a Dead Letter Message (or Poison Message).  Dead Letter Messages won't be delivered to any {@link DurableQueueConsumer} (called by the {@link DurableQueueConsumer})<br>
+     * To deliver a Dead Letter Message you must first resurrect the message using {@link DurableQueues#resurrectDeadLetterMessage(QueueEntryId, Duration)}<br>
+     * Note this method MUST be called within an existing {@link UnitOfWork} IF
+     * using {@link TransactionalMode#FullyTransactional}
+     *
+     * @param queueEntryId                    the unique id of the message that must be marked as a Dead Letter Message
+     * @param causeForBeingMarkedAsDeadLetter the optional reason for the message being marked as a Dead Letter Message
      */
     public MarkAsDeadLetterMessage(QueueEntryId queueEntryId, Throwable causeForBeingMarkedAsDeadLetter) {
+        this(queueEntryId, causeForBeingMarkedAsDeadLetter != null ? Exceptions.getStackTrace(causeForBeingMarkedAsDeadLetter) : null);
+    }
+
+    /**
+     * Mark a Message as a Dead Letter Message (or Poison Message).  Dead Letter Messages won't be delivered to any {@link DurableQueueConsumer} (called by the {@link DurableQueueConsumer})<br>
+     * To deliver a Dead Letter Message you must first resurrect the message using {@link DurableQueues#resurrectDeadLetterMessage(QueueEntryId, Duration)}<br>
+     * Note this method MUST be called within an existing {@link UnitOfWork} IF
+     * using {@link TransactionalMode#FullyTransactional}
+     *
+     * @param queueEntryId                    the unique id of the message that must be marked as a Dead Letter Message
+     * @param causeForBeingMarkedAsDeadLetter the optional reason for the message being marked as a Dead Letter Message
+     */
+    public MarkAsDeadLetterMessage(QueueEntryId queueEntryId, String causeForBeingMarkedAsDeadLetter) {
         this.queueEntryId = requireNonNull(queueEntryId, "No queueEntryId provided");
         this.causeForBeingMarkedAsDeadLetter = causeForBeingMarkedAsDeadLetter;
     }
 
     /**
-     *
      * @return the unique id of the message that must be marked as a Dead Letter Message
      */
     public QueueEntryId getQueueEntryId() {
@@ -68,18 +93,23 @@ public final class MarkAsDeadLetterMessage {
     }
 
     /**
-     *
      * @return the reason for the message being marked as a Dead Letter Message
      */
-    public Throwable getCauseForBeingMarkedAsDeadLetter() {
+    public String getCauseForBeingMarkedAsDeadLetter() {
         return causeForBeingMarkedAsDeadLetter;
     }
 
     /**
-     *
      * @param causeForBeingMarkedAsDeadLetter the reason for the message being marked as a Dead Letter Message
      */
     public void setCauseForBeingMarkedAsDeadLetter(Throwable causeForBeingMarkedAsDeadLetter) {
+        this.causeForBeingMarkedAsDeadLetter = causeForBeingMarkedAsDeadLetter != null ? Exceptions.getStackTrace(causeForBeingMarkedAsDeadLetter) : null;
+    }
+
+    /**
+     * @param causeForBeingMarkedAsDeadLetter the reason for the message being marked as a Dead Letter Message
+     */
+    public void setCauseForBeingMarkedAsDeadLetter(String causeForBeingMarkedAsDeadLetter) {
         this.causeForBeingMarkedAsDeadLetter = causeForBeingMarkedAsDeadLetter;
     }
 
@@ -93,6 +123,5 @@ public final class MarkAsDeadLetterMessage {
 
     public void validate() {
         requireNonNull(queueEntryId, "You must provide a queueEntryId");
-        requireNonNull(causeForBeingMarkedAsDeadLetter, "You must provide a causeForBeingMarkedAsDeadLetter");
     }
 }

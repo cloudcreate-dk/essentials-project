@@ -797,7 +797,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                                             " WHERE id = :id AND is_dead_letter_message = FALSE\n" +
                                                                                                                                             " RETURNING *",
                                                                                                                                     arg("tableName", sharedQueueTableName)))
-                                                                                 .bind("lastDeliveryError", Exceptions.getStackTrace(operation.getCauseForBeingMarkedAsDeadLetter()))
+                                                                                 .bind("lastDeliveryError", operation.getCauseForBeingMarkedAsDeadLetter())
                                                                                  .bind("id", operation.queueEntryId)
                                                                                  .map(queuedMessageMapper)
                                                                                  .findOne();
@@ -859,7 +859,21 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                                                       (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                                                       () -> {
                                                                                           log.debug("Acknowledging-Message-As-Handled regarding Message with id '{}'", operation.queueEntryId);
-                                                                                          return deleteMessage(new DeleteMessage(operation.queueEntryId));
+                                                                                          var queueEntryId = operation.queueEntryId;
+                                                                                          var rowsUpdated = unitOfWorkFactory.getRequiredUnitOfWork().handle().createUpdate(bind("DELETE FROM {:tableName} WHERE id = :id AND is_dead_letter_message = FALSE",
+                                                                                                                                                                                 arg("tableName", sharedQueueTableName)))
+                                                                                                                             .bind("id", operation.queueEntryId)
+                                                                                                                             .execute();
+                                                                                          if (rowsUpdated == 1) {
+                                                                                              log.debug("Acknowledged message as handled and deleted it. Id: '{}'", queueEntryId);
+                                                                                              return true;
+                                                                                          } else if (getDeadLetterMessage(new GetDeadLetterMessage(operation.queueEntryId)).isPresent()) {
+                                                                                              log.debug("Couldn't acknowledge message as it was marked as a Dead-Letter-Message during the message handling. Id: '{}'", queueEntryId);
+                                                                                              return true;
+                                                                                          } else {
+                                                                                              log.error("Couldn't Acknowledge with id '{}' - it may already have been deleted", queueEntryId);
+                                                                                              return false;
+                                                                                          }
                                                                                       })
                 .proceed());
 
