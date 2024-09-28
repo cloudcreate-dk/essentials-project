@@ -60,8 +60,13 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
 
     protected abstract LOCK_MANAGER createLockManagerNode1();
 
+    protected abstract void disruptDatabaseConnection();
+
+    protected abstract void restoreDatabaseConnection();
+
     @AfterEach
     void cleanup() {
+        System.out.println("*******  Cleaning up  *******");
         if (lockManagerNode1 != null) {
             lockManagerNode1.stop();
             lockManagerNode1 = null;
@@ -309,7 +314,7 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         assertThat((CharSequence) lockNode2Callback.lockAcquired.getName()).isEqualTo(lockName);
         assertThat(lockNode2Callback.lockAcquired.isLockedByThisLockManagerInstance()).isTrue();
         assertThat(lockNode2Callback.lockAcquired.getLockAcquiredTimestamp()).isAfter(lastLockConfirmedTimestamp);
-        assertThat(lockNode2Callback.lockAcquired.getCurrentToken()).isEqualTo(lockNode1Callback.lockReleased.getCurrentToken() + 1L);
+        assertThat(lockNode2Callback.lockAcquired.getCurrentToken()).isEqualTo(lockManagerNode1.getInitialTokenValue() + 1L);
 
         assertThat(lockManagerNode1.isLockedByThisLockManagerInstance(lockName)).isFalse();
         assertThat(lockManagerNode1.isLockAcquired(lockName)).isTrue();
@@ -358,6 +363,7 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         // Node 2 must not be able to acquire the same lock
         assertThat(lockNode2Callback.lockAcquired).isNull();
         assertThat(lockNode2Callback.lockReleased).isNull();
+        assertThat(lockNode1Callback.lockReleased).isNull();
 
         // When we pause lock confirmation (e.g. simulating a long GC pause)
         lockManagerNode1.pause();
@@ -368,7 +374,7 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         lockManagerNode1.resume();
         assertThat(lockNode2Callback.lockAcquired.isLocked()).isTrue();
         assertThat((CharSequence) lockNode2Callback.lockAcquired.getName()).isEqualTo(lockName);
-        assertThat(lockNode2Callback.lockAcquired.getCurrentToken()).isEqualTo(lockNode1Callback.lockAcquired.getCurrentToken() + 1L);
+        assertThat(lockNode2Callback.lockAcquired.getCurrentToken()).isEqualTo(lockManagerNode1.getInitialTokenValue() + 1L);
         assertThat(lockNode2Callback.lockAcquired.isLockedByThisLockManagerInstance()).isTrue();
 
         // Then we should be notified that the lock was released on node 1
@@ -387,6 +393,95 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         assertThat(lockManagerNode2.isLockAcquiredByAnotherLockManagerInstance(lockName)).isFalse();
     }
 
+    @Test
+    void verify_loosing_db_connection_no_locks_are_released() throws InterruptedException {
+
+        // Given
+        var lockName = LockName.of("testLock");
+        assertThat(lockManagerNode1.isLockedByThisLockManagerInstance(lockName)).isFalse();
+        assertThat(lockManagerNode1.isLockAcquiredByAnotherLockManagerInstance(lockName)).isFalse();
+        assertThat(lockManagerNode2.isLockedByThisLockManagerInstance(lockName)).isFalse();
+        assertThat(lockManagerNode2.isLockAcquiredByAnotherLockManagerInstance(lockName)).isFalse();
+        assertThat(lockManagerNode1.isLockAcquired(lockName)).isFalse();
+        assertThat(lockManagerNode2.isLockAcquired(lockName)).isFalse();
+
+        var lockNode1Callback = new TestLockCallback();
+        var lockNode2Callback = new TestLockCallback();
+
+        // When
+        lockManagerNode1.acquireLockAsync(lockName, lockNode1Callback);
+        Awaitility.waitAtMost(Duration.ofSeconds(5))
+                  .untilAsserted(() -> assertThat(lockManagerNode1.isLockedByThisLockManagerInstance(lockName)).isTrue());
+        lockManagerNode2.acquireLockAsync(lockName, lockNode2Callback);
+        Thread.sleep(1000);
+
+        // Then
+        assertThat(lockManagerNode1.isLockedByThisLockManagerInstance(lockName)).isTrue();
+        assertThat(lockManagerNode1.isLockAcquiredByAnotherLockManagerInstance(lockName)).isFalse();
+        assertThat(lockManagerNode1.isLockAcquired(lockName)).isTrue();
+        assertThat(lockManagerNode2.isLockedByThisLockManagerInstance(lockName)).isFalse();
+        assertThat(lockManagerNode2.isLockAcquiredByAnotherLockManagerInstance(lockName)).isTrue();
+        assertThat(lockManagerNode2.isLockAcquired(lockName)).isTrue();
+        // And
+        assertThat(lockNode1Callback.lockAcquired).isNotNull();
+        assertThat(lockNode1Callback.lockReleased).isNull();
+        assertThat(lockNode1Callback.lockAcquired.isLocked());
+        assertThat((CharSequence) lockNode1Callback.lockAcquired.getName()).isEqualTo(lockName);
+        assertThat(lockNode1Callback.lockAcquired.getCurrentToken()).isEqualTo(lockManagerNode1.getInitialTokenValue());
+        assertThat(lockNode1Callback.lockAcquired.isLockedByThisLockManagerInstance());
+
+        // Node 2 must not be able to acquire the same lock
+        assertThat(lockNode2Callback.lockAcquired).isNull();
+        assertThat(lockNode2Callback.lockReleased).isNull();
+        assertThat(lockNode1Callback.lockReleased).isNull();
+
+        // When disrupt network connection for both nodes
+        System.out.println("------ Disrupting the database connection ------");
+        disruptDatabaseConnection();
+
+        // Then Node 1 should NOT have released the lock and node 2 should not have acquired the lock
+        Thread.sleep(5000);
+        System.out.println("------ Checking the node 1 didn't release the lock ------");
+        assertThat(lockNode1Callback.lockReleased).isNull();
+        assertThat(lockNode1Callback.lockAcquired.isLocked()).isTrue();
+        assertThat(lockNode1Callback.lockAcquired.isLockedByThisLockManagerInstance()).isTrue();
+        assertThat(lockNode1Callback.lockAcquired.getCurrentToken()).isEqualTo(lockManagerNode1.getInitialTokenValue());
+        assertThat(lockNode2Callback.lockAcquired).isNull();
+        assertThat(lockNode2Callback.lockReleased).isNull();
+
+        // Restoring the connection could potentially result in node 2 overtaking the timed out lock
+        System.out.println("------ Restoring the database connection ------");
+        restoreDatabaseConnection();
+
+        Thread.sleep(7000);
+        System.out.println("------ Checking which node has the lock ------");
+        if (lockNode1Callback.lockReleased != null) {
+            System.out.println("====== Node 1 lost the lock and node 2 should have acquired it ======");
+            assertThat(lockNode2Callback.lockAcquired).isNotNull();
+            assertThat(lockNode2Callback.lockReleased).isNull();
+            assertThat(lockManagerNode2.isLockAcquiredByAnotherLockManagerInstance(lockName)).isFalse();
+            assertThat(lockManagerNode2.isLockedByThisLockManagerInstance(lockName)).isTrue();
+            assertThat(lockManagerNode2.isLockAcquired(lockName)).isTrue();
+            System.out.println("Lock token in DB " + lockManagerNode2.lookupLock(lockName).get().getCurrentToken());
+            assertThat(lockNode2Callback.lockAcquired.getCurrentToken()).isEqualTo(lockManagerNode2.getInitialTokenValue()+1);
+            assertThat(lockManagerNode1.isLockedByThisLockManagerInstance(lockName)).isFalse();
+            assertThat(lockManagerNode1.isLockAcquired(lockName)).isTrue();
+            assertThat(lockManagerNode1.isLockAcquiredByAnotherLockManagerInstance(lockName)).isTrue();
+        } else {
+            System.out.println("====== Node 1 kept the lock and node 2 should not have acquired it ======");
+            assertThat(lockNode2Callback.lockAcquired).isNull();
+            assertThat(lockNode2Callback.lockReleased).isNull();
+            assertThat(lockNode1Callback.lockReleased).isNull();
+            assertThat(lockManagerNode1.isLockAcquiredByAnotherLockManagerInstance(lockName)).isFalse();
+            assertThat(lockManagerNode1.isLockedByThisLockManagerInstance(lockName)).isTrue();
+            assertThat(lockManagerNode1.isLockAcquired(lockName)).isTrue();
+            assertThat(lockNode1Callback.lockAcquired.getCurrentToken()).isEqualTo(lockManagerNode1.getInitialTokenValue());
+            assertThat(lockManagerNode2.isLockedByThisLockManagerInstance(lockName)).isFalse();
+            assertThat(lockManagerNode2.isLockAcquired(lockName)).isTrue();
+            assertThat(lockManagerNode2.isLockAcquiredByAnotherLockManagerInstance(lockName)).isTrue();
+        }
+    }
+
     private static class TestLockCallback implements LockCallback {
         FencedLock lockReleased;
         FencedLock lockAcquired;
@@ -399,6 +494,11 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         @Override
         public void lockReleased(FencedLock lock) {
             this.lockReleased = lock;
+        }
+
+        public void reset() {
+            lockReleased = null;
+            lockAcquired = null;
         }
     }
 }

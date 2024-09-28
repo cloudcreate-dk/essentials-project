@@ -23,7 +23,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
 import org.springframework.data.mongodb.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.convert.MongoConverter;
 import org.springframework.test.context.*;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.*;
@@ -74,6 +73,19 @@ class MongoFencedLockManagerIT extends DBFencedLockManagerIT<MongoFencedLockMana
                                           Duration.ofSeconds(3),
                                           Duration.ofSeconds(1),
                                           Optional.empty());
+    }
+
+
+    @Override
+    protected void disruptDatabaseConnection() {
+        var dockerClient = mongoDBContainer.getDockerClient();
+        dockerClient.pauseContainerCmd(mongoDBContainer.getContainerId()).exec();
+    }
+
+    @Override
+    protected void restoreDatabaseConnection() {
+        var dockerClient = mongoDBContainer.getDockerClient();
+        dockerClient.unpauseContainerCmd(mongoDBContainer.getContainerId()).exec();
     }
 
     @Test

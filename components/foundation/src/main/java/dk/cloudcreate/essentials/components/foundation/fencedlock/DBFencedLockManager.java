@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.fencedlock;
 
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockEvents.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.*;
@@ -116,7 +117,10 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                  lockStorage.getClass().getName(),
                  lockConfirmationInterval.toMillis(),
                  lockTimeOut.toMillis());
-        usingUnitOfWork(uow -> lockStorage.initializeLockStorage(this, uow));
+        usingUnitOfWork(uow -> lockStorage.initializeLockStorage(this, uow),
+                        e -> {
+                            throw new IllegalStateException(msg("[{}] Failed to initialize lock storage", lockManagerInstanceId), e);
+                        });
     }
 
     @Override
@@ -197,7 +201,12 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                     try {
                         confirmedWithSuccess = lockStorage.confirmLockInDB(this, uow, fencedLock, confirmedTimestamp);
                     } catch (Exception e) {
-                        log.error(msg("[{}] Technical failure while attempting to perform confirmLockInDB for '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock), e);
+                        if (IOExceptionUtil.isIOException(e)) {
+                            log.debug(msg("[{}] IO related failure while attempting to perform confirmLockInDB for '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock), e);
+                            return;
+                        } else {
+                            log.error(msg("[{}] Technical failure while attempting to perform confirmLockInDB for '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock), e);
+                        }
                     }
                     if (confirmedWithSuccess) {
                         fencedLock.markAsConfirmed(confirmedTimestamp);
@@ -216,14 +225,12 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                     log.error(msg("[{}] Technical failure while trying to confirm lock '{}'", lockManagerInstanceId, fencedLock.getName()), e);
                 }
             });
-        });
+        }, e -> log.error("[{}] Failed to acknowledge the {} locks acquired by this Lock Manager Instance", lockManagerInstanceId, locksAcquiredByThisLockManager.size(), e));
         if (log.isTraceEnabled()) {
             log.trace("[{}] Completed confirmation of locks acquired by this Lock Manager Instance. Number of Locks acquired locally after confirmation {}: {}", lockManagerInstanceId, locksAcquiredByThisLockManager.size(), locksAcquiredByThisLockManager.keySet());
         } else {
             log.debug("[{}] Completed confirmation of locks acquired by this Lock Manager Instance. Number of Locks acquired locally after confirmation {}", lockManagerInstanceId, locksAcquiredByThisLockManager.size());
         }
-
-
     }
 
 
@@ -236,7 +243,11 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
         requireNonNull(lock, "No lock was provided");
         if (locksAcquiredByThisLockManager.containsKey(lock.getName())) {
             locksAcquiredByThisLockManager.remove(lock.getName());
-            var releaseWithSuccess = withUnitOfWork(uow -> lockStorage.releaseLockInDB(this, uow, lock));
+            var releaseWithSuccess = withUnitOfWork(uow -> lockStorage.releaseLockInDB(this, uow, lock),
+                                                    e -> {
+                                                        log.error("[{}] Failed to release lock '{}'", lockManagerInstanceId, lock.getName(), e);
+                                                        return false;
+                                                    });
             lock.markAsReleased();
             notify(new LockReleased(lock, this));
             if (releaseWithSuccess) {
@@ -247,7 +258,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                     lockStorage.lookupLockInDB(this, uow, lock.getName()).ifPresent(lockAcquiredByAnotherLockManager -> {
                         log.debug("[{}] Couldn't release Lock '{}' as it was already acquired by another JVM Node: {}", lockManagerInstanceId, lock.getName(), lockAcquiredByAnotherLockManager.getLockedByLockManagerInstanceId());
                     });
-                });
+                }, e -> log.debug("[{}] Couldn't release Lock '{}' and failed to look-up which node has acquired the lock", lockManagerInstanceId, lock.getName(), e));
             }
         }
 
@@ -261,7 +272,11 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
             throw new IllegalStateException(msg("The {} isn't started", this.getClass().getSimpleName()));
         }
 
-        var fencedLock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName).map(FencedLock.class::cast));
+        var fencedLock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName).map(FencedLock.class::cast),
+                                        e -> {
+                                            log.trace("[{}] Failed to lookup lock '{}'", lockManagerInstanceId, lockName, e);
+                                            return Optional.<FencedLock>empty();
+                                        });
         log.trace("[{}] Lookup FencedLock with name '{}' result: {}",
                   lockManagerInstanceId,
                   lockName,
@@ -342,6 +357,9 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
             var lock = lockStorage.lookupLockInDB(this, uow, lockName)
                                   .orElseGet(() -> lockStorage.createUninitializedLock(this, lockName));
             return resolveLock(uow, lock);
+        }, e -> {
+            log.debug("[{}] Failed to lookup lock '{}'", lockManagerInstanceId, lockName, e);
+            return Mono.empty();
         });
     }
 
@@ -455,29 +473,32 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
 
     @Override
     public boolean isLockAcquired(LockName lockName) {
-        var lock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName));
-        if (lock.isEmpty()) {
-            return false;
-        }
-        return lock.get().isLocked();
+        var lock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName),
+                                  e -> {
+                                      log.debug("[{}] Failed to lookup lock '{}'", lockManagerInstanceId, lockName, e);
+                                      return Optional.<FencedLock>empty();
+                                  });
+        return lock.map(FencedLock::isLocked).orElse(false);
     }
 
     @Override
     public boolean isLockedByThisLockManagerInstance(LockName lockName) {
-        var lock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName));
-        if (lock.isEmpty()) {
-            return false;
-        }
-        return lock.get().isLockedByThisLockManagerInstance();
+        var lock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName),
+                                  e -> {
+                                      log.debug("[{}] Failed to lookup lock '{}'", lockManagerInstanceId, lockName, e);
+                                      return Optional.<FencedLock>empty();
+                                  });
+        return lock.map(FencedLock::isLockedByThisLockManagerInstance).orElse(false);
     }
 
     @Override
     public boolean isLockAcquiredByAnotherLockManagerInstance(LockName lockName) {
-        var lock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName));
-        if (lock.isEmpty()) {
-            return false;
-        }
-        return lock.get().isLocked() && !lock.get().isLockedByThisLockManagerInstance();
+        var lock = withUnitOfWork(uow -> lockStorage.lookupLockInDB(this, uow, lockName),
+                                  e -> {
+                                      log.debug("[{}] Failed to lookup lock '{}'", lockManagerInstanceId, lockName, e);
+                                      return Optional.<FencedLock>empty();
+                                  });
+        return lock.map(value -> value.isLocked() && !value.isLockedByThisLockManagerInstance()).orElse(false);
     }
 
     @Override
@@ -562,27 +583,52 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                 '}';
     }
 
+    /**
+     * Return the DB specific uninitialized value for a {@link FencedLock#getCurrentToken()} that has yet to be persisted for the very first time
+     *
+     * @return the DB specific uninitialized value for a {@link FencedLock#getCurrentToken()} that has yet to be persisted for the very first time
+     */
     public Long getUninitializedTokenValue() {
         return lockStorage.getUninitializedTokenValue();
     }
 
+    /**
+     * Return the DB specific value for a {@link FencedLock#getCurrentToken()} that is being persisted the very first time
+     *
+     * @return the DB specific value for a {@link FencedLock#getCurrentToken()} that is being persisted the very first time
+     */
     public long getInitialTokenValue() {
         return lockStorage.getInitialTokenValue();
     }
 
+    /**
+     * Force delete all locks in the Database (useful for e.g. integration tests) - use with caution!
+     */
     public void deleteAllLocksInDB() {
-        usingUnitOfWork(uow -> lockStorage.deleteAllLocksInDB(this, uow));
+        usingUnitOfWork(uow -> lockStorage.deleteAllLocksInDB(this, uow),
+                        e -> {
+                            throw new UnitOfWorkException(msg("[{}] Failed to delete all Locks in the lock storage", lockManagerInstanceId), e);
+                        }
+                       );
     }
 
     /**
      * Use a {@link UnitOfWork} to perform transactional changes
      *
      * @param unitOfWorkConsumer the consumer of the created {@link UnitOfWork}
+     * @param onError            The consumer that consumes any exception caused by calling {@link UnitOfWorkFactory#usingUnitOfWork(CheckedConsumer)}
      */
-    protected void usingUnitOfWork(CheckedConsumer<UOW> unitOfWorkConsumer) {
+    protected void usingUnitOfWork(CheckedConsumer<UOW> unitOfWorkConsumer, CheckedConsumer<Exception> onError) {
         lock.lock();
         try {
             unitOfWorkFactory.usingUnitOfWork(unitOfWorkConsumer::accept);
+        } catch (Exception e) {
+            log.debug(msg("[{}] Technical error performing usingUnitOfWork", lockManagerInstanceId), e);
+            try {
+                onError.accept(e);
+            } catch (Exception subException) {
+                throw new UnitOfWorkException(msg("[{}] Technical error while handling onError related to a usingUnitOfWork call that failed with '{}'", lockManagerInstanceId, e.getMessage()), subException);
+            }
         } finally {
             lock.unlock();
         }
@@ -591,14 +637,22 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
     /**
      * Use a {@link UnitOfWork} to perform transactional changes
      *
-     * @param unitOfWorkFunction The function that consumes the creatd {@link UnitOfWork}
-     * @param <R> the return value from the <code>unitOfWorkFunction</code>
+     * @param unitOfWorkFunction The function that consumes the created {@link UnitOfWork}
+     * @param onError            The function that consumes any exception caused by calling {@link UnitOfWorkFactory#withUnitOfWork(CheckedFunction)}
+     * @param <R>                the return value from the <code>unitOfWorkFunction</code>
      * @return the result of the calling the <code>unitOfWorkFunction</code>
      */
-    protected <R> R withUnitOfWork(CheckedFunction<UOW, R> unitOfWorkFunction) {
+    protected <R> R withUnitOfWork(CheckedFunction<UOW, R> unitOfWorkFunction, CheckedFunction<Exception, R> onError) {
         lock.lock();
         try {
             return unitOfWorkFactory.withUnitOfWork(unitOfWorkFunction::apply);
+        } catch (Exception e) {
+            log.debug(msg("[{}] Technical error performing withUnitOfWork", lockManagerInstanceId), e);
+            try {
+                return onError.apply(e);
+            } catch (Exception subException) {
+                throw new UnitOfWorkException(msg("[{}] Technical error handling onError related to a withUnitOfWork call that failed with '{}'", lockManagerInstanceId, e.getMessage()), subException);
+            }
         } finally {
             lock.unlock();
         }
