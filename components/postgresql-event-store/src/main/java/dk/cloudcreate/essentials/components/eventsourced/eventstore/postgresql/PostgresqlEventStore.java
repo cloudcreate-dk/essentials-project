@@ -773,7 +773,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                                                                         transientGapsToIncludeInQuery));
                 unitOfWork.commit();
                 unitOfWork = null;
-                if (persistedEvents.size() > 0) {
+                if (!persistedEvents.isEmpty()) {
                     consecutiveNoPersistedEventsReturned.set(0);
                     if (log.isTraceEnabled()) {
                         eventStoreStreamLog.debug("[{}] Polling worker - loadEventsByGlobalOrder using globalOrderRange {} and transientGapsToIncludeInQuery {} returned {} events: {}",
@@ -834,7 +834,6 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                               aggregateType,
                                               nextFromInclusiveGlobalOrder.get()),
                                           e);
-                //sink.error(e);
                 return 0;
             }
         }
