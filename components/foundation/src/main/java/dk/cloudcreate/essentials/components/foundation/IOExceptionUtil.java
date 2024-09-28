@@ -24,6 +24,7 @@ import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
 import java.io.*;
 import java.net.ConnectException;
 import java.sql.SQLException;
+import java.util.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -31,9 +32,11 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Helper class to resolve IO, Connection, Transaction, Socket exception
  */
 public final class IOExceptionUtil {
+    private static final Map<String, Boolean> classCache = new HashMap<>();
 
     /**
      * Is the exception provided an IO, Transaction, Connection or Socket style exception (across Mongo and Postgresql/JDBC/JPA) - i.e. a transient style of error
+     *
      * @param e the exception that occurred
      * @return true if the exception is determined to be an IO, Transaction, Connection or Socket style exception (across Mongo and Postgresql/JDBC/JPA) - i.e. a transient style of error
      */
@@ -45,16 +48,27 @@ public final class IOExceptionUtil {
                         (e.getMessage().contains("Could not open JDBC Connection for transaction") && rootCause instanceof EOFException) ||
                         (e.getMessage().contains("Could not open JDBC Connection for transaction") && rootCause instanceof ConnectException) ||
                         (e.getMessage().contains("Could not open JDBC Connection for transaction") && rootCause instanceof SQLException && rootCause.getMessage().contains("has been closed")) ||
-                        e.getMessage().contains("has been closed") ||
                         e.getMessage().contains("Connection is closed") ||
                         e.getMessage().contains("Unable to acquire JDBC Connection") ||
                         e.getMessage().contains("Could not open JPA EntityManager for transaction") ||
                         rootCause.getClass().getSimpleName().equals("ConnectionException") ||
                         rootCause.getClass().getSimpleName().equals("MongoSocketReadException") ||
-                        rootCause instanceof MongoSocketException ||
+                        (isClassAvailable("com.mongodb.MongoSocketException") && rootCause instanceof MongoSocketException) ||
+                        (isClassAvailable("org.jdbi.v3.core.statement.UnableToExecuteStatementException") && rootCause instanceof UnableToExecuteStatementException) ||
+                        rootCause instanceof IOException ||
                         rootCause instanceof ConnectionException ||
-                        rootCause instanceof UnableToExecuteStatementException ||
-                        rootCause instanceof IOException
+                        e.getMessage().contains("has been closed")
         );
+    }
+
+    private static boolean isClassAvailable(String className) {
+        return classCache.computeIfAbsent(className, key -> {
+            try {
+                Class.forName(key);
+                return true;
+            } catch (ClassNotFoundException ex) {
+                return false;
+            }
+        });
     }
 }
