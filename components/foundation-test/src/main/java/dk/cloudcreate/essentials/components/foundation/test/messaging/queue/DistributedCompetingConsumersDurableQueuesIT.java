@@ -59,6 +59,9 @@ public abstract class DistributedCompetingConsumersDurableQueuesIT<DURABLE_QUEUE
         }
     }
 
+    protected abstract void disruptDatabaseConnection();
+
+    protected abstract void restoreDatabaseConnection();
 
     protected abstract DURABLE_QUEUES createDurableQueues(UOW_FACTORY unitOfWorkFactory);
 
@@ -75,7 +78,16 @@ public abstract class DistributedCompetingConsumersDurableQueuesIT<DURABLE_QUEUE
     }
 
     @Test
-    void verify_queued_messages_are_dequeued_in_order() {
+    void verify_queued_messages_are_dequeued_in_order() throws InterruptedException {
+        test_distributed_queueing_and_dequeueing(false);
+    }
+
+    @Test
+    void verify_queued_messages_are_dequeued_in_order_with_db_connectivity_issues() throws InterruptedException {
+        test_distributed_queueing_and_dequeueing(true);
+    }
+
+    private void test_distributed_queueing_and_dequeueing(boolean simulateDbConnectivityIssues) throws InterruptedException {
         // Given
         var random    = new Random();
         var queueName = QueueName.of("TestQueue");
@@ -122,6 +134,15 @@ public abstract class DistributedCompetingConsumersDurableQueuesIT<DURABLE_QUEUE
                                                         PARALLEL_CONSUMERS / 2,
                                                         recordingQueueMessageHandler2
                                                        );
+
+        if (simulateDbConnectivityIssues) {
+            Thread.sleep(2000);
+            System.out.println("***** Disrupting DB connection *****");
+            disruptDatabaseConnection();
+            Thread.sleep(5000);
+            System.out.println("***** Restoring DB connection *****");
+            restoreDatabaseConnection();
+        }
 
         // Then
         Awaitility.waitAtMost(Duration.ofSeconds(30))
