@@ -35,6 +35,18 @@ class SingleOperationTransactionPostgresqlDistributedCompetingConsumersDurableQu
             .withPassword("secret-password");
 
     @Override
+    protected void disruptDatabaseConnection() {
+        var dockerClient = postgreSQLContainer.getDockerClient();
+        dockerClient.pauseContainerCmd(postgreSQLContainer.getContainerId()).exec();
+    }
+
+    @Override
+    protected void restoreDatabaseConnection() {
+        var dockerClient = postgreSQLContainer.getDockerClient();
+        dockerClient.unpauseContainerCmd(postgreSQLContainer.getContainerId()).exec();
+    }
+
+    @Override
     protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory) {
         return PostgresqlDurableQueues.builder()
                                       .setUnitOfWorkFactory(unitOfWorkFactory)

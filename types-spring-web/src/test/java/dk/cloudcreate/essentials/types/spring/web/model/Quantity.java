@@ -24,6 +24,10 @@ public class Quantity extends IntegerType<Quantity> {
         super(value);
     }
 
+    public Quantity(Number value) {
+        super(value.intValue());
+    }
+
     public static Quantity of(int value) {
         return new Quantity(value);
     }

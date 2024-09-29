@@ -112,8 +112,31 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
         }
     }
 
+
+    private void disruptDatabaseConnection() {
+        System.out.println("***** Disrupting DB connection *****");
+        var dockerClient = postgreSQLContainer.getDockerClient();
+        dockerClient.pauseContainerCmd(postgreSQLContainer.getContainerId()).exec();
+    }
+
+    private void restoreDatabaseConnection() {
+        System.out.println("***** Restoring DB connection *****");
+        var dockerClient = postgreSQLContainer.getDockerClient();
+        dockerClient.unpauseContainerCmd(postgreSQLContainer.getContainerId()).exec();
+    }
+
     @Test
-    void subscribe() {
+    void subscribe() throws InterruptedException {
+        testSubscriptions(false);
+    }
+
+    @Test
+    void subscribe_with_db_connectivity_issues() throws InterruptedException {
+        testSubscriptions(true);
+    }
+
+
+    private void testSubscriptions(boolean simulateDbConnectivityIssues) throws InterruptedException {
         var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory());
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
@@ -187,6 +210,12 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                 unitOfWork.commit();
             });
         });
+
+        if (simulateDbConnectivityIssues) {
+            disruptDatabaseConnection();
+            Thread.sleep(5000);
+            restoreDatabaseConnection();
+        }
 
         // Verify we received all product events
         var totalNumberOfProductEvents = testEvents.get(PRODUCTS)

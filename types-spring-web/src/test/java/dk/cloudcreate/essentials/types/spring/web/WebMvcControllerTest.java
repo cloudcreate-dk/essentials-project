@@ -27,7 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.springframework.test.web.servlet.result.*;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -184,6 +184,7 @@ public class WebMvcControllerTest {
         mockMvc.perform(MockMvcRequestBuilders.put("/order")
                                               .contentType("application/json")
                                               .content(objectMapper.writeValueAsString(order)))
+               .andDo(MockMvcResultHandlers.print())
                .andExpect(MockMvcResultMatchers.status().isOk())
                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
                .andExpect(MockMvcResultMatchers.content().string(order.id.toString()));

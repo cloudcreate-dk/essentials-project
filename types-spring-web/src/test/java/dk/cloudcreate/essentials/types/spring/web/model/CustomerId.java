@@ -21,6 +21,11 @@ import dk.cloudcreate.essentials.types.*;
 import java.util.UUID;
 
 public class CustomerId extends CharSequenceType<CustomerId> implements Identifier {
+
+    public CustomerId(String value) {
+        super(value);
+    }
+
     public CustomerId(CharSequence value) {
         super(value);
     }

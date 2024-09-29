@@ -33,12 +33,13 @@ import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
 import org.reactivestreams.Subscription;
 import org.slf4j.*;
-import reactor.core.publisher.BaseSubscriber;
+import reactor.core.publisher.*;
+import reactor.util.retry.*;
 
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.function.Consumer;
+import java.util.function.*;
 import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -581,9 +582,9 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         @Override
         public Set<Pair<SubscriberId, AggregateType>> getActiveSubscriptions() {
             return this.subscribers.entrySet().stream()
-                .filter(e -> e.getValue().isActive())
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
+                                   .filter(e -> e.getValue().isActive())
+                                   .map(Map.Entry::getKey)
+                                   .collect(Collectors.toSet());
         }
 
         @Override
@@ -607,7 +608,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             } catch (Exception e) {
                 if (IOExceptionUtil.isIOException(e)) {
                     log.debug(msg("Failed to store ResumePoint's for the {} subscriber(s) - Experienced a Connection issue, this can happen during JVM or application shutdown", subscribers.size()));
-                } else  {
+                } else {
                     log.error(msg("Failed to store ResumePoint's for the {} subscriber(s)", subscribers.size()), e);
                 }
             }
@@ -942,46 +943,11 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                              aggregateType,
                              resumePoint.getResumeFromAndIncluding());
 
-                    subscription = new BaseSubscriber<>() {
-                        @Override
-                        protected void hookOnSubscribe(Subscription subscription) {
-                            NonExclusiveAsynchronousSubscription.this.request(eventStorePollingBatchSize);
-                        }
-
-                        @Override
-                        protected void hookOnNext(PersistedEvent e) {
-                            log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {}",
-                                      subscriberId,
-                                      aggregateType,
-                                      e.globalEventOrder(),
-                                      e.event().getEventTypeOrName().toString(),
-                                      e.eventId(),
-                                      e.aggregateId(),
-                                      e.eventOrder()
-                                     );
-                            try {
-                                var requestSize = eventStore.getUnitOfWorkFactory()
-                                                            .withUnitOfWork(unitOfWork -> eventHandler.handleWithBackPressure(e));
-                                if (requestSize < 0) {
-                                    requestSize = 1;
-                                }
-                                log.trace("[{}-{}] (#{}) Requesting {} events from the EventStore",
-                                          subscriberId,
-                                          aggregateType,
-                                          e.globalEventOrder(),
-                                          requestSize
-                                         );
-                                if (requestSize > 0) {
-                                    NonExclusiveAsynchronousSubscription.this.request(requestSize);
-                                }
-                            } catch (Exception cause) {
-                                onErrorHandlingEvent(e, cause);
-                                NonExclusiveAsynchronousSubscription.this.request(1);
-                            } finally {
-                                resumePoint.setResumeFromAndIncluding(e.globalEventOrder().increment());
-                            }
-                        }
-                    };
+                    subscription = new PersistedEventSubscriber(eventHandler,
+                                                                this,
+                                                                this::onErrorHandlingEvent,
+                                                                eventStorePollingBatchSize,
+                                                                eventStore);
                     eventStore.pollEvents(aggregateType,
                                           resumePoint.getResumeFromAndIncluding(),
                                           Optional.of(eventStorePollingBatchSize),
@@ -1013,13 +979,41 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                 subscription.request(n);
             }
 
-            protected void onErrorHandlingEvent(PersistedEvent e, Exception cause) {
-                // TODO: Add better retry mechanism, poison event handling, etc. For now delegate to Inbox/Outbox for this (see EventProcessor)
+            /**
+             * The error handler called for any non-retryable Exceptions (as specified by the {@link RetryBackoffSpec})<br>
+             * <b>Note: Default behaviour needs to at least request one more event</b><br>
+             * Similar to:
+             * <pre>{@code
+             * void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
+             *      log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+             *                      subscriberId,
+             *                      aggregateType,
+             *                      e.globalEventOrder(),
+             *                      e.event().getEventTypeOrName().getValue()), cause);
+             *      log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+             *                  subscriberId(),
+             *                  aggregateType(),
+             *                  e.globalEventOrder()
+             *                  );
+             *      eventStoreSubscription.request(1);
+             * }
+             * }</pre>
+             *
+             * @param e     the event that failed
+             * @param cause the cause of the failure
+             */
+            protected void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
                 log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
                               subscriberId,
                               aggregateType,
                               e.globalEventOrder(),
                               e.event().getEventTypeOrName().getValue()), cause);
+                log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+                          subscriberId(),
+                          aggregateType(),
+                          e.globalEventOrder()
+                         );
+                request(1);
             }
 
             @Override
@@ -1222,46 +1216,11 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                 log.error(msg("FencedLockAwareSubscriber#onLockAcquired failed for lock {} and resumePoint {}", lock.getName(), resumePoint), e);
                             }
 
-                            subscription = new BaseSubscriber<>() {
-                                @Override
-                                protected void hookOnSubscribe(Subscription subscription) {
-                                    ExclusiveAsynchronousSubscription.this.request(eventStorePollingBatchSize);
-                                }
-
-                                @Override
-                                protected void hookOnNext(PersistedEvent e) {
-                                    log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {}",
-                                              subscriberId,
-                                              aggregateType,
-                                              e.globalEventOrder(),
-                                              e.event().getEventTypeOrName().toString(),
-                                              e.eventId(),
-                                              e.aggregateId(),
-                                              e.eventOrder()
-                                             );
-                                    try {
-                                        var requestSize = eventStore.getUnitOfWorkFactory()
-                                                                    .withUnitOfWork(unitOfWork -> eventHandler.handleWithBackPressure(e));
-                                        if (requestSize < 0) {
-                                            requestSize = 1;
-                                        }
-                                        log.trace("[{}-{}] (#{}) Requesting {} events from the EventStore",
-                                                  subscriberId,
-                                                  aggregateType,
-                                                  e.globalEventOrder(),
-                                                  requestSize
-                                                 );
-                                        if (requestSize > 0) {
-                                            ExclusiveAsynchronousSubscription.this.request(requestSize);
-                                        }
-                                    } catch (Exception cause) {
-                                        onErrorHandlingEvent(e, cause);
-                                        ExclusiveAsynchronousSubscription.this.request(1);
-                                    } finally {
-                                        resumePoint.setResumeFromAndIncluding(e.globalEventOrder().increment());
-                                    }
-                                }
-                            };
+                            subscription = new PersistedEventSubscriber(eventHandler,
+                                                                        ExclusiveAsynchronousSubscription.this,
+                                                                        ExclusiveAsynchronousSubscription.this::onErrorHandlingEvent,
+                                                                        eventStorePollingBatchSize,
+                                                                        eventStore);
 
                             eventStore.pollEvents(aggregateType,
                                                   resumePoint.getResumeFromAndIncluding(),
@@ -1365,13 +1324,41 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                 subscription.request(n);
             }
 
-            protected void onErrorHandlingEvent(PersistedEvent e, Exception cause) {
-                // TODO: Add better retry mechanism, poison event handling, etc.
+            /**
+             * The error handler called for any non-retryable Exceptions (as specified by the {@link RetryBackoffSpec})<br><br>
+             * <b>Note: Default behaviour needs to at least request one more event</b><br>
+             * Similar to:
+             * <pre>{@code
+             * void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
+             *      log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+             *                      subscriberId,
+             *                      aggregateType,
+             *                      e.globalEventOrder(),
+             *                      e.event().getEventTypeOrName().getValue()), cause);
+             *      log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+             *                  subscriberId(),
+             *                  aggregateType(),
+             *                  e.globalEventOrder()
+             *                  );
+             *      eventStoreSubscription.request(1);
+             * }
+             * }</pre>
+             *
+             * @param e     the event that failed
+             * @param cause the cause of the failure
+             */
+            protected void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
                 log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
                               subscriberId,
                               aggregateType,
                               e.globalEventOrder(),
                               e.event().getEventTypeOrName().getValue()), cause);
+                log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+                          subscriberId(),
+                          aggregateType(),
+                          e.globalEventOrder()
+                         );
+                request(1);
             }
 
             @Override
@@ -1469,6 +1456,192 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                         ", active=" + active +
                         '}';
             }
+        }
+    }
+
+    /**
+     * Generic {@link BaseSubscriber} which forwards to the provided {@link PersistedEventHandler}
+     * with backpressure and handles indefinite retries in relation to {@link IOExceptionUtil#isIOException(Throwable)},
+     * if using constructor without any specified {@link RetryBackoffSpec}, updates {@link SubscriptionResumePoint} after each event handled
+     * and delegates any non-retryable Exceptions (as specified by the {@link RetryBackoffSpec}) to the provided <code>onErrorHandler</code>,
+     * which is responsible for error handling and for calling {@link EventStoreSubscription#request(long)} to continue event processing
+     */
+    class PersistedEventSubscriber extends BaseSubscriber<PersistedEvent> {
+        private static final Logger log = LoggerFactory.getLogger(PersistedEventSubscriber.class);
+
+        private final PersistedEventHandler                 eventHandler;
+        private final EventStoreSubscription                eventStoreSubscription;
+        private final BiConsumer<PersistedEvent, Throwable> onErrorHandler;
+        private final RetryBackoffSpec                      forwardToEventHandlerRetryBackoffSpec;
+        private final long                                  eventStorePollingBatchSize;
+        private final EventStore                            eventStore;
+
+        /**
+         * Subscribe with indefinite retries in relation to Exceptions where {@link IOExceptionUtil#isIOException(Throwable)} return true
+         *
+         * @param eventHandler               The event handler that {@link PersistedEvent}'s are forwarded to
+         * @param eventStoreSubscription     the {@link EventStoreSubscription} (as created by {@link EventStoreSubscriptionManager})
+         * @param onErrorHandler             The error handler called for any non-retryable Exceptions (as specified by the {@link RetryBackoffSpec})<br>
+         *                                   <b>Note: Default behaviour needs to at least request one more event</b><br>
+         *                                   Similar to:
+         *                                   <pre>{@code
+         *                                   void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
+         *                                        log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+         *                                                        subscriberId,
+         *                                                        aggregateType,
+         *                                                        e.globalEventOrder(),
+         *                                                        e.event().getEventTypeOrName().getValue()), cause);
+         *                                        log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+         *                                                    subscriberId(),
+         *                                                    aggregateType(),
+         *                                                    e.globalEventOrder()
+         *                                                    );
+         *                                        eventStoreSubscription.request(1);
+         *                                   }
+         *                                   }</pre>
+         * @param eventStorePollingBatchSize The batch size used when polling events from the {@link EventStore}
+         * @param eventStore                 The {@link EventStore} to use
+         */
+        public PersistedEventSubscriber(PersistedEventHandler eventHandler,
+                                        EventStoreSubscription eventStoreSubscription,
+                                        BiConsumer<PersistedEvent, Throwable> onErrorHandler,
+                                        long eventStorePollingBatchSize,
+                                        EventStore eventStore) {
+            this(eventHandler,
+                 eventStoreSubscription,
+                 onErrorHandler,
+                 Retry.backoff(Long.MAX_VALUE, Duration.ofMillis(100)) // Initial delay of 100ms
+                      .maxBackoff(Duration.ofSeconds(1)) // Maximum backoff of 1 second
+                      .jitter(0.5)
+                      .filter(IOExceptionUtil::isIOException),
+                 eventStorePollingBatchSize,
+                 eventStore);
+        }
+
+        /**
+         * Subscribe with custom {@link RetryBackoffSpec}
+         *
+         * @param eventHandler                          The event handler that {@link PersistedEvent}'s are forwarded to
+         * @param eventStoreSubscription                the {@link EventStoreSubscription} (as created by {@link EventStoreSubscriptionManager})
+         * @param onErrorHandler                        The error handler called for any non-retryable Exceptions (as specified by the {@link RetryBackoffSpec})<br>
+         *                                              <b>Note: Default behaviour needs to at least request one more event</b><br>
+         *                                              Similar to:
+         *                                              <pre>{@code
+         *                                              void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
+         *                                                   log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+         *                                                                   subscriberId,
+         *                                                                   aggregateType,
+         *                                                                   e.globalEventOrder(),
+         *                                                                   e.event().getEventTypeOrName().getValue()), cause);
+         *                                                   log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+         *                                                               subscriberId(),
+         *                                                               aggregateType(),
+         *                                                               e.globalEventOrder()
+         *                                                               );
+         *                                                   eventStoreSubscription.request(1);
+         *                                              }
+         *                                              }</pre>
+         * @param forwardToEventHandlerRetryBackoffSpec The {@link RetryBackoffSpec} used.<br>
+         *                                              Example:
+         *                                              <pre>{@code
+         *                                              Retry.backoff(Long.MAX_VALUE, Duration.ofMillis(100)) // Initial delay of 100ms
+         *                                                   .maxBackoff(Duration.ofSeconds(1)) // Maximum backoff of 1 second
+         *                                                   .jitter(0.5)
+         *                                                   .filter(IOExceptionUtil::isIOException)
+         *                                              }
+         *                                              </pre>
+         * @param eventStorePollingBatchSize            The batch size used when polling events from the {@link EventStore}
+         * @param eventStore                            The {@link EventStore} to use
+         */
+        public PersistedEventSubscriber(PersistedEventHandler eventHandler,
+                                        EventStoreSubscription eventStoreSubscription,
+                                        BiConsumer<PersistedEvent, Throwable> onErrorHandler,
+                                        RetryBackoffSpec forwardToEventHandlerRetryBackoffSpec,
+                                        long eventStorePollingBatchSize,
+                                        EventStore eventStore) {
+            this.eventHandler = requireNonNull(eventHandler, "No eventHandler provided");
+            this.eventStoreSubscription = requireNonNull(eventStoreSubscription, "No eventStoreSubscription provided");
+            this.onErrorHandler = requireNonNull(onErrorHandler, "No errorHandler provided");
+            this.forwardToEventHandlerRetryBackoffSpec = requireNonNull(forwardToEventHandlerRetryBackoffSpec, "No retryBackoffSpec provided");
+            this.eventStorePollingBatchSize = eventStorePollingBatchSize;
+            this.eventStore = requireNonNull(eventStore, "No eventStore provided");
+            // Verify that the provided eventStoreSubscription supports resume-points
+            eventStoreSubscription.currentResumePoint().orElseThrow(() -> new IllegalArgumentException(msg("The provided {} doesn't support resume-points", eventStoreSubscription.getClass().getName())));
+        }
+
+        @Override
+        protected void hookOnSubscribe(Subscription subscription) {
+            log.debug("[{}-{}] On Subscribe with eventStorePollingBatchSize {}",
+                      eventStoreSubscription.subscriberId(),
+                      eventStoreSubscription.aggregateType(),
+                      eventStorePollingBatchSize
+                     );
+            eventStoreSubscription.request(eventStorePollingBatchSize);
+        }
+
+        @Override
+        protected void hookOnNext(PersistedEvent e) {
+            Mono.fromCallable(() -> {
+                    log.trace("[{}-{}] (#{}) Forwarding {} event with eventId '{}', aggregateId: '{}', eventOrder: {} to EventHandler",
+                              eventStoreSubscription.subscriberId(),
+                              eventStoreSubscription.aggregateType(),
+                              e.globalEventOrder(),
+                              e.event().getEventTypeOrName().toString(),
+                              e.eventId(),
+                              e.aggregateId(),
+                              e.eventOrder()
+                             );
+                    return eventStore.getUnitOfWorkFactory()
+                                     .withUnitOfWork(unitOfWork -> eventHandler.handleWithBackPressure(e));
+                })
+                .retryWhen(forwardToEventHandlerRetryBackoffSpec
+                                   .doBeforeRetry(retrySignal -> {
+                                       log.trace("[{}-{}] (#{}) Ready to perform {} attempt retry of {} event with eventId '{}', aggregateId: '{}', eventOrder: {} to EventHandler",
+                                                 eventStoreSubscription.subscriberId(),
+                                                 eventStoreSubscription.aggregateType(),
+                                                 e.globalEventOrder(),
+                                                 retrySignal.totalRetries() + 1,
+                                                 e.event().getEventTypeOrName().getValue(),
+                                                 e.eventId(),
+                                                 e.aggregateId(),
+                                                 e.eventOrder()
+                                                );
+
+                                   })
+                                   .doAfterRetry(retrySignal -> {
+                                       log.debug("[{}-{}] (#{}) {} {} retry of {} event with eventId '{}', aggregateId: '{}', eventOrder: {} to EventHandler",
+                                                 eventStoreSubscription.subscriberId(),
+                                                 eventStoreSubscription.aggregateType(),
+                                                 e.globalEventOrder(),
+                                                 retrySignal.failure() != null ? "Failed" : "Succeeded",
+                                                 retrySignal.totalRetries(),
+                                                 e.event().getEventTypeOrName().getValue(),
+                                                 e.eventId(),
+                                                 e.aggregateId(),
+                                                 e.eventOrder(),
+                                                 retrySignal.failure()
+                                                );
+                                   }))
+                .doFinally(signalType -> {
+                    eventStoreSubscription.currentResumePoint().get().setResumeFromAndIncluding(e.globalEventOrder().increment());
+                })
+                .subscribe(requestSize -> {
+                               if (requestSize < 0) {
+                                   requestSize = 1;
+                               }
+                               log.trace("[{}-{}] (#{}) Requesting {} events from the EventStore",
+                                         eventStoreSubscription.subscriberId(),
+                                         eventStoreSubscription.aggregateType(),
+                                         e.globalEventOrder(),
+                                         requestSize
+                                        );
+                               if (requestSize > 0) {
+                                   eventStoreSubscription.request(requestSize);
+                               }
+                           },
+                           error -> {
+                               onErrorHandler.accept(e, error.getCause());
+                           });
         }
     }
 }

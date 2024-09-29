@@ -49,6 +49,19 @@ class MongoDistributedCompetingConsumersDurableQueuesIT extends DistributedCompe
     private MongoTransactionManager transactionManager;
 
     @Override
+    protected void disruptDatabaseConnection() {
+        var dockerClient = mongoDBContainer.getDockerClient();
+        dockerClient.pauseContainerCmd(mongoDBContainer.getContainerId()).exec();
+
+    }
+
+    @Override
+    protected void restoreDatabaseConnection() {
+        var dockerClient = mongoDBContainer.getDockerClient();
+        dockerClient.unpauseContainerCmd(mongoDBContainer.getContainerId()).exec();
+    }
+
+    @Override
     protected MongoDurableQueues createDurableQueues(SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory) {
         return new MongoDurableQueues(mongoTemplate,
                                       unitOfWorkFactory);

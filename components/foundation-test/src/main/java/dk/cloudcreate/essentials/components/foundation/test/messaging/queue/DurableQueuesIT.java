@@ -30,7 +30,7 @@ import org.junit.jupiter.api.*;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.*;
 import java.util.function.*;
 
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -528,6 +528,67 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(deadLetterMessage).isEmpty();
         assertThat(durableQueues.getQueuedMessageCountsFor(queueName)).isEqualTo(new QueuedMessageCounts(queueName, 0, 0));
 
+
+        consumer.cancel();
+    }
+
+    @Test
+    void verify_a_message_can_manually_be_marked_as_dead_letter_message_AND_the_message_can_afterwards_be_resurrected() {
+        // Given
+        var queueName = QueueName.of("TestQueue");
+
+        var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 123456),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
+        var message1Id = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
+
+        assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
+        var hasMessageBeenMarkedAsDeadLetterMessage = new AtomicBoolean();
+        var recordingQueueMessageHandler = new RecordingQueuedMessageHandler(msg -> {
+            if (!hasMessageBeenMarkedAsDeadLetterMessage.get()) {
+                hasMessageBeenMarkedAsDeadLetterMessage.set(true);
+                durableQueues.markAsDeadLetterMessage(message1Id);
+            }
+        });
+
+        // When
+        var consumer = durableQueues.consumeFromQueue(queueName,
+                                                      RedeliveryPolicy.fixedBackoff(Duration.ofMillis(200), 5), 1, recordingQueueMessageHandler
+                                                     );
+
+        // Then
+        Awaitility.waitAtMost(Duration.ofSeconds(4))
+                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages).hasSize(1)); // 1 delivery where the message was marked as a dead-letter-message
+        var messages = new ArrayList<>(recordingQueueMessageHandler.messages);
+        assertThat(messages.get(0)).usingRecursiveComparison().isEqualTo(message1);
+
+        assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0); // Dead letter messages is not counted
+        var deadLetterMessage = withDurableQueue(() -> durableQueues.getDeadLetterMessage(message1Id));
+        assertThat(deadLetterMessage).isPresent();
+        assertThat(deadLetterMessage.get().getMessage()).usingRecursiveComparison().isEqualTo(message1);
+        assertThat(deadLetterMessage.get().getTotalDeliveryAttempts()).isEqualTo(1); // 1 initial delivery
+        assertThat(deadLetterMessage.get().getRedeliveryAttempts()).isEqualTo(0);
+        assertThat(deadLetterMessage.get().getLastDeliveryError()).isNull();
+        var firstDeadLetterMessage = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20).get(0);
+        assertThat(deadLetterMessage.get()).usingRecursiveComparison().isEqualTo(firstDeadLetterMessage);
+
+        // And When
+        var wasResurrectedResult = withDurableQueue(() -> durableQueues.resurrectDeadLetterMessage(message1Id, Duration.ofMillis(1000)));
+        assertThat(wasResurrectedResult).isPresent();
+
+        // Then
+        assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
+        Awaitility.waitAtMost(Duration.ofSeconds(4))
+                  .untilAsserted(() -> {
+                      assertThat(recordingQueueMessageHandler.messages).hasSize(2); // 1 initial delivery and 1 redelivery for the resurrected message
+                  });
+        messages = new ArrayList<>(recordingQueueMessageHandler.messages);
+        assertThat(messages.get(1)).usingRecursiveComparison().isEqualTo(message1);
+
+        Awaitility.waitAtMost(Duration.ofMillis(500))
+                  .untilAsserted(() -> assertThat(durableQueues.getQueuedMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20)).isEmpty());
+        assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
+        assertThat(durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20)).isEmpty();
 
         consumer.cancel();
     }

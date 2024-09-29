@@ -839,14 +839,14 @@ public final class MongoDurableQueues implements DurableQueues {
                                                    }
 
 
-                                                   var queueEntryId = operation.queueEntryId;
-                                                   var findMessageToMarkAsDeadLetterMessage = query(where("id").is(queueEntryId)
-                                                                                                               .and("isBeingDelivered").is(true));
+                                                   var queueEntryId                         = operation.queueEntryId;
+                                                   var findMessageToMarkAsDeadLetterMessage = query(where("id").is(queueEntryId));
 
                                                    var update = new Update().set("isBeingDelivered", false)
                                                                             .set("deliveryTimestamp", null)
+                                                                            .set("nextDeliveryTimestamp", null)
                                                                             .set("isDeadLetterMessage", true)
-                                                                            .set("lastDeliveryError", Exceptions.getStackTrace(operation.getCauseForBeingMarkedAsDeadLetter()));
+                                                                            .set("lastDeliveryError", operation.getCauseForBeingMarkedAsDeadLetter());
                                                    var updateResult = mongoTemplate.findAndModify(findMessageToMarkAsDeadLetterMessage,
                                                                                                   update,
                                                                                                   FindAndModifyOptions.options().returnNew(true),
@@ -916,7 +916,27 @@ public final class MongoDurableQueues implements DurableQueues {
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> {
                                                    log.debug("Acknowledging-Message-As-Handled regarding Message with id '{}'", operation.queueEntryId);
-                                                   return deleteMessage(new DeleteMessage(operation.queueEntryId));
+                                                   if (transactionalMode == TransactionalMode.FullyTransactional) {
+                                                       unitOfWorkFactory.getRequiredUnitOfWork();
+                                                   }
+
+
+                                                   var queueEntryId = operation.queueEntryId;
+                                                   var messagesDeleted = mongoTemplate.remove(
+                                                           query(
+                                                                   where("_id").is(queueEntryId.toString())
+                                                                               .and("isDeadLetterMessage").is(false)
+                                                                ), this.sharedQueueCollectionName).getDeletedCount();
+                                                   if (messagesDeleted == 1) {
+                                                       log.debug("Acknowledged message as handled and deleted it. Id: '{}'", queueEntryId);
+                                                       return true;
+                                                   } else if (getDeadLetterMessage(new GetDeadLetterMessage(operation.queueEntryId)).isPresent()) {
+                                                       log.debug("Couldn't acknowledge message as it was marked as a Dead-Letter-Message during the message handling. Id: '{}'", queueEntryId);
+                                                       return true;
+                                                   } else {
+                                                       log.error("Couldn't Acknowledge with id '{}' - it may already have been deleted", queueEntryId);
+                                                       return false;
+                                                   }
                                                })
                 .proceed();
 
@@ -1232,7 +1252,7 @@ public final class MongoDurableQueues implements DurableQueues {
 
                                                    for (var result : results.getMappedResults()) {
                                                        boolean isDeadLetter = (boolean) result.get("isDeadLetterMessage");
-                                                       int    count        = (int) result.get("count");
+                                                       int     count        = (int) result.get("count");
                                                        if (isDeadLetter) {
                                                            numberOfQueuedDeadLetterMessages = count;
                                                        } else {

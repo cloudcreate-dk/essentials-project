@@ -20,6 +20,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.e
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.SubscriptionResumePoint;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import org.reactivestreams.Subscription;
 
@@ -28,21 +29,27 @@ import java.util.function.Consumer;
 
 public interface EventStoreSubscription extends Lifecycle, Subscription {
     /**
-     * the unique id for the subscriber
+     * The unique id for the subscriber
      *
      * @return the unique id for the subscriber
      */
     SubscriberId subscriberId();
 
     /**
-     * the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * The type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
      *
      * @return the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
      */
     AggregateType aggregateType();
 
+    /**
+     * Unsubscribe from the {@link EventStore}
+     */
     void unsubscribe();
 
+    /**
+     * Unsubscribe - same as calling {@link #unsubscribe()}
+     */
     @Override
     default void cancel() {
         unsubscribe();
@@ -53,7 +60,7 @@ public interface EventStoreSubscription extends Lifecycle, Subscription {
      *
      * @param subscribeFromAndIncludingGlobalOrder this {@link GlobalEventOrder} will become the new starting point in the
      *                                             EventStream associated with the {@link #aggregateType()}
-     * @param resetProcessor hook to add custom handling to perform when the subscriber is stopped during the reset process
+     * @param resetProcessor                       hook to add custom handling to perform when the subscriber is stopped during the reset process
      */
     void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder, Consumer<GlobalEventOrder> resetProcessor);
 
@@ -70,6 +77,11 @@ public interface EventStoreSubscription extends Lifecycle, Subscription {
     Optional<Tenant> onlyIncludeEventsForTenant();
 
     /**
+     * Is the Subscription active?
+     * <ul>
+     * <li>For an Exclusive Subscription, {@link #isActive()} reflects whether the subscriber has acquired the underlying {@link FencedLock}</li>
+     * <li>For a Non-Exclusive subscription, {@link #isActive()} reflects whether the subscriber {@link Lifecycle#isStarted()}</li>
+     * </ul>
      */
     boolean isActive();
 }
