@@ -164,13 +164,15 @@ public final class PostgresqlFencedLockStorage implements FencedLockStorage<Hand
                                                           "lock_acquired_ts=:lock_acquired_ts, " +
                                                           "lock_last_confirmed_ts=:lock_last_confirmed_ts\n" +
                                                           "WHERE lock_name=:lock_name AND " +
-                                                          "last_issued_fence_token=:previous_last_issued_fence_token")
+                                                          "last_issued_fence_token=:previous_last_issued_fence_token AND " +
+                                                          "lock_last_confirmed_ts=:timed_out_locks_confirmed_ts")
                                     .bind("lock_name", timedOutLock.getName())
                                     .bind("last_issued_fence_token", newLockReadyToBeAcquiredLocally.getCurrentToken())
                                     .bind("locked_by_lockmanager_instance_id", newLockReadyToBeAcquiredLocally.getLockedByLockManagerInstanceId())
                                     .bind("lock_acquired_ts", newLockReadyToBeAcquiredLocally.getLockAcquiredTimestamp())
                                     .bind("lock_last_confirmed_ts", newLockReadyToBeAcquiredLocally.getLockLastConfirmedTimestamp())
                                     .bind("previous_last_issued_fence_token", timedOutLock.getCurrentToken())
+                                    .bind("timed_out_locks_confirmed_ts", timedOutLock.getLockLastConfirmedTimestamp())
                                     .execute();
         return rowsUpdated == 1;
     }

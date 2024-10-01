@@ -62,8 +62,9 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
     private final String                                      lockManagerInstanceId;
 
     private final UnitOfWorkFactory<? extends UOW> unitOfWorkFactory;
-    private final Optional<EventBus>               eventBus;
-    private final ReentrantLock                    lock = new ReentrantLock(true);
+    private final Optional<EventBus> eventBus;
+    private final ReentrantLock      reentrantLock = new ReentrantLock(true);
+    private final boolean            releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation;
 
     private volatile boolean started;
     private volatile boolean stopping;
@@ -85,6 +86,10 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
      * @param lockManagerInstanceId    The unique name for this lock manager instance. If left {@link Optional#empty()} then the machines hostname is used
      * @param lockTimeOut              the period between {@link FencedLock#getLockLastConfirmedTimestamp()} and the current time before the lock is marked as timed out
      * @param lockConfirmationInterval how often should the locks be confirmed. MUST is less than the <code>lockTimeOut</code>
+     * @param releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation Should {@link FencedLock}'s acquired by this {@link FencedLockManager} be released in case calls to {@link FencedLockStorage#confirmLockInDB(DBFencedLockManager, UnitOfWork, DBFencedLock, OffsetDateTime)} fails
+     *                                                               with an exception where {@link IOExceptionUtil#isIOException(Throwable)} returns true -
+     *                                                               If releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation is true, then {@link FencedLock}'s will be released locally,
+     *                                                               otherwise we will retain the {@link FencedLock}'s as locked.
      * @param eventBus                 optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
      */
     protected DBFencedLockManager(FencedLockStorage<UOW, LOCK> lockStorage,
@@ -92,6 +97,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                                   Optional<String> lockManagerInstanceId,
                                   Duration lockTimeOut,
                                   Duration lockConfirmationInterval,
+                                  boolean releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation,
                                   Optional<EventBus> eventBus) {
         requireNonNull(lockManagerInstanceId, "No lockManagerInstanceId option provided");
 
@@ -105,6 +111,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                                                    lockConfirmationInterval,
                                                    lockTimeOut));
         }
+        this.releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation;
         this.eventBus = requireNonNull(eventBus, "No eventBus option provided");
 
         locksAcquiredByThisLockManager = new ConcurrentHashMap<>();
@@ -182,54 +189,77 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
             log.info("[{}] Lock Manager is paused, skipping confirmAllLocallyAcquiredLocks", lockManagerInstanceId);
             return;
         }
-
-        if (log.isTraceEnabled()) {
-            log.trace("[{}] Confirming {} locks acquired by this Lock Manager Instance: {}", lockManagerInstanceId, locksAcquiredByThisLockManager.size(), locksAcquiredByThisLockManager.keySet());
-        } else {
-            log.debug("[{}] Confirming {} locks acquired by this Lock Manager Instance", lockManagerInstanceId, locksAcquiredByThisLockManager.size());
-        }
-        var confirmedTimestamp = OffsetDateTime.now(Clock.systemUTC());
-        usingUnitOfWork(uow -> {
-            locksAcquiredByThisLockManager.forEach((lockName, fencedLock) -> {
-                if (fencedLock.getLockedByLockManagerInstanceId() == null) {
-                    log.debug("[{}] Skipping confirming lock '{}' since lockedByLockManagerInstanceId is NULL: {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
-                    return;
-                }
-                try {
-                    log.trace("[{}] Attempting to confirm lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
-                    boolean confirmedWithSuccess = false;
-                    try {
-                        confirmedWithSuccess = lockStorage.confirmLockInDB(this, uow, fencedLock, confirmedTimestamp);
-                    } catch (Exception e) {
-                        if (IOExceptionUtil.isIOException(e)) {
-                            log.debug(msg("[{}] IO related failure while attempting to perform confirmLockInDB for '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock), e);
-                            return;
-                        } else {
-                            log.error(msg("[{}] Technical failure while attempting to perform confirmLockInDB for '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock), e);
-                        }
+        try {
+            reentrantLock.lock();
+            var numberOfLocallyAcquiredLocksBeforeConfirmation = locksAcquiredByThisLockManager.size();
+            if (log.isTraceEnabled()) {
+                log.trace("[{}] Confirming {} locks acquired by this Lock Manager Instance: {}", lockManagerInstanceId, numberOfLocallyAcquiredLocksBeforeConfirmation, locksAcquiredByThisLockManager.keySet());
+            } else {
+                log.debug("[{}] Confirming {} locks acquired by this Lock Manager Instance", lockManagerInstanceId, numberOfLocallyAcquiredLocksBeforeConfirmation);
+            }
+            var confirmedTimestamp = OffsetDateTime.now(Clock.systemUTC());
+            usingUnitOfWork(uow -> {
+                locksAcquiredByThisLockManager.forEach((lockName, fencedLock) -> {
+                    if (fencedLock.getLockedByLockManagerInstanceId() == null) {
+                        log.debug("[{}] Skipping confirming lock '{}' since lockedByLockManagerInstanceId is NULL: {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
+                        return;
                     }
-                    if (confirmedWithSuccess) {
-                        fencedLock.markAsConfirmed(confirmedTimestamp);
-                        log.debug("[{}] Confirmed lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
-                        notify(new LockAcquired(fencedLock, this));
-                    } else {
-                        // We failed to confirm this lock, someone must have taken over the lock in the meantime
-                        log.info("[{}] Failed to confirm lock '{}', someone has taken over the lock: {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
+                    try {
+                        log.trace("[{}] Attempting to confirm lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
+                        boolean confirmedWithSuccess = false;
+                        try {
+                            confirmedWithSuccess = lockStorage.confirmLockInDB(this, uow, fencedLock, confirmedTimestamp);
+                        } catch (Exception e) {
+                            if (IOExceptionUtil.isIOException(e)) {
+                                if (releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation) {
+                                    log.debug(msg("[{}] IO related failure while attempting to perform confirmLockInDB for '{}' - will release lock: {}", lockManagerInstanceId, fencedLock.getName(), fencedLock), e);
+                                } else {
+                                    log.debug(msg("[{}] IO related failure while attempting to perform confirmLockInDB for '{}' - will retain lock: {}", lockManagerInstanceId, fencedLock.getName(), fencedLock), e);
+                                    return;
+                                }
+                            } else {
+                                log.error(msg("[{}] Technical failure while attempting to perform confirmLockInDB for '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock), e);
+                            }
+                        }
+                        if (confirmedWithSuccess) {
+                            fencedLock.markAsConfirmed(confirmedTimestamp);
+                            log.debug("[{}] Confirmed lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
+                            notify(new LockAcquired(fencedLock, this));
+                        } else {
+                            // We failed to confirm this lock, someone must have taken over the lock in the meantime
+                            log.info("[{}] Failed to confirm lock '{}': {}", lockManagerInstanceId, fencedLock.getName(), fencedLock);
+                            try {
+                                fencedLock.release();
+                            } catch (Exception e) {
+                                log.error(msg("[{}] Failed to release lock '{}'", lockManagerInstanceId, fencedLock.getName()), e);
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.error(msg("[{}] Technical failure while trying to confirm lock '{}'", lockManagerInstanceId, fencedLock.getName()), e);
+                    }
+                });
+            }, e -> {
+                log.error("[{}] Failed to acknowledge the {} locks acquired by this Lock Manager Instance", lockManagerInstanceId, locksAcquiredByThisLockManager.size(), e);
+                if (IOExceptionUtil.isIOException(e) && releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation) {
+                    log.info("[{}] Releasing all locally acquired locks due to IO Exception", lockManagerInstanceId);
+                    locksAcquiredByThisLockManager.forEach((lockName, fencedLock) -> {
                         try {
                             fencedLock.release();
-                        } catch (Exception e) {
-                            log.error(msg("[{}] Failed to release lock '{}'", lockManagerInstanceId, fencedLock.getName()), e);
+                        } catch (Exception ex) {
+                            log.error(msg("[{}] Failed to release lock '{}'", lockManagerInstanceId, fencedLock.getName()), ex);
                         }
-                    }
-                } catch (Exception e) {
-                    log.error(msg("[{}] Technical failure while trying to confirm lock '{}'", lockManagerInstanceId, fencedLock.getName()), e);
+                    });
                 }
             });
-        }, e -> log.error("[{}] Failed to acknowledge the {} locks acquired by this Lock Manager Instance", lockManagerInstanceId, locksAcquiredByThisLockManager.size(), e));
-        if (log.isTraceEnabled()) {
-            log.trace("[{}] Completed confirmation of locks acquired by this Lock Manager Instance. Number of Locks acquired locally after confirmation {}: {}", lockManagerInstanceId, locksAcquiredByThisLockManager.size(), locksAcquiredByThisLockManager.keySet());
-        } else {
-            log.debug("[{}] Completed confirmation of locks acquired by this Lock Manager Instance. Number of Locks acquired locally after confirmation {}", lockManagerInstanceId, locksAcquiredByThisLockManager.size());
+            if (log.isTraceEnabled()) {
+                log.trace("[{}] Completed confirmation of {} locks acquired by this Lock Manager Instance. Number of Locks acquired locally after confirmation {}: {}",
+                          lockManagerInstanceId, numberOfLocallyAcquiredLocksBeforeConfirmation, locksAcquiredByThisLockManager.size(), locksAcquiredByThisLockManager.keySet());
+            } else {
+                log.debug("[{}] Completed confirmation of {} locks acquired by this Lock Manager Instance. Number of Locks acquired locally after confirmation {}",
+                          lockManagerInstanceId, numberOfLocallyAcquiredLocksBeforeConfirmation, locksAcquiredByThisLockManager.size());
+            }
+        } finally {
+            reentrantLock.unlock();
         }
     }
 
@@ -242,24 +272,31 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
     protected void releaseLock(LOCK lock) {
         requireNonNull(lock, "No lock was provided");
         if (locksAcquiredByThisLockManager.containsKey(lock.getName())) {
-            locksAcquiredByThisLockManager.remove(lock.getName());
+            log.debug("[{}] Releasing lock '{}': {}", lockManagerInstanceId, lock.getName(), lock);
             var releaseWithSuccess = withUnitOfWork(uow -> lockStorage.releaseLockInDB(this, uow, lock),
                                                     e -> {
-                                                        log.error("[{}] Failed to release lock '{}'", lockManagerInstanceId, lock.getName(), e);
+                                                        log.error("[{}] Failed to release lock '{}' in DB", lockManagerInstanceId, lock.getName(), e);
                                                         return false;
                                                     });
+            log.trace("[{}] Removing {} DB released lock '{}' locally, marking and notifying it as released: {}",
+                      lockManagerInstanceId, releaseWithSuccess ? "successfully" : "failed", lock.getName(), lock);
+            locksAcquiredByThisLockManager.remove(lock.getName());
             lock.markAsReleased();
             notify(new LockReleased(lock, this));
             if (releaseWithSuccess) {
                 log.debug("[{}] Released Lock '{}': {}", lockManagerInstanceId, lock.getName(), lock);
             } else {
                 // We didn't release the lock after all, someone else acquired the lock in the meantime
+                log.trace("[{}] Checking '{}' lock status in the DB",
+                          lockManagerInstanceId, lock.getName());
                 usingUnitOfWork(uow -> {
                     lockStorage.lookupLockInDB(this, uow, lock.getName()).ifPresent(lockAcquiredByAnotherLockManager -> {
-                        log.debug("[{}] Couldn't release Lock '{}' as it was already acquired by another JVM Node: {}", lockManagerInstanceId, lock.getName(), lockAcquiredByAnotherLockManager.getLockedByLockManagerInstanceId());
+                        log.debug("[{}] Post release of Lock '{}' DB reported owner status: '{}'", lockManagerInstanceId, lock.getName(), lockAcquiredByAnotherLockManager.getLockedByLockManagerInstanceId());
                     });
-                }, e -> log.debug("[{}] Couldn't release Lock '{}' and failed to look-up which node has acquired the lock", lockManagerInstanceId, lock.getName(), e));
+                }, e -> log.debug("[{}] Post release of Lock '{}' - failed to look-up in the DB which node has acquired the lock", lockManagerInstanceId, lock.getName(), e));
             }
+            log.trace("[{}] Completed releasing lock '{}'",
+                      lockManagerInstanceId, lock.getName());
         }
 
     }
@@ -369,13 +406,10 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
 
         if (existingLock.isLocked()) {
             if (existingLock.isLockedByThisLockManagerInstance()) {
-                // TODO: Should we confirm it to ensure that lack_confirmed is updated??
-                log.debug("[{}] lock '{}' was already acquired by this JVM node: {}", lockManagerInstanceId, existingLock.getName(), existingLock);
-                locksAcquiredByThisLockManager.put(existingLock.getName(), existingLock);
-                return Mono.just(existingLock);
+                log.debug("[{}] Will try to confirm Lock as the DB reports the lock '{}' was already acquired by this JVM node: '{}'", lockManagerInstanceId, existingLock.getName(), existingLock);
             }
             if (isLockTimedOut(existingLock)) {
-                // Timed out - let us acquire the lock
+                // Timed out - let us acquire the lock and update timestamps/tokens
                 var now = OffsetDateTime.now(Clock.systemUTC());
                 var newLock = lockStorage.createInitializedLock(this,
                                                                 existingLock.getName(),
@@ -449,7 +483,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
             return Mono.just(newLockReadyToBeAcquiredLocally);
         } else {
             // We didn't acquire the lock after all
-            log.debug("[{}] Didn't acquire timed out lock '{}', someone else acquired it in the mean time(update): {}",
+            log.debug("[{}] Didn't acquire timed out lock '{}', someone else acquired it or confirmed it in the mean time (update): {}",
                       lockManagerInstanceId,
                       timedOutLock.getName(),
                       lockStorage.lookupLockInDB(this, uow, timedOutLock.getName()));
@@ -513,6 +547,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
             log.debug("[{}] Starting async Lock acquiring for lock '{}'", lockManagerInstanceId, lockName);
             return asyncLockAcquiringExecutor.scheduleAtFixedRate(() -> {
                                                                       try {
+                                                                          reentrantLock.lock();
                                                                           var existingLock = locksAcquiredByThisLockManager.get(lockName);
                                                                           if (existingLock == null) {
                                                                               if (paused) {
@@ -548,6 +583,8 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                                                                           }
                                                                       } catch (Exception e) {
                                                                           log.error(msg("[{}] Technical error while trying to acquire lock '{}'", lockManagerInstanceId, lockName), e);
+                                                                      } finally {
+                                                                          reentrantLock.unlock();
                                                                       }
                                                                   },
                                                                   0,
@@ -619,7 +656,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
      * @param onError            The consumer that consumes any exception caused by calling {@link UnitOfWorkFactory#usingUnitOfWork(CheckedConsumer)}
      */
     protected void usingUnitOfWork(CheckedConsumer<UOW> unitOfWorkConsumer, CheckedConsumer<Exception> onError) {
-        lock.lock();
+        reentrantLock.lock();
         try {
             unitOfWorkFactory.usingUnitOfWork(unitOfWorkConsumer::accept);
         } catch (Exception e) {
@@ -630,7 +667,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                 throw new UnitOfWorkException(msg("[{}] Technical error while handling onError related to a usingUnitOfWork call that failed with '{}'", lockManagerInstanceId, e.getMessage()), subException);
             }
         } finally {
-            lock.unlock();
+            reentrantLock.unlock();
         }
     }
 
@@ -643,7 +680,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
      * @return the result of the calling the <code>unitOfWorkFunction</code>
      */
     protected <R> R withUnitOfWork(CheckedFunction<UOW, R> unitOfWorkFunction, CheckedFunction<Exception, R> onError) {
-        lock.lock();
+        reentrantLock.lock();
         try {
             return unitOfWorkFactory.withUnitOfWork(unitOfWorkFunction::apply);
         } catch (Exception e) {
@@ -654,7 +691,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                 throw new UnitOfWorkException(msg("[{}] Technical error handling onError related to a withUnitOfWork call that failed with '{}'", lockManagerInstanceId, e.getMessage()), subException);
             }
         } finally {
-            lock.unlock();
+            reentrantLock.unlock();
         }
     }
 }

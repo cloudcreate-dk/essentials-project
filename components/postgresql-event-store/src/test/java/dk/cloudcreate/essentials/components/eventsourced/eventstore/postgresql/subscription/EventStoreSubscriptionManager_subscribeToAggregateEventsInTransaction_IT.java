@@ -25,7 +25,6 @@ import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.Po
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.FlushAndPublishPersistedEventsToEventBusRightAfterAppendToStream;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
@@ -127,7 +126,8 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsInTransaction_IT {
                                                                                                                      unitOfWorkFactory,
                                                                                                                      Optional.of("Node1"),
                                                                                                                      Duration.ofSeconds(3),
-                                                                                                                     Duration.ofSeconds(1)),
+                                                                                                                     Duration.ofSeconds(1),
+                                                                                                                     false),
                                                                                      Duration.ofSeconds(1),
                                                                                      durableSubscriptionRepository);
         eventStoreSubscriptionManagerNode1.start();

@@ -16,13 +16,15 @@
 
 package dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql;
 
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 import dk.cloudcreate.essentials.reactive.*;
 import org.jdbi.v3.core.Jdbi;
 
-import java.time.Duration;
+import java.time.*;
 import java.util.Optional;
 
 /**
@@ -48,6 +50,7 @@ public final class PostgresqlFencedLockManagerBuilder {
     private String                                                        fencedLocksTableName;
     private Duration                                                      lockTimeOut;
     private Duration                                                      lockConfirmationInterval;
+    boolean releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = false;
     private Optional<EventBus>                                            eventBus              = Optional.empty();
 
     /**
@@ -65,6 +68,19 @@ public final class PostgresqlFencedLockManagerBuilder {
      */
     public PostgresqlFencedLockManagerBuilder setUnitOfWorkFactory(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory) {
         this.unitOfWorkFactory = unitOfWorkFactory;
+        return this;
+    }
+
+    /**
+     * @param releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation Should {@link FencedLock}'s acquired by this {@link FencedLockManager} be released in case calls to {@link FencedLockStorage#confirmLockInDB(DBFencedLockManager, UnitOfWork, DBFencedLock, OffsetDateTime)} fails
+     *                                                                       with an exception where {@link IOExceptionUtil#isIOException(Throwable)} returns true -
+     *                                                                       If releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation is true, then {@link FencedLock}'s will be released locally,
+     *                                                                       otherwise we will retain the {@link FencedLock}'s as locked.<br>
+     *                                                                       Default value is: false
+     * @return this builder instance
+     */
+    public PostgresqlFencedLockManagerBuilder setReleaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation(boolean releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation) {
+        this.releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation;
         return this;
     }
 
@@ -161,6 +177,7 @@ public final class PostgresqlFencedLockManagerBuilder {
                                                fencedLocksTableName,
                                                lockTimeOut,
                                                lockConfirmationInterval,
+                                               releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation,
                                                eventBus);
     }
 

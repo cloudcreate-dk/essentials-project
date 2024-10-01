@@ -186,7 +186,8 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
                                   DBFencedLock newLockReadyToBeAcquiredLocally) {
         var tokenOfLockToBeUpdated = timedOutLock.getCurrentToken();
         var query = new Query(Criteria.where("name").is(timedOutLock.getName())
-                                      .and("lastIssuedFencedToken").is(tokenOfLockToBeUpdated));
+                                      .and("lastIssuedFencedToken").is(tokenOfLockToBeUpdated)
+                                      .and("lockLastConfirmedTimestamp").is(timedOutLock.getLockLastConfirmedTimestamp() != null ? timedOutLock.getLockLastConfirmedTimestamp().toInstant() : null));
 
         var update = new Update()
                 .set("lastIssuedFencedToken", newLockReadyToBeAcquiredLocally.getCurrentToken())

@@ -16,20 +16,18 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 
-import java.time.Duration;
-
-import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
-import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
+import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.*;
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
-import dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener;
-import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil;
+import dk.cloudcreate.essentials.components.foundation.postgresql.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.*;
 
 /**
  * Properties for the Postgresql focused Essentials Components auto-configuration<br>
@@ -330,6 +328,27 @@ public class EssentialsComponentsProperties {
         private Duration lockTimeOut              = Duration.ofSeconds(15);
         private Duration lockConfirmationInterval = Duration.ofSeconds(4);
         private String   fencedLocksTableName     = PostgresqlFencedLockStorage.DEFAULT_FENCED_LOCKS_TABLE_NAME;
+        private boolean  releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = false;
+
+        /**
+         * @return Should {@link FencedLock}'s acquired by this {@link dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager} be released in case calls to {@link FencedLockStorage#confirmLockInDB(DBFencedLockManager, UnitOfWork, DBFencedLock, OffsetDateTime)} fails
+         * with an exception where {@link IOExceptionUtil#isIOException(Throwable)} returns true -
+         * If releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation is true, then {@link FencedLock}'s will be released locally,
+         * otherwise we will retain the {@link FencedLock}'s as locked.
+         */
+        public boolean isReleaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation() {
+            return releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation;
+        }
+
+        /**
+         * @param releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation Should {@link FencedLock}'s acquired by this {@link dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager} be released in case calls to {@link FencedLockStorage#confirmLockInDB(DBFencedLockManager, UnitOfWork, DBFencedLock, OffsetDateTime)} fails
+         *                                                                       with an exception where {@link IOExceptionUtil#isIOException(Throwable)} returns true -
+         *                                                                       If releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation is true, then {@link FencedLock}'s will be released locally,
+         *                                                                       otherwise we will retain the {@link FencedLock}'s as locked.
+         */
+        public void setReleaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation(boolean releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation) {
+            this.releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation;
+        }
 
         /**
          * Get the period between {@link FencedLock#getLockLastConfirmedTimestamp()} and the current time before the lock is marked as timed out

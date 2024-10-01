@@ -145,7 +145,8 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                                                                                                                      unitOfWorkFactory,
                                                                                                                      Optional.of("Node1"),
                                                                                                                      Duration.ofSeconds(3),
-                                                                                                                     Duration.ofSeconds(1)),
+                                                                                                                     Duration.ofSeconds(1),
+                                                                                                                     false),
                                                                                      Duration.ofSeconds(1),
                                                                                      durableSubscriptionRepository);
         eventStoreSubscriptionManagerNode1.start();
@@ -287,7 +288,8 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                                                                                                                      unitOfWorkFactory,
                                                                                                                      Optional.of("Node1"),
                                                                                                                      Duration.ofSeconds(3),
-                                                                                                                     Duration.ofSeconds(1)),
+                                                                                                                     Duration.ofSeconds(1),
+                                                                                                                     false),
                                                                                      Duration.ofSeconds(1),
                                                                                      durableSubscriptionRepository);
         eventStoreSubscriptionManagerNode1.start();
@@ -388,7 +390,8 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                                                                                                                      unitOfWorkFactory,
                                                                                                                      Optional.of("Node1"),
                                                                                                                      Duration.ofSeconds(3),
-                                                                                                                     Duration.ofSeconds(1)),
+                                                                                                                     Duration.ofSeconds(1),
+                                                                                                                     false),
                                                                                      Duration.ofSeconds(1),
                                                                                      durableSubscriptionRepository);
         eventStoreSubscriptionManagerNode1.start();
