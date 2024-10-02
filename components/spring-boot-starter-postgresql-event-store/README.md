@@ -89,6 +89,7 @@ then you need to check the component document to learn about the Security implic
       essentials.fenced-lock-manager.fenced-locks-table-name=fenced_locks
       essentials.fenced-lock-manager.lock-confirmation-interval=5s
       essentials.fenced-lock-manager.lock-time-out=12s
+      essentials.fenced-lock-manager.release-acquired-locks-in-case-of-i-o-exceptions-during-lock-confirmation=false
       ```
     - **Security Notice regarding `essentials.fenced-lock-manager.fenced-locks-table-name`:**
       - This property, no matter if it's set using properties, System properties, env variables or yaml configuration, will be provided to the `PostgresqlFencedLockManager`'s `PostgresqlFencedLockStorage` as the `fencedLocksTableName` parameter.
