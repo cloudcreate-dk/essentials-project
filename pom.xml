@@ -82,12 +82,12 @@
         <micrometer-tracing.version>1.2.10</micrometer-tracing.version>
         <netty-bom.version>4.1.113.Final</netty-bom.version>
         <junit-bom.version>5.11.1</junit-bom.version>
-        <testcontainers-bom.version>1.20.1</testcontainers-bom.version>
+        <testcontainers-bom.version>1.20.2</testcontainers-bom.version>
         <jdbi3-bom.version>3.45.4</jdbi3-bom.version>
         <jackson-bom.version>2.18.0</jackson-bom.version>
         <reactor-bom.version>2023.0.10</reactor-bom.version>
         <spring-framework-bom.version>6.1.13</spring-framework-bom.version>
-        <mockito-bom.version>5.14.0</mockito-bom.version>
+        <mockito-bom.version>5.14.1</mockito-bom.version>
         <logback.version>1.5.8</logback.version>
         <avro.version>1.12.0</avro.version>
         <commons-compress.version>1.27.1</commons-compress.version>

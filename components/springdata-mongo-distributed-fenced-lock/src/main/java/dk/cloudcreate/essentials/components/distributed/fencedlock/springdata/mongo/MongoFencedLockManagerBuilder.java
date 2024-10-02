@@ -16,15 +16,15 @@
 
 package dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo;
 
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.mongo.ClientSessionAwareUnitOfWork;
 import dk.cloudcreate.essentials.reactive.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.convert.MongoConverter;
 
-import java.time.Duration;
+import java.time.*;
 import java.util.Optional;
 
 /**
@@ -49,7 +49,8 @@ public final class MongoFencedLockManagerBuilder {
     private String                                                    fencedLocksCollectionName = MongoFencedLockStorage.DEFAULT_FENCED_LOCKS_COLLECTION_NAME;
     private Duration                                                  lockTimeOut;
     private Duration                                                  lockConfirmationInterval;
-    private Optional<EventBus>                                        eventBus                  = Optional.empty();
+    boolean releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = false;
+    private Optional<EventBus> eventBus = Optional.empty();
 
     /**
      * @param mongoTemplate the mongoTemplate instance
@@ -75,6 +76,19 @@ public final class MongoFencedLockManagerBuilder {
      */
     public MongoFencedLockManagerBuilder setLockManagerInstanceId(Optional<String> lockManagerInstanceId) {
         this.lockManagerInstanceId = lockManagerInstanceId;
+        return this;
+    }
+
+    /**
+     * @param releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation Should {@link FencedLock}'s acquired by this {@link FencedLockManager} be released in case calls to {@link FencedLockStorage#confirmLockInDB(DBFencedLockManager, UnitOfWork, DBFencedLock, OffsetDateTime)} fails
+     *                                                                       with an exception where {@link IOExceptionUtil#isIOException(Throwable)} returns true -
+     *                                                                       If releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation is true, then {@link FencedLock}'s will be released locally,
+     *                                                                       otherwise we will retain the {@link FencedLock}'s as locked.<br>
+     *                                                                       Default value is: false
+     * @return this builder instance
+     */
+    public MongoFencedLockManagerBuilder setReleaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation(boolean releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation) {
+        this.releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation;
         return this;
     }
 
@@ -161,6 +175,7 @@ public final class MongoFencedLockManagerBuilder {
                                           fencedLocksCollectionName,
                                           lockTimeOut,
                                           lockConfirmationInterval,
+                                          releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation,
                                           eventBus);
     }
 

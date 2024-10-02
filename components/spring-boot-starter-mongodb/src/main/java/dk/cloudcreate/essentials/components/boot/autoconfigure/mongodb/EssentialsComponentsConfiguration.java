@@ -110,6 +110,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * It is highly recommended that the {@code sharedQueueCollectionName} value is only derived from a controlled and trusted source.<br>
  * To mitigate the risk of malicious input attacks, external or untrusted inputs should never directly provide the {@code sharedQueueCollectionName} value.<br>
  * <b>Failure to adequately sanitize and validate this value could expose the application to malicious input attacks, compromising the security and integrity of the database.</b>
+ *
  * @see dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues
  * @see dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockManager
  * @see dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockStorage
@@ -287,6 +288,7 @@ public class EssentialsComponentsConfiguration {
                                      .setLockTimeOut(properties.getFencedLockManager().getLockTimeOut())
                                      .setLockConfirmationInterval(properties.getFencedLockManager().getLockConfirmationInterval())
                                      .setFencedLocksCollectionName(properties.getFencedLockManager().getFencedLocksCollectionName())
+                                     .setReleaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation(properties.getFencedLockManager().isReleaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation())
                                      .setEventBus(eventBus)
                                      .buildAndStart();
     }
@@ -401,7 +403,7 @@ public class EssentialsComponentsConfiguration {
      * {@link JSONSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
      * (including handling {@link DurableQueues} message payload serialization and deserialization)
      *
-     * @param additionalModules                        additional {@link Module}'s found in the {@link ApplicationContext}
+     * @param additionalModules additional {@link Module}'s found in the {@link ApplicationContext}
      * @return the {@link JSONSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
      */
     @Bean
@@ -453,8 +455,8 @@ public class EssentialsComponentsConfiguration {
     }
 
     private static class SpringBootDevToolsClassLoaderChangeContextRefreshedListener {
-        private static final Logger log = LoggerFactory.getLogger(SpringBootDevToolsClassLoaderChangeContextRefreshedListener.class);
-        private final JacksonJSONSerializer jacksonJSONSerializer;
+        private static final Logger                log = LoggerFactory.getLogger(SpringBootDevToolsClassLoaderChangeContextRefreshedListener.class);
+        private final        JacksonJSONSerializer jacksonJSONSerializer;
 
         public SpringBootDevToolsClassLoaderChangeContextRefreshedListener(JSONSerializer jsonSerializer) {
             requireNonNull(jsonSerializer, "No jsonSerializer provided");

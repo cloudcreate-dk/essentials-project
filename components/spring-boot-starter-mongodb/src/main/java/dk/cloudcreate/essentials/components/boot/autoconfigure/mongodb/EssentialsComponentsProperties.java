@@ -16,18 +16,18 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.mongodb;
 
-import java.time.Duration;
-
-import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockManager;
-import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.MongoFencedLockStorage;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
+import dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo.*;
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.*;
 
 /**
  * Properties for the MongoDB focused Essentials Components auto-configuration<br>
@@ -74,15 +74,16 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "essentials")
 public class EssentialsComponentsProperties {
-    private final FencedLockManager   fencedLockManager       = new FencedLockManager();
-    private final DurableQueues       durableQueues           = new DurableQueues();
-    private final LifeCycleProperties lifeCycles              = new LifeCycleProperties();
-    private final TracingProperties tracingProperties = new TracingProperties();
-    private boolean             immutableJacksonModuleEnabled = true;
+    private final FencedLockManager   fencedLockManager             = new FencedLockManager();
+    private final DurableQueues       durableQueues                 = new DurableQueues();
+    private final LifeCycleProperties lifeCycles                    = new LifeCycleProperties();
+    private final TracingProperties   tracingProperties             = new TracingProperties();
+    private       boolean             immutableJacksonModuleEnabled = true;
 
     /**
      * Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration - default is true<br>
      * Setting this value to false will not include the EssentialsImmutableJacksonModule, in the ObjectMapper configuration, even if Objenesis is on the classpath
+     *
      * @return Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration
      */
     public boolean isImmutableJacksonModuleEnabled() {
@@ -90,9 +91,9 @@ public class EssentialsComponentsProperties {
     }
 
     /**
-     /**
      * Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration - default is true<br>
      * Setting this value to false will not include the EssentialsImmutableJacksonModule, in the ObjectMapper configuration, even if Objenesis is on the classpath
+     *
      * @param immutableJacksonModuleEnabled Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration
      */
     public void setImmutableJacksonModuleEnabled(boolean immutableJacksonModuleEnabled) {
@@ -290,9 +291,30 @@ public class EssentialsComponentsProperties {
     }
 
     public static class FencedLockManager {
-        private Duration lockTimeOut               = Duration.ofSeconds(15);
-        private Duration lockConfirmationInterval  = Duration.ofSeconds(4);
-        private String   fencedLocksCollectionName = MongoFencedLockStorage.DEFAULT_FENCED_LOCKS_COLLECTION_NAME;
+        private Duration lockTimeOut                                                    = Duration.ofSeconds(15);
+        private Duration lockConfirmationInterval                                       = Duration.ofSeconds(4);
+        private String   fencedLocksCollectionName                                      = MongoFencedLockStorage.DEFAULT_FENCED_LOCKS_COLLECTION_NAME;
+        private boolean  releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = false;
+
+        /**
+         * @return Should {@link FencedLock}'s acquired by this {@link dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager} be released in case calls to {@link FencedLockStorage#confirmLockInDB(DBFencedLockManager, UnitOfWork, DBFencedLock, OffsetDateTime)} fails
+         * with an exception where {@link IOExceptionUtil#isIOException(Throwable)} returns true -
+         * If releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation is true, then {@link FencedLock}'s will be released locally,
+         * otherwise we will retain the {@link FencedLock}'s as locked.
+         */
+        public boolean isReleaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation() {
+            return releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation;
+        }
+
+        /**
+         * @param releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation Should {@link FencedLock}'s acquired by this {@link dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager} be released in case calls to {@link FencedLockStorage#confirmLockInDB(DBFencedLockManager, UnitOfWork, DBFencedLock, OffsetDateTime)} fails
+         *                                                                       with an exception where {@link IOExceptionUtil#isIOException(Throwable)} returns true -
+         *                                                                       If releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation is true, then {@link FencedLock}'s will be released locally,
+         *                                                                       otherwise we will retain the {@link FencedLock}'s as locked.
+         */
+        public void setReleaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation(boolean releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation) {
+            this.releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation;
+        }
 
         /**
          * Get the period between {@link FencedLock#getLockLastConfirmedTimestamp()} and the current time before the lock is marked as timed out
@@ -410,6 +432,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * Get property to set as 'module' tag value for all micrometer metrics. This to differentiate metrics across different modules.
+         *
          * @return property to set as 'module' tag value for all micrometer metrics
          */
         public String getModuleTag() {
@@ -418,6 +441,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * Set property to use as 'module' tag value for all micrometer metrics. This to differentiate metrics across different modules.
+         *
          * @param moduleTag property to set as 'module' tag value for all micrometer metrics
          */
         public void setModuleTag(String moduleTag) {

@@ -395,7 +395,6 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
 
     @Test
     void verify_loosing_db_connection_no_locks_are_released() throws InterruptedException {
-
         // Given
         var lockName = LockName.of("testLock");
         assertThat(lockManagerNode1.isLockedByThisLockManagerInstance(lockName)).isFalse();

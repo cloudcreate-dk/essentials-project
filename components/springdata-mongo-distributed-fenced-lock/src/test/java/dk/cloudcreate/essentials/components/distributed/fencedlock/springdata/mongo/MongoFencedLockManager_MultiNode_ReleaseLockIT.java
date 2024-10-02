@@ -16,9 +16,8 @@
 
 package dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.mongo;
 
-import dk.cloudcreate.essentials.components.foundation.test.fencedlock.DBFencedLockManagerIT;
+import dk.cloudcreate.essentials.components.foundation.test.fencedlock.DBFencedLockManager_MultiNode_ReleaseLockIT;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
-import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
 import org.springframework.data.mongodb.*;
@@ -28,14 +27,11 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.*;
 
 import java.time.Duration;
-import java.util.*;
-import java.util.stream.*;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.Optional;
 
 @Testcontainers
 @DataMongoTest
-class MongoFencedLockManagerIT extends DBFencedLockManagerIT<MongoFencedLockManager> {
+public class MongoFencedLockManager_MultiNode_ReleaseLockIT extends DBFencedLockManager_MultiNode_ReleaseLockIT<MongoFencedLockManager> {
     @Container
     static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:latest");
 
@@ -61,7 +57,7 @@ class MongoFencedLockManagerIT extends DBFencedLockManagerIT<MongoFencedLockMana
                                           Optional.of("node2"),
                                           Duration.ofSeconds(3),
                                           Duration.ofSeconds(1),
-                                          false,
+                                          true,
                                           Optional.empty());
     }
 
@@ -73,7 +69,7 @@ class MongoFencedLockManagerIT extends DBFencedLockManagerIT<MongoFencedLockMana
                                           Optional.of("node1"),
                                           Duration.ofSeconds(3),
                                           Duration.ofSeconds(1),
-                                          false,
+                                          true,
                                           Optional.empty());
     }
 
@@ -88,15 +84,5 @@ class MongoFencedLockManagerIT extends DBFencedLockManagerIT<MongoFencedLockMana
     protected void restoreDatabaseConnection() {
         var dockerClient = mongoDBContainer.getDockerClient();
         dockerClient.unpauseContainerCmd(mongoDBContainer.getContainerId()).exec();
-    }
-
-    @Test
-    void verify_indexes() {
-        var indexes = mongoTemplate.getCollection(MongoFencedLockStorage.DEFAULT_FENCED_LOCKS_COLLECTION_NAME).listIndexes();
-        var indexNames      = StreamSupport.stream(indexes.spliterator(), false).map(document -> (String) document.get("name")).collect(Collectors.toList());
-
-        var allIndexes = List.of("_id_", "find_lock", "confirm_lock");
-        assertThat(indexNames).containsAll(allIndexes);
-        assertThat(allIndexes).containsAll(indexNames);
     }
 }
