@@ -91,7 +91,6 @@ public class EssentialsComponentsProperties {
     }
 
     /**
-     * /**
      * Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration - default is true<br>
      * Setting this value to false will not include the EssentialsImmutableJacksonModule, in the ObjectMapper configuration, even if Objenesis is on the classpath
      *
