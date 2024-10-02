@@ -43,17 +43,18 @@ public final class IOExceptionUtil {
     public static boolean isIOException(Throwable e) {
         requireNonNull(e, "No exception provided");
         var rootCause = Exceptions.getRootCause(e);
+        var rootCauseMessage  = rootCause != null && rootCause.getMessage() != null ? rootCause.getMessage() : "";
         var message   = e.getMessage() != null ? e.getMessage() : "";
         return (
                 (message.contains("An I/O error occurred while sending to the backend") && rootCause instanceof EOFException) ||
                         (message.contains("Could not open JDBC Connection for transaction") && rootCause instanceof EOFException) ||
                         (message.contains("Could not open JDBC Connection for transaction") && rootCause instanceof ConnectException) ||
-                        (message.contains("Could not open JDBC Connection for transaction") && rootCause instanceof SQLException && rootCause.getMessage().contains("has been closed")) ||
+                        (message.contains("Could not open JDBC Connection for transaction") && rootCause instanceof SQLException && rootCauseMessage.contains("has been closed")) ||
                         message.contains("Connection is closed") ||
                         message.contains("Unable to acquire JDBC Connection") ||
                         message.contains("Could not open JPA EntityManager for transaction") ||
-                        rootCause.getClass().getSimpleName().equals("ConnectionException") ||
-                        rootCause.getClass().getSimpleName().equals("MongoSocketReadException") ||
+                        (rootCause != null && rootCause.getClass().getSimpleName().equals("ConnectionException")) ||
+                        (rootCause != null && rootCause.getClass().getSimpleName().equals("MongoSocketReadException")) ||
                         (isClassAvailable("com.mongodb.MongoSocketException") && rootCause instanceof MongoSocketException) ||
                         (isClassAvailable("org.jdbi.v3.core.statement.UnableToExecuteStatementException") && rootCause instanceof UnableToExecuteStatementException) ||
                         rootCause instanceof IOException ||
