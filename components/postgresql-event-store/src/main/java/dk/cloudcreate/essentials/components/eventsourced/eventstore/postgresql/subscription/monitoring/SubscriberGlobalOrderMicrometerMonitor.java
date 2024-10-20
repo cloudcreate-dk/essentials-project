@@ -1,24 +1,18 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.monitoring;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWork;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
-import io.micrometer.core.instrument.Gauge;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.*;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.slf4j.*;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerInterceptor.MODULE_TAG_NAME;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -59,9 +53,11 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
         var key = Pair.of(subscriberId, aggregateType);
         calculateSubscriberGlobalEventOrderDiff(subscriberId, aggregateType)
             .ifPresent(currentLag -> {
-                //if (currentLag > 0) {
-                    log.info("Subscriber lag found for subscriber {} on aggregateType {}. Lag is {}", subscriberId, aggregateType, currentLag);
-                //}
+                if (currentLag > 0) {
+                    log.info("Subscriber lag found for subscriber '{}' on aggregateType '{}'. Lag is {}", subscriberId, aggregateType, currentLag);
+                } else {
+                    log.debug("No Subscriber lag found for subscriber '{}' on aggregateType '{}'.", subscriberId, aggregateType);
+                }
                 subscriberGauges.computeIfAbsent(key, this::initializeEventOrderDiffCountGauge)
                     ._2.set(currentLag);
             });
