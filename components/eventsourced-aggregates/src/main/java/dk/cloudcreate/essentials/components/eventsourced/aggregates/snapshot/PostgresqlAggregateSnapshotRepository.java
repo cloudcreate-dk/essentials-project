@@ -518,7 +518,7 @@ public class PostgresqlAggregateSnapshotRepository implements AggregateSnapshotR
         public AggregateSnapshot map(ResultSet rs, StatementContext ctx) throws SQLException {
             var aggregateType     = AggregateType.of(rs.getString("aggregate_type"));
             var config            = eventStore.getAggregateEventStreamConfiguration(aggregateType);
-            var aggregateImplType = Classes.forName(rs.getString("aggregate_impl_type"));
+            var aggregateImplType = Classes.forName(rs.getString("aggregate_impl_type"), jsonSerializer.getClassLoader());
 
 
             var aggregateId     = config.aggregateIdSerializer.deserialize(rs.getString("aggregate_id"));

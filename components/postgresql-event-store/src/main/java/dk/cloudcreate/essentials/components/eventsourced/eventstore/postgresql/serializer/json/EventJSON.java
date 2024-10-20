@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
-import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.types.CharSequenceType;
 
 import java.util.*;
@@ -36,8 +36,8 @@ public final class EventJSON {
      * Cache or the {@link #json} deserialized back to its {@link #eventTypeOrName} form
      */
     private transient Optional<Object>    jsonDeserialized;
-    private final     EventTypeOrName  eventTypeOrName;
-    private final     String           json;
+    private final     EventTypeOrName     eventTypeOrName;
+    private final     String              json;
 
     public EventJSON(JSONEventSerializer jsonSerializer, Object jsonDeserialized, EventType eventType, String json) {
         this(jsonSerializer, eventType, json);
@@ -72,7 +72,7 @@ public final class EventJSON {
     @SuppressWarnings({"OptionalAssignedToNull", "unchecked"})
     public <T> Optional<T> getJsonDeserialized() {
         if (jsonDeserialized == null && jsonSerializer != null) {
-            eventTypeOrName.ifHasEventType(eventJavaType -> jsonDeserialized = Optional.of(jsonSerializer.deserialize(json, eventJavaType.toJavaClass())));
+            eventTypeOrName.ifHasEventType(eventJavaType -> jsonDeserialized = Optional.of(jsonSerializer.deserialize(json, eventJavaType.toJavaClass(jsonSerializer.getClassLoader()))));
         }
         return (Optional<T>) jsonDeserialized;
     }
@@ -148,5 +148,19 @@ public final class EventJSON {
         return "EventJSON{" +
                 "eventTypeOrName=" + eventTypeOrName +
                 '}';
+    }
+
+    /**
+     * If {@link #getEventType()} is non-empty then the event's corresponding Java class is returned.
+     * If the {@link EventJSON} contains a reference to the associated {@link JSONSerializer} then
+     * {@link EventType#toJavaClass(ClassLoader)} (which is compatible with SpringBoot DevTools) will be used to convert,
+     * otherwise {@link EventType#toJavaClass()} is used
+     * @return the optional {@link EventType}'s Java class
+     */
+    public Optional<Class<?>> getEventTypeAsJavaClass() {
+        return getEventType()
+                .map(eventType -> jsonSerializer != null ?
+                                  eventType.toJavaClass(jsonSerializer.getClassLoader()) :
+                                  eventType.toJavaClass());
     }
 }

@@ -455,8 +455,14 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
             }
 
             try {
-                long batchSizeForThisQuery = resolveBatchSizeForThisQuery(aggregateType, eventStreamLogName, eventStoreStreamLog, lastBatchSizeForThisQuery.get(), batchFetchSize, consecutiveNoPersistedEventsReturned,
-                                                                          nextFromInclusiveGlobalOrder, unitOfWork);
+                long batchSizeForThisQuery = resolveBatchSizeForThisQuery(aggregateType,
+                                                                          eventStreamLogName,
+                                                                          eventStoreStreamLog,
+                                                                          lastBatchSizeForThisQuery.get(),
+                                                                          batchFetchSize,
+                                                                          consecutiveNoPersistedEventsReturned,
+                                                                          nextFromInclusiveGlobalOrder,
+                                                                          unitOfWork);
                 if (batchSizeForThisQuery == 0) {
                     consecutiveNoPersistedEventsReturned.set(0);
                     lastBatchSizeForThisQuery.set(batchFetchSize);

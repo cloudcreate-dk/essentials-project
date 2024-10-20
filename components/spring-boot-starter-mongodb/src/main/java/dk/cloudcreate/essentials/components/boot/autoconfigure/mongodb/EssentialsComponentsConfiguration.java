@@ -21,7 +21,6 @@ import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mongodb.*;
@@ -471,7 +470,7 @@ public class EssentialsComponentsConfiguration {
                          event.getApplicationContext().getClassLoader(),
                          jacksonJSONSerializer.getObjectMapper().getTypeFactory().getClassLoader()
                         );
-                jacksonJSONSerializer.getObjectMapper().setTypeFactory(TypeFactory.defaultInstance().withClassLoader(event.getApplicationContext().getClassLoader()));
+                jacksonJSONSerializer.setClassLoader(event.getApplicationContext().getClassLoader());
             }
         }
     }

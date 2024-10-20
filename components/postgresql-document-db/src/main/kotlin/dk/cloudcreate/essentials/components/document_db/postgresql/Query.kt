@@ -815,6 +815,14 @@ internal class NoJSONSerializer : JSONSerializer {
     override fun <T : Any?> deserialize(json: ByteArray?, javaType: Class<T>?): T {
         throw NotImplementedError("Not supported")
     }
+
+    override fun getClassLoader(): ClassLoader {
+        throw NotImplementedError("Not supported")
+    }
+
+    override fun setClassLoader(classLoader: ClassLoader?) {
+        throw NotImplementedError("Not supported")
+    }
 }
 
 
