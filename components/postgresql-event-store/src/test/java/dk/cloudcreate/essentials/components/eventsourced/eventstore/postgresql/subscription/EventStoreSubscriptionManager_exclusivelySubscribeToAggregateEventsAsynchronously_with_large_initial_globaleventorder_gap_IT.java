@@ -48,11 +48,12 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.LongStream;
 
+import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfiguration;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
-class EventStoreSubscriptionManager_2_node_exclusivelySubscribeToAggregateEventsAsynchronously_IT {
+class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchronously_with_large_initial_globaleventorder_gap_IT {
     public static final EventMetaData META_DATA = EventMetaData.of("Key1", "Value1", "Key2", "Value2");
     public static final AggregateType ORDERS    = AggregateType.of("Orders");
 
@@ -61,32 +62,25 @@ class EventStoreSubscriptionManager_2_node_exclusivelySubscribeToAggregateEvents
             .withDatabaseName("event-store")
             .withUsername("test-user")
             .withPassword("secret-password");
-    private       EventStoreSubscriptionManager eventStoreSubscriptionManagerNode1;
-    private       EventStoreSubscriptionManager eventStoreSubscriptionManagerNode2;
+    private       EventStoreSubscriptionManager eventStoreSubscriptionManager;
 
 
     @BeforeEach
     void setup() {
-        eventStoreSubscriptionManagerNode1 = createEventStoreSubscriptionManager("node1");
-        eventStoreSubscriptionManagerNode2 = createEventStoreSubscriptionManager("node2");
+        eventStoreSubscriptionManager = createEventStoreSubscriptionManager("node1");
     }
 
     @AfterEach
     void cleanup() {
-        if (eventStoreSubscriptionManagerNode1 != null) {
-            eventStoreSubscriptionManagerNode1.getEventStore().getUnitOfWorkFactory().getCurrentUnitOfWork().ifPresent(UnitOfWork::rollback);
-            assertThat(eventStoreSubscriptionManagerNode1.getEventStore().getUnitOfWorkFactory().getCurrentUnitOfWork()).isEmpty();
-            eventStoreSubscriptionManagerNode1.stop();
-        }
-        if (eventStoreSubscriptionManagerNode2 != null) {
-            eventStoreSubscriptionManagerNode2.getEventStore().getUnitOfWorkFactory().getCurrentUnitOfWork().ifPresent(UnitOfWork::rollback);
-            assertThat(eventStoreSubscriptionManagerNode2.getEventStore().getUnitOfWorkFactory().getCurrentUnitOfWork()).isEmpty();
-            eventStoreSubscriptionManagerNode2.stop();
+        if (eventStoreSubscriptionManager != null) {
+            eventStoreSubscriptionManager.getEventStore().getUnitOfWorkFactory().getCurrentUnitOfWork().ifPresent(UnitOfWork::rollback);
+            assertThat(eventStoreSubscriptionManager.getEventStore().getUnitOfWorkFactory().getCurrentUnitOfWork()).isEmpty();
+            eventStoreSubscriptionManager.stop();
         }
     }
 
     private EventStoreSubscriptionManager createEventStoreSubscriptionManager(String nodeName) {
-        var jdbi = Jdbi.create(postgreSQLContainer.getJdbcUrl() + "?connectTimeout=1&socketTimeout=1",
+        var jdbi = Jdbi.create(postgreSQLContainer.getJdbcUrl(),
                                postgreSQLContainer.getUsername(),
                                postgreSQLContainer.getPassword());
         jdbi.installPlugin(new PostgresPlugin());
@@ -98,9 +92,9 @@ class EventStoreSubscriptionManager_2_node_exclusivelySubscribeToAggregateEvents
         var persistenceStrategy = new SeparateTablePerAggregateTypePersistenceStrategy(jdbi,
                                                                                        unitOfWorkFactory,
                                                                                        eventMapper,
-                                                                                       SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfiguration(jsonSerializer,
-                                                                                                                                                                                      IdentifierColumnType.UUID,
-                                                                                                                                                                                      JSONColumnType.JSONB));
+                                                                                       standardSingleTenantConfiguration(jsonSerializer,
+                                                                                                                         IdentifierColumnType.UUID,
+                                                                                                                         JSONColumnType.JSONB));
         var eventStore = new PostgresqlEventStore<>(unitOfWorkFactory,
                                                     persistenceStrategy);
         eventStore.addAggregateEventStreamConfiguration(ORDERS,
@@ -123,20 +117,33 @@ class EventStoreSubscriptionManager_2_node_exclusivelySubscribeToAggregateEvents
     }
 
 
-    private void disruptDatabaseConnection() {
-        System.out.println("***** Disrupting DB connection *****");
-        var dockerClient = postgreSQLContainer.getDockerClient();
-        dockerClient.pauseContainerCmd(postgreSQLContainer.getContainerId()).exec();
-    }
-
-    private void restoreDatabaseConnection() {
-        System.out.println("***** Restoring DB connection *****");
-        var dockerClient = postgreSQLContainer.getDockerClient();
-        dockerClient.unpauseContainerCmd(postgreSQLContainer.getContainerId()).exec();
-    }
-
     @Test
-    void subscribe() throws InterruptedException {
+    void subscribe_with_large_initial_globaleventorder_gap() {
+        var unitOfWorkFactory = eventStoreSubscriptionManager.getEventStore()
+                                                             .getUnitOfWorkFactory();
+        // Override the global-event-order sequence value to create an initial gap
+        var globalEventOrderSequenceColumnName = unitOfWorkFactory
+                .withUnitOfWork(uow ->
+                                        ((PostgresqlEventStore<SeparateTablePerAggregateEventStreamConfiguration>) eventStoreSubscriptionManager.getEventStore())
+                                                .getPersistenceStrategy()
+                                                .resolveGlobalEventOrderSequenceName(uow, ORDERS)
+                                                .get()
+                               );
+        var initialGlobalEventOrder = unitOfWorkFactory.withUnitOfWork(uow -> uow.handle().createQuery("SELECT last_value FROM " + globalEventOrderSequenceColumnName)
+                                                                                 .mapTo(Long.class)
+                                                                                 .first());
+        assertThat(initialGlobalEventOrder).isEqualTo(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER.longValue());
+        var newInitialGlobalEventOrder = new GlobalEventOrder(1_000_0000L);
+        unitOfWorkFactory.withUnitOfWork(uow -> uow.handle().createUpdate("SELECT setval(:sequenceName, :sequenceValue, false)")
+                                                   .bind("sequenceName", globalEventOrderSequenceColumnName)
+                                                   .bind("sequenceValue", newInitialGlobalEventOrder)
+                                                   .execute());
+        var storedGlobalEventOrder = unitOfWorkFactory.withUnitOfWork(uow -> uow.handle().createQuery("SELECT last_value FROM " + globalEventOrderSequenceColumnName)
+                                                                                .mapTo(Long.class)
+                                                                                .first());
+        assertThat(storedGlobalEventOrder).isEqualTo(storedGlobalEventOrder.longValue());
+
+        // Given
         var testEvents = createTestEvents();
         var totalNumberOfOrderEvents = testEvents.values()
                                                  .stream()
@@ -145,10 +152,10 @@ class EventStoreSubscriptionManager_2_node_exclusivelySubscribeToAggregateEvents
                                                  .get();
         System.out.println("Total number of Order Events: " + totalNumberOfOrderEvents);
 
-        // Persist all test events using node2
+        // Persist all test events
         testEvents.forEach((aggregateId, events) -> {
-            var eventStore = eventStoreSubscriptionManagerNode2.getEventStore();
-            eventStore.getUnitOfWorkFactory().usingUnitOfWork(() -> {
+            var eventStore = eventStoreSubscriptionManager.getEventStore();
+            unitOfWorkFactory.usingUnitOfWork(() -> {
                 System.out.println(msg("Persisting {} {} events related to aggregate id {}",
                                        events.size(),
                                        ORDERS,
@@ -163,84 +170,35 @@ class EventStoreSubscriptionManager_2_node_exclusivelySubscribeToAggregateEvents
             });
         });
 
-        // Start with node1 as the active subscriber
-        var node1Subscription = createOrderSubscription(eventStoreSubscriptionManagerNode1);
-        var node2Subscription = createOrderSubscription(eventStoreSubscriptionManagerNode2);
-        Thread.sleep(500);
-        // Verify only one subscriber is active
-        boolean isNode1TheInitialActiveSubscriber;
-        if (node1Subscription.subscription.isActive()) {
-            assertThat(node2Subscription.subscription.isActive()).isFalse();
-        } else {
-            assertThat(node1Subscription.subscription.isActive()).isFalse();
-        }
-
-        Thread.sleep(500);
-        disruptDatabaseConnection();
-        System.out.println("Number of Order Events received: " + (node1Subscription.eventsReceived.size() + node2Subscription.eventsReceived.size()));
-        System.out.println("Number of Order Events received #1: " + node1Subscription.eventsReceived.size());
-        System.out.println("Number of Order Events received #2: " + node2Subscription.eventsReceived.size());
-        Thread.sleep(5000);
-        restoreDatabaseConnection();
-
-        // Verify that there's still only one subscriber active
-        if (node1Subscription.subscription.isActive()) {
-            assertThat(node2Subscription.subscription.isActive()).isFalse();
-        } else {
-            assertThat(node1Subscription.subscription.isActive()).isFalse();
-        }
+        // Start subscriber
+        var subscription = createOrderSubscription(eventStoreSubscriptionManager);
+        Awaitility.waitAtMost(Duration.ofSeconds(2))
+                  .untilAsserted(() -> {
+                      assertThat(subscription.subscription.currentResumePoint()).isPresent();
+                  });
+        // And verify that the subscriber found a new resume point, because the lowest persisted global event order is > the GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER
+        // Due to waitAtMost timing the subscription may already have started and advanced and hence the getResumeFromAndIncluding can be >= newInitialGlobalEventOrder
+        assertThat(subscription.subscription.currentResumePoint().get().getResumeFromAndIncluding()).isGreaterThanOrEqualTo(newInitialGlobalEventOrder);
 
         // Verify we received all Order events
-        Awaitility.waitAtMost(Duration.ofSeconds(15)) // Longer wait time due to the smaller batch fetch size
+        Awaitility.waitAtMost(Duration.ofSeconds(10))
                   .untilAsserted(() -> {
-                      var allReceivedEventsDeduplicated = new HashSet<>(node1Subscription.eventsReceived);
-                      allReceivedEventsDeduplicated.addAll(node2Subscription.eventsReceived);
-                      assertThat(allReceivedEventsDeduplicated).hasSize(totalNumberOfOrderEvents);
+                      assertThat(subscription.eventsReceived).hasSize(totalNumberOfOrderEvents);
                   });
-        System.out.println("Number of Order Events received #1: " + node1Subscription.eventsReceived.size());
-        System.out.println("Number of Order Events received #2: " + node2Subscription.eventsReceived.size());
 
-        // During DB disconnects there can occur small gaps where two subscribers both believe they have the same fenced lock
-        var allReceivedEventsDeduplicated = new HashSet<>(node1Subscription.eventsReceived);
-        allReceivedEventsDeduplicated.addAll(node2Subscription.eventsReceived);
-        var allReceivedEvents = allReceivedEventsDeduplicated.stream().sorted(Comparator.comparing(PersistedEvent::globalEventOrder)).toList();
+        var allReceivedEvents = subscription.eventsReceived.stream().sorted(Comparator.comparing(PersistedEvent::globalEventOrder)).toList();
         assertThat(allReceivedEvents.stream()
                                     .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
                                     .toList())
-                .isEqualTo(LongStream.rangeClosed(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER.longValue(),
-                                                  totalNumberOfOrderEvents)
+                .isEqualTo(LongStream.range(newInitialGlobalEventOrder.longValue(),
+                                            newInitialGlobalEventOrder.longValue() + totalNumberOfOrderEvents)
                                      .boxed()
                                      .toList());
 
-        // Verify that there's still only one subscriber active
-        if (node1Subscription.subscription.isActive()) {
-            assertThat(node2Subscription.subscription.isActive()).isFalse();
-        } else {
-            assertThat(node1Subscription.subscription.isActive()).isFalse();
-        }
-
-        // Check subscription state after being stopped
-        if (node1Subscription.subscription.isActive()) {
-            System.out.println("******* Stopping node 2 subscription and then node 1 subscription *********");
-            node2Subscription.subscription.stop();
-            node1Subscription.subscription.stop();
-        } else {
-            System.out.println("******* Stopping node 1 subscription and then node 2 subscription *********");
-            node1Subscription.subscription.stop();
-            node2Subscription.subscription.stop();
-        }
-        Awaitility.waitAtMost(Duration.ofSeconds(5))
-                  .untilAsserted(() -> assertThat(node1Subscription.subscription.isActive()).isFalse());
-        Awaitility.waitAtMost(Duration.ofSeconds(5))
-                  .untilAsserted(() -> assertThat(node2Subscription.subscription.isActive()).isFalse());
-
-        // Check the ResumePoints are updated and saved across subscriptions that have been active
+        // Check the ResumePoints are updated
         var lastEventOrder = allReceivedEvents.get(totalNumberOfOrderEvents - 1);
-        if (node1Subscription.subscription.currentResumePoint().isPresent()) {
-            assertThat(node1Subscription.subscription.currentResumePoint().get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // When the subscriber is stopped we store the next global event order
-        }
-        if (node2Subscription.subscription.currentResumePoint().isPresent()) {
-            assertThat(node2Subscription.subscription.currentResumePoint().get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // When the subscriber is stopped we store the next global event order
+        if (subscription.subscription.currentResumePoint().isPresent()) {
+            assertThat(subscription.subscription.currentResumePoint().get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // When the subscriber is stopped we store the next global event order
         }
     }
 

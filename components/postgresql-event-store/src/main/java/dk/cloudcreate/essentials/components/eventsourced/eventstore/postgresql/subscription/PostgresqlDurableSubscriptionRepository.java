@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription;
 
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.jdbi.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
@@ -63,17 +64,18 @@ public final class PostgresqlDurableSubscriptionRepository implements DurableSub
     private final        Jdbi                            jdbi;
     private final        String                          durableSubscriptionsTableName;
     private final        HandleAwareUnitOfWorkFactory<?> unitOfWorkFactory;
+    private final        EventStore                      eventStore;
 
     /**
      * Create a {@link PostgresqlDurableSubscriptionRepository} using the default {@value #DEFAULT_DURABLE_SUBSCRIPTIONS_TABLE_NAME}
      *
-     * @param jdbi              the jdbi instance
-     * @param unitOfWorkFactory The {@link HandleAwareUnitOfWorkFactory}
+     * @param jdbi       the jdbi instance
+     * @param eventStore The {@link EventStore} that supplies events for subscriptions
      */
     public PostgresqlDurableSubscriptionRepository(Jdbi jdbi,
-                                                   HandleAwareUnitOfWorkFactory<?> unitOfWorkFactory) {
+                                                   EventStore eventStore) {
         this(jdbi,
-             unitOfWorkFactory,
+             eventStore,
              DEFAULT_DURABLE_SUBSCRIPTIONS_TABLE_NAME);
     }
 
@@ -81,6 +83,7 @@ public final class PostgresqlDurableSubscriptionRepository implements DurableSub
      * Create a {@link PostgresqlDurableSubscriptionRepository} with a specific durableSubscriptionsTableName
      *
      * @param jdbi                          the jdbi instance
+     * @param eventStore                    The {@link EventStore} that supplies events for subscriptions
      * @param durableSubscriptionsTableName the table name that will store the durable resume points<br>
      *                                      <strong>Note:</strong><br>
      *                                      To support customization of storage table name, the {@code durableSubscriptionsTableName} will be directly used in constructing SQL statements
@@ -100,13 +103,13 @@ public final class PostgresqlDurableSubscriptionRepository implements DurableSub
      *                                      To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the {@code durableSubscriptionsTableName} value.<br>
      *                                      <b>Failure to adequately sanitize and validate this value could expose the application to SQL injection
      *                                      vulnerabilities, compromising the security and integrity of the database.</b>
-     * @param unitOfWorkFactory             The {@link HandleAwareUnitOfWorkFactory}
      */
     public PostgresqlDurableSubscriptionRepository(Jdbi jdbi,
-                                                   HandleAwareUnitOfWorkFactory<?> unitOfWorkFactory,
+                                                   EventStore eventStore,
                                                    String durableSubscriptionsTableName) {
+        this.eventStore = requireNonNull(eventStore, "No eventStore instance provided");
         this.jdbi = requireNonNull(jdbi, "No Jdbi instance provided");
-        this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "No unitOfWorkFactory instance provided");
+        this.unitOfWorkFactory = eventStore.getUnitOfWorkFactory();
         this.durableSubscriptionsTableName = requireNonNull(durableSubscriptionsTableName, "No durableSubscriptionsTableName provided").toLowerCase();
         PostgresqlUtil.checkIsValidTableOrColumnName(this.durableSubscriptionsTableName);
 
@@ -134,13 +137,26 @@ public final class PostgresqlDurableSubscriptionRepository implements DurableSub
         requireNonNull(forAggregateType, "No forAggregateType value provided");
         requireNonNull(onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder, "No onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder value provided");
         return unitOfWorkFactory.withUnitOfWork(uow -> {
+            var subscribeFromGlobalEventOrder = eventStore.findLowestGlobalEventOrderPersisted(forAggregateType).map(lowestGlobalEventOrderPersisted -> {
+                if (lowestGlobalEventOrderPersisted.isGreaterThan(onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder)) {
+                    log.info("[{}-{}] Was requested to start subscription from globalEventOrder {} but the lowestGlobalEventOrderPersisted was {}. Will start subscription from globalEventOrder: {}",
+                             subscriberId,
+                             forAggregateType,
+                             onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                             lowestGlobalEventOrderPersisted,
+                             lowestGlobalEventOrderPersisted);
+                    return lowestGlobalEventOrderPersisted;
+                } else {
+                    return onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder;
+                }
+            }).orElse(onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder);
             var now = OffsetDateTime.now(Clock.systemUTC());
             var rowsUpdated = uow.handle().createUpdate("INSERT INTO " + this.durableSubscriptionsTableName + " (\n" +
                                                                 "aggregate_type, subscriber_id, resume_from_and_including_global_eventorder, last_updated)\n" +
                                                                 "VALUES (:aggregate_type, :subscriber_id, :resume_from_and_including_global_eventorder, :last_updated) ON CONFLICT DO NOTHING")
                                  .bind("aggregate_type", forAggregateType)
                                  .bind("subscriber_id", subscriberId)
-                                 .bind("resume_from_and_including_global_eventorder", onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder)
+                                 .bind("resume_from_and_including_global_eventorder", subscribeFromGlobalEventOrder)
                                  .bind("last_updated", now)
                                  .execute();
             if (rowsUpdated == 0) {
@@ -150,7 +166,7 @@ public final class PostgresqlDurableSubscriptionRepository implements DurableSub
             } else {
                 var subscriptionResumePoint = new SubscriptionResumePoint(subscriberId,
                                                                           forAggregateType,
-                                                                          onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                          subscribeFromGlobalEventOrder,
                                                                           now);
                 log.debug("Created {}", subscriptionResumePoint);
                 return subscriptionResumePoint;

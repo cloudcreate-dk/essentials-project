@@ -115,6 +115,14 @@ class SingleTenantPostgresqlEventStoreIT {
     }
 
     @Test
+    void test_resolveGlobalEventOrderSequenceName() {
+        var unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
+        var sequenceName = eventStore.getPersistenceStrategy().resolveGlobalEventOrderSequenceName(unitOfWork, ORDERS);
+        assertThat(sequenceName).isPresent();
+        assertThat(sequenceName).hasValue("public.orders_events_global_order_seq");
+    }
+
+    @Test
     void persisting_events_related_to_two_different_aggregates_in_one_unitofwork() {
         // Given
         var orderId1     = OrderId.of("beed77fb-d911-1111-9c48-03ed5bfe8f89");
@@ -559,6 +567,8 @@ class SingleTenantPostgresqlEventStoreIT {
 
         var highestGlobalEventOrderPersisted = eventStore.getPersistenceStrategy().findHighestGlobalEventOrderPersisted(unitOfWork, aggregateType);
         assertThat(highestGlobalEventOrderPersisted).isEmpty();
+        var lowestGlobalEventOrderPersisted = eventStore.getPersistenceStrategy().findLowestGlobalEventOrderPersisted(unitOfWork, aggregateType);
+        assertThat(lowestGlobalEventOrderPersisted).isEmpty();
 
         // When
         var persistedEventsStream = eventStore.appendToStream(aggregateType,
@@ -703,10 +713,14 @@ class SingleTenantPostgresqlEventStoreIT {
         assertThat(eventsLoaded.get(2).causedByEventId()).isEqualTo(Optional.of(eventMapper.causedByEventId));
         assertThat(eventsLoaded.get(2).correlationId()).isEqualTo(Optional.of(eventMapper.correlationId));
 
-        // Verify highest globalorder persisted after all events are persisted
+        // Verify lowest and highest globalorder persisted after all events are persisted
         highestGlobalEventOrderPersisted = eventStore.getPersistenceStrategy().findHighestGlobalEventOrderPersisted(unitOfWork, aggregateType);
         assertThat(highestGlobalEventOrderPersisted).isPresent();
         assertThat(highestGlobalEventOrderPersisted.get()).isEqualTo(GlobalEventOrder.of(3));
+
+        lowestGlobalEventOrderPersisted = eventStore.getPersistenceStrategy().findLowestGlobalEventOrderPersisted(unitOfWork, aggregateType);
+        assertThat(lowestGlobalEventOrderPersisted).isPresent();
+        assertThat(lowestGlobalEventOrderPersisted.get()).isEqualTo(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER);
     }
 
     @Test

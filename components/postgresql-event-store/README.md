@@ -511,7 +511,7 @@ var eventStoreSubscriptionManager = EventStoreSubscriptionManager.builder()
                                                                  .setEventStorePollingInterval(Duration.ofMillis(100))
                                                                  .setFencedLockManager(fencedLockManager)
                                                                  .setSnapshotResumePointsEvery(Duration.ofSeconds(10))
-                                                                 .setDurableSubscriptionRepository(new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory()))
+                                                                 .setDurableSubscriptionRepository(new PostgresqlDurableSubscriptionRepository(jdbi, eventStore))
                                                                  .build();
 
 eventStoreSubscriptionManager.start();
@@ -717,7 +717,7 @@ var eventStoreSubscriptionManager = EventStoreSubscriptionManager.createFor(even
                                                                                                         .setLockConfirmationInterval(Duration.ofSeconds(1))
                                                                                                         .buildAndStart(),
                                                                              Duration.ofSeconds(1),
-                                                                             new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory()));
+                                                                             new PostgresqlDurableSubscriptionRepository(jdbi, eventStore));
 eventStoreSubscriptionManager.start();
 
 var productsSubscription = eventStoreSubscriptionManager.subscribeToAggregateEventsInTransaction(

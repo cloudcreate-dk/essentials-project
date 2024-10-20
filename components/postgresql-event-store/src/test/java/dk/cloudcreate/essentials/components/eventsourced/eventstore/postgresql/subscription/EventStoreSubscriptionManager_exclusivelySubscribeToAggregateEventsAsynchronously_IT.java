@@ -115,7 +115,7 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
 
     @Test
     void subscribe() {
-        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory());
+        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore);
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
                                                                                      Duration.ofMillis(100),
@@ -277,7 +277,7 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
     void test_start_and_stop_subscription() {
         System.out.println("********** Start test_start_and_stop_subscription ***********");
 
-        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory());
+        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore);
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
                                                                                      Duration.ofMillis(100),
@@ -379,7 +379,7 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
     @Test
     void test_with_resubscription() {
         System.out.println("********** Start test_with_resubscription ***********");
-        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory());
+        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore);
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
                                                                                      Duration.ofMillis(100),

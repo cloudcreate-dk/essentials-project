@@ -527,6 +527,27 @@ public final class SeparateTablePerAggregateTypePersistenceStrategy implements A
 //    }
 
     @Override
+    public Optional<String> resolveGlobalEventOrderSequenceName(EventStoreUnitOfWork unitOfWork,
+                                                      AggregateType aggregateType) {
+        requireNonNull(unitOfWork, "No unitOfWork provided");
+        requireNonNull(aggregateType, "No aggregateType provided");
+        var configuration = getAggregateEventStreamConfiguration(aggregateType);
+        var query = unitOfWork.handle()
+                .createQuery("SELECT pg_get_serial_sequence(:eventTableName, :globalEventOrderColumnName) AS sequence_name");
+        var sequenceName = query.bind("eventTableName", configuration.eventStreamTableName)
+                                      .bind("globalEventOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn)
+                                      .setFetchSize(1)
+                                      .mapTo(String.class)
+                                      .findOne();
+        if (sequenceName.isPresent()) {
+            log.debug("[{}] Found GlobalEventOrder sequence-name", configuration.aggregateType);
+        } else {
+            log.debug("[{}] Did NOT find a GlobalEventOrder sequence-name", configuration.aggregateType);
+        }
+        return sequenceName;
+    }
+
+    @Override
     public <STREAM_ID> AggregateEventStream<STREAM_ID> persist(EventStoreUnitOfWork unitOfWork,
                                                                AggregateType aggregateType,
                                                                STREAM_ID aggregateId,
@@ -865,15 +886,35 @@ public final class SeparateTablePerAggregateTypePersistenceStrategy implements A
         requireNonNull(aggregateType, "No aggregateType provided");
 
         var configuration = getAggregateEventStreamConfiguration(aggregateType);
-        var highestGlobalOrder = unitOfWork.handle()
+        var highestGlobalOrderPersisted = unitOfWork.handle()
                                            .createQuery(bind("SELECT MAX({:globalOrderColumnName}) FROM {:tableName}",
                                                              arg("globalOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn),
                                                              arg("tableName", configuration.eventStreamTableName)))
                                            .setFetchSize(1)
                                            .mapTo(GlobalEventOrder.class)
                                            .one();
-        if (highestGlobalOrder.isGreaterThanOrEqualTo(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER)) {
-            return Optional.of(highestGlobalOrder);
+        if (highestGlobalOrderPersisted != null && highestGlobalOrderPersisted.isGreaterThanOrEqualTo(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER)) {
+            return Optional.of(highestGlobalOrderPersisted);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<GlobalEventOrder> findLowestGlobalEventOrderPersisted(EventStoreUnitOfWork unitOfWork, AggregateType aggregateType) {
+        requireNonNull(unitOfWork, "No unitOfWork provided");
+        requireNonNull(aggregateType, "No aggregateType provided");
+
+        var configuration = getAggregateEventStreamConfiguration(aggregateType);
+        var lowestGlobalOrderPersisted = unitOfWork.handle()
+                                           .createQuery(bind("SELECT MIN({:globalOrderColumnName}) FROM {:tableName}",
+                                                             arg("globalOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn),
+                                                             arg("tableName", configuration.eventStreamTableName)))
+                                           .setFetchSize(1)
+                                           .mapTo(GlobalEventOrder.class)
+                                           .one();
+        if (lowestGlobalOrderPersisted != null && lowestGlobalOrderPersisted.isGreaterThanOrEqualTo(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER)) {
+            return Optional.of(lowestGlobalOrderPersisted);
         } else {
             return Optional.empty();
         }

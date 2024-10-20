@@ -304,6 +304,12 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
     }
 
     @Override
+    public Optional<GlobalEventOrder> findLowestGlobalEventOrderPersisted(AggregateType aggregateType) {
+        return persistenceStrategy.findLowestGlobalEventOrderPersisted(unitOfWorkFactory.getRequiredUnitOfWork(),
+                                                                        aggregateType);
+    }
+
+    @Override
     public <ID, AGGREGATE> Optional<AGGREGATE> inMemoryProjection(AggregateType aggregateType,
                                                                   ID aggregateId,
                                                                   Class<AGGREGATE> projectionType) {
