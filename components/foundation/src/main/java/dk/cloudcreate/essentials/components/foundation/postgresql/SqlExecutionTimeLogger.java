@@ -48,6 +48,8 @@ public final class SqlExecutionTimeLogger implements org.jdbi.v3.core.statement.
 
     @Override
     public void logException(StatementContext context, SQLException ex) {
-        log.error(msg("Failed Execution time: {} ms - {}", Duration.between(context.getExecutionMoment(), context.getExceptionMoment()).toMillis(), context.getRenderedSql()), ex);
+        if (log.isDebugEnabled()) {
+            log.debug(msg("Failed Execution time: {} ms - {}", Duration.between(context.getExecutionMoment(), context.getExceptionMoment()).toMillis(), context.getRenderedSql()), ex);
+        }
     }
 }
