@@ -111,30 +111,32 @@ public final class PostgresqlEventStreamGapHandler<CONFIG extends AggregateEvent
         PostgresqlUtil.checkIsValidTableOrColumnName(PERMANENT_GAPS_TABLE_NAME);
 
         unitOfWorkFactory.usingUnitOfWork(unitOfWork -> {
-            unitOfWork.handle().getJdbi().registerArgument(new AggregateTypeArgumentFactory());
-            unitOfWork.handle().getJdbi().registerColumnMapper(new AggregateTypeColumnMapper());
-            unitOfWork.handle().getJdbi().registerArgument(new SubscriberIdArgumentFactory());
-            unitOfWork.handle().getJdbi().registerColumnMapper(new SubscriberIdColumnMapper());
-            var numberOfChanges = unitOfWork.handle().execute("CREATE TABLE IF NOT EXISTS " + TRANSIENT_SUBSCRIBER_GAPS_TABLE_NAME + " (\n" +
-                                                                      "   subscriber_id text NOT NULL,\n" +
-                                                                      "   aggregate_type text NOT NULL,\n" +
-                                                                      "   gap_global_event_order bigint NOT NULL\n," +
-                                                                      "   first_discovered TIMESTAMP WITH TIME ZONE NOT NULL\n," +
-                                                                      "   PRIMARY KEY (subscriber_id, aggregate_type, gap_global_event_order)\n" +
-                                                                      ")");
-            log.info("{} '{}'", numberOfChanges == 1 ? "Created table: " : "Table already exists: ", TRANSIENT_SUBSCRIBER_GAPS_TABLE_NAME);
+            var handle = unitOfWork.handle();
+            var jdbi   = handle.getJdbi();
+            jdbi.registerArgument(new AggregateTypeArgumentFactory());
+            jdbi.registerColumnMapper(new AggregateTypeColumnMapper());
+            jdbi.registerArgument(new SubscriberIdArgumentFactory());
+            jdbi.registerColumnMapper(new SubscriberIdColumnMapper());
+            handle.execute("CREATE TABLE IF NOT EXISTS " + TRANSIENT_SUBSCRIBER_GAPS_TABLE_NAME + " (\n" +
+                                                "   subscriber_id text NOT NULL,\n" +
+                                                "   aggregate_type text NOT NULL,\n" +
+                                                "   gap_global_event_order bigint NOT NULL\n," +
+                                                "   first_discovered TIMESTAMP WITH TIME ZONE NOT NULL\n," +
+                                                "   PRIMARY KEY (subscriber_id, aggregate_type, gap_global_event_order)\n" +
+                                                ")");
+            log.info("Ensured Table '{}' exists", TRANSIENT_SUBSCRIBER_GAPS_TABLE_NAME);
 
-            numberOfChanges = unitOfWork.handle().execute("CREATE INDEX IF NOT EXISTS " + TRANSIENT_SUBSCRIBER_GAPS_INDEX_NAME + " ON \n" +
-                                                                  TRANSIENT_SUBSCRIBER_GAPS_TABLE_NAME + "(subscriber_id, aggregate_type)");
-            log.info("{} '{}'", numberOfChanges == 1 ? "Created index: " : "Index already exists: ", TRANSIENT_SUBSCRIBER_GAPS_INDEX_NAME);
+            handle.execute("CREATE INDEX IF NOT EXISTS " + TRANSIENT_SUBSCRIBER_GAPS_INDEX_NAME + " ON \n" +
+                                                TRANSIENT_SUBSCRIBER_GAPS_TABLE_NAME + "(subscriber_id, aggregate_type)");
+            log.info("Ensured Index '{}' exists", TRANSIENT_SUBSCRIBER_GAPS_INDEX_NAME);
 
-            numberOfChanges = unitOfWork.handle().execute("CREATE TABLE IF NOT EXISTS " + PERMANENT_GAPS_TABLE_NAME + " (\n" +
-                                                                  "   aggregate_type text NOT NULL,\n" +
-                                                                  "   gap_global_event_order bigint NOT NULL\n," +
-                                                                  "   added_timestamp TIMESTAMP WITH TIME ZONE NOT NULL," +
-                                                                  "   PRIMARY KEY (aggregate_type, gap_global_event_order)\n" +
-                                                                  ")");
-            log.info("{} '{}'", numberOfChanges == 1 ? "Created table: " : "Table already exists: ", PERMANENT_GAPS_TABLE_NAME);
+            handle.execute("CREATE TABLE IF NOT EXISTS " + PERMANENT_GAPS_TABLE_NAME + " (\n" +
+                                                "   aggregate_type text NOT NULL,\n" +
+                                                "   gap_global_event_order bigint NOT NULL\n," +
+                                                "   added_timestamp TIMESTAMP WITH TIME ZONE NOT NULL," +
+                                                "   PRIMARY KEY (aggregate_type, gap_global_event_order)\n" +
+                                                ")");
+            log.info("Ensured table '{}' exists", PERMANENT_GAPS_TABLE_NAME);
         });
     }
 
@@ -161,7 +163,7 @@ public final class PostgresqlEventStreamGapHandler<CONFIG extends AggregateEvent
     @Override
     public List<GlobalEventOrder> resetPermanentGapsFor(AggregateType aggregateType, LongRange resetForThisSpecificGlobalEventOrdersRange) {
         requireNonNull(resetForThisSpecificGlobalEventOrdersRange, "No resetForThisSpecificGlobalEventOrdersRange provided");
-        var globalEventOrdersRemoved = unitOfWorkFactory.withUnitOfWork(unitOfWork ->
+        List<GlobalEventOrder> globalEventOrdersRemoved = unitOfWorkFactory.withUnitOfWork(unitOfWork ->
                                                                         {
                                                                             var sql = "DELETE FROM " + PERMANENT_GAPS_TABLE_NAME + " WHERE aggregate_type = :aggregate_type \n";
                                                                             if (resetForThisSpecificGlobalEventOrdersRange.isOpenRange()) {
