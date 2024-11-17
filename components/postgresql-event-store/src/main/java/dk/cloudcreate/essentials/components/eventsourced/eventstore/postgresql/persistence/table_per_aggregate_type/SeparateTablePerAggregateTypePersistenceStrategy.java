@@ -618,19 +618,28 @@ public final class SeparateTablePerAggregateTypePersistenceStrategy implements A
                                            persistedEvents);
         } catch (RuntimeException e) {
             var cause = Exceptions.getRootCause(e);
-            if (cause.getMessage() != null && cause.getMessage().contains("ERROR: duplicate key value violates unique constraint") && cause.getMessage().contains("aggregate_id_event_order_key")) {
-                throw new OptimisticAppendToStreamException(msg("[{}] Optimistic Concurrency Exception Failed to Append {} Events to Stream related to aggregate with id '{}'. " +
-                                                                        "First event was appended with eventOrder {}. Details: {}",
-                                                                configuration.aggregateType,
-                                                                persistableEvents.size(),
-                                                                aggregateId,
-                                                                initialEventOrder + 1,
-                                                                cause.getMessage()), e);
+            var firstEventOrderAppended = initialEventOrder + 1;
+            var eventOrderRange = persistableEvents.size() == 1 ? firstEventOrderAppended : (firstEventOrderAppended + ".." + (initialEventOrder + persistableEvents.size()));
+            var uniqueAggregateIdEventOrderKeyName = configuration.eventStreamTableColumnNames.aggregateIdColumn + "_" + configuration.eventStreamTableColumnNames.eventOrderColumn + "_key";
+            if (cause.getMessage() != null && cause.getMessage().contains("ERROR: duplicate key value violates unique constraint") && cause.getMessage().contains(uniqueAggregateIdEventOrderKeyName)) {
+                var msg = msg("[{}] Optimistic-Concurrency-Exception: Failed to append {} Event(s), with Event-Order range [{}], to Stream related to Aggregate with id '{}'. See DEBUG log for more details.",
+                              configuration.aggregateType,
+                              persistableEvents.size(),
+                              eventOrderRange,
+                              aggregateId);
+                log.debug("{}{}Cause: {}",
+                          msg,
+                          System.lineSeparator(),
+                          cause.getMessage());
+                throw new OptimisticAppendToStreamException(msg);
             } else {
-                throw new AppendToStreamException(msg("[{}] Failed to Append {} Events to Stream related to aggregate with id '{}'",
-                                                      configuration.aggregateType,
-                                                      persistableEvents.size(),
-                                                      aggregateId), e);
+                var msg = msg("[{}] Append-To-Stream-Exception: Failed to append {} Event(s), with Event-Order range [{}], to Stream related to Aggregate with id '{}'. See ERROR log for more details.",
+                              configuration.aggregateType,
+                              persistableEvents.size(),
+                              eventOrderRange,
+                              aggregateId);
+                log.error(msg, e);
+                throw new AppendToStreamException(msg);
             }
         }
     }

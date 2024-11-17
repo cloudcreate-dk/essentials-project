@@ -20,4 +20,8 @@ public final class OptimisticAppendToStreamException extends AppendToStreamExcep
     public OptimisticAppendToStreamException(String msg, RuntimeException cause) {
         super(msg, cause);
     }
+
+    public OptimisticAppendToStreamException(String msg) {
+        super(msg);
+    }
 }

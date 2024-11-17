@@ -22,4 +22,8 @@ public class AppendToStreamException extends EventStoreException {
     public AppendToStreamException(String msg, RuntimeException cause) {
         super(msg, cause);
     }
+
+    public AppendToStreamException(String msg) {
+        super(msg);
+    }
 }
