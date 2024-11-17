@@ -29,36 +29,39 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 /**
  * JSON Serialized payload, used to Serialize {@link PersistedEvent} {@link PersistedEvent#metaData()} and the {@link PersistedEvent#event()} payload
  */
-@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public final class EventJSON {
     private transient JSONEventSerializer jsonSerializer;
     /**
-     * Cache or the {@link #json} deserialized back to its {@link #eventTypeOrName} form
+     * Cache of the {@link #json} deserialized back to its {@link #eventTypeOrName} form
      */
-    private transient Optional<Object>    jsonDeserialized;
+    private transient Object              jsonDeserialized;
     private final     EventTypeOrName     eventTypeOrName;
     private final     String              json;
 
     public EventJSON(JSONEventSerializer jsonSerializer, Object jsonDeserialized, EventType eventType, String json) {
-        this(jsonSerializer, eventType, json);
-        this.jsonDeserialized = Optional.of(requireNonNull(jsonDeserialized, "No payload provided"));
+        this.jsonSerializer = requireNonNull(jsonSerializer, "No JSON serializer provided");
+        this.eventTypeOrName = requireNonNull(EventTypeOrName.with(eventType), "No EventTypeOrName provided");
+        this.json = requireNonNull(json, "No JSON provided");
+        this.jsonDeserialized = requireNonNull(jsonDeserialized, "No payload provided");
     }
 
     public EventJSON(JSONEventSerializer jsonSerializer, EventType eventType, String json) {
         this.jsonSerializer = requireNonNull(jsonSerializer, "No JSON serializer provided");
-        this.eventTypeOrName = EventTypeOrName.with(eventType);
-        this.json = json;
+        this.eventTypeOrName = requireNonNull(EventTypeOrName.with(eventType), "No EventTypeOrName provided");
+        this.json = requireNonNull(json, "No JSON provided");
     }
 
     public EventJSON(JSONEventSerializer jsonSerializer, Object jsonDeserialized, EventName eventName, String json) {
-        this(jsonSerializer, eventName, json);
-        this.jsonDeserialized = Optional.of(requireNonNull(jsonDeserialized, "No payload provided"));
+        this.jsonSerializer = requireNonNull(jsonSerializer, "No JSON serializer provided");
+        this.eventTypeOrName = requireNonNull(EventTypeOrName.with(eventName), "No EventTypeOrName provided");
+        this.json = requireNonNull(json, "No JSON provided");
+        this.jsonDeserialized = requireNonNull(jsonDeserialized, "No payload provided");
     }
 
     public EventJSON(JSONEventSerializer jsonSerializer, EventName eventName, String json) {
         this.jsonSerializer = requireNonNull(jsonSerializer, "No JSON serializer provided");
-        this.eventTypeOrName = EventTypeOrName.with(eventName);
-        this.json = json;
+        this.eventTypeOrName = requireNonNull(EventTypeOrName.with(eventName), "No EventTypeOrName provided");
+        this.json = requireNonNull(json, "No JSON provided");
     }
 
     /**
@@ -69,12 +72,14 @@ public final class EventJSON {
      *
      * @return The {@link #getJson()} deserialized to the corresponding {@link #getEventType()}
      */
-    @SuppressWarnings({"OptionalAssignedToNull", "unchecked"})
+    @SuppressWarnings("unchecked")
     public <T> Optional<T> getJsonDeserialized() {
         if (jsonDeserialized == null && jsonSerializer != null) {
-            eventTypeOrName.ifHasEventType(eventJavaType -> jsonDeserialized = Optional.of(jsonSerializer.deserialize(json, eventJavaType.toJavaClass(jsonSerializer.getClassLoader()))));
+            eventTypeOrName.ifHasEventType(eventJavaType -> {
+                jsonDeserialized = jsonSerializer.deserialize(json, eventJavaType.toJavaClass(jsonSerializer.getClassLoader()));
+            });
         }
-        return (Optional<T>) jsonDeserialized;
+        return Optional.ofNullable((T) jsonDeserialized);
     }
 
     /**
@@ -86,9 +91,12 @@ public final class EventJSON {
      */
     @SuppressWarnings("unchecked")
     public <T> T deserialize() {
+        if (jsonSerializer == null) {
+            throw new JSONDeserializationException("No JSONSerializer specified for deserialization");
+        }
         return (T) getJsonDeserialized().orElseThrow(() -> new JSONDeserializationException(msg("Couldn't deserialize '{}' due to: {}",
                                                                                                 eventTypeOrName,
-                                                                                                jsonSerializer == null ? "No JSONSerializer specified" : "No EventJavaType specified")));
+                                                                                                "No EventJavaType specified")));
     }
 
     /**
@@ -124,9 +132,9 @@ public final class EventJSON {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof EventJSON)) return false;
-        EventJSON eventJSON = (EventJSON) o;
-        return eventTypeOrName.equals(eventJSON.eventTypeOrName) && Objects.equals(json, eventJSON.json);
+        if (!(o instanceof EventJSON that)) return false;
+        return Objects.equals(eventTypeOrName, that.eventTypeOrName) &&
+                Objects.equals(json, that.json);
     }
 
     @Override
@@ -155,6 +163,7 @@ public final class EventJSON {
      * If the {@link EventJSON} contains a reference to the associated {@link JSONSerializer} then
      * {@link EventType#toJavaClass(ClassLoader)} (which is compatible with SpringBoot DevTools) will be used to convert,
      * otherwise {@link EventType#toJavaClass()} is used
+     *
      * @return the optional {@link EventType}'s Java class
      */
     public Optional<Class<?>> getEventTypeAsJavaClass() {
@@ -162,5 +171,14 @@ public final class EventJSON {
                 .map(eventType -> jsonSerializer != null ?
                                   eventType.toJavaClass(jsonSerializer.getClassLoader()) :
                                   eventType.toJavaClass());
+    }
+
+    /**
+     * Sets the JSON serializer for this instance. This is useful when the jsonSerializer needs to be reinitialized after deserialization.
+     *
+     * @param jsonSerializer the {@link JSONEventSerializer} to set
+     */
+    public void setJsonSerializer(JSONEventSerializer jsonSerializer) {
+        this.jsonSerializer = requireNonNull(jsonSerializer, "JSON serializer must not be null");
     }
 }

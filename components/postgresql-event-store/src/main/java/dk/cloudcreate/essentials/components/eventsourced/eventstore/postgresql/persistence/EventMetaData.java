@@ -214,12 +214,13 @@ public final class EventMetaData implements Map<String, String>, Serializable {
 
     @Override
     public boolean equals(Object o) {
-        return metaData.equals(o);
+        if (!(o instanceof EventMetaData that)) return false;
+        return Objects.equals(metaData, that.metaData);
     }
 
     @Override
     public int hashCode() {
-        return metaData.hashCode();
+        return Objects.hashCode(metaData);
     }
 
     @Override
