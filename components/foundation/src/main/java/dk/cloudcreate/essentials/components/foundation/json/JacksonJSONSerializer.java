@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.json;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import dk.cloudcreate.essentials.shared.reflection.Classes;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -30,6 +31,8 @@ public class JacksonJSONSerializer implements JSONSerializer {
 
     public JacksonJSONSerializer(ObjectMapper objectMapper) {
         this.objectMapper = requireNonNull(objectMapper, "No object mapper instance provided");
+        // Ensure that we have defined a default ClassLoader to avoid NullPointerException's as all class lookups use a #getClassLoader()
+        setClassLoader(this.getClass().getClassLoader());
     }
 
     @Override
@@ -58,7 +61,7 @@ public class JacksonJSONSerializer implements JSONSerializer {
     @Override
     public <T> T deserialize(String json, String javaType) {
         return deserialize(json,
-                           (Class<T>) Classes.forName(requireNonNull(javaType, "No javaType provided")));
+                           (Class<T>) Classes.forName(requireNonNull(javaType, "No javaType provided"), getClassLoader()));
     }
 
     @Override
@@ -76,7 +79,7 @@ public class JacksonJSONSerializer implements JSONSerializer {
     @Override
     public <T> T deserialize(byte[] json, String javaType) {
         return deserialize(json,
-                           (Class<T>) Classes.forName(requireNonNull(javaType, "No javaType provided")));
+                           (Class<T>) Classes.forName(requireNonNull(javaType, "No javaType provided"), getClassLoader()));
     }
 
     @Override
@@ -89,6 +92,17 @@ public class JacksonJSONSerializer implements JSONSerializer {
             throw new JSONDeserializationException(msg("Failed to deserialize JSON to {}", javaType.getName()),
                                                    e);
         }
+    }
+
+    @Override
+    public ClassLoader getClassLoader() {
+        return objectMapper.getTypeFactory().getClassLoader();
+    }
+
+    @Override
+    public void setClassLoader(ClassLoader classLoader) {
+        requireNonNull(classLoader, "No ClassLoader provided");
+        objectMapper.setTypeFactory(TypeFactory.defaultInstance().withClassLoader(classLoader));
     }
 
     /**

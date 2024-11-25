@@ -21,7 +21,6 @@ import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mongodb.*;
@@ -391,12 +390,20 @@ public class EssentialsComponentsConfiguration {
      * Configure the {@link EventBus} to use for all event handlers
      *
      * @param onErrorHandler the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
+     * @param properties The configuration properties
      * @return the {@link EventBus} to use for all event handlers
      */
     @Bean
     @ConditionalOnMissingBean
-    public EventBus eventBus(Optional<OnErrorHandler> onErrorHandler) {
-        return new LocalEventBus("default", onErrorHandler);
+    public EventBus eventBus(Optional<OnErrorHandler> onErrorHandler, EssentialsComponentsProperties properties) {
+        var localEventBusBuilder = LocalEventBus.builder()
+                                                .busName("default")
+                                                .overflowMaxRetries(properties.getReactive().getOverflowMaxRetries())
+                                                .parallelThreads(properties.getReactive().getParallelThreads())
+                                                .backpressureBufferSize(properties.getReactive().getEventBusBackpressureBufferSize())
+                                                .queuedTaskCapFactor(properties.getReactive().getQueuedTaskCapFactor());
+        onErrorHandler.ifPresent(localEventBusBuilder::onErrorHandler);
+        return localEventBusBuilder.build();
     }
 
     /**
@@ -471,7 +478,7 @@ public class EssentialsComponentsConfiguration {
                          event.getApplicationContext().getClassLoader(),
                          jacksonJSONSerializer.getObjectMapper().getTypeFactory().getClassLoader()
                         );
-                jacksonJSONSerializer.getObjectMapper().setTypeFactory(TypeFactory.defaultInstance().withClassLoader(event.getApplicationContext().getClassLoader()));
+                jacksonJSONSerializer.setClassLoader(event.getApplicationContext().getClassLoader());
             }
         }
     }

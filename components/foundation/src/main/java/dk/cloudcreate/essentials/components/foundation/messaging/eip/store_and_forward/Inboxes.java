@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_
 
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.command.CommandBus;
 
 import java.time.Duration;
@@ -31,12 +31,13 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * The {@link Inbox} supports the transactional Store and Forward pattern from Enterprise Integration Patterns supporting At-Least-Once delivery guarantee.<br>
- * The {@link Inbox} pattern is used to handle incoming messages from a message infrastructure (such as a Queue, Kafka, EventBus, etc). <br>
- * The message is added to the {@link Inbox} in a transaction/{@link UnitOfWork} and afterwards the message is Acknowledged (ACK) with the message infrastructure the {@link UnitOfWork} is committed.<br>
- * If the ACK fails then the message infrastructure will attempt to redeliver the message even if the {@link UnitOfWork} has been committed, since the message infrastructure and the {@link Inbox}
+ * The {@link Inbox} pattern is used to handle incoming messages from a message infrastructure (such as a Queue, Kafka, EventBus, etc.). <br>
+ * The message is added to the {@link Inbox} in a transaction/{@link UnitOfWork} and afterward the message is Acknowledged (ACK) with the message infrastructure and the {@link UnitOfWork} is committed.<br>
+ * If the ACK fails then the message infrastructure will attempt to redeliver the message to the {@link Inbox}, since the message infrastructure and the {@link Inbox}
  * don't share the same transactional resource. This means that messages received from the message infrastructure
  * can be added more than once to the {@link Inbox}.<br>
- * After the {@link UnitOfWork} has been committed, the messages will be asynchronously delivered to the message consumer in a new {@link UnitOfWork}.<br>
+ * <br>
+ * After the {@link UnitOfWork} has been committed, the messages will be asynchronously delivered to the message consumer (typically in a new {@link UnitOfWork} dependent on the underlying implementation - see {@link DurableQueueBasedInboxes}).<br>
  * The {@link Inbox} itself supports Message Redelivery in case the Message consumer experiences failures.<br>
  * This means that the Message consumer, registered with the {@link Inbox}, can and will receive Messages more than once and therefore its message handling has to be idempotent.
  * <p>
@@ -44,6 +45,8 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * with {@link InboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
  * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
  * across as many {@link InboxConfig#numberOfParallelMessageConsumers} as you wish to use.
+ *
+ * @see DurableQueueBasedInboxes
  */
 public interface Inboxes {
     /**
@@ -102,6 +105,12 @@ public interface Inboxes {
                                             fencedLockManager);
     }
 
+    /**
+     * {@link Inboxes} variant that uses {@link DurableQueues} as the underlying implementation.<br>
+     * ONLY in cases where the underlying {@link DurableQueues} is associated with a {@link UnitOfWorkFactory} will
+     * the {@link Inbox} message consumption be performed within {@link UnitOfWork}, otherwise
+     * message consumption isn't performed with a {@link UnitOfWork}
+     */
     class DurableQueueBasedInboxes implements Inboxes {
         private final DurableQueues                   durableQueues;
         private final FencedLockManager               fencedLockManager;

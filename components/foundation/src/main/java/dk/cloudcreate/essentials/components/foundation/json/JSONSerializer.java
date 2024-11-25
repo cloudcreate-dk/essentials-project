@@ -83,4 +83,18 @@ public interface JSONSerializer {
      * @throws JSONDeserializationException in case the json couldn't be deserialized to the specified java type
      */
     <T> T deserialize(byte[] json, Class<T> javaType);
+
+    /**
+     * Get the {@link ClassLoader} used for serializing to JSON and deserializing from JSON<br>
+     * <b>Note: MUST not be null</b>
+     * @return the {@link ClassLoader} used for serializing to JSON and deserializing from JSON
+     */
+    ClassLoader getClassLoader();
+
+    /**
+     * Set the {@link ClassLoader} used for serializing to JSON and deserializing from JSON.
+     * This is e.g. required to support SpringBoot DevTools
+     * @param classLoader the {@link ClassLoader} used for serializing to JSON and deserializing from JSON
+     */
+    void setClassLoader(ClassLoader classLoader);
 }

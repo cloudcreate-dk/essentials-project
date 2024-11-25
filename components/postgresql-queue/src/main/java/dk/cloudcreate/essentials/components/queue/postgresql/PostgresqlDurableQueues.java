@@ -34,7 +34,6 @@ import dk.cloudcreate.essentials.reactive.*;
 import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.collections.Lists;
 import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
-import dk.cloudcreate.essentials.shared.reflection.Classes;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
@@ -1230,7 +1229,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
         requireNonNull(messagePayload, "No messagePayload provided");
         requireNonNull(messagePayloadType, "No messagePayloadType provided");
         try {
-            return jsonSerializer.deserialize(messagePayload, Classes.forName(messagePayloadType));
+            return jsonSerializer.deserialize(messagePayload, messagePayloadType);
         } catch (Throwable e) {
             throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
         }

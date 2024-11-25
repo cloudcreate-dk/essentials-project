@@ -115,6 +115,14 @@ class SingleTenantPostgresqlEventStoreIT {
     }
 
     @Test
+    void test_resolveGlobalEventOrderSequenceName() {
+        var unitOfWork   = unitOfWorkFactory.getOrCreateNewUnitOfWork();
+        var sequenceName = eventStore.getPersistenceStrategy().resolveGlobalEventOrderSequenceName(unitOfWork, ORDERS);
+        assertThat(sequenceName).isPresent();
+        assertThat(sequenceName).hasValue("public.orders_events_global_order_seq");
+    }
+
+    @Test
     void persisting_events_related_to_two_different_aggregates_in_one_unitofwork() {
         // Given
         var orderId1     = OrderId.of("beed77fb-d911-1111-9c48-03ed5bfe8f89");
@@ -559,6 +567,8 @@ class SingleTenantPostgresqlEventStoreIT {
 
         var highestGlobalEventOrderPersisted = eventStore.getPersistenceStrategy().findHighestGlobalEventOrderPersisted(unitOfWork, aggregateType);
         assertThat(highestGlobalEventOrderPersisted).isEmpty();
+        var lowestGlobalEventOrderPersisted = eventStore.getPersistenceStrategy().findLowestGlobalEventOrderPersisted(unitOfWork, aggregateType);
+        assertThat(lowestGlobalEventOrderPersisted).isEmpty();
 
         // When
         var persistedEventsStream = eventStore.appendToStream(aggregateType,
@@ -703,10 +713,14 @@ class SingleTenantPostgresqlEventStoreIT {
         assertThat(eventsLoaded.get(2).causedByEventId()).isEqualTo(Optional.of(eventMapper.causedByEventId));
         assertThat(eventsLoaded.get(2).correlationId()).isEqualTo(Optional.of(eventMapper.correlationId));
 
-        // Verify highest globalorder persisted after all events are persisted
+        // Verify lowest and highest globalorder persisted after all events are persisted
         highestGlobalEventOrderPersisted = eventStore.getPersistenceStrategy().findHighestGlobalEventOrderPersisted(unitOfWork, aggregateType);
         assertThat(highestGlobalEventOrderPersisted).isPresent();
         assertThat(highestGlobalEventOrderPersisted.get()).isEqualTo(GlobalEventOrder.of(3));
+
+        lowestGlobalEventOrderPersisted = eventStore.getPersistenceStrategy().findLowestGlobalEventOrderPersisted(unitOfWork, aggregateType);
+        assertThat(lowestGlobalEventOrderPersisted).isPresent();
+        assertThat(lowestGlobalEventOrderPersisted.get()).isEqualTo(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER);
     }
 
     @Test
@@ -716,7 +730,10 @@ class SingleTenantPostgresqlEventStoreIT {
         var customerId = CustomerId.of("Test-Customer-Id-3");
         var initialEvents = List.of(new OrderEvent.OrderAdded(orderId,
                                                               customerId,
-                                                              1234));
+                                                              1234),
+                                    new OrderEvent.ProductAddedToOrder(orderId,
+                                                                       ProductId.of("ProductId-0"),
+                                                                       1));
         var unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
 
         // When
@@ -729,16 +746,48 @@ class SingleTenantPostgresqlEventStoreIT {
         assertThat(persistedEventsStream).isNotNull();
         assertThat((CharSequence) persistedEventsStream.aggregateId()).isEqualTo(orderId);
         assertThat(persistedEventsStream.isPartialEventStream()).isTrue();
-        assertThat(persistedEventsStream.eventOrderRangeIncluded()).isEqualTo(LongRange.between(0, 0));
+        assertThat(persistedEventsStream.eventOrderRangeIncluded()).isEqualTo(LongRange.between(0, 1));
         var eventsPersisted = persistedEventsStream.eventList();
-        assertThat(eventsPersisted.size()).isEqualTo(1);
+        assertThat(eventsPersisted.size()).isEqualTo(2);
         assertThat((CharSequence) eventsPersisted.get(0).eventId()).isNotNull();
         assertThat((CharSequence) eventsPersisted.get(0).aggregateId()).isEqualTo(orderId);
         assertThat((CharSequence) eventsPersisted.get(0).aggregateType()).isEqualTo(aggregateType);
         assertThat(eventsPersisted.get(0).eventOrder()).isEqualTo(EventOrder.of(0));
         assertThat(eventsPersisted.get(0).globalEventOrder()).isEqualTo(GlobalEventOrder.of(1));
 
-        // Append to Stream with overlapping event order
+        assertThat((CharSequence) eventsPersisted.get(1).eventId()).isNotNull();
+        assertThat((CharSequence) eventsPersisted.get(1).aggregateId()).isEqualTo(orderId);
+        assertThat((CharSequence) eventsPersisted.get(1).aggregateType()).isEqualTo(aggregateType);
+        assertThat(eventsPersisted.get(1).eventOrder()).isEqualTo(EventOrder.of(1));
+        assertThat(eventsPersisted.get(1).globalEventOrder()).isEqualTo(GlobalEventOrder.of(2));
+
+        // Append Initial Event to Stream with overlapping event order
+        unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
+        var appendInitialEvent = List.of(new OrderEvent.ProductAddedToOrder(orderId,
+                                                                      ProductId.of("ProductId-1"),
+                                                                      2));
+        assertThatThrownBy(() -> eventStore.appendToStream(aggregateType,
+                                                           orderId,
+                                                           EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED, // -1
+                                                           appendInitialEvent))
+                .isExactlyInstanceOf(OptimisticAppendToStreamException.class)
+                .hasMessageContaining("Event-Order range [0]");
+        unitOfWork.rollback();
+
+        // Append Initial Event to Stream with overlapping event order
+        unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
+        var appendSecondEvent = List.of(new OrderEvent.ProductAddedToOrder(orderId,
+                                                                            ProductId.of("ProductId-1"),
+                                                                            2));
+        assertThatThrownBy(() -> eventStore.appendToStream(aggregateType,
+                                                           orderId,
+                                                           EventOrder.FIRST_EVENT_ORDER, // 0
+                                                           appendSecondEvent))
+                .isExactlyInstanceOf(OptimisticAppendToStreamException.class)
+                .hasMessageContaining("Event-Order range [1]");
+        unitOfWork.rollback();
+
+        // Append Events to Stream with overlapping event order
         unitOfWork = unitOfWorkFactory.getOrCreateNewUnitOfWork();
         var appendEvents = List.of(new OrderEvent.ProductAddedToOrder(orderId,
                                                                       ProductId.of("ProductId-1"),
@@ -749,7 +798,8 @@ class SingleTenantPostgresqlEventStoreIT {
                                                            orderId,
                                                            EventOrder.NO_EVENTS_PREVIOUSLY_PERSISTED, // -1
                                                            appendEvents))
-                .isExactlyInstanceOf(OptimisticAppendToStreamException.class);
+                .isExactlyInstanceOf(OptimisticAppendToStreamException.class)
+                .hasMessageContaining("Event-Order range [0..1]");
         unitOfWork.rollback();
 
         // And load events again and ensure that no events were persisted
@@ -761,8 +811,8 @@ class SingleTenantPostgresqlEventStoreIT {
         assertThat(loadedEventStream.isPartialEventStream()).isFalse();
         assertThat(loadedEventStream.eventOrderRangeIncluded()).isEqualTo(LongRange.from(0));
         assertThat((CharSequence) loadedEventStream.aggregateType()).isEqualTo(aggregateType);
-        var eventsLoaded = loadedEventStream.events().collect(Collectors.toList());
-        assertThat(eventsLoaded.size()).isEqualTo(1);
+        var eventsLoaded = loadedEventStream.events().toList();
+        assertThat(eventsLoaded.size()).isEqualTo(2);
         assertThat((CharSequence) eventsLoaded.get(0).eventId()).isNotNull();
         assertThat((CharSequence) eventsLoaded.get(0).aggregateId()).isEqualTo(orderId);
         assertThat((CharSequence) eventsLoaded.get(0).aggregateType()).isEqualTo(aggregateType);
@@ -781,6 +831,25 @@ class SingleTenantPostgresqlEventStoreIT {
         assertThat(eventsLoaded.get(0).metaData().getJsonDeserialized()).isEqualTo(Optional.of(META_DATA));
         assertThat(eventsLoaded.get(0).causedByEventId()).isEqualTo(Optional.of(eventMapper.causedByEventId));
         assertThat(eventsLoaded.get(0).correlationId()).isEqualTo(Optional.of(eventMapper.correlationId));
+
+        assertThat((CharSequence) eventsLoaded.get(1).eventId()).isNotNull();
+        assertThat((CharSequence) eventsLoaded.get(1).aggregateId()).isEqualTo(orderId);
+        assertThat((CharSequence) eventsLoaded.get(1).aggregateType()).isEqualTo(aggregateType);
+        assertThat(eventsLoaded.get(1).eventOrder()).isEqualTo(EventOrder.of(1));
+        assertThat(eventsLoaded.get(1).eventRevision()).isEqualTo(EventRevision.of(2));
+        assertThat(eventsLoaded.get(1).globalEventOrder()).isEqualTo(GlobalEventOrder.of(2));
+        assertThat(eventsLoaded.get(1).timestamp()).isBefore(OffsetDateTime.now());
+        assertThat(eventsLoaded.get(1).event().getEventName()).isEmpty();
+        assertThat(eventsLoaded.get(1).event().getEventType()).isEqualTo(Optional.of(EventType.of(OrderEvent.ProductAddedToOrder.class)));
+        assertThat(eventsLoaded.get(1).event().getEventTypeOrNamePersistenceValue()).isEqualTo(EventType.of(OrderEvent.ProductAddedToOrder.class).toString());
+        assertThat(eventsLoaded.get(1).event().getJsonDeserialized().get()).usingRecursiveComparison().isEqualTo(initialEvents.get(1));
+        assertThat(eventsLoaded.get(1).event().getJson()).isEqualTo("{\"orderId\": \"beed77fb-d911-480f-9c48-03ed5bfe1111\", \"quantity\": 1, \"productId\": \"ProductId-0\"}"); // Note formatting changed by postgresql
+        assertThat(eventsLoaded.get(1).metaData().getJson()).contains("\"Key1\": \"Value1\""); // Note formatting changed by postgresql
+        assertThat(eventsLoaded.get(1).metaData().getJson()).contains("\"Key2\": \"Value2\""); // Note formatting changed by postgresql
+        assertThat(eventsLoaded.get(1).metaData().getJavaType()).isEqualTo(Optional.of(EventMetaData.class.getName()));
+        assertThat(eventsLoaded.get(1).metaData().getJsonDeserialized()).isEqualTo(Optional.of(META_DATA));
+        assertThat(eventsLoaded.get(1).causedByEventId()).isEqualTo(Optional.of(eventMapper.causedByEventId));
+        assertThat(eventsLoaded.get(1).correlationId()).isEqualTo(Optional.of(eventMapper.correlationId));
     }
 
     @Test
@@ -1026,7 +1095,7 @@ class SingleTenantPostgresqlEventStoreIT {
         assertThat(allPersistedProductEvents).containsAll(allLoadedProductEvents);
         // Verify we can load all partial set of PRODUCT events persisted
         var partialListOfPersistedProductIds = allPersistedProductEvents.stream().map(PersistedEvent::eventId).limit(4).toList();
-        var partialLoadedProductEvents     = eventStore.loadEvents(PRODUCTS, partialListOfPersistedProductIds);
+        var partialLoadedProductEvents       = eventStore.loadEvents(PRODUCTS, partialListOfPersistedProductIds);
         assertThat(partialLoadedProductEvents).hasSize(4);
         assertThat(partialLoadedProductEvents.stream().map(PersistedEvent::eventId).toList()).containsAll(partialListOfPersistedProductIds);
         assertThat(allPersistedProductEvents).containsAll(partialLoadedProductEvents);
@@ -1040,7 +1109,7 @@ class SingleTenantPostgresqlEventStoreIT {
         assertThat(allPersistedOrderEvents).containsAll(allLoadedOrderEvents);
         // Verify we can load all partial set of ORDER events persisted
         var partialListOfPersistedOrderIds = allPersistedOrderEvents.stream().map(PersistedEvent::eventId).limit(10).toList();
-        var partialLoadedOrderEvents     = eventStore.loadEvents(ORDERS, partialListOfPersistedOrderIds);
+        var partialLoadedOrderEvents       = eventStore.loadEvents(ORDERS, partialListOfPersistedOrderIds);
         assertThat(partialLoadedOrderEvents).hasSize(10);
         assertThat(partialLoadedOrderEvents.stream().map(PersistedEvent::eventId).toList()).containsAll(partialListOfPersistedOrderIds);
         assertThat(allPersistedOrderEvents).containsAll(partialLoadedOrderEvents);
@@ -1533,7 +1602,7 @@ class SingleTenantPostgresqlEventStoreIT {
         private final List<PersistedEvent> beforeCommitPersistedEvents  = new ArrayList<>();
         private final List<PersistedEvent> afterCommitPersistedEvents   = new ArrayList<>();
         private final List<PersistedEvent> afterRollbackPersistedEvents = new ArrayList<>();
-        private final List<PersistedEvent> flushPersistedEvents = new ArrayList<>();
+        private final List<PersistedEvent> flushPersistedEvents         = new ArrayList<>();
 
         @Override
         public void handle(Object event) {

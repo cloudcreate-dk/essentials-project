@@ -24,8 +24,10 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.operation
 import dk.cloudcreate.essentials.components.foundation.postgresql.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
+import dk.cloudcreate.essentials.reactive.LocalEventBus;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import reactor.core.publisher.Sinks;
 
 import java.time.*;
 
@@ -69,6 +71,7 @@ import java.time.*;
  * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the {@code sharedQueueTableName} value.<br>
  * <b>Failure to adequately sanitize and validate this value could expose the application to SQL injection
  * vulnerabilities, compromising the security and integrity of the database.</b>
+ *
  * @see dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues
  * @see dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager
  * @see dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage
@@ -82,14 +85,15 @@ public class EssentialsComponentsProperties {
 
     private final MultiTableChangeListenerProperties multiTableChangeListener = new MultiTableChangeListenerProperties();
 
-    private final LifeCycleProperties lifeCycles = new LifeCycleProperties();
-    private final TracingProperties tracingProperties = new TracingProperties();
-
-    private boolean             immutableJacksonModuleEnabled = true;
+    private final LifeCycleProperties lifeCycles                    = new LifeCycleProperties();
+    private final TracingProperties  tracingProperties             = new TracingProperties();
+    private final ReactiveProperties reactive                      = new ReactiveProperties();
+    private       boolean            immutableJacksonModuleEnabled = true;
 
     /**
      * Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration - default is true<br>
      * Setting this value to false will not include the EssentialsImmutableJacksonModule, in the ObjectMapper configuration, even if Objenesis is on the classpath
+     *
      * @return Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration
      */
     public boolean isImmutableJacksonModuleEnabled() {
@@ -97,13 +101,17 @@ public class EssentialsComponentsProperties {
     }
 
     /**
-     /**
      * Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration - default is true<br>
      * Setting this value to false will not include the EssentialsImmutableJacksonModule, in the ObjectMapper configuration, even if Objenesis is on the classpath
+     *
      * @param immutableJacksonModuleEnabled Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration
      */
     public void setImmutableJacksonModuleEnabled(boolean immutableJacksonModuleEnabled) {
         this.immutableJacksonModuleEnabled = immutableJacksonModuleEnabled;
+    }
+
+    public ReactiveProperties getReactive() {
+        return reactive;
     }
 
     public FencedLockManagerProperties getFencedLockManager() {
@@ -325,9 +333,9 @@ public class EssentialsComponentsProperties {
     }
 
     public static class FencedLockManagerProperties {
-        private Duration lockTimeOut              = Duration.ofSeconds(15);
-        private Duration lockConfirmationInterval = Duration.ofSeconds(4);
-        private String   fencedLocksTableName     = PostgresqlFencedLockStorage.DEFAULT_FENCED_LOCKS_TABLE_NAME;
+        private Duration lockTimeOut                                                    = Duration.ofSeconds(15);
+        private Duration lockConfirmationInterval                                       = Duration.ofSeconds(4);
+        private String   fencedLocksTableName                                           = PostgresqlFencedLockStorage.DEFAULT_FENCED_LOCKS_TABLE_NAME;
         private boolean  releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = false;
 
         /**
@@ -497,6 +505,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * Get property to set as 'module' tag value for all micrometer metrics. This to differentiate metrics across different modules.
+         *
          * @return property to set as 'module' tag value for all micrometer metrics
          */
         public String getModuleTag() {
@@ -505,10 +514,88 @@ public class EssentialsComponentsProperties {
 
         /**
          * Set property to use as 'module' tag value for all micrometer metrics. This to differentiate metrics across different modules.
+         *
          * @param moduleTag property to set as 'module' tag value for all micrometer metrics
          */
         public void setModuleTag(String moduleTag) {
             this.moduleTag = moduleTag;
+        }
+    }
+
+    public static class ReactiveProperties {
+        private int    eventBusBackpressureBufferSize = LocalEventBus.DEFAULT_BACKPRESSURE_BUFFER_SIZE;
+        private int    parallelThreads                = Runtime.getRuntime().availableProcessors();
+        private int    overflowMaxRetries             = LocalEventBus.DEFAULT_OVERFLOW_MAX_RETRIES;
+        private double queuedTaskCapFactor            = LocalEventBus.QUEUED_TASK_CAP_FACTOR;
+
+        /**
+         * Get property to set as 'eventBusBackpressureBufferSize' value LocalEventBus back pressure size for {@link Sinks.Many}'s onBackpressureBuffer size. The default value set by reactor framework is {@value LocalEventBus#DEFAULT_BACKPRESSURE_BUFFER_SIZE}.
+         *
+         * @return property 'eventBusBackpressureBufferSize' used for value LocalEventBus Sinks.Many onBackpressureBuffer size.
+         */
+        public int getEventBusBackpressureBufferSize() {
+            return eventBusBackpressureBufferSize;
+        }
+
+        /**
+         * Set property 'eventBusBackpressureBufferSize'  value LocalEventBus back pressure size for {@link Sinks.Many}'s onBackpressureBuffer size. The default value set by reactor framework is {@value LocalEventBus#DEFAULT_BACKPRESSURE_BUFFER_SIZE}.
+         *
+         * @param eventBusBackpressureBufferSize property value 'eventBusBackpressureBufferSize' LocalEventBus Sinks.Many onBackpressureBuffer size.
+         */
+        public void setEventBusBackpressureBufferSize(int eventBusBackpressureBufferSize) {
+            this.eventBusBackpressureBufferSize = eventBusBackpressureBufferSize;
+        }
+
+        /**
+         * Get the number of parallel threads processing asynchronous events. Defaults to the number of available processors on the machine
+         *
+         * @return the number of parallel threads processing asynchronous events.
+         */
+        public int getParallelThreads() {
+            return parallelThreads;
+        }
+
+        /**
+         * Set the number of parallel threads processing asynchronous events. Defaults to the number of available processors on the machine
+         *
+         * @param parallelThreads the number of parallel threads processing asynchronous events.
+         */
+        public void setParallelThreads(int parallelThreads) {
+            this.parallelThreads = parallelThreads;
+        }
+
+        /**
+         * Set the maximum number of retries for events that overflow the Flux. Default is {@value LocalEventBus#DEFAULT_OVERFLOW_MAX_RETRIES}.
+         *
+         * @return the maximum number of retries for events that overflow the Flux
+         */
+        public int getOverflowMaxRetries() {
+            return overflowMaxRetries;
+        }
+
+        /**
+         * Get the maximum number of retries for events that overflow the Flux. Default is {@value LocalEventBus#DEFAULT_OVERFLOW_MAX_RETRIES}.
+         *
+         * @param overflowMaxRetries the maximum number of retries for events that overflow the Flux
+         */
+        public void setOverflowMaxRetries(int overflowMaxRetries) {
+            this.overflowMaxRetries = overflowMaxRetries;
+        }
+
+        /**
+         * Get the factor to calculate queued task capacity from the backpressureBufferSize. Default value is {@value LocalEventBus#QUEUED_TASK_CAP_FACTOR}.
+         * @return the factor to calculate queued task capacity from the backpressureBufferSize.
+         */
+        public double getQueuedTaskCapFactor() {
+            return queuedTaskCapFactor;
+        }
+
+        /**
+         * Set the factor to calculate queued task capacity from the backpressureBufferSize. Default value is {@value LocalEventBus#QUEUED_TASK_CAP_FACTOR}.
+         * @param queuedTaskCapFactor the factor to calculate queued task capacity from the backpressureBufferSize.
+         */
+        public void setQueuedTaskCapFactor(double queuedTaskCapFactor) {
+            this.queuedTaskCapFactor = queuedTaskCapFactor;
         }
     }
 }

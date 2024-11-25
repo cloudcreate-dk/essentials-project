@@ -121,7 +121,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsInTransaction_With
     @Test
     void subscribe_using_FlushAndPublishPersistedEventsToEventBusRightAfterAppendToStream() {
         eventStore.addEventStoreInterceptor(new FlushAndPublishPersistedEventsToEventBusRightAfterAppendToStream());
-        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory());
+        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore);
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
                                                                                      Duration.ofMillis(100),

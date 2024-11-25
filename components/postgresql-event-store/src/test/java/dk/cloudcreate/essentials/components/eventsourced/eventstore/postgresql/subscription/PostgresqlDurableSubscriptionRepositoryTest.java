@@ -16,8 +16,8 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription;
 
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.EventStore;
 import dk.cloudcreate.essentials.components.foundation.postgresql.InvalidTableOrColumnNameException;
-import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWorkFactory;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.Test;
 
@@ -30,21 +30,21 @@ class PostgresqlDurableSubscriptionRepositoryTest {
     void test_with_invalid_durableSubscriptionsTableName() {
         assertThatThrownBy(() -> {
             new PostgresqlDurableSubscriptionRepository(mock(Jdbi.class),
-                                                        mock(HandleAwareUnitOfWorkFactory.class),
+                                                        mock(EventStore.class),
                                                         "invalid name");
         }).isInstanceOf(InvalidTableOrColumnNameException.class)
           .hasMessageContaining("Invalid table or column name");
 
         assertThatThrownBy(() -> {
             new PostgresqlDurableSubscriptionRepository(mock(Jdbi.class),
-                                                        mock(HandleAwareUnitOfWorkFactory.class),
+                                                        mock(EventStore.class),
                                                         "name; DROP TABLE users;");
         }).isInstanceOf(InvalidTableOrColumnNameException.class)
           .hasMessageContaining("Invalid table or column name");
 
         assertThatThrownBy(() -> {
             new PostgresqlDurableSubscriptionRepository(mock(Jdbi.class),
-                                                        mock(HandleAwareUnitOfWorkFactory.class),
+                                                        mock(EventStore.class),
                                                         "drop");
         }).isInstanceOf(InvalidTableOrColumnNameException.class)
           .hasMessageContaining("is a reserved keyword");

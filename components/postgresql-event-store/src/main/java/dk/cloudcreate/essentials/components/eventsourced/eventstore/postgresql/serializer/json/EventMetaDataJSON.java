@@ -18,34 +18,35 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.PersistedEvent;
 import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
+import dk.cloudcreate.essentials.shared.reflection.Classes;
 
 import java.util.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
-import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
  * JSON Serialized payload, used to Serialize {@link PersistedEvent}'s {@link PersistedEvent#metaData()} payload
  */
-@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public final class EventMetaDataJSON {
     private transient JSONEventSerializer jsonSerializer;
     /**
-     * Cache or the {@link #json} deserialized back to its {@link #javaType} form
+     * Cache of the {@link #json} deserialized back to its {@link #javaType} form
      */
-    private transient Optional<Object>    jsonDeserialized;
-    private final     Optional<String> javaType;
-    private final     String           json;
+    private transient Object jsonDeserialized;
+    private final String javaType;
+    private final String json;
 
     public EventMetaDataJSON(JSONEventSerializer jsonSerializer, Object jsonDeserialized, String javaType, String json) {
-        this(jsonSerializer, javaType, json);
-        this.jsonDeserialized = Optional.of(requireNonNull(jsonDeserialized, "No payload provided"));
+        this.jsonSerializer = requireNonNull(jsonSerializer, "No JSON serializer provided");
+        this.javaType = requireNonNull(javaType, "No Java type provided");
+        this.json = requireNonNull(json, "No JSON provided");
+        this.jsonDeserialized = requireNonNull(jsonDeserialized, "No payload provided");
     }
 
     public EventMetaDataJSON(JSONEventSerializer jsonSerializer, String javaType, String json) {
         this.jsonSerializer = requireNonNull(jsonSerializer, "No JSON serializer provided");
-        this.javaType = Optional.ofNullable(javaType);
-        this.json = json;
+        this.javaType = javaType;
+        this.json = requireNonNull(json, "No JSON provided");
     }
 
     /**
@@ -56,12 +57,14 @@ public final class EventMetaDataJSON {
      *
      * @return The {@link #getJson()} deserialized to the corresponding {@link #getJavaType()}
      */
-    @SuppressWarnings({"OptionalAssignedToNull", "unchecked"})
+    @SuppressWarnings("unchecked")
     public <T> Optional<T> getJsonDeserialized() {
         if (jsonDeserialized == null && jsonSerializer != null) {
-            javaType.ifPresent(s -> jsonDeserialized = Optional.of(jsonSerializer.deserialize(json, s)));
+            if (javaType != null) {
+                jsonDeserialized = jsonSerializer.deserialize(json, Classes.forName(javaType, jsonSerializer.getClassLoader()));
+            }
         }
-        return (Optional<T>) jsonDeserialized;
+        return Optional.ofNullable((T) jsonDeserialized);
     }
 
     /**
@@ -73,9 +76,10 @@ public final class EventMetaDataJSON {
      */
     @SuppressWarnings("unchecked")
     public <T> T deserialize() {
-        return (T) getJsonDeserialized().orElseThrow(() -> new JSONDeserializationException(msg("Couldn't deserialize '{}' due to: {}",
-                                                                                                javaType.orElse("N/A"),
-                                                                                                javaType.isPresent() ? "No JSONSerializer specified" : "No JavaType specified")));
+        if (jsonSerializer == null) {
+            throw new JSONDeserializationException("No JSONSerializer specified for deserialization");
+        }
+        return (T) getJsonDeserialized().orElseThrow(() -> new JSONDeserializationException("Couldn't deserialize since no JavaType specified"));
     }
 
     /**
@@ -88,7 +92,7 @@ public final class EventMetaDataJSON {
      * was serialized into the {@link #getJson()}
      */
     public Optional<String> getJavaType() {
-        return javaType;
+        return Optional.ofNullable(javaType);
     }
 
     /**
@@ -103,8 +107,7 @@ public final class EventMetaDataJSON {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof EventMetaDataJSON)) return false;
-        EventMetaDataJSON that = (EventMetaDataJSON) o;
+        if (!(o instanceof EventMetaDataJSON that)) return false;
         return javaType.equals(that.javaType) && Objects.equals(json, that.json);
     }
 
@@ -116,7 +119,17 @@ public final class EventMetaDataJSON {
     @Override
     public String toString() {
         return "EventMetaDataJSON{" +
-                "'" + json + '\'' +
+                "javaType='" + javaType + "', " +
+                "json='" + json + '\'' +
                 '}';
+    }
+
+    /**
+     * Sets the JSON serializer for this instance. This is useful when the jsonSerializer needs to be reinitialized after deserialization.
+     *
+     * @param jsonSerializer the {@link JSONEventSerializer} to set
+     */
+    public void setJsonSerializer(JSONEventSerializer jsonSerializer) {
+        this.jsonSerializer = requireNonNull(jsonSerializer, "JSON serializer must not be null");
     }
 }

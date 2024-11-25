@@ -21,7 +21,6 @@ import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.EssentialsComponentsProperties.*;
@@ -334,15 +333,23 @@ public class EssentialsComponentsConfiguration {
      * Configure the {@link EventBus} to use for all event handlers
      *
      * @param onErrorHandler the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
+     * @param properties The configuration properties
      * @return the {@link EventBus} to use for all event handlers
      */
     @Bean
     @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.EventStoreEventBus")
     @ConditionalOnMissingBean
-    public EventBus eventBus(Optional<OnErrorHandler> onErrorHandler) {
-        return new LocalEventBus("default", onErrorHandler);
+    public EventBus eventBus(Optional<OnErrorHandler> onErrorHandler, EssentialsComponentsProperties properties) {
+        var localEventBusBuilder = LocalEventBus.builder()
+                                                .busName("default")
+                                                .overflowMaxRetries(properties.getReactive().getOverflowMaxRetries())
+                                                .parallelThreads(properties.getReactive().getParallelThreads())
+                                                .backpressureBufferSize(properties.getReactive().getEventBusBackpressureBufferSize())
+                                                .queuedTaskCapFactor(properties.getReactive().getQueuedTaskCapFactor());
+        onErrorHandler.ifPresent(localEventBusBuilder::onErrorHandler);
+        return localEventBusBuilder.build();
     }
-
+    
     /**
      * {@link JSONSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
      * (including handling {@link DurableQueues} message payload serialization and deserialization)
@@ -428,7 +435,7 @@ public class EssentialsComponentsConfiguration {
                          event.getApplicationContext().getClassLoader(),
                          jacksonJSONSerializer.getObjectMapper().getTypeFactory().getClassLoader()
                         );
-                jacksonJSONSerializer.getObjectMapper().setTypeFactory(TypeFactory.defaultInstance().withClassLoader(event.getApplicationContext().getClassLoader()));
+                jacksonJSONSerializer.setClassLoader(event.getApplicationContext().getClassLoader());
             }
         }
     }

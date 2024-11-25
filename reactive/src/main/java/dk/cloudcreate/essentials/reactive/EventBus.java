@@ -16,6 +16,8 @@
 
 package dk.cloudcreate.essentials.reactive;
 
+import dk.cloudcreate.essentials.shared.Lifecycle;
+
 /**
  * Simple event bus concept that supports both synchronous and asynchronous subscribers that are registered and listening for events published<br>
  * <br>
@@ -56,7 +58,7 @@ package dk.cloudcreate.essentials.reactive;
  * @see LocalEventBus
  * @see AnnotatedEventHandler
  */
-public interface EventBus {
+public interface EventBus extends Lifecycle {
     /**
      * Publish the event to all subscribers/consumer<br>
      * First we call all asynchronous subscribers, after which we will call all synchronous subscribers on the calling thread (i.e. on the same thread that the publish method is called on)

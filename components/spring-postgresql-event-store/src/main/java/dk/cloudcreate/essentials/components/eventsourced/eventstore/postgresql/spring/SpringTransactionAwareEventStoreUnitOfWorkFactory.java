@@ -67,12 +67,13 @@ public class SpringTransactionAwareEventStoreUnitOfWorkFactory
         log.trace("Calling PersistedEventsCommitLifecycleCallback#afterCommit after committing the Spring Transaction-Aware UnitOfWork");
         for (var callback : persistedEventsLifecycleCallbacks) {
             try {
-                log.trace("AfterCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), unitOfWork.eventsPersisted.size());
-                callback.afterCommit(unitOfWork, unitOfWork.eventsPersisted);
+                log.trace("AfterCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), unitOfWork.afterCommitEventsPersisted.size());
+                callback.afterCommit(unitOfWork, unitOfWork.afterCommitEventsPersisted);
             } catch (RuntimeException e) {
                 log.error(msg("Failed {} failed during afterCommit PersistedEvents", callback.getClass().getName()), e);
             }
         }
+        unitOfWork.afterCommitEventsPersisted.clear();
     }
 
     @Override
@@ -80,14 +81,16 @@ public class SpringTransactionAwareEventStoreUnitOfWorkFactory
         log.trace("Calling PersistedEventsCommitLifecycleCallback#beforeCommit prior to committing the Spring Transaction-Aware UnitOfWork");
         for (var callback : persistedEventsLifecycleCallbacks) {
             try {
-                log.trace("BeforeCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), unitOfWork.eventsPersisted.size());
-                callback.beforeCommit(unitOfWork, unitOfWork.eventsPersisted);
+                log.trace("BeforeCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), unitOfWork.beforeCommitEventsPersisted.size());
+                callback.beforeCommit(unitOfWork, unitOfWork.beforeCommitEventsPersisted);
             } catch (RuntimeException e) {
                 UnitOfWorkException unitOfWorkException = new UnitOfWorkException(msg("{} failed during beforeCommit PersistedEvents", callback.getClass().getName()), e);
                 unitOfWorkException.fillInStackTrace();
                 throw unitOfWorkException;
             }
         }
+        unitOfWork.afterCommitEventsPersisted.addAll(unitOfWork.beforeCommitEventsPersisted);
+        unitOfWork.beforeCommitEventsPersisted.clear();
     }
 
     @Override
@@ -99,7 +102,8 @@ public class SpringTransactionAwareEventStoreUnitOfWorkFactory
     public static class SpringTransactionAwareEventStoreUnitOfWork extends SpringTransactionAwareUnitOfWork<PlatformTransactionManager, SpringTransactionAwareEventStoreUnitOfWork> implements EventStoreUnitOfWork {
         private static final Logger log = LoggerFactory.getLogger(SpringTransactionAwareEventStoreUnitOfWork.class);
         private              Handle handle;
-        List<PersistedEvent> eventsPersisted = new ArrayList<>();
+        List<PersistedEvent> beforeCommitEventsPersisted = new ArrayList<>();
+        List<PersistedEvent> afterCommitEventsPersisted = new ArrayList<>();
 
         public SpringTransactionAwareEventStoreUnitOfWork(SpringTransactionAwareUnitOfWorkFactory<PlatformTransactionManager, SpringTransactionAwareEventStoreUnitOfWork> unitOfWorkFactory) {
             super(unitOfWorkFactory);
@@ -140,19 +144,19 @@ public class SpringTransactionAwareEventStoreUnitOfWorkFactory
         @Override
         public void registerEventsPersisted(List<PersistedEvent> eventsPersistedInThisUnitOfWork) {
             requireNonNull(eventsPersistedInThisUnitOfWork, "No eventsPersistedInThisUnitOfWork provided");
-            this.eventsPersisted.addAll(eventsPersistedInThisUnitOfWork);
+            this.beforeCommitEventsPersisted.addAll(eventsPersistedInThisUnitOfWork);
         }
 
         @Override
         public void removeFlushedEventsPersisted(List<PersistedEvent> eventsPersistedToRemoveFromThisUnitOfWork) {
             requireNonNull(eventsPersistedToRemoveFromThisUnitOfWork, "No eventsPersistedToRemoveFromThisUnitOfWork provided");
-            this.eventsPersisted.removeAll(eventsPersistedToRemoveFromThisUnitOfWork);
+            this.beforeCommitEventsPersisted.removeAll(eventsPersistedToRemoveFromThisUnitOfWork);
         }
 
         @Override
         public void removeFlushedEventPersisted(PersistedEvent eventPersistedToRemoveFromThisUnitOfWork) {
             requireNonNull(eventPersistedToRemoveFromThisUnitOfWork, "No eventPersistedToRemoveFromThisUnitOfWork provided");
-            this.eventsPersisted.remove(eventPersistedToRemoveFromThisUnitOfWork);
+            this.beforeCommitEventsPersisted.remove(eventPersistedToRemoveFromThisUnitOfWork);
         }
     }
 }

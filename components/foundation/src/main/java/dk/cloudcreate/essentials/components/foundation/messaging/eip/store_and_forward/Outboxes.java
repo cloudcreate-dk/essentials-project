@@ -18,7 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_
 
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.EventHandler;
 
 import java.time.Duration;
@@ -35,9 +35,10 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * (such as a Queue, Kafka, EventBus, etc.) that doesn't share the same underlying transactional resource as the database.<br>
  * Instead, you need to use an {@link Outbox} that can join in the same {@link UnitOfWork}/transactional-resource
  * that the database is using.<br>
- * The message is added to the {@link Outbox} in a transaction/{@link UnitOfWork} and afterwards the {@link UnitOfWork} is committed.<br>
- * If the transaction fails then both the entity and the message will be rolled back when then {@link UnitOfWork} rolls back.<br>
- * After the {@link UnitOfWork} has been committed, the messages will be asynchronously delivered to the message consumer in a new {@link UnitOfWork}.<br>
+ * IF the message is added to the {@link Outbox} in a transaction/{@link UnitOfWork} and the {@link UnitOfWork} is committed together (this is dependent on the underlying implementation - see {@link DurableQueueBasedOutboxes}).<br>
+ * In case adding the message happens in a shared transaction/{@link UnitOfWork}, then if the transaction fails then both the entity and the message will be rolled back when then {@link UnitOfWork} rolls back.
+ * <br>
+ * After the {@link UnitOfWork} has been committed, the messages will be asynchronously delivered to the message consumer (typically in a new {@link UnitOfWork} dependent on the underlying implementation - see {@link DurableQueueBasedOutboxes}).<br>
  * The {@link Outbox} itself supports Message Redelivery in case the Message consumer experiences failures.<br>
  * This means that the Message consumer, registered with the {@link Outbox}, can and will receive Messages more than once and therefore its message handling has to be idempotent.
  * <p>
@@ -45,6 +46,8 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * with {@link OutboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
  * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
  * across as many {@link OutboxConfig#numberOfParallelMessageConsumers} as you wish to use.
+ *
+ * @see DurableQueueBasedOutboxes
  */
 public interface Outboxes {
     /**
@@ -104,6 +107,12 @@ public interface Outboxes {
                                              fencedLockManager);
     }
 
+    /**
+     * {@link Outboxes} variant that uses {@link DurableQueues} as the underlying implementation.<br>
+     * ONLY in cases where the underlying {@link DurableQueues} is associated with a {@link UnitOfWorkFactory} will
+     * the {@link Outbox} message consumption be performed within {@link UnitOfWork}, otherwise
+     * message consumption isn't performed with a {@link UnitOfWork}
+     */
     class DurableQueueBasedOutboxes implements Outboxes {
         private final DurableQueues                     durableQueues;
         private final FencedLockManager                 fencedLockManager;

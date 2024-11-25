@@ -25,7 +25,12 @@ import java.util.List;
  * the {@link UnitOfWork}
  */
 public interface UnitOfWorkLifecycleCallback<RESOURCE_TYPE> {
-    void beforeCommit(UnitOfWork unitOfWork, List<RESOURCE_TYPE> associatedResources);
+    enum BeforeCommitProcessingStatus {
+        REQUIRED,
+        COMPLETED
+    }
+
+    BeforeCommitProcessingStatus beforeCommit(UnitOfWork unitOfWork, List<RESOURCE_TYPE> associatedResources);
 
     void afterCommit(UnitOfWork unitOfWork, List<RESOURCE_TYPE> associatedResources);
 

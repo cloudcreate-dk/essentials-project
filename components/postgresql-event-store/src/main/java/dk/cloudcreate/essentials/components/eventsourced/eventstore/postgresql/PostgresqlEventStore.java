@@ -304,6 +304,12 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
     }
 
     @Override
+    public Optional<GlobalEventOrder> findLowestGlobalEventOrderPersisted(AggregateType aggregateType) {
+        return persistenceStrategy.findLowestGlobalEventOrderPersisted(unitOfWorkFactory.getRequiredUnitOfWork(),
+                                                                        aggregateType);
+    }
+
+    @Override
     public <ID, AGGREGATE> Optional<AGGREGATE> inMemoryProjection(AggregateType aggregateType,
                                                                   ID aggregateId,
                                                                   Class<AGGREGATE> projectionType) {
@@ -455,8 +461,14 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
             }
 
             try {
-                long batchSizeForThisQuery = resolveBatchSizeForThisQuery(aggregateType, eventStreamLogName, eventStoreStreamLog, lastBatchSizeForThisQuery.get(), batchFetchSize, consecutiveNoPersistedEventsReturned,
-                                                                          nextFromInclusiveGlobalOrder, unitOfWork);
+                long batchSizeForThisQuery = resolveBatchSizeForThisQuery(aggregateType,
+                                                                          eventStreamLogName,
+                                                                          eventStoreStreamLog,
+                                                                          lastBatchSizeForThisQuery.get(),
+                                                                          batchFetchSize,
+                                                                          consecutiveNoPersistedEventsReturned,
+                                                                          nextFromInclusiveGlobalOrder,
+                                                                          unitOfWork);
                 if (batchSizeForThisQuery == 0) {
                     consecutiveNoPersistedEventsReturned.set(0);
                     lastBatchSizeForThisQuery.set(batchFetchSize);

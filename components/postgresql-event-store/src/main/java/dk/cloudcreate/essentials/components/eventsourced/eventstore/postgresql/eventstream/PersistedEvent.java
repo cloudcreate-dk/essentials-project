@@ -79,7 +79,7 @@ public interface PersistedEvent {
                                OffsetDateTime timestamp,
                                Optional<EventId> causedByEventId,
                                Optional<CorrelationId> correlationId,
-                               Optional<Tenant> tenant) {
+                               Optional<? extends Tenant> tenant) {
         return new PersistedEvent.DefaultPersistedEvent(eventId,
                                                         aggregateType,
                                                         aggregateId,
@@ -200,7 +200,7 @@ public interface PersistedEvent {
      * The tenant that the event belongs to<br>
      * Having a {@link Tenant} value associated with an Event is optional.
      */
-    Optional<Tenant> tenant();
+    Optional<? extends Tenant> tenant();
 
     /**
      * Compare each individual property in <code>this</code> {@link PersistedEvent} and compare them individually
@@ -223,7 +223,7 @@ public interface PersistedEvent {
         private final OffsetDateTime          timestamp;
         private final Optional<EventId>       causedByEventId;
         private final Optional<CorrelationId> correlationId;
-        private final Optional<Tenant>        tenant;
+        private final Optional<? extends Tenant>        tenant;
 
         public DefaultPersistedEvent(EventId eventId,
                                      AggregateType streamName,
@@ -236,7 +236,7 @@ public interface PersistedEvent {
                                      OffsetDateTime timestamp,
                                      Optional<EventId> causedByEventId,
                                      Optional<CorrelationId> correlationId,
-                                     Optional<Tenant> tenant) {
+                                     Optional<? extends Tenant> tenant) {
             this.eventId = requireNonNull(eventId, "You must supply a eventId");
             this.streamName = requireNonNull(streamName, "You must supply a streamName");
             this.aggregateId = requireNonNull(aggregateId, "You must supply a aggregateId");
@@ -302,7 +302,7 @@ public interface PersistedEvent {
         }
 
         @Override
-        public Optional<Tenant> tenant() {
+        public Optional<? extends Tenant> tenant() {
             return tenant;
         }
 
@@ -333,8 +333,7 @@ public interface PersistedEvent {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (!(o instanceof PersistedEvent)) return false;
-            var that = (PersistedEvent) o;
+            if (!(o instanceof PersistedEvent that)) return false;
             return eventId.equals(that.eventId());
         }
 

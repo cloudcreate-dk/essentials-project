@@ -19,19 +19,32 @@ package dk.cloudcreate.essentials.reactive;
 
 import dk.cloudcreate.essentials.shared.functional.tuple.*;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
+import org.slf4j.*;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class LocalEventBusTest {
+    private static final Logger        log = LoggerFactory.getLogger(LocalEventBusTest.class);
+    private              LocalEventBus localEventBus;
+
+    @AfterEach
+    void tearDown() {
+        if (localEventBus != null) {
+            System.out.println("Stopping LocalEventBus '" + localEventBus.getName() + "'");
+            localEventBus.stop();
+        }
+    }
+
     @Test
     void test_with_both_sync_and_async_subscribers() {
-        var onErrorHandler   = new TestOnErrorHandler();
-        var localEventBus    = new LocalEventBus("Test", 3, onErrorHandler);
+        var onErrorHandler = new TestOnErrorHandler();
+        localEventBus = new LocalEventBus("Test-Sync-Async", 3, onErrorHandler);
         var asyncSubscriber1 = new RecordingEventHandler();
         var asyncSubscriber2 = new RecordingEventHandler();
         var syncSubscriber1  = new RecordingEventHandler();
@@ -57,8 +70,8 @@ class LocalEventBusTest {
 
     @Test
     void test_multi_threaded_publishing_with_async_subscribers() {
-        var onErrorHandler   = new TestOnErrorHandler();
-        var localEventBus    = new LocalEventBus("Test", 3, onErrorHandler);
+        var onErrorHandler = new TestOnErrorHandler();
+        localEventBus = new LocalEventBus("Test-MultiThread", 3, onErrorHandler);
         var asyncSubscriber1 = new RecordingEventHandler();
         var asyncSubscriber2 = new RecordingEventHandler();
 
@@ -79,7 +92,7 @@ class LocalEventBusTest {
     @Test
     void test_with_async_subscriber_throwing_an_exception() {
         var onErrorHandler = new TestOnErrorHandler();
-        var localEventBus  = new LocalEventBus("Test", 3, onErrorHandler);
+        localEventBus = new LocalEventBus("Test-Async-Exception", 3, onErrorHandler);
         var syncSubscriber = new RecordingEventHandler();
         localEventBus.addSyncSubscriber(syncSubscriber);
 
@@ -102,8 +115,8 @@ class LocalEventBusTest {
 
     @Test
     void test_with_sync_subscriber_throwing_an_exception() {
-        var onErrorHandler  = new TestOnErrorHandler();
-        var localEventBus   = new LocalEventBus("Test", 3, onErrorHandler);
+        var onErrorHandler = new TestOnErrorHandler();
+        localEventBus = new LocalEventBus("Test-Sync-Exception", 3, onErrorHandler);
         var asyncSubscriber = new RecordingEventHandler();
         localEventBus.addAsyncSubscriber(asyncSubscriber);
 
@@ -134,6 +147,125 @@ class LocalEventBusTest {
         assertThat(onErrorHandler.errorsHandled).isEmpty();
     }
 
+    @Test
+    void sequentiallyPublishedEventsAreDeliveredInOrderToAsyncSubscribers() {
+        localEventBus = LocalEventBus.builder()
+                                     .busName("InOrderAsyncSingleThreaded")
+                                     .parallelThreads(1)
+                                     .backpressureBufferSize(2)
+                                     .queuedTaskCapFactor(100.0d)
+                                     .overflowMaxRetries(2)
+                                     .build();
+
+        var asyncSubscriber = new BlockingEventHandler(1000);
+        localEventBus.addAsyncSubscriber(asyncSubscriber);
+
+        // Emit multiple events to overflow the buffer
+        int count           = 5;
+        var publishedEvents = new ArrayList<>();
+        for (var i = 0; i < count; i++) {
+            var event = "Event " + i;
+            System.out.println("Publishing: " + event);
+            localEventBus.publish(event);
+            publishedEvents.add(event);
+        }
+
+        // Wait to ensure events are processed
+        Awaitility.await()
+                  .atMost(Duration.ofSeconds(10))
+                  .untilAsserted(() -> assertThat(asyncSubscriber.eventsReceived).hasSize(count));
+
+        assertThat(asyncSubscriber.eventsReceived).containsExactlyElementsOf(publishedEvents);
+    }
+
+    @Test
+    void sequentiallyPublishedEventsAreDeliveredInOrderToAsyncSubscribersEvenWhenUsingMultipleParallelThreads() {
+        localEventBus = LocalEventBus.builder()
+                                     .busName("InOrderAsyncMultiThreaded")
+                                     .parallelThreads(10)
+                                     .backpressureBufferSize(2)
+                                     .queuedTaskCapFactor(100.0d)
+                                     .overflowMaxRetries(2)
+                                     .build();
+
+        var asyncSubscriber = new BlockingEventHandler(100);
+        localEventBus.addAsyncSubscriber(asyncSubscriber);
+
+        int count           = 50;
+        var publishedEvents = new ArrayList<>();
+        for (var i = 0; i < count; i++) {
+            var event = "Event " + i;
+            System.out.println("Publishing: " + event);
+            localEventBus.publish(event);
+            publishedEvents.add(event);
+        }
+
+        // Wait to ensure events are processed
+        Awaitility.await()
+                  .atMost(Duration.ofSeconds(10))
+                  .untilAsserted(() -> assertThat(asyncSubscriber.eventsReceived).hasSize(count));
+
+        assertThat(asyncSubscriber.eventsReceived).containsExactlyElementsOf(publishedEvents);
+    }
+
+    @Test
+    void testEventsPublishedInParallelCanRetryInCaseOfOverflow() {
+        var overflowEventErrors      = new CopyOnWriteArrayList<String>();
+        var otherEventErrors         = new CopyOnWriteArrayList<String>();
+        localEventBus = LocalEventBus.builder()
+                                     .busName("AsyncMultiThreaded")
+                                     .parallelThreads(1)
+                                     .backpressureBufferSize(1)
+                                     .queuedTaskCapFactor(50.0d)
+                                     .overflowMaxRetries(2)
+                                     .onErrorHandler((failingSubscriber, event, exception) -> {
+                                         if (exception instanceof LocalEventBus.EventPublishOverflowException) {
+                                             overflowEventErrors.add((String) event);
+                                         } else {
+                                             otherEventErrors.add((String) event);
+                                         }
+                                     })
+                                     .build();
+
+        var asyncSubscriber = new BlockingEventHandler(100);
+        localEventBus.addAsyncSubscriber(asyncSubscriber);
+
+        var numberOfThreads         = 50;
+        var numberOfEventsPerThread = 100;
+        var publishedEvents         = new CopyOnWriteArrayList<>();
+        var executorService         = Executors.newFixedThreadPool(numberOfThreads);
+        for (int i = 0; i < numberOfThreads; i++) {
+            int finalI = i;
+
+            executorService.submit(() -> {
+                var event = "ParallelEvent " + finalI;
+                for (int j = 0; j < numberOfEventsPerThread; j++) {
+                    var publishedEvent = event + " - " + j;
+                    localEventBus.publish(publishedEvent);
+                    publishedEvents.add(publishedEvent);
+                }
+            });
+
+        }
+
+        executorService.shutdown();
+        try {
+            executorService.awaitTermination(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        Awaitility.await()
+                  .atMost(Duration.ofSeconds(10))
+                  .untilAsserted(() -> assertThat(asyncSubscriber.eventsReceived.size()).isGreaterThan(50));
+        System.out.println("EventsReceived:" + asyncSubscriber.eventsReceived);
+        System.out.println("overflowEventErrors:" + overflowEventErrors);
+        System.out.println("otherEventErrors:" + otherEventErrors);
+
+        assertThat(asyncSubscriber.eventsReceived).doesNotContainAnyElementsOf(overflowEventErrors);
+        assertThat(overflowEventErrors).isNotEmpty();
+        assertThat(otherEventErrors).isEmpty();
+    }
 
     // ------------------------------------------------------------------------------------
     private abstract static class OrderEvent {
@@ -154,6 +286,28 @@ class LocalEventBusTest {
         @Override
         public void handle(Object orderEvent) {
             eventsReceived.add((OrderEvent) orderEvent);
+        }
+    }
+
+    private static class BlockingEventHandler implements EventHandler {
+        private static final Logger log = LoggerFactory.getLogger(BlockingEventHandler.class);
+        long         blockForMilliseconds;
+        List<Object> eventsReceived = new ArrayList<>();
+
+        public BlockingEventHandler(long blockForMilliseconds) {
+            this.blockForMilliseconds = blockForMilliseconds;
+        }
+
+        @Override
+        public void handle(Object event) {
+            try {
+                log.info("Handling event {}", event);
+                Thread.sleep(blockForMilliseconds);
+                eventsReceived.add(event);
+                log.info("Completed handling event {}", event);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

@@ -18,7 +18,7 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-postgresql</artifactId>
-    <version>0.40.17</version>
+    <version>0.40.18</version>
 </dependency>
 ```
 
@@ -89,6 +89,13 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
       - **Failure to adequately sanitize and validate this value could expose the application to SQL injection vulnerabilities, compromising the security and integrity of the database.**
 - `Inboxes`, `Outboxes` and `DurableLocalCommandBus` configured to use `PostgresqlDurableQueues`
 - `LocalEventBus` with bus-name `default` and Bean name `eventBus`
+  - Supports additional configuration properties:
+  - ```
+    essentials.reactive.event-bus-backpressure-buffer-size=1024
+    essentials.reactive.overflow-max-retries=20
+    essentials.reactive.queued-task-cap-factor=1.5
+    #essentials.reactive.parallel-threads=4
+    ```
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
 - `MultiTableChangeListener` which is used for optimizing `PostgresqlDurableQueues` message polling
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped through the `DefaultLifecycleManager`

@@ -460,7 +460,8 @@ public abstract class EventProcessor implements Lifecycle {
      * @param forwardToInbox the {@link Inbox} the event should be forwarded to
      */
     protected void forwardEventToInbox(PersistedEvent event, Inbox forwardToInbox) {
-        if (patternMatchingInboxMessageHandlerDelegate.handlesMessageWithPayload(event.event().getEventType().get().toJavaClass())) {
+        if (event.event().getEventType().isPresent() &&
+                patternMatchingInboxMessageHandlerDelegate.handlesMessageWithPayload(event.event().getEventTypeAsJavaClass().get())) {
             var aggregateType         = event.aggregateType();
             var aggregateIdSerializer = resolveAggregateIdSerializer(aggregateType);
 

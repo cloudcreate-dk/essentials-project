@@ -784,7 +784,15 @@ public interface EventStore {
      * Find the highest {@link GlobalEventOrder} persisted in relation to the given aggregateType
      *
      * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream} is associated with
-     * @return an {@link Optional} with the {@link GlobalEventOrder} persisted or {@link Optional#empty()} if no events have been persisted
+     * @return an {@link Optional} with the highest {@link GlobalEventOrder} persisted or {@link Optional#empty()} if no events have been persisted
      */
     Optional<GlobalEventOrder> findHighestGlobalEventOrderPersisted(AggregateType aggregateType);
+
+    /**
+     * Find the lowest {@link GlobalEventOrder} persisted in relation to the given aggregateType
+     *
+     * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream} is associated with
+     * @return an {@link Optional} with the lowest {@link GlobalEventOrder} persisted or {@link Optional#empty()} if no events have been persisted
+     */
+    Optional<GlobalEventOrder> findLowestGlobalEventOrderPersisted(AggregateType aggregateType);
 }

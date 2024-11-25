@@ -214,6 +214,15 @@ public interface AggregateEventStreamPersistenceStrategy<CONFIG extends Aggregat
 
 
     /**
+     * Resolve the name of the {@link GlobalEventOrder} sequence for the table that stores events related to a given {@link AggregateType}
+     * @param unitOfWork The active {@link EventStoreUnitOfWork}
+     * @param aggregateType The aggregateType for which we want to resolve the {@link GlobalEventOrder} sequence name
+     * @return The database sequence name wrapped in an {@link Optional}. {@link Optional#empty()} if the sequence name couldn't be resolved
+     */
+    Optional<String> resolveGlobalEventOrderSequenceName(EventStoreUnitOfWork unitOfWork,
+                                               AggregateType aggregateType);
+
+    /**
      * Persist a List of persistable events
      *
      * @param unitOfWork                  the current unitOfWork
@@ -279,9 +288,18 @@ public interface AggregateEventStreamPersistenceStrategy<CONFIG extends Aggregat
      *
      * @param unitOfWork    the current unit of work
      * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream} is associated with
-     * @return an {@link Optional} with the {@link GlobalEventOrder} persisted or {@link Optional#empty()} if no events have been persisted
+     * @return an {@link Optional} with the highest {@link GlobalEventOrder} persisted or {@link Optional#empty()} if no events have been persisted
      */
     Optional<GlobalEventOrder> findHighestGlobalEventOrderPersisted(EventStoreUnitOfWork unitOfWork, AggregateType aggregateType);
+
+    /**
+     * Find the lowest {@link GlobalEventOrder} persisted in relation to the given aggregateType
+     *
+     * @param unitOfWork    the current unit of work
+     * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream} is associated with
+     * @return an {@link Optional} with the lowest {@link GlobalEventOrder} persisted or {@link Optional#empty()} if no events have been persisted
+     */
+    Optional<GlobalEventOrder> findLowestGlobalEventOrderPersisted(EventStoreUnitOfWork unitOfWork, AggregateType aggregateType);
 
     /**
      * Load all the <code>eventIds</code> related to the specified <code>aggregateType</code>

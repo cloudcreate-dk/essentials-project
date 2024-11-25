@@ -36,7 +36,6 @@ import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonMod
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
 import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.functional.TripleFunction;
-import dk.cloudcreate.essentials.shared.reflection.Classes;
 import org.slf4j.*;
 import org.springframework.data.annotation.*;
 import org.springframework.data.domain.Sort;
@@ -698,7 +697,7 @@ public final class MongoDurableQueues implements DurableQueues {
 
     private Object deserializeMessagePayload(QueueName queueName, byte[] messagePayload, String messagePayloadType) {
         try {
-            return jsonSerializer.deserialize(messagePayload, Classes.forName(messagePayloadType));
+            return jsonSerializer.deserialize(messagePayload, messagePayloadType);
         } catch (Throwable e) {
             throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
         }

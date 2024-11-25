@@ -17,8 +17,7 @@
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
 import dk.cloudcreate.essentials.shared.reflection.Classes;
-import dk.cloudcreate.essentials.types.CharSequenceType;
-import dk.cloudcreate.essentials.types.Identifier;
+import dk.cloudcreate.essentials.types.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -63,6 +62,19 @@ public final class EventType extends CharSequenceType<EventType> implements Iden
     @SuppressWarnings("unchecked")
     public <T> Class<T> toJavaClass() {
         return (Class<T>) Classes.forName(getJavaTypeName());
+    }
+
+    /**
+     * Get a class instance corresponding to the Fully Qualified Class Name (FQCN) stored in this instance<br>
+     * To only get the Fully Qualified Class Name (FQCN) stored in this instance use {@link #getJavaTypeName()}
+     *
+     * @param <T> the java type
+     * @param classLoader The class loader used for Class lookup
+     * @return a class instance corresponding to the Fully Qualified Class Name (FQCN) stored in this instance
+     */
+    @SuppressWarnings("unchecked")
+    public <T> Class<T> toJavaClass(ClassLoader classLoader) {
+        return (Class<T>) Classes.forName(getJavaTypeName(), classLoader);
     }
 
     /**

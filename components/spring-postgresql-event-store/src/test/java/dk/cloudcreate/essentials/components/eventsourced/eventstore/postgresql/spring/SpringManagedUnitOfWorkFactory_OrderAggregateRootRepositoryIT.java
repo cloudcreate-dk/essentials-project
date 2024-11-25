@@ -22,7 +22,7 @@ import org.springframework.test.annotation.DirtiesContext;
 
 @SpringBootTest
 @DirtiesContext
-class SpringManagedUnitOfWorkFactory_OrderAggregateRootRepositoryTest extends OrderAggregateRootRepositoryTest {
+class SpringManagedUnitOfWorkFactory_OrderAggregateRootRepositoryIT extends OrderAggregateRootRepositoryTest {
 
     @Override
     protected EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> createUnitOfWorkFactory() {

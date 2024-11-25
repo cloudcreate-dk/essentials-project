@@ -24,8 +24,10 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.operation
 import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues;
+import dk.cloudcreate.essentials.reactive.LocalEventBus;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import reactor.core.publisher.Sinks;
 
 import java.time.*;
 
@@ -78,7 +80,8 @@ public class EssentialsComponentsProperties {
     private final DurableQueues       durableQueues                 = new DurableQueues();
     private final LifeCycleProperties lifeCycles                    = new LifeCycleProperties();
     private final TracingProperties   tracingProperties             = new TracingProperties();
-    private       boolean             immutableJacksonModuleEnabled = true;
+    private       boolean            immutableJacksonModuleEnabled = true;
+    private final ReactiveProperties reactive                      = new ReactiveProperties();
 
     /**
      * Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration - default is true<br>
@@ -114,6 +117,10 @@ public class EssentialsComponentsProperties {
 
     public TracingProperties getTracingProperties() {
         return this.tracingProperties;
+    }
+
+    public ReactiveProperties getReactive() {
+        return reactive;
     }
 
     public static class DurableQueues {
@@ -446,6 +453,86 @@ public class EssentialsComponentsProperties {
          */
         public void setModuleTag(String moduleTag) {
             this.moduleTag = moduleTag;
+        }
+    }
+
+    public static class ReactiveProperties {
+        private int    eventBusBackpressureBufferSize = LocalEventBus.DEFAULT_BACKPRESSURE_BUFFER_SIZE;
+        private int    parallelThreads                = Runtime.getRuntime().availableProcessors();
+        private int    overflowMaxRetries             = LocalEventBus.DEFAULT_OVERFLOW_MAX_RETRIES;
+        private double queuedTaskCapFactor            = LocalEventBus.QUEUED_TASK_CAP_FACTOR;
+
+        /**
+         * Get property to set as 'eventBusBackpressureBufferSize' value LocalEventBus back pressure size for {@link Sinks.Many}'s onBackpressureBuffer size. The default value set by reactor framework is {@value LocalEventBus#DEFAULT_BACKPRESSURE_BUFFER_SIZE}.
+         *
+         * @return property 'eventBusBackpressureBufferSize' used for value LocalEventBus Sinks.Many onBackpressureBuffer size.
+         */
+        public int getEventBusBackpressureBufferSize() {
+            return eventBusBackpressureBufferSize;
+        }
+
+        /**
+         * Set property 'eventBusBackpressureBufferSize'  value LocalEventBus back pressure size for {@link Sinks.Many}'s onBackpressureBuffer size. The default value set by reactor framework is {@value LocalEventBus#DEFAULT_BACKPRESSURE_BUFFER_SIZE}.
+         *
+         * @param eventBusBackpressureBufferSize property value 'eventBusBackpressureBufferSize' LocalEventBus Sinks.Many onBackpressureBuffer size.
+         */
+        public void setEventBusBackpressureBufferSize(int eventBusBackpressureBufferSize) {
+            this.eventBusBackpressureBufferSize = eventBusBackpressureBufferSize;
+        }
+
+        /**
+         * Get the number of parallel threads processing asynchronous events. Defaults to the number of available processors on the machine
+         *
+         * @return the number of parallel threads processing asynchronous events.
+         */
+        public int getParallelThreads() {
+            return parallelThreads;
+        }
+
+        /**
+         * Set the number of parallel threads processing asynchronous events. Defaults to the number of available processors on the machine
+         *
+         * @param parallelThreads the number of parallel threads processing asynchronous events.
+         */
+        public void setParallelThreads(int parallelThreads) {
+            this.parallelThreads = parallelThreads;
+        }
+
+        /**
+         * Set the maximum number of retries for events that overflow the Flux. Default is {@value LocalEventBus#DEFAULT_OVERFLOW_MAX_RETRIES}.
+         *
+         * @return the maximum number of retries for events that overflow the Flux
+         */
+        public int getOverflowMaxRetries() {
+            return overflowMaxRetries;
+        }
+
+        /**
+         * Get the maximum number of retries for events that overflow the Flux. Default is {@value LocalEventBus#DEFAULT_OVERFLOW_MAX_RETRIES}.
+         *
+         * @param overflowMaxRetries the maximum number of retries for events that overflow the Flux
+         */
+        public void setOverflowMaxRetries(int overflowMaxRetries) {
+            this.overflowMaxRetries = overflowMaxRetries;
+        }
+
+
+        /**
+         * Get the factor to calculate queued task capacity from the backpressureBufferSize. Default value is {@value LocalEventBus#QUEUED_TASK_CAP_FACTOR}.
+         *
+         * @return the factor to calculate queued task capacity from the backpressureBufferSize.
+         */
+        public double getQueuedTaskCapFactor() {
+            return queuedTaskCapFactor;
+        }
+
+        /**
+         * Set the factor to calculate queued task capacity from the backpressureBufferSize. Default value is {@value LocalEventBus#QUEUED_TASK_CAP_FACTOR}.
+         *
+         * @param queuedTaskCapFactor the factor to calculate queued task capacity from the backpressureBufferSize.
+         */
+        public void setQueuedTaskCapFactor(double queuedTaskCapFactor) {
+            this.queuedTaskCapFactor = queuedTaskCapFactor;
         }
     }
 

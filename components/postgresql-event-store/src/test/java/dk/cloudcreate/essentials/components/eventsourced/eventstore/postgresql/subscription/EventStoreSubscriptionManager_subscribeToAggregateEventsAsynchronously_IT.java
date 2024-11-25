@@ -137,7 +137,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
 
 
     private void testSubscriptions(boolean simulateDbConnectivityIssues) throws InterruptedException {
-        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory());
+        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore);
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
                                                                                      Duration.ofMillis(100),
@@ -167,8 +167,17 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
 
                     @Override
                     public void handle(PersistedEvent event) {
-                        System.out.println("Received Product event: " + event);
-                        productEventsReceived.add(event);
+                        var isDuplicateEvent = productEventsReceived.contains(event);
+                        if (isDuplicateEvent) {
+                            System.out.println("Received DUPLICATE Product event: " + event);
+                            // When db connectivity is interrupted we may briefly receive messages out of order or multiple times due to overlaps in lock ownership
+                            if (!simulateDbConnectivityIssues) {
+                                throw new IllegalStateException("Received unexpected DUPLICATE Product event: " + event);
+                            }
+                        } else {
+                            System.out.println("Received Product event: " + event);
+                            productEventsReceived.add(event);
+                        }
                     }
                 });
         System.out.println("productsSubscription: " + productsSubscription);
@@ -187,8 +196,17 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
 
                     @Override
                     public void handle(PersistedEvent event) {
-                        System.out.println("Received Order event: " + event);
-                        orderEventsReceived.add(event);
+                        var isDuplicateEvent = orderEventsReceived.contains(event);
+                        if (isDuplicateEvent) {
+                            System.out.println("Received DUPLICATE Order event: " + event);
+                            // When db connectivity is interrupted we may briefly receive messages out of order or multiple times due to overlaps in lock ownership
+                            if (!simulateDbConnectivityIssues) {
+                                throw new IllegalStateException("Received unexpected DUPLICATE Order event: " + event);
+                            }
+                        } else {
+                            System.out.println("Received Order event: " + event);
+                            orderEventsReceived.add(event);
+                        }
                     }
                 });
 
@@ -226,20 +244,6 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                                                    .reduce(Integer::sum)
                                                    .get();
         System.out.println("Total number of Product Events: " + totalNumberOfProductEvents);
-        Awaitility.waitAtMost(Duration.ofSeconds(10))
-                  .untilAsserted(() -> assertThat(productEventsReceived.size()).isEqualTo(totalNumberOfProductEvents));
-        // Verify we only have Product related events
-        assertThat(productEventsReceived.stream().filter(persistedEvent -> !persistedEvent.aggregateType().equals(PRODUCTS)).findAny()).isEmpty();
-        assertThat(productEventsReceived.stream()
-                                        .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
-                                        .sorted() // When db connectivity is interrupted we may briefly receive messages out of order due to overlaps in lock ownership
-                                        .collect(Collectors.toList()))
-                .isEqualTo(LongStream.rangeClosed(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER.longValue(),
-                                                  totalNumberOfProductEvents)
-                                     .boxed()
-                                     .collect(Collectors.toList()));
-
-        // Verify we received all Order events
         var totalNumberOfOrderEvents = testEvents.get(ORDERS)
                                                  .values()
                                                  .stream()
@@ -247,12 +251,41 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
                                                  .reduce(Integer::sum)
                                                  .get();
         System.out.println("Total number of Order Events: " + totalNumberOfOrderEvents);
+
+        // Verify we received all Product and Order events
+        Awaitility.waitAtMost(Duration.ofSeconds(10))
+                  .untilAsserted(() -> assertThat(productEventsReceived.size()).isEqualTo(totalNumberOfProductEvents));
+
         Awaitility.waitAtMost(Duration.ofSeconds(5))
                   .untilAsserted(() -> assertThat(orderEventsReceived.size()).isEqualTo(totalNumberOfOrderEvents));
+
+        // Sleep a little to verify that no additional events were delivered
+        Thread.sleep(5000);
+
+        // Verify we only have Product related events
+        assertThat(productEventsReceived.stream().filter(persistedEvent -> !persistedEvent.aggregateType().equals(PRODUCTS)).findAny()).isEmpty();
+        var receivedProductEventGlobalOrders = productEventsReceived.stream()
+                                                                    .map(persistedEvent -> persistedEvent.globalEventOrder().longValue());
+        if (simulateDbConnectivityIssues) {
+            // When db connectivity is interrupted we may briefly receive messages out of order due to overlaps in lock ownership
+            receivedProductEventGlobalOrders = receivedProductEventGlobalOrders.sorted();
+        }
+        assertThat(receivedProductEventGlobalOrders
+                           .toList())
+                .isEqualTo(LongStream.rangeClosed(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER.longValue(),
+                                                  totalNumberOfProductEvents)
+                                     .boxed()
+                                     .collect(Collectors.toList()));
+
         assertThat(orderEventsReceived.stream().filter(persistedEvent -> !persistedEvent.aggregateType().equals(ORDERS)).findAny()).isEmpty();
-        assertThat(orderEventsReceived.stream()
-                                      .map(persistedEvent -> persistedEvent.globalEventOrder().longValue())
-                                      .collect(Collectors.toList()))
+        var receivedOrderEventGlobalOrders = orderEventsReceived.stream()
+                                                                .map(persistedEvent -> persistedEvent.globalEventOrder().longValue());
+        if (simulateDbConnectivityIssues) {
+            // When db connectivity is interrupted we may briefly receive messages out of order due to overlaps in lock ownership
+            receivedOrderEventGlobalOrders = receivedOrderEventGlobalOrders.sorted();
+        }
+        assertThat(receivedOrderEventGlobalOrders
+                           .toList())
                 .isEqualTo(LongStream.rangeClosed(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER.longValue(),
                                                   totalNumberOfOrderEvents)
                                      .boxed()
@@ -281,7 +314,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
     @Test
     void test_start_and_stop_subscription() {
         System.out.println("********** Start test_start_and_stop_subscription ***********");
-        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory());
+        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore);
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
                                                                                      Duration.ofMillis(100),
@@ -383,7 +416,7 @@ class EventStoreSubscriptionManager_subscribeToAggregateEventsAsynchronously_IT 
     @Test
     void test_with_resubscription() {
         System.out.println("********** Start test_with_resubscription ***********");
-        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore.getUnitOfWorkFactory());
+        var durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore);
         eventStoreSubscriptionManagerNode1 = EventStoreSubscriptionManager.createFor(eventStore,
                                                                                      50,
                                                                                      Duration.ofMillis(100),
