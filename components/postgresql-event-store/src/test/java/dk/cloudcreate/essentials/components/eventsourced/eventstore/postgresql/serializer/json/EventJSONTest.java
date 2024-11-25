@@ -27,7 +27,7 @@ import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonMod
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
 import org.junit.jupiter.api.*;
 
-import java.util.Optional;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -163,6 +163,24 @@ public class EventJSONTest {
 
         public void setTestField(String testField) {
             this.testField = testField;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof TestEvent testEvent)) return false;
+            return Objects.equals(testField, testEvent.testField);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(testField);
+        }
+
+        @Override
+        public String toString() {
+            return "TestEvent{" +
+                    "testField='" + testField + '\'' +
+                    '}';
         }
     }
 

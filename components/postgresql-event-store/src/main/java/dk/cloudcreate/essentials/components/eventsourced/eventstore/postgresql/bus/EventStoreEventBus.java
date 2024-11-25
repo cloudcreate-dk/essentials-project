@@ -21,9 +21,11 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.e
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.*;
+import dk.cloudcreate.essentials.shared.Lifecycle;
 import org.slf4j.*;
+import reactor.core.publisher.Sinks;
 
-import java.util.*;
+import java.util.List;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -31,8 +33,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * Top level {@link EventStore} specific {@link EventBus}, which ensures that {@link PersistedEvents} will be published
  * at all {@link CommitStage}'s, as coordinated by the provided {@link EventStoreUnitOfWorkFactory}
  */
-@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public final class EventStoreEventBus implements EventBus {
+public final class EventStoreEventBus implements EventBus, Lifecycle {
     private static final Logger log = LoggerFactory.getLogger("EventStoreLocalEventBus");
 
     private EventBus eventBus;
@@ -59,9 +60,10 @@ public final class EventStoreEventBus implements EventBus {
      *                          at all {@link CommitStage}'s
      */
     public EventStoreEventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory) {
-        this(new LocalEventBus("EventStoreLocalBus"),
+        this(new LocalEventBus.Builder()
+                     .busName("EventStoreLocalBus")
+                     .build(),
              unitOfWorkFactory);
-
     }
 
     /**
@@ -73,10 +75,64 @@ public final class EventStoreEventBus implements EventBus {
      * @param onErrorHandler    the error handler which will be called if any subscriber/consumer fails to handle an event
      */
     public EventStoreEventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory,
-                              Optional<OnErrorHandler> onErrorHandler) {
-        this(new LocalEventBus("EventStoreLocalBus", onErrorHandler),
+                              OnErrorHandler onErrorHandler) {
+        this(new LocalEventBus.Builder()
+                     .busName("EventStoreLocalBus")
+                     .onErrorHandler(onErrorHandler)
+                     .build(),
              unitOfWorkFactory);
+    }
 
+    /**
+     * Default implementation that provides an internal {@link LocalEventBus} instance.
+     *
+     * @param eventStoreUnitOfWorkFactory    the {@link EventStoreUnitOfWorkFactory} that's coordinating the {@link UnitOfWork} life cycle such that
+     *                                       this {@link EventBus} instance will ensure that {@link PersistedEvents} will be published
+     *                                       at all {@link CommitStage}'s
+     * @param parallelThreads                the number of parallel asynchronous processing threads
+     * @param eventBusBackpressureBufferSize The back pressure size for {@link Sinks.Many}'s onBackpressureBuffer size
+     * @param onErrorHandler                 the error handler which will be called if any subscriber/consumer fails to handle an event
+     */
+    public EventStoreEventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
+                              int parallelThreads,
+                              int eventBusBackpressureBufferSize,
+                              OnErrorHandler onErrorHandler) {
+        this(new LocalEventBus.Builder()
+                     .busName("EventStoreLocalBus")
+                     .parallelThreads(parallelThreads)
+                     .backpressureBufferSize(eventBusBackpressureBufferSize)
+                     .onErrorHandler(onErrorHandler)
+                     .build(),
+             eventStoreUnitOfWorkFactory);
+    }
+
+    /**
+     * Default implementation that provides an internal {@link LocalEventBus} instance.
+     *
+     * @param eventStoreUnitOfWorkFactory    the {@link EventStoreUnitOfWorkFactory} that's coordinating the {@link UnitOfWork} life cycle such that
+     *                                       this {@link EventBus} instance will ensure that {@link PersistedEvents} will be published
+     *                                       at all {@link CommitStage}'s
+     * @param parallelThreads                the number of parallel asynchronous processing threads
+     * @param eventBusBackpressureBufferSize The back pressure size for {@link Sinks.Many}'s onBackpressureBuffer size
+     * @param onErrorHandler                 the error handler which will be called if any subscriber/consumer fails to handle an event
+     * @param overflowMaxRetries     the maximum number of retries for events that overflow the Flux
+     * @param queuedTaskCapFactor            the factor to calculate queued task capacity
+     */
+    public EventStoreEventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
+                              int parallelThreads,
+                              int eventBusBackpressureBufferSize,
+                              OnErrorHandler onErrorHandler,
+                              int overflowMaxRetries,
+                              double queuedTaskCapFactor) {
+        this(new LocalEventBus.Builder()
+                     .busName("EventStoreLocalBus")
+                     .parallelThreads(parallelThreads)
+                     .backpressureBufferSize(eventBusBackpressureBufferSize)
+                     .onErrorHandler(onErrorHandler)
+                     .overflowMaxRetries(overflowMaxRetries)
+                     .queuedTaskCapFactor(queuedTaskCapFactor)
+                     .build(),
+             eventStoreUnitOfWorkFactory);
     }
 
     private void addUnitOfWorkLifeCycleCallback(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> unitOfWorkFactory) {
@@ -141,5 +197,20 @@ public final class EventStoreEventBus implements EventBus {
     @Override
     public String toString() {
         return eventBus.toString();
+    }
+
+    @Override
+    public void start() {
+        eventBus.start();
+    }
+
+    @Override
+    public void stop() {
+        eventBus.stop();
+    }
+
+    @Override
+    public boolean isStarted() {
+        return eventBus.isStarted();
     }
 }
