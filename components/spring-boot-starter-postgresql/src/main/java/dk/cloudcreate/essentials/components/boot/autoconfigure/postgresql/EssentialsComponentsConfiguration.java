@@ -333,15 +333,23 @@ public class EssentialsComponentsConfiguration {
      * Configure the {@link EventBus} to use for all event handlers
      *
      * @param onErrorHandler the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
+     * @param properties The configuration properties
      * @return the {@link EventBus} to use for all event handlers
      */
     @Bean
     @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.EventStoreEventBus")
     @ConditionalOnMissingBean
-    public EventBus eventBus(Optional<OnErrorHandler> onErrorHandler) {
-        return new LocalEventBus("default", onErrorHandler);
+    public EventBus eventBus(Optional<OnErrorHandler> onErrorHandler, EssentialsComponentsProperties properties) {
+        var localEventBusBuilder = LocalEventBus.builder()
+                                                .busName("default")
+                                                .overflowMaxRetries(properties.getReactive().getOverflowMaxRetries())
+                                                .parallelThreads(properties.getReactive().getParallelThreads())
+                                                .backpressureBufferSize(properties.getReactive().getEventBusBackpressureBufferSize())
+                                                .queuedTaskCapFactor(properties.getReactive().getQueuedTaskCapFactor());
+        onErrorHandler.ifPresent(localEventBusBuilder::onErrorHandler);
+        return localEventBusBuilder.build();
     }
-
+    
     /**
      * {@link JSONSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
      * (including handling {@link DurableQueues} message payload serialization and deserialization)

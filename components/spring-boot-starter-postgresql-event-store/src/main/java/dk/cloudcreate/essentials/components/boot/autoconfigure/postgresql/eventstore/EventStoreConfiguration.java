@@ -92,14 +92,23 @@ public class EventStoreConfiguration {
      *
      * @param eventStoreUnitOfWorkFactory the {@link EventStoreUnitOfWorkFactory} that is required for the {@link EventStore} in order handle events associated with a given transaction
      * @param onErrorHandler              the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
+     * @param properties                  The configuration properties
      * @return the {@link EventStoreEventBus}
      */
     @Bean
     @ConditionalOnMissingBean
-    public EventStoreEventBus eventStoreLocalEventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
-                                                      Optional<OnErrorHandler> onErrorHandler) {
-        return new EventStoreEventBus(eventStoreUnitOfWorkFactory,
-                                      onErrorHandler);
+    public EventStoreEventBus eventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
+                             Optional<OnErrorHandler> onErrorHandler,
+                             EssentialsComponentsProperties properties) {
+        var localEventBusBuilder = LocalEventBus.builder()
+                                                .busName("EventStoreLocalBus")
+                                                .overflowMaxRetries(properties.getReactive().getOverflowMaxRetries())
+                                                .parallelThreads(properties.getReactive().getParallelThreads())
+                                                .backpressureBufferSize(properties.getReactive().getEventBusBackpressureBufferSize())
+                                                .queuedTaskCapFactor(properties.getReactive().getQueuedTaskCapFactor());
+        onErrorHandler.ifPresent(localEventBusBuilder::onErrorHandler);
+        return new EventStoreEventBus(localEventBusBuilder.build(),
+                                      eventStoreUnitOfWorkFactory);
     }
 
     /**
@@ -252,7 +261,7 @@ public class EventStoreConfiguration {
     /**
      * The {@link JSONEventSerializer} that handles both {@link EventStore} event/metadata serialization as well as {@link DurableQueues} message payload serialization and deserialization
      *
-     * @param additionalModules                        additional {@link Module}'s found in the {@link ApplicationContext}
+     * @param additionalModules additional {@link Module}'s found in the {@link ApplicationContext}
      * @return the {@link JSONEventSerializer} responsible for serializing/deserializing the raw Java events to and from JSON
      */
     @Bean
@@ -285,9 +294,9 @@ public class EventStoreConfiguration {
     }
 
     /**
-     * @param eventStoreProperties The properties for event store
+     * @param eventStoreProperties          The properties for event store
      * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} that contains all current subscriptions to monitor
-     * @param monitors The List of {@link EventStoreSubscriptionMonitor}s each implementing monitoring rules
+     * @param monitors                      The List of {@link EventStoreSubscriptionMonitor}s each implementing monitoring rules
      * @return The {@link EventStoreSubscriptionMonitorManager} responsible for scheduling monitoring tasks
      */
     @Bean
@@ -295,7 +304,7 @@ public class EventStoreConfiguration {
     public EventStoreSubscriptionMonitorManager eventStoreSubscriptionMonitorManager(EssentialsEventStoreProperties eventStoreProperties,
                                                                                      EventStoreSubscriptionManager eventStoreSubscriptionManager,
                                                                                      List<EventStoreSubscriptionMonitor> monitors) {
-        boolean enabled = eventStoreProperties.getSubscriptionMonitor().isEnabled();
+        boolean  enabled  = eventStoreProperties.getSubscriptionMonitor().isEnabled();
         Duration interval = eventStoreProperties.getSubscriptionMonitor().getInterval();
         return new EventStoreSubscriptionMonitorManager(enabled, interval, eventStoreSubscriptionManager, monitors);
     }
@@ -308,7 +317,7 @@ public class EventStoreConfiguration {
                                                                                          EssentialsComponentsProperties properties) {
         requireTrue(meterRegistry.isPresent(), "MeterRegistry is not configured");
         return new SubscriberGlobalOrderMicrometerMonitor(eventStoreSubscriptionManager,
-            meterRegistry.orElse(null), eventStoreUnitOfWorkFactory, properties.getTracingProperties().getModuleTag());
+                                                          meterRegistry.orElse(null), eventStoreUnitOfWorkFactory, properties.getTracingProperties().getModuleTag());
     }
 
 }
