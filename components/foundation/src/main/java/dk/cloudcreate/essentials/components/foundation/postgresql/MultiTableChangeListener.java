@@ -201,14 +201,13 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
 
         if (listenForNotificationsRelatedToTables.isEmpty()) return;
 
-        PGConnection connection;
-        Handle handle = getHandle(handleCreated -> {
+        var handle = getHandle(handleCreated -> {
             for (String tableName : listenForNotificationsRelatedToTables.keySet()) {
                 listen(tableName);
             }
         });
         try {
-            connection = handle.getConnection().unwrap(PGConnection.class);
+            var connection = handle.getConnection().unwrap(PGConnection.class);
             var notifications = connection.getNotifications();
             if (notifications.length > 0) {
                 log.debug("Received {} Notification(s)", notifications.length);

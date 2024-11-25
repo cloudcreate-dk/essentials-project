@@ -17,27 +17,8 @@
 package dk.cloudcreate.essentials.components.foundation;
 
 /**
- * Common process life cycle interface
+ * Common process life cycle interface - backwards compatible variant of dk.cloudcreate.essentials.shared.Lifecycle
  */
-public interface Lifecycle {
-    /**
-     * Start the processing. This operation must be idempotent, such that duplicate calls
-     * to {@link #start()} for an already started process (where {@link #isStarted()} returns true)
-     * is ignored
-     */
-    void start();
+public interface Lifecycle extends dk.cloudcreate.essentials.shared.Lifecycle {
 
-    /**
-     * Stop the processing. This operation must be idempotent, such that duplicate calls
-     * to {@link #stop()} for an already stopped process (where {@link #isStarted()} returns false)
-     * is ignored
-     */
-    void stop();
-
-    /**
-     * Returns true if the process is started
-     *
-     * @return true if the process is started otherwise false
-     */
-    boolean isStarted();
 }

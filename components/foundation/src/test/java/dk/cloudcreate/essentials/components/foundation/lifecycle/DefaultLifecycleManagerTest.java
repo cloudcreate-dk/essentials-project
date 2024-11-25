@@ -1,19 +1,14 @@
 package dk.cloudcreate.essentials.components.foundation.lifecycle;
 
+import dk.cloudcreate.essentials.shared.Lifecycle;
+import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.event.*;
+
 import java.util.Map;
 import java.util.function.Consumer;
 
-import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.event.ContextClosedEvent;
-import org.springframework.context.event.ContextRefreshedEvent;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class DefaultLifecycleManagerTest {
     private static final String BEAN_NAME = "beanName";

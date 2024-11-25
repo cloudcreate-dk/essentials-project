@@ -1,18 +1,13 @@
 package dk.cloudcreate.essentials.components.foundation.lifecycle;
 
+import dk.cloudcreate.essentials.shared.Lifecycle;
+import org.slf4j.*;
+import org.springframework.beans.BeansException;
+import org.springframework.context.*;
+import org.springframework.context.event.*;
+
 import java.util.Map;
 import java.util.function.Consumer;
-
-import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.context.ApplicationListener;
-import org.springframework.context.event.ApplicationContextEvent;
-import org.springframework.context.event.ContextClosedEvent;
-import org.springframework.context.event.ContextRefreshedEvent;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -21,17 +16,16 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * interface are started and stopped in response to {@link ContextRefreshedEvent} and {@link ContextClosedEvent}
  */
 public final class DefaultLifecycleManager implements LifecycleManager, ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
-    public static final Logger log = LoggerFactory.getLogger(DefaultLifecycleManager.class);
-    private ApplicationContext applicationContext;
-    private boolean hasStartedLifeCycleBeans;
-    private Map<String, Lifecycle> lifeCycleBeans;
-    private final Consumer<ApplicationContext> contextRefreshedEventConsumer;
-    private final boolean isStartLifecycles;
+    public static final Logger                       log = LoggerFactory.getLogger(DefaultLifecycleManager.class);
+    private             ApplicationContext           applicationContext;
+    private             boolean                      hasStartedLifeCycleBeans;
+    private             Map<String, Lifecycle>       lifeCycleBeans;
+    private final       Consumer<ApplicationContext> contextRefreshedEventConsumer;
+    private final       boolean                      isStartLifecycles;
 
     /**
-     *
      * @param contextRefreshedEventConsumer callback that will be called after all {@link Lifecycle} Beans {@link Lifecycle#start()} has been called
-     * @param isStartLifecycles determines if lifecycle beans should be started automatically
+     * @param isStartLifecycles             determines if lifecycle beans should be started automatically
      */
     public DefaultLifecycleManager(Consumer<ApplicationContext> contextRefreshedEventConsumer,
                                    boolean isStartLifecycles) {
@@ -41,11 +35,11 @@ public final class DefaultLifecycleManager implements LifecycleManager, Applicat
     }
 
     /**
-     *
      * @param isStartLifecycles determines if lifecycle beans should be started automatically
      */
     public DefaultLifecycleManager(boolean isStartLifecycles) {
-        this(event -> {}, isStartLifecycles);
+        this(event -> {
+        }, isStartLifecycles);
     }
 
     @Override
