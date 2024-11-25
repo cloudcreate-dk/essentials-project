@@ -367,6 +367,21 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
 
 
     /**
+     * Create an exclusive inline event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
+     * {@link UnitOfWork} is committed. This allows you to create transactional consistent event projections.
+     *
+     * @param subscriberId               the unique id for the subscriber
+     * @param forAggregateType           the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onlyIncludeEventsForTenant if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
+     * @param eventHandler               the event handler that will receive the published {@link PersistedEvent}'s. Exceptions thrown by this handler will cause the {@link UnitOfWork} to rollback
+     * @return the subscription handle
+     */
+    EventStoreSubscription exclusivelySubscribeToAggregateEventsInTransaction(SubscriberId subscriberId,
+                                                                              AggregateType forAggregateType,
+                                                                              Optional<Tenant> onlyIncludeEventsForTenant,
+                                                                              TransactionalPersistedEventHandler eventHandler);
+
+    /**
      * Create an inline event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
      * {@link UnitOfWork} is committed. This allows you to create transactional consistent event projections.
      *
@@ -685,6 +700,25 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         }
 
         @Override
+        public EventStoreSubscription exclusivelySubscribeToAggregateEventsInTransaction(SubscriberId subscriberId,
+                                                                                         AggregateType forAggregateType,
+                                                                                         Optional<Tenant> onlyIncludeEventsForTenant,
+                                                                                         TransactionalPersistedEventHandler eventHandler) {
+            requireNonNull(onlyIncludeEventsForTenant, "No onlyIncludeEventsForTenant option provided");
+            requireNonNull(eventHandler, "No eventHandler provided");
+
+            return addEventStoreSubscription(subscriberId,
+                                            forAggregateType,
+                                            new ExclusiveInTransactionSubscription(eventStore,
+                                                                                   fencedLockManager,
+                                                                                   forAggregateType,
+                                                                                   subscriberId,
+                                                                                   onlyIncludeEventsForTenant,
+                                                                                   eventHandler
+                                            ));
+        }
+
+        @Override
         public EventStoreSubscription subscribeToAggregateEventsInTransaction(SubscriberId subscriberId,
                                                                               AggregateType forAggregateType,
                                                                               Optional<Tenant> onlyIncludeEventsForTenant,
@@ -717,6 +751,215 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         @Override
         public boolean hasSubscription(SubscriberId subscriberId, AggregateType aggregateType) {
             return subscribers.containsKey(Pair.of(subscriberId, aggregateType));
+        }
+
+        private class ExclusiveInTransactionSubscription implements EventStoreSubscription {
+            private final EventStore                         eventStore;
+            private final FencedLockManager                  fencedLockManager;
+            private final AggregateType                      aggregateType;
+            private final SubscriberId                       subscriberId;
+            private final Optional<Tenant>                   onlyIncludeEventsForTenant;
+            private final TransactionalPersistedEventHandler eventHandler;
+            private final LockName                           lockName;
+
+            private volatile boolean started;
+            private volatile boolean active;
+
+            public ExclusiveInTransactionSubscription(EventStore eventStore,
+                                                      FencedLockManager fencedLockManager,
+                                                      AggregateType aggregateType,
+                                                      SubscriberId subscriberId,
+                                                      Optional<Tenant> onlyIncludeEventsForTenant,
+                                                      TransactionalPersistedEventHandler eventHandler) {
+                this.eventStore = requireNonNull(eventStore, "No eventStore provided");
+                this.fencedLockManager = requireNonNull(fencedLockManager, "No fencedLockManager provided");
+                this.aggregateType = requireNonNull(aggregateType, "No aggregateType provided");
+                this.subscriberId = requireNonNull(subscriberId, "No subscriberId provided");
+                this.onlyIncludeEventsForTenant = requireNonNull(onlyIncludeEventsForTenant, "No onlyIncludeEventsForTenant provided");
+                this.eventHandler = requireNonNull(eventHandler, "No eventHandler provided");
+                lockName = LockName.of(msg("[{}-{}]", subscriberId, aggregateType));
+            }
+
+            @Override
+            public SubscriberId subscriberId() {
+                return subscriberId;
+            }
+
+            @Override
+            public AggregateType aggregateType() {
+                return aggregateType;
+            }
+
+            @Override
+            public void start() {
+                if (!started) {
+                    started = true;
+
+                    log.info("[{}-{}] Starting subscription",
+                            subscriberId,
+                            aggregateType);
+
+                    fencedLockManager.acquireLockAsync(lockName, new LockCallback() {
+                        @Override
+                        public void lockAcquired(FencedLock lock) {
+                            log.info("[{}-{}] Acquired lock.",
+                                    subscriberId,
+                                    aggregateType);
+                            active = true;
+
+                            eventStore.localEventBus()
+                                    .addSyncSubscriber(ExclusiveInTransactionSubscription.this::onEvent);
+
+                        }
+
+                        @Override
+                        public void lockReleased(FencedLock lock) {
+                            if (!active) {
+                                return;
+                            }
+                            log.info("[{}-{}] Lock Released. Stopping subscription",
+                                    subscriberId,
+                                    aggregateType);
+                            try {
+                                eventStore.localEventBus()
+                                        .removeSyncSubscriber(ExclusiveInTransactionSubscription.this::onEvent);
+                            } catch (Exception e) {
+                                log.error(msg("[{}-{}] Failed to dispose subscription flux",
+                                        subscriberId,
+                                        aggregateType), e);
+                            }
+
+                            active = false;
+                            log.info("[{}-{}] Stopped subscription",
+                                    subscriberId,
+                                    aggregateType);
+                        }
+
+                    });
+
+                } else {
+                    log.debug("[{}-{}] Subscription was already started",
+                            subscriberId,
+                            aggregateType);
+                }
+            }
+
+            private void onEvent(Object e) {
+                if (!(e instanceof PersistedEvents)) {
+                    return;
+                }
+
+                var persistedEvents = (PersistedEvents) e;
+                if (persistedEvents.commitStage == CommitStage.BeforeCommit || persistedEvents.commitStage == CommitStage.Flush) {
+                    persistedEvents.events.stream()
+                            .filter(event -> event.aggregateType().equals(aggregateType))
+                            .forEach(event -> {
+                                log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {} during commit-stage '{}'",
+                                        subscriberId,
+                                        aggregateType,
+                                        event.globalEventOrder(),
+                                        event.event().getEventTypeOrName().toString(),
+                                        event.eventId(),
+                                        event.aggregateId(),
+                                        event.eventOrder(),
+                                        persistedEvents.commitStage
+                                );
+                                try {
+                                    eventHandler.handle(event, persistedEvents.unitOfWork);
+                                    if (persistedEvents.commitStage == CommitStage.Flush) {
+                                        persistedEvents.unitOfWork.removeFlushedEventPersisted(event);
+                                    }
+                                } catch (Exception cause) {
+                                    onErrorHandlingEvent(event, cause);
+                                }
+                            });
+
+                }
+            }
+
+            protected void onErrorHandlingEvent(PersistedEvent e, Exception cause) {
+                // TODO: Add better retry mechanism, poison event handling, etc.
+                log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+                        subscriberId,
+                        aggregateType,
+                        e.globalEventOrder(),
+                        e.event().getEventTypeOrName().getValue()), cause);
+            }
+
+            @Override
+            public boolean isStarted() {
+                return started;
+            }
+
+            @Override
+            public void stop() {
+                if (started) {
+                    log.info("[{}-{}] Stopping subscription",
+                            subscriberId,
+                            aggregateType);
+                    try {
+                        log.debug("[{}-{}] Stopping subscription flux",
+                                subscriberId,
+                                aggregateType);
+                        eventStore.localEventBus()
+                                .removeSyncSubscriber(ExclusiveInTransactionSubscription.this::onEvent);
+                    } catch (Exception e) {
+                        log.error(msg("[{}-{}] Failed to dispose subscription flux",
+                                subscriberId,
+                                aggregateType), e);
+                    }
+                    started = false;
+                    log.info("[{}-{}] Stopped subscription",
+                            subscriberId,
+                            aggregateType);
+                }
+            }
+
+            @Override
+            public void unsubscribe() {
+                log.info("[{}-{}] Initiating unsubscription",
+                        subscriberId,
+                        aggregateType);
+                stop();
+                DefaultEventStoreSubscriptionManager.this.unsubscribe(this);
+            }
+
+            @Override
+            public void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder, Consumer<GlobalEventOrder> resetProcessor) {
+                throw new EventStoreException(msg("[{}-{}] Reset of ResumePoint isn't support for an In-Transaction subscription",
+                        subscriberId,
+                        aggregateType));
+            }
+
+            @Override
+            public Optional<SubscriptionResumePoint> currentResumePoint() {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<Tenant> onlyIncludeEventsForTenant() {
+                return onlyIncludeEventsForTenant;
+            }
+
+            @Override
+            public boolean isActive() {
+                return started;
+            }
+
+            @Override
+            public String toString() {
+                return "ExclusiveInTransactionSubscription{" +
+                        "aggregateType=" + aggregateType +
+                        ", subscriberId=" + subscriberId +
+                        ", onlyIncludeEventsForTenant=" + onlyIncludeEventsForTenant +
+                        ", started=" + started +
+                        '}';
+            }
+
+            @Override
+            public void request(long n) {
+                // NOP
+            }
         }
 
         private class NonExclusiveInTransactionSubscription implements EventStoreSubscription {
