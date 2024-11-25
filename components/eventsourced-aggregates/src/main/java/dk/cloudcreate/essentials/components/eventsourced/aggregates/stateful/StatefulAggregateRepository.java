@@ -30,6 +30,7 @@ import dk.cloudcreate.essentials.types.LongRange;
 import org.slf4j.*;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -617,8 +618,9 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
         private class StatefulAggregateRepositoryUnitOfWorkLifecycleCallback implements UnitOfWorkLifecycleCallback<AGGREGATE_IMPL_TYPE> {
 
             @Override
-            public void beforeCommit(UnitOfWork unitOfWork, List<AGGREGATE_IMPL_TYPE> associatedResources) {
+            public BeforeCommitProcessingStatus beforeCommit(UnitOfWork unitOfWork, List<AGGREGATE_IMPL_TYPE> associatedResources) {
                 log.trace("beforeCommit processing {} '{}' registered with the UnitOfWork being committed", associatedResources.size(), aggregateImplementationType.getName());
+                var processingStatus = new AtomicReference<>(BeforeCommitProcessingStatus.COMPLETED);
                 associatedResources.forEach(aggregate -> {
                     log.trace("beforeCommit processing '{}' with id '{}'", aggregateImplementationType.getName(), aggregate.aggregateId());
                     var eventsToPersist = aggregate.getUncommittedChanges();
@@ -639,14 +641,16 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                                       aggregateImplementationType.getName(),
                                       aggregate.aggregateId());
                         }
+                        aggregate.markChangesAsCommitted();
                         var persistedEvents = eventStore.appendToStream(aggregateType,
                                                                         eventsToPersist.aggregateId,
                                                                         eventsToPersist.eventOrderOfLastRehydratedEvent,
                                                                         eventsToPersist.events);
-                        aggregate.markChangesAsCommitted();
                         aggregateSnapshotRepository.ifPresent(repository -> repository.aggregateUpdated(aggregate, persistedEvents));
+                        processingStatus.set(BeforeCommitProcessingStatus.REQUIRED);
                     }
                 });
+                return processingStatus.get();
             }
 
             @Override

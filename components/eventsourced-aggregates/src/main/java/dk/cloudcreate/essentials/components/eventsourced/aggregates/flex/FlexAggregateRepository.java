@@ -28,6 +28,7 @@ import dk.cloudcreate.essentials.types.LongRange;
 import org.slf4j.*;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -364,11 +365,12 @@ public interface FlexAggregateRepository<ID, AGGREGATE_TYPE extends FlexAggregat
         private class FlexAggregateRepositoryUnitOfWorkLifecycleCallback implements UnitOfWorkLifecycleCallback<EventsToPersist<ID, Object>> {
 
             @Override
-            public void beforeCommit(UnitOfWork unitOfWork, List<EventsToPersist<ID, Object>> associatedResources) {
+            public BeforeCommitProcessingStatus beforeCommit(UnitOfWork unitOfWork, List<EventsToPersist<ID, Object>> associatedResources) {
                 log.trace("beforeCommit processing {} '{}' registered with the UnitOfWork being committed", associatedResources.size(), aggregateRootImplementationType.getName());
+                var processingStatus = new AtomicReference<>(BeforeCommitProcessingStatus.COMPLETED);
                 associatedResources.forEach(eventsToPersist -> {
                     log.trace("beforeCommit processing '{}' with id '{}'", aggregateRootImplementationType.getName(), eventsToPersist.aggregateId);
-                    if (eventsToPersist.events.isEmpty()) {
+                    if (eventsToPersist.events.isEmpty() || eventsToPersist.isCommitted()) {
                         log.trace("No changes detected for '{}' with id '{}'", aggregateRootImplementationType.getName(), eventsToPersist.aggregateId);
                     } else {
                         if (log.isTraceEnabled()) {
@@ -381,8 +383,10 @@ public interface FlexAggregateRepository<ID, AGGREGATE_TYPE extends FlexAggregat
                                                   eventsToPersist.eventOrderOfLastRehydratedEvent,
                                                   eventsToPersist.events);
                         eventsToPersist.markEventsAsCommitted();
+                        processingStatus.set(BeforeCommitProcessingStatus.REQUIRED);
                     }
                 });
+                return processingStatus.get();
             }
 
             @Override

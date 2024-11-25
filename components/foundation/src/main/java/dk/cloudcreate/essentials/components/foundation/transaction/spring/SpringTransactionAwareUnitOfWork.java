@@ -149,6 +149,11 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
     }
 
     @Override
+    public String info() {
+        return "TYPE:" + this.getClass().getSimpleName() + ":HASH:" + this.hashCode() + ":STATUS:" + this.status() ;
+    }
+
+    @Override
     public UnitOfWorkStatus status() {
         return status;
     }

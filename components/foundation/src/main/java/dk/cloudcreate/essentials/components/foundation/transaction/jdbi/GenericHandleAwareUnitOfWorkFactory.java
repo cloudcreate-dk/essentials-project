@@ -21,6 +21,7 @@ import org.jdbi.v3.core.*;
 import org.slf4j.*;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -152,21 +153,29 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
         public void commit() {
             if (status == UnitOfWorkStatus.Started) {
                 log.trace("Calling UnitOfWorkLifecycleCallbacks#beforeCommit prior to committing the Managed UnitOfWork");
-                unitOfWorkLifecycleCallbackResources.forEach((key, resources) -> {
-                    try {
-                        log.trace("BeforeCommit: Calling {} with {} associated resource(s)",
-                                  key.getClass().getName(),
-                                  resources.size());
-                        key.beforeCommit(this, resources);
-                    } catch (RuntimeException e) {
-                        UnitOfWorkException unitOfWorkException = new UnitOfWorkException(msg("{} failed during beforeCommit", key.getClass().getName()), e);
-                        unitOfWorkException.fillInStackTrace();
-                        rollback(unitOfWorkException);
-                        throw unitOfWorkException;
-                    }
-                });
-
-                beforeCommitting();
+                var processingStatus = new AtomicReference<>(UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED);
+                while (processingStatus.get() == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED) {
+                    log.trace("BeforeCommit: Performing BeforeCommitProcessing since processingStatus is {}", processingStatus.get());
+                    processingStatus.set(UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.COMPLETED);
+                    unitOfWorkLifecycleCallbackResources.forEach((key, resources) -> {
+                        try {
+                            log.trace("BeforeCommit: Calling {} with {} associated resource(s)",
+                                      key.getClass().getName(),
+                                      resources.size());
+                            var newProcessingStatus = key.beforeCommit(this, resources);
+                            if (newProcessingStatus != processingStatus.get()) {
+                                log.trace("BeforeCommit: {} changed BeforeCommitProcessing processingStatus back to {}", key.getClass().getName(), newProcessingStatus);
+                                processingStatus.set(newProcessingStatus);
+                            }
+                        } catch (RuntimeException e) {
+                            UnitOfWorkException unitOfWorkException = new UnitOfWorkException(msg("{} failed during beforeCommit", key.getClass().getName()), e);
+                            unitOfWorkException.fillInStackTrace();
+                            rollback(unitOfWorkException);
+                            throw unitOfWorkException;
+                        }
+                    });
+                    beforeCommitting();
+                }
 
                 log.trace("Committing Managed UnitOfWork");
                 try {
@@ -260,6 +269,11 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
             List<Object> resources = unitOfWorkLifecycleCallbackResources.computeIfAbsent((UnitOfWorkLifecycleCallback<Object>) associatedUnitOfWorkCallback, callback -> new LinkedList<>());
             resources.add(resource);
             return resource;
+        }
+
+        @Override
+        public String info() {
+            return "TYPE:" + this.getClass().getSimpleName() + ":HASH:" + this.hashCode() + ":STATUS:" + this.status();
         }
 
         @Override

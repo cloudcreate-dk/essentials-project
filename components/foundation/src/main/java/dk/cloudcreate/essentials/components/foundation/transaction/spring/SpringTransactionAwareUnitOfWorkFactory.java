@@ -23,6 +23,7 @@ import org.springframework.transaction.*;
 import org.springframework.transaction.support.*;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -158,19 +159,28 @@ public abstract class SpringTransactionAwareUnitOfWorkFactory<TRX_MGR extends Pl
 
             log.trace("Calling UnitOfWorkLifecycleCallbacks#beforeCommit prior to committing the Spring Transaction-Aware UnitOfWork");
             beforeCommitBeforeCallingLifecycleCallbackResources(unitOfWork);
-            unitOfWork.unitOfWorkLifecycleCallbackResources.forEach((key, resources) -> {
-                try {
-                    log.trace("BeforeCommit: Calling {} with {} associated resource(s)",
-                              key.getClass().getName(),
-                              resources.size());
-                    key.beforeCommit(unitOfWork, resources);
-                } catch (RuntimeException e) {
-                    UnitOfWorkException unitOfWorkException = new UnitOfWorkException(msg("{} failed during beforeCommit", key.getClass().getName()), e);
-                    unitOfWorkException.fillInStackTrace();
-                    throw unitOfWorkException;
-                }
-            });
-            beforeCommitAfterCallingLifecycleCallbackResources(unitOfWork);
+            var processingStatus = new AtomicReference<>(UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED);
+            while (processingStatus.get() == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED) {
+                log.trace("BeforeCommit: Performing BeforeCommitProcessing since processingStatus is {}", processingStatus.get());
+                processingStatus.set(UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.COMPLETED);
+                unitOfWork.unitOfWorkLifecycleCallbackResources.forEach((key, resources) -> {
+                    try {
+                        log.trace("BeforeCommit: Calling {} with {} associated resource(s)",
+                                  key.getClass().getName(),
+                                  resources.size());
+                        var newProcessingStatus = key.beforeCommit(unitOfWork, resources);
+                        if (newProcessingStatus != processingStatus.get()) {
+                            log.trace("BeforeCommit: {} changed BeforeCommitProcessing processingStatus back to {}", key.getClass().getName(), newProcessingStatus);
+                            processingStatus.set(newProcessingStatus);
+                        }
+                    } catch (RuntimeException e) {
+                        UnitOfWorkException unitOfWorkException = new UnitOfWorkException(msg("{} failed during beforeCommit", key.getClass().getName()), e);
+                        unitOfWorkException.fillInStackTrace();
+                        throw unitOfWorkException;
+                    }
+                });
+                beforeCommitAfterCallingLifecycleCallbackResources(unitOfWork);
+            }
         }
 
         @Override

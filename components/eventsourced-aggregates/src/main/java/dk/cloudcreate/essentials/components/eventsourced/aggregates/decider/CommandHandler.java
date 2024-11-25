@@ -239,7 +239,7 @@ public interface CommandHandler<COMMAND, EVENT, ERROR> {
 
             class DeciderUnitOfWorkLifecycleCallback implements UnitOfWorkLifecycleCallback<EventsToAppendToStream<ID, EVENT, STATE>> {
                 @Override
-                public void beforeCommit(UnitOfWork unitOfWork, List<EventsToAppendToStream<ID, EVENT, STATE>> associatedResources) {
+                public BeforeCommitProcessingStatus beforeCommit(UnitOfWork unitOfWork, List<EventsToAppendToStream<ID, EVENT, STATE>> associatedResources) {
                     log.trace("[{}] beforeCommit processing {} '{}' registered with the UnitOfWork being committed",
                               aggregateType,
                               associatedResources.size(),
@@ -265,12 +265,14 @@ public interface CommandHandler<COMMAND, EVENT, ERROR> {
                                       stateType.getName(),
                                       eventsToAppendToStream.aggregateId());
                         }
+                        // TODO: Expand support for marking EventsToAppendToStream as having been appended which will allow synchronous EventHandler to trigger additional changes within the same UnitOfWork
                         var persistedEvents = eventStore.appendToStream(aggregateType,
                                                                         eventsToAppendToStream.aggregateId(),
                                                                         eventsToAppendToStream.eventOrderOfLastRehydratedEvent(),
                                                                         eventsToAppendToStream.events());
                         optionalAggregateSnapshotRepository.ifPresent(repository -> repository.aggregateUpdated(eventsToAppendToStream.state(), persistedEvents));
                     });
+                    return BeforeCommitProcessingStatus.COMPLETED;
                 }
 
                 @Override

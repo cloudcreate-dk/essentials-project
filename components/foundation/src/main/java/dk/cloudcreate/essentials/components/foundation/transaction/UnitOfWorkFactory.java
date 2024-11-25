@@ -90,24 +90,25 @@ public interface UnitOfWorkFactory<UOW extends UnitOfWork> {
 
         var existingUnitOfWork = getCurrentUnitOfWork();
         var unitOfWork = existingUnitOfWork.orElseGet(() -> {
-            unitOfWorkLog.debug("Creating a new UnitOfWork for this usingUnitOfWork(CheckedConsumer) method call as there wasn't an existing UnitOfWork");
-            return getOrCreateNewUnitOfWork();
+            var uow = getOrCreateNewUnitOfWork();
+            unitOfWorkLog.debug("Creating a new UnitOfWork for this usingUnitOfWork(CheckedConsumer) method call as there wasn't an existing UnitOfWork '{}'", uow.info());
+            return uow;
         });
-        existingUnitOfWork.ifPresent(uow -> unitOfWorkLog.debug("NestedUnitOfWork: Reusing existing UnitOfWork for this usingUnitOfWork(CheckedConsumer) method call"));
+        existingUnitOfWork.ifPresent(uow -> unitOfWorkLog.debug("NestedUnitOfWork: Reusing existing UnitOfWork for this usingUnitOfWork(CheckedConsumer) method call '{}'", uow.info()));
         try {
             unitOfWorkConsumer.accept(unitOfWork);
             if (existingUnitOfWork.isEmpty()) {
-                unitOfWorkLog.debug("Committing the UnitOfWork created by this usingUnitOfWork(CheckedConsumer) method call");
+                unitOfWorkLog.debug("Committing the UnitOfWork created by this usingUnitOfWork(CheckedConsumer) method call '{}'", unitOfWork.info());
                 unitOfWork.commit();
             } else {
-                unitOfWorkLog.debug("NestedUnitOfWork: Won't commit the UnitOfWork as it wasn't created by this usingUnitOfWork(CheckedConsumer) method call");
+                unitOfWorkLog.debug("NestedUnitOfWork: Won't commit the UnitOfWork as it wasn't created by this usingUnitOfWork(CheckedConsumer) method call '{}'", unitOfWork.info());
             }
         } catch (Exception e) {
             if (existingUnitOfWork.isEmpty()) {
-                unitOfWorkLog.debug("Rolling back the UnitOfWork created by this usingUnitOfWork(CheckedConsumer) method call");
+                unitOfWorkLog.debug("Rolling back the UnitOfWork created by this usingUnitOfWork(CheckedConsumer) method call '{}'", unitOfWork.info());
                 unitOfWork.rollback(e);
             } else {
-                unitOfWorkLog.debug("NestedUnitOfWork: Marking UnitOfWork as rollback only as it wasn't created by this usingUnitOfWork(CheckedConsumer) method call");
+                unitOfWorkLog.debug("NestedUnitOfWork: Marking UnitOfWork as rollback only as it wasn't created by this usingUnitOfWork(CheckedConsumer) method call '{}'", unitOfWork.info());
                 unitOfWork.markAsRollbackOnly(e);
             }
             throw new UnitOfWorkException(e);
@@ -134,26 +135,27 @@ public interface UnitOfWorkFactory<UOW extends UnitOfWork> {
         requireNonNull(unitOfWorkFunction, "No unitOfWorkFunction provided");
         var existingUnitOfWork = getCurrentUnitOfWork();
         var unitOfWork = existingUnitOfWork.orElseGet(() -> {
-            unitOfWorkLog.debug("Creating a new UnitOfWork for this withUnitOfWork(CheckedFunction) method call as there wasn't an existing UnitOfWork");
-            return getOrCreateNewUnitOfWork();
+            var uow = getOrCreateNewUnitOfWork();
+            unitOfWorkLog.debug("Creating a new UnitOfWork for this withUnitOfWork(CheckedFunction) method call as there wasn't an existing UnitOfWork '{}'", uow.info());
+            return uow;
         });
-        existingUnitOfWork.ifPresent(uow -> unitOfWorkLog.debug("NestedUnitOfWork: Reusing existing UnitOfWork for this withUnitOfWork(CheckedFunction) method call"));
+        existingUnitOfWork.ifPresent(uow -> unitOfWorkLog.debug("NestedUnitOfWork: Reusing existing UnitOfWork for this withUnitOfWork(CheckedFunction) method call '{}'", uow.info()));
         try {
             var result = unitOfWorkFunction.apply(unitOfWork);
             if (existingUnitOfWork.isEmpty()) {
-                unitOfWorkLog.debug("Committing the UnitOfWork created by this withUnitOfWork(CheckedFunction) method call");
+                unitOfWorkLog.debug("Committing the UnitOfWork created by this withUnitOfWork(CheckedFunction) method call '{}'", unitOfWork.info());
                 unitOfWork.commit();
             } else {
-                unitOfWorkLog.debug("NestedUnitOfWork: Won't commit the UnitOfWork as it wasn't created by this withUnitOfWork(CheckedFunction) method call");
+                unitOfWorkLog.debug("NestedUnitOfWork: Won't commit the UnitOfWork as it wasn't created by this withUnitOfWork(CheckedFunction) method call '{}'", unitOfWork.info());
             }
 
             return result;
         } catch (Exception e) {
             if (existingUnitOfWork.isEmpty()) {
-                unitOfWorkLog.debug("Rolling back the UnitOfWork created by this withUnitOfWork(CheckedFunction) method call");
+                unitOfWorkLog.debug("Rolling back the UnitOfWork created by this withUnitOfWork(CheckedFunction) method call '{}'", unitOfWork.info());
                 unitOfWork.rollback(e);
             } else {
-                unitOfWorkLog.debug("NestedUnitOfWork: Marking UnitOfWork as rollback only as it wasn't created by this withUnitOfWork(CheckedFunction) method call");
+                unitOfWorkLog.debug("NestedUnitOfWork: Marking UnitOfWork as rollback only as it wasn't created by this withUnitOfWork(CheckedFunction) method call '{}'", unitOfWork.info());
                 unitOfWork.markAsRollbackOnly(e);
             }
             throw new UnitOfWorkException(e);

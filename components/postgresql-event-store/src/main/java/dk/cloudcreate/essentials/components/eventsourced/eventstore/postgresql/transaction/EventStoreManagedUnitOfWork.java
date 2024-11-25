@@ -32,38 +32,40 @@ final class EventStoreManagedUnitOfWork extends GenericHandleAwareUnitOfWorkFact
      * The list is maintained by the {@link EventStoreManagedUnitOfWorkFactory} and provided in the constructor
      */
     private final List<PersistedEventsCommitLifecycleCallback> lifecycleCallbacks;
-    private final List<PersistedEvent>                         eventsPersisted;
+    private final List<PersistedEvent>                         beforeCommitEventsPersisted;
+    private final List<PersistedEvent>                         afterCommitEventsPersisted;
 
     public EventStoreManagedUnitOfWork(GenericHandleAwareUnitOfWorkFactory<?> unitOfWorkFactory, List<PersistedEventsCommitLifecycleCallback> lifecycleCallbacks) {
         super(unitOfWorkFactory);
         this.lifecycleCallbacks = requireNonNull(lifecycleCallbacks, "No lifecycleCallbacks provided");
-        this.eventsPersisted = new ArrayList<>();
+        this.beforeCommitEventsPersisted = new ArrayList<>();
+        this.afterCommitEventsPersisted = new ArrayList<>();
     }
 
     @Override
     public void registerEventsPersisted(List<PersistedEvent> eventsPersistedInThisUnitOfWork) {
         requireNonNull(eventsPersistedInThisUnitOfWork, "No eventsPersistedInThisUnitOfWork provided");
-        this.eventsPersisted.addAll(eventsPersistedInThisUnitOfWork);
+        this.beforeCommitEventsPersisted.addAll(eventsPersistedInThisUnitOfWork);
     }
 
     @Override
     public void removeFlushedEventsPersisted(List<PersistedEvent> eventsPersistedToRemoveFromThisUnitOfWork) {
         requireNonNull(eventsPersistedToRemoveFromThisUnitOfWork, "No eventsPersistedToRemoveFromThisUnitOfWork provided");
-        this.eventsPersisted.removeAll(eventsPersistedToRemoveFromThisUnitOfWork);
+        this.beforeCommitEventsPersisted.removeAll(eventsPersistedToRemoveFromThisUnitOfWork);
     }
 
     @Override
     public void removeFlushedEventPersisted(PersistedEvent eventPersistedToRemoveFromThisUnitOfWork) {
         requireNonNull(eventPersistedToRemoveFromThisUnitOfWork, "No eventPersistedToRemoveFromThisUnitOfWork provided");
-        this.eventsPersisted.remove(eventPersistedToRemoveFromThisUnitOfWork);
+        this.beforeCommitEventsPersisted.remove(eventPersistedToRemoveFromThisUnitOfWork);
     }
 
     @Override
     protected void beforeCommitting() {
         for (PersistedEventsCommitLifecycleCallback callback : lifecycleCallbacks) {
             try {
-                log.trace("BeforeCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), eventsPersisted.size());
-                callback.beforeCommit(this, eventsPersisted);
+                log.trace("BeforeCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), beforeCommitEventsPersisted.size());
+                callback.beforeCommit(this, beforeCommitEventsPersisted);
             } catch (RuntimeException e) {
                 UnitOfWorkException unitOfWorkException = new UnitOfWorkException(msg("{} failed during beforeCommit PersistedEvents", callback.getClass().getName()), e);
                 unitOfWorkException.fillInStackTrace();
@@ -71,6 +73,8 @@ final class EventStoreManagedUnitOfWork extends GenericHandleAwareUnitOfWorkFact
                 throw unitOfWorkException;
             }
         }
+        afterCommitEventsPersisted.addAll(beforeCommitEventsPersisted);
+        beforeCommitEventsPersisted.clear();
     }
 
 
@@ -78,23 +82,25 @@ final class EventStoreManagedUnitOfWork extends GenericHandleAwareUnitOfWorkFact
     protected void afterCommitting() {
         for (PersistedEventsCommitLifecycleCallback callback : lifecycleCallbacks) {
             try {
-                log.trace("AfterCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), eventsPersisted.size());
-                callback.afterCommit(this, eventsPersisted);
+                log.trace("AfterCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), afterCommitEventsPersisted.size());
+                callback.afterCommit(this, afterCommitEventsPersisted);
             } catch (RuntimeException e) {
                 log.error(msg("Failed {} failed during afterCommit PersistedEvents", callback.getClass().getName()), e);
             }
         }
+        afterCommitEventsPersisted.clear();
     }
 
     @Override
     protected void afterRollback(Exception cause) {
         for (PersistedEventsCommitLifecycleCallback callback : lifecycleCallbacks) {
             try {
-                log.trace("AfterCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), eventsPersisted.size());
-                callback.afterCommit(this, eventsPersisted);
+                log.trace("AfterCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), afterCommitEventsPersisted.size());
+                callback.afterCommit(this, afterCommitEventsPersisted);
             } catch (RuntimeException e) {
                 log.error(msg("Failed {} failed during afterCommit PersistedEvents", callback.getClass().getName()), e);
             }
         }
+        afterCommitEventsPersisted.clear();
     }
 }

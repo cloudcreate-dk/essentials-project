@@ -20,7 +20,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.e
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.EventStoreUnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
-import java.util.List;
+import java.util.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -35,7 +35,7 @@ public final class PersistedEvents {
     public PersistedEvents(CommitStage commitStage, EventStoreUnitOfWork unitOfWork, List<PersistedEvent> events) {
         this.commitStage = requireNonNull(commitStage, "No commitStage provided");
         this.unitOfWork = requireNonNull(unitOfWork, "No unitOfWork provided");
-        this.events = requireNonNull(events, "No events provided");
+        this.events = new ArrayList<>(requireNonNull(events, "No events provided"));
     }
 
     @Override

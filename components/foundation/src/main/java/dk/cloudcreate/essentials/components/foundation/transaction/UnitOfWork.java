@@ -50,6 +50,10 @@ public interface UnitOfWork {
 
     void markAsRollbackOnly(Exception cause);
 
+    default String info() {
+        return toString();
+    }
+
     /**
      * Roll back the {@link UnitOfWork} and any underlying transaction - see {@link UnitOfWorkStatus#RolledBack}
      */
