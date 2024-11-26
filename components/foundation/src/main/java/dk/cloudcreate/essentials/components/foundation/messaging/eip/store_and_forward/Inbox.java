@@ -16,12 +16,19 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
-import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import java.time.Duration;
+import java.util.List;
+import java.util.function.Consumer;
+
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.MessageMetaData;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
-import java.time.Duration;
-import java.util.function.Consumer;
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * The {@link Inbox} supports the transactional Store and Forward pattern from Enterprise Integration Patterns supporting At-Least-Once delivery guarantee.<br>
@@ -158,6 +165,16 @@ public interface Inbox {
         return addMessageReceived(new Message(payload), deliveryDelay);
     }
 
+    default Inbox addMessageListReceived(List<? extends Object> payloads) {
+        var messageList = requireNonNull(payloads).stream().map(Message::new).toList();
+        return addMessagesReceived(messageList);
+    }
+
+    default Inbox addMessageListReceived(List<? extends Object> payloads, Duration deliveryDelay) {
+        var messageList = requireNonNull(payloads).stream().map(Message::new).toList();
+        return addMessagesReceived(messageList, deliveryDelay);
+    }
+
     /**
      * Register or add a message that has been received<br>
      * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
@@ -180,6 +197,29 @@ public interface Inbox {
      * @see OrderedMessage
      */
     Inbox addMessageReceived(Message message, Duration deliveryDelay);
+
+    /**
+     * Register or add a list of messages that has been received<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param messages the list of messages
+     * @return this inbox instance
+     * @see OrderedMessage
+     */
+    Inbox addMessagesReceived(List<Message> messages);
+
+    /**
+     * Register or add a list of messages that has been received and where the message should be delivered later<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param messages the list of messages
+     * @param deliveryDelay  duration before the messages should be delivered
+     * @return this inbox instance
+     * @see OrderedMessage
+     */
+    Inbox addMessagesReceived(List<Message> messages, Duration deliveryDelay);
 
     /**
      * Get the number of message received that haven't been processed yet (or successfully processed) by the message consumer
