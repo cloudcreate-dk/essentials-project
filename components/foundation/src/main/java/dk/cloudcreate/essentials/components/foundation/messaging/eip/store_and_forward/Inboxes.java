@@ -16,15 +16,27 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
-import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.*;
-import dk.cloudcreate.essentials.reactive.command.CommandBus;
-
 import java.time.Duration;
 import java.util.Collection;
-import java.util.concurrent.*;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
+
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.LockCallback;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.MessageMetaData;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
+import dk.cloudcreate.essentials.reactive.command.CommandBus;
 
 import static dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.MessageConsumptionMode.SingleGlobalConsumer;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -278,6 +290,36 @@ public interface Inboxes {
                     durableQueues.queueMessage(inboxQueueName,
                                                message,
                                                deliveryDelay);
+                }
+                return this;
+            }
+
+            @Override
+            public Inbox addMessagesReceived(List<Message> messages) {
+                if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
+                    // Allow addMessageReceived to automatically start a new or join in an existing UnitOfWork
+                    durableQueues.getUnitOfWorkFactory().get().usingUnitOfWork(() -> {
+                        durableQueues.queueMessages(inboxQueueName, messages);
+                    });
+                } else {
+                    durableQueues.queueMessages(inboxQueueName, messages);
+                }
+                return this;
+            }
+
+            @Override
+            public Inbox addMessagesReceived(List<Message> messages, Duration deliveryDelay) {
+                if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
+                    // Allow addMessageReceived to automatically start a new or join in an existing UnitOfWork
+                    durableQueues.getUnitOfWorkFactory().get().usingUnitOfWork(() -> {
+                        durableQueues.queueMessages(inboxQueueName,
+                            messages,
+                            deliveryDelay);
+                    });
+                } else {
+                    durableQueues.queueMessages(inboxQueueName,
+                        messages,
+                        deliveryDelay);
                 }
                 return this;
             }
