@@ -57,15 +57,16 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
     @Override
     public void start() {
         if (status == UnitOfWorkStatus.Ready || status.isCompleted()) {
-            log.debug("Starting {} manged Spring Transaction-Aware {} with initial status {}",
+            log.debug("Starting {} manged Spring Transaction-Aware {} with initial status {}: {}",
                       manuallyStartedSpringTransaction.isPresent() ? "manually" : "fully",
                       this.getClass().getSimpleName(),
-                      status);
+                      status,
+                      info());
             onStart();
 
             status = UnitOfWorkStatus.Started;
         } else if (status == UnitOfWorkStatus.Started) {
-            log.warn("The Spring Transaction-Aware UnitOfWork was already started");
+            log.warn("The Spring Transaction-Aware UnitOfWork was already started: {}", info());
         } else {
             cleanup();
             unitOfWorkFactory.removeUnitOfWork();
@@ -107,18 +108,18 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
     public void commit() {
         if (status == UnitOfWorkStatus.Started && manuallyStartedSpringTransaction.isPresent()) {
             if (manuallyStartedSpringTransaction.get().isCompleted()) {
-                log.warn("Cannot commit the already COMPLETED manually managed Spring Transaction, associated with this UnitOfWork");
+                log.warn("Cannot commit the already COMPLETED manually managed Spring Transaction, associated with this UnitOfWork: {}", info());
             } else if (manuallyStartedSpringTransaction.get().isRollbackOnly()) {
-                log.info("Cannot commit the MARKED FOR ROLLBACK ONLY manually managed Spring Transaction, associated with this UnitOfWork");
+                log.info("Cannot commit the MARKED FOR ROLLBACK ONLY manually managed Spring Transaction, associated with this UnitOfWork: {}", info());
             } else {
-                log.debug("Committing the manually managed Spring Transaction associated with this UnitOfWork");
+                log.debug("Committing the manually managed Spring Transaction associated with this UnitOfWork: {}", info());
                 unitOfWorkFactory.transactionManager.commit(manuallyStartedSpringTransaction.get());
             }
         } else if (status == UnitOfWorkStatus.MarkedForRollbackOnly) {
-            log.debug("Rolling back UnitOfWork with status {}", status);
+            log.debug("Rolling back UnitOfWork with status {}: {}", status, info());
             unitOfWorkFactory.transactionManager.rollback(manuallyStartedSpringTransaction.get());
         } else {
-            log.debug("Ignoring call to commit for the fully Spring managed Transaction associated with UnitOfWork with status {}", status);
+            log.debug("Ignoring call to commit for the fully Spring managed Transaction associated with UnitOfWork with status {}: {}", status, info());
         }
     }
 
@@ -128,14 +129,14 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
         var correctStatus = status == UnitOfWorkStatus.Started || status == UnitOfWorkStatus.MarkedForRollbackOnly;
         if (correctStatus && manuallyStartedSpringTransaction.isPresent()) {
             if (manuallyStartedSpringTransaction.get().isCompleted()) {
-                final String description = msg("Skipping rolling back the already COMPLETED manually managed Spring Transaction associated with UnitOfWork with status {}{}", status, causeOfRollback != null ? " due to " + causeOfRollback.getMessage() : "");
+                final String description = msg("Skipping rolling back the already COMPLETED manually managed Spring Transaction associated with UnitOfWork with status {}{}: {}", status, causeOfRollback != null ? " due to " + causeOfRollback.getMessage() : "", info());
                 if (log.isTraceEnabled()) {
                     log.trace(description, causeOfRollback);
                 } else {
                     log.debug(description);
                 }
             } else {
-                final String description = msg("Rolling back the manually managed Spring Transaction associated with UnitOfWork with status {}{}", status, causeOfRollback != null ? " due to " + causeOfRollback.getMessage() : "");
+                final String description = msg("Rolling back the manually managed Spring Transaction associated with UnitOfWork with status {}{}: {}", status, causeOfRollback != null ? " due to " + causeOfRollback.getMessage() : "", info());
                 if (log.isTraceEnabled()) {
                     log.trace(description, causeOfRollback);
                 } else {
@@ -144,7 +145,7 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
                 unitOfWorkFactory.transactionManager.rollback(manuallyStartedSpringTransaction.get());
             }
         } else {
-            log.debug(msg("Ignoring call to rollback the fully Spring Managed Transaction associated with UnitOfWork with status {}", status), causeOfRollback);
+            log.debug(msg("Ignoring call to rollback the fully Spring Managed Transaction associated with UnitOfWork with status {}: {}", status, info()), causeOfRollback);
         }
     }
 
@@ -166,7 +167,7 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
     @Override
     public void markAsRollbackOnly(Exception cause) {
         if (status == UnitOfWorkStatus.Started && manuallyStartedSpringTransaction.isPresent()) {
-            final String description = msg("Marking the manually managed Spring Transaction associated with this UnitOfWork for Rollback Only {}", cause != null ? "due to " + cause.getMessage() : "");
+            final String description = msg("Marking the manually managed Spring Transaction associated with this UnitOfWork for Rollback Only {}: {}", cause != null ? "due to " + cause.getMessage() : "", info());
             if (log.isTraceEnabled()) {
                 log.trace(description, cause);
             } else {
@@ -176,7 +177,7 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
             status = UnitOfWorkStatus.MarkedForRollbackOnly;
             causeOfRollback = cause;
         } else {
-            log.debug("Ignoring call to mark the fully Spring Managed Transaction, associated with this UnitOfWork, as rollbackOnly. Current UnitOfWork status {}", status);
+            log.debug("Ignoring call to mark the fully Spring Managed Transaction, associated with this UnitOfWork, as rollbackOnly. Current UnitOfWork status {}: {}", status, info());
         }
     }
 
