@@ -35,6 +35,7 @@ import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
 import dk.cloudcreate.essentials.reactive.command.CmdHandler;
+import org.awaitility.Awaitility;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.postgres.PostgresPlugin;
 import org.junit.jupiter.api.*;
@@ -133,7 +134,7 @@ public class StatefulAggregateRepositoryCombinedWithInTransactionEventProcessorI
                 List.of()
         );
 
-        collectedEvents = new CopyOnWriteArrayList<PersistedEvents>();
+        collectedEvents = new CopyOnWriteArrayList<>();
         eventStore.localEventBus().addSyncSubscriber(event -> {
             if (event instanceof PersistedEvents persistedEvents) {
                 if (persistedEvents.commitStage == CommitStage.BeforeCommit && !persistedEvents.events.isEmpty()) {
@@ -167,6 +168,7 @@ public class StatefulAggregateRepositoryCombinedWithInTransactionEventProcessorI
 
     @Test
     void non_exclusive_verify_changes_to_an_aggregate_across_cmdhandler_and_message_handler_in_the_same_unitofwork_is_captured() {
+        log.info("---------- non_exclusive_verify_changes_to_an_aggregate_across_cmdhandler_and_message_handler_in_the_same_unitofwork_is_captured -------");
         // Given
         eventProcessor = new MyEventProcessor(
                 eventProcessorDependencies,
@@ -195,12 +197,14 @@ public class StatefulAggregateRepositoryCombinedWithInTransactionEventProcessorI
 
     @Test
     void exclusive_verify_changes_to_an_aggregate_across_cmdhandler_and_message_handler_in_the_same_unitofwork_is_captured() {
+        log.info("---------- exclusive_verify_changes_to_an_aggregate_across_cmdhandler_and_message_handler_in_the_same_unitofwork_is_captured -------");
         // Given
         eventProcessor = new MyEventProcessor(
                 eventProcessorDependencies,
                 true,
                 ordersRepository);
         eventProcessor.start();
+        Awaitility.waitAtMost(Duration.ofMillis(300)).until(() -> eventProcessor.isActive());
 
         // When
         var orderId = OrderId.random();
@@ -213,9 +217,11 @@ public class StatefulAggregateRepositoryCombinedWithInTransactionEventProcessorI
 
         var orderCreated = collectedEvents.get(0).events.get(0).event().deserialize();
         assertThat(orderCreated).isExactlyInstanceOf(OrderEvent.OrderAdded.class);
+        assertThat(collectedEvents.get(0).events.get(0).aggregateId()).isEqualTo(orderId);
 
         var productAddedToOrder = collectedEvents.get(1).events.get(0).event().deserialize();
         assertThat(productAddedToOrder).isExactlyInstanceOf(OrderEvent.ProductAddedToOrder.class);
+        assertThat(collectedEvents.get(1).events.get(0).aggregateId()).isEqualTo(orderId);
 
         var order = unitOfWorkFactory.withUnitOfWork(() -> ordersRepository.load(orderId));
         assertThat(order.productAndQuantity).hasSize(1);

@@ -579,7 +579,7 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                     }
                 }
                 log.debug("[{}:{}] Found '{}' with expectedLatestEventOrder: {}. Has SNAPSHOT: {}",
-                          aggregateIdType, aggregateId, aggregateImplementationType.getName(), expectedLatestEventOrder, aggregateSnapshot.isPresent());
+                          aggregateIdType.getName(), aggregateId, aggregateImplementationType.getName(), expectedLatestEventOrder, aggregateSnapshot.isPresent());
                 AGGREGATE_IMPL_TYPE aggregate = aggregateSnapshot.map(snapshot -> (AGGREGATE_IMPL_TYPE) snapshot.aggregateSnapshot)
                                                                  .orElseGet(() -> aggregateRootInstanceFactory.create(aggregateId, aggregateImplementationType));
                 return Optional.of(unitOfWork.registerLifecycleCallbackForResource(aggregate.rehydrate(persistedEventsStream),
