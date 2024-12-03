@@ -268,6 +268,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
             messageHandlingTimeoutMs = (int) requireNonNull(messageHandlingTimeout, "No messageHandlingTimeout provided").toMillis();
             addInterceptor(new SingleOperationTransactionDurableQueuesInterceptor(unitOfWorkFactory));
         }
+        this.multiTableChangeListener.ifPresent(listener -> listener.addDuplicationFilterAsFirst(new QueueNameDuplicationFilter()));
 
         initializeQueueTables();
     }
@@ -301,17 +302,31 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                   );
             log.info("Ensured Durable Queues table '{}' exists", sharedQueueTableName);
 
-            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_queue_name ON {:tableName} (queue_name)",
+            dropIndex("DROP INDEX IF EXISTS idx_{:tableName}_queue_name",
+                      handleAwareUnitOfWork.handle());
+            dropIndex("DROP INDEX IF EXISTS idx_{:tableName}_next_delivery_ts",
                         handleAwareUnitOfWork.handle());
-            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_next_delivery_ts ON {:tableName} (next_delivery_ts)",
+            dropIndex("DROP INDEX IF EXISTS idx_{:tableName}_is_dead_letter_message",
                         handleAwareUnitOfWork.handle());
-            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_is_dead_letter_message ON {:tableName} (is_dead_letter_message)",
+            dropIndex("DROP INDEX IF EXISTS idx_{:tableName}_is_being_delivered",
                         handleAwareUnitOfWork.handle());
-            createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_is_being_delivered ON {:tableName} (is_being_delivered)",
-                        handleAwareUnitOfWork.handle());
+
+
             createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_ordered_msg ON {:tableName} (queue_name, key, key_order)",
                         handleAwareUnitOfWork.handle());
             createIndex("CREATE INDEX IF NOT EXISTS idx_{:tableName}_next_msg ON {:tableName} (queue_name, is_dead_letter_message, is_being_delivered, next_delivery_ts)",
+                        handleAwareUnitOfWork.handle());
+            createIndex("""
+                        CREATE INDEX IF NOT EXISTS idx_{:tableName}_ready ON {:tableName} (
+                            queue_name,
+                            next_delivery_ts,
+                            key,
+                            key_order
+                        )
+                        WHERE
+                            is_dead_letter_message = FALSE
+                            AND is_being_delivered = FALSE
+                        """,
                         handleAwareUnitOfWork.handle());
 
             multiTableChangeListener.ifPresent(listener -> {
@@ -366,8 +381,9 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                     @Handler
                     void handle(QueueTableNotification e) {
                         try {
-                            log.trace("[{}:{}] Received QueueMessage notification",
+                            log.trace("[{}] Received Message-Added {} with id '{}'",
                                       e.queueName,
+                                      e.getClass().getSimpleName(),
                                       e.id);
                             var queueName = QueueName.of(e.queueName);
                             durableQueueConsumers.values()
@@ -904,10 +920,12 @@ public final class PostgresqlDurableQueues implements DurableQueues {
     @Override
     public final Optional<QueuedMessage> getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery operation) {
         requireNonNull(operation, "You must specify a GetNextMessageReadyForDelivery instance");
+        log.trace("[{}] Entered GetNextMessageReadyForDelivery", operation.queueName);
         return newInterceptorChainForOperation(operation,
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> {
+                                                   log.trace("[{}] Handling GetNextMessageReadyForDelivery: {}", operation.queueName, operation);
                                                    resetMessagesStuckBeingDelivered(operation.queueName);
                                                    var now                 = OffsetDateTime.now(Clock.systemUTC());
                                                    var excludeKeysLimitSql = "";
@@ -915,56 +933,60 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                    if (!excludedKeys.isEmpty()) {
                                                        excludeKeysLimitSql = "        AND key NOT IN (<excludedKeys>)\n";
                                                    }
-                                                   var sql = bind("WITH queued_message_ready_for_delivery AS (\n" +
-                                                                          "    SELECT id FROM {:tableName} q1 \n" +
-                                                                          "    WHERE\n" +
-                                                                          "        queue_name = :queueName AND\n" +
-                                                                          "        is_dead_letter_message = FALSE AND\n" +
-                                                                          "        is_being_delivered = FALSE AND\n" +
-                                                                          "        next_delivery_ts <= :now AND\n" +
-                                                                          "        NOT EXISTS (SELECT 1 FROM {:tableName} q2 WHERE q2.key = q1.key AND q2.queue_name = q1.queue_name AND q2.key_order < q1.key_order)\n" +
-                                                                          excludeKeysLimitSql +
-                                                                          "    ORDER BY key_order ASC, next_delivery_ts ASC\n" + // TODO: Future improvement: Allow the user to specify if key_order or next_delivery_ts should have the highest priority
-                                                                          "    LIMIT 1\n" +
-                                                                          "    FOR UPDATE SKIP LOCKED\n" +
-                                                                          " )\n" +
-                                                                          " UPDATE {:tableName} queued_message SET\n" +
-                                                                          "    total_attempts = total_attempts + 1,\n" +
-                                                                          "    next_delivery_ts = NULL,\n" +
-                                                                          "    is_being_delivered = TRUE,\n" +
-                                                                          "    delivery_ts = :now\n" +
-                                                                          " FROM queued_message_ready_for_delivery\n" +
-                                                                          " WHERE queued_message.id = queued_message_ready_for_delivery.id\n" +
-                                                                          " RETURNING\n" +
-                                                                          "     queued_message.id,\n" +
-                                                                          "     queued_message.queue_name,\n" +
-                                                                          "     queued_message.message_payload,\n" +
-                                                                          "     queued_message.message_payload_type,\n" +
-                                                                          "     queued_message.added_ts,\n" +
-                                                                          "     queued_message.next_delivery_ts,\n" +
-                                                                          "     queued_message.delivery_ts,\n" +
-                                                                          "     queued_message.last_delivery_error,\n" +
-                                                                          "     queued_message.total_attempts,\n" +
-                                                                          "     queued_message.redelivery_attempts,\n" +
-                                                                          "     queued_message.is_dead_letter_message,\n" +
-                                                                          "     queued_message.is_being_delivered,\n" +
-                                                                          "     queued_message.meta_data,\n" +
-                                                                          "     queued_message.delivery_mode,\n" +
-                                                                          "     queued_message.key,\n" +
-                                                                          "     queued_message.key_order",
-                                                                  arg("tableName", sharedQueueTableName));
+                                                   var sql = bind("""
+                                                                  WITH queued_message_ready_for_delivery AS (
+                                                                      SELECT id FROM {:tableName} q1
+                                                                      WHERE
+                                                                          queue_name = :queueName AND
+                                                                          is_dead_letter_message = FALSE AND
+                                                                          is_being_delivered = FALSE AND
+                                                                          next_delivery_ts <= :now AND
+                                                                          NOT EXISTS (SELECT 1 FROM {:tableName} q2 WHERE q2.key = q1.key AND q2.queue_name = q1.queue_name AND q2.key_order < q1.key_order)
+                                                                              {:excludeKeys}
+                                                                              ORDER BY key_order ASC, next_delivery_ts ASC
+                                                                              LIMIT 1
+                                                                              FOR UPDATE SKIP LOCKED
+                                                                          )
+                                                                          UPDATE {:tableName} queued_message SET
+                                                                              total_attempts = total_attempts + 1,
+                                                                              next_delivery_ts = NULL,
+                                                                              is_being_delivered = TRUE,
+                                                                              delivery_ts = :now
+                                                                          FROM queued_message_ready_for_delivery
+                                                                          WHERE queued_message.id = queued_message_ready_for_delivery.id
+                                                                          RETURNING
+                                                                              queued_message.id,
+                                                                              queued_message.queue_name,
+                                                                              queued_message.message_payload,
+                                                                              queued_message.message_payload_type,
+                                                                              queued_message.added_ts,
+                                                                              queued_message.next_delivery_ts,
+                                                                              queued_message.delivery_ts,
+                                                                              queued_message.last_delivery_error,
+                                                                              queued_message.total_attempts,
+                                                                              queued_message.redelivery_attempts,
+                                                                              queued_message.is_dead_letter_message,
+                                                                              queued_message.is_being_delivered,
+                                                                              queued_message.meta_data,
+                                                                              queued_message.delivery_mode,
+                                                                              queued_message.key,
+                                                                              queued_message.key_order
+                                                                          """,
+                                                                  arg("tableName", sharedQueueTableName),
+                                                                  arg("excludeKeys", excludeKeysLimitSql));
 
+                                                   log.trace("[{}] Querying Postgresql: {}", operation.queueName, operation);
                                                    var query = unitOfWorkFactory.getRequiredUnitOfWork().handle().createQuery(sql)
                                                                                 .bind("queueName", operation.queueName)
                                                                                 .bind("now", now);
                                                    if (!excludedKeys.isEmpty()) {
                                                        query.bindList("excludedKeys", excludedKeys);
                                                    }
-
-
-                                                   return query
+                                                   var result = query
                                                            .map(queuedMessageMapper)
                                                            .findOne();
+                                                   log.trace("[{}] Completed GetNextMessageReadyForDelivery: {}", operation.queueName, operation);
+                                                   return result;
                                                }).proceed();
     }
 
