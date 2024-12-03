@@ -24,6 +24,7 @@ import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.slf4j.*;
+import reactor.core.publisher.Mono;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -102,6 +103,11 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                                                                                            new ThreadFactoryBuilder()
                                                                                                    .nameFormat("Queue-" + queueName + "-Polling-%d")
                                                                                                    .daemon(true)
+                                                                                                   .uncaughtExceptionHandler((thread, throwable) -> {
+                                                                                                       LOG.error(msg("[{}] {} - Unexpected error",
+                                                                                                                     queueName,
+                                                                                                                     consumeFromQueue.consumerName), throwable);
+                                                                                                   })
                                                                                                    .build()));
 
     }
@@ -177,8 +183,12 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
         }
 
         try {
+            LOG.trace("[{}] {} - Entered pollQueue",
+                      queueName,
+                      consumeFromQueue.consumerName);
+
             if (queuePollingOptimizer.shouldSkipPolling()) {
-                LOG.trace("[{}] {} - Skipping polling",
+                LOG.trace("[{}] {} - Skipping queue polling",
                           queueName,
                           consumeFromQueue.consumerName);
                 return;
@@ -214,6 +224,9 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
             if (postTransactionalSideEffect != null) {
                 postTransactionalSideEffect.run();
             }
+            LOG.trace("[{}] {} - Completed pollQueue",
+                      queueName,
+                      consumeFromQueue.consumerName);
         } catch (Throwable e) {
             if (IOExceptionUtil.isIOException(e)) {
                 LOG.debug(msg("[{}] {} - Experienced a Connection issue while polling queue",
@@ -239,17 +252,71 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
         }
     }
 
-    /**
-     * @return the post transactional side effect of the message handling
-     */
     private Runnable processNextMessageReadyForDelivery() {
         try {
             if (started) {
+                LOG.trace("[{}] {} - Entered {}.processNextMessageReadyForDelivery",
+                          queueName,
+                          consumeFromQueue.consumerName,
+                          DefaultDurableQueueConsumer.class.getSimpleName());
                 List<String> excludeOrderedMessagesWithTheseKeys = resolveMessageKeysToExclude();
-                return durableQueues.getNextMessageReadyForDelivery(new GetNextMessageReadyForDelivery(queueName,
-                                                                                                       excludeOrderedMessagesWithTheseKeys))
-                                    .map(this::handleMessage)
-                                    .orElseGet(() -> queuePollingOptimizer::queuePollingReturnedNoMessages);
+
+                // Define a placeholder for the Runnable that will be assigned appropriately later
+                Runnable[] resultRunnable = new Runnable[1];
+
+                // Execute the Mono immediately for getting the message
+                Mono<Optional<QueuedMessage>> messageMono = Mono.fromCallable(() -> {
+                                                                                  LOG.debug("[{}] {} - Calling {}.getNextMessageReadyForDelivery",
+                                                                                            queueName,
+                                                                                            consumeFromQueue.consumerName,
+                                                                                            durableQueues.getClass().getSimpleName());
+
+                                                                                  var nextMessageReadyForDelivery = durableQueues.getNextMessageReadyForDelivery(
+                                                                                          new GetNextMessageReadyForDelivery(queueName, excludeOrderedMessagesWithTheseKeys));
+                                                                                  LOG.debug("[{}] {} - {}.getNextMessageReadyForDelivery returned {}",
+                                                                                            queueName,
+                                                                                            consumeFromQueue.consumerName,
+                                                                                            durableQueues.getClass().getSimpleName(),
+                                                                                            nextMessageReadyForDelivery);
+
+                                                                                  return nextMessageReadyForDelivery;
+                                                                              }
+                                                                             )
+                                                                // TODO: In the future support configurable timeout
+//                                                                .timeout(Duration.ofSeconds(5))
+                                                                .onErrorResume(throwable -> {
+                                                                    LOG.error(msg("[{}] {} - Error occurred during {}.getNextMessageReadyForDelivery queue processing",
+                                                                                  queueName,
+                                                                                  consumeFromQueue.consumerName,
+                                                                                  durableQueues.getClass().getSimpleName()), throwable);
+                                                                    return Mono.just(Optional.empty());
+                                                                });
+
+                // Subscribe and handle the message
+                messageMono.subscribe(optionalQueuedMessage -> {
+                    if (optionalQueuedMessage.isPresent()) {
+                        LOG.debug("[{}] {} - {}.getNextMessageReadyForDelivery return a Message",
+                                  queueName,
+                                  consumeFromQueue.consumerName,
+                                  durableQueues.getClass().getSimpleName());
+                        QueuedMessage queuedMessage = optionalQueuedMessage.get();
+                        LOG.trace("[{}] {} - Handling Next Message ReadyForDelivery with id '{}'",
+                                  queueName,
+                                  consumeFromQueue.consumerName,
+                                  queuedMessage.getId());
+                        // Assign the Runnable returned by handleMessage
+                        resultRunnable[0] = handleMessage(queuedMessage);
+                    } else {
+                        LOG.debug("[{}] {} - {}.getNextMessageReadyForDelivery did NOT return a Message",
+                                  queueName,
+                                  consumeFromQueue.consumerName,
+                                  durableQueues.getClass().getSimpleName());
+                        queuePollingOptimizer.queuePollingReturnedNoMessages();
+                    }
+                });
+
+                // Return the assigned Runnable (it will be set by the subscription)
+                return resultRunnable[0] != null ? resultRunnable[0] : NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
             } else {
                 return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
             }
@@ -264,8 +331,15 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                               consumeFromQueue.consumerName), e);
             }
             return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
+        } finally {
+            LOG.trace("[{}] {} - Completed {}.getNextMessageReadyForDelivery",
+                      queueName,
+                      consumeFromQueue.consumerName,
+                      DefaultDurableQueueConsumer.class.getSimpleName());
         }
     }
+
+
 
     private List<String> resolveMessageKeysToExclude() {
         var orderedMessageLastHandled = orderedMessageDeliveryThreads.get(Thread.currentThread());
