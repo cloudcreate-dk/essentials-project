@@ -31,8 +31,9 @@ import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,9 +52,9 @@ class MultiTableChangeListenerIT {
             .withPassword("secret-password");
 
     protected Jdbi                                            jdbi;
-    private ObjectMapper                                    objectMapper;
-    private MultiTableChangeListener<TestTableNotification> listener;
-    private LocalEventBus                                   localEventBus;
+    private   ObjectMapper                                    objectMapper;
+    private   MultiTableChangeListener<TestTableNotification> listener;
+    private   LocalEventBus                                   localEventBus;
 
     @BeforeEach
     void setup() {
@@ -89,7 +90,7 @@ class MultiTableChangeListenerIT {
             ListenNotify.addChangeNotificationTriggerToTable(handle, TABLE_3, List.of(ListenNotify.SqlOperation.INSERT), "id", "column5", "column6");
         });
 
-        listener = new MultiTableChangeListener<>(jdbi, Duration.ofMillis(50), new JacksonJSONSerializer(objectMapper), localEventBus);
+        listener = new MultiTableChangeListener<>(jdbi, Duration.ofMillis(50), new JacksonJSONSerializer(objectMapper), localEventBus, false);
         listener.listenToNotificationsFor(TABLE_1, Table1Notification.class);
         listener.listenToNotificationsFor(TABLE_2, Table2Notification.class);
         listener.listenToNotificationsFor(TABLE_3, Table3Notification.class);
@@ -200,6 +201,160 @@ class MultiTableChangeListenerIT {
                 .isEqualTo(expectedNumberOfTable2Notifications);
         assertThat(actualNumberOfTable3Notifications)
                 .isEqualTo(expectedNumberOfTable3Notifications);
+    }
+
+    @Test
+    void test_with_filterDuplicateNotifications_but_without_duplication_filters() {
+        listener = new MultiTableChangeListener<>(jdbi, Duration.ofMillis(50), new JacksonJSONSerializer(objectMapper), localEventBus, true);
+        var result = testSingleTableNotificationDuplication();
+        Awaitility.waitAtMost(Duration.ofMillis(2000))
+                  .untilAsserted(() -> {
+                      assertThat(result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_1)).toList().size()).isEqualTo(result.numberOfInserts);
+                  });
+        assertThat(result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_1)).toList().size()).isEqualTo(result.notifications.size());
+    }
+
+    @Test
+    void test_with_filterDuplicateNotifications_with_duplication_filters() {
+        listener = new MultiTableChangeListener<>(jdbi, Duration.ofMillis(50), new JacksonJSONSerializer(objectMapper), localEventBus, true);
+        listener.addDuplicationFilterAsFirst(new QueueNameNotificationDuplicationFilter());
+        listener.addDuplicationFilterAsLast(new NotificationDuplicationFilter.TableNameDuplicationFilter()); // Our filter
+        var result = testSingleTableNotificationDuplication();
+        Awaitility.waitAtMost(Duration.ofMillis(2000))
+                  .untilAsserted(() -> {
+                      assertThat(result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_1)).toList().size()).isEqualTo(1);
+                  });
+        assertThat(result.notifications).hasSize(1);
+        assertThat(result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_1)).toList().size()).isEqualTo(1);
+    }
+
+    private SingleTableDuplicationTestResult testSingleTableNotificationDuplication() {
+        jdbi.useTransaction(handle -> {
+            ListenNotify.addChangeNotificationTriggerToTable(handle, TABLE_1, List.of(ListenNotify.SqlOperation.INSERT), "id", "column1", "column2");
+        });
+
+        listener.listenToNotificationsFor(TABLE_1, Table1Notification.class);
+
+
+        var notifications = new CopyOnWriteArrayList<TestTableNotification>();
+        localEventBus.addAsyncSubscriber(e -> notifications.add((TestTableNotification) e));
+
+        var numberOfInserts = 100;
+        jdbi.useTransaction(handle -> {
+            var counter = 0;
+            for (var insertIndex = 0; insertIndex < numberOfInserts; insertIndex++) {
+                var values = "";
+                counter++;
+                values = " (column1, column2) VALUES ('Column1Value-" + counter + "', 'Column2Value-" + counter + "')";
+                var sql = "INSERT INTO " + TABLE_1 + values;
+                    log.info("Performing: {}", sql);
+                    handle.execute(sql);
+            }
+        });
+
+        return new SingleTableDuplicationTestResult(numberOfInserts, notifications);
+    }
+
+    record SingleTableDuplicationTestResult(int numberOfInserts, List<TestTableNotification> notifications) {
+    }
+
+    private static class QueueNameNotificationDuplicationFilter implements NotificationDuplicationFilter {
+        @Override
+        public Optional<String> extractDuplicationKey(JsonNode parameterJson) {
+            return Optional.ofNullable(parameterJson.has("queue_name") ? parameterJson.get("queue_name").asText() : null);
+        }
+    }
+
+    @Test
+    void test_multiple_tables_with_duplicate_filtering_but_without_duplication_filters() {
+        listener = new MultiTableChangeListener<>(jdbi, Duration.ofMillis(50), new JacksonJSONSerializer(objectMapper), localEventBus, true);
+        var result = testMultiTableNotificationDuplication();
+
+        Awaitility.waitAtMost(Duration.ofMillis(2000))
+                  .untilAsserted(() -> {
+                      assertThat(result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_1)).toList().size()).isEqualTo(result.table1Inserts);
+                  });
+        assertThat(result.notifications.size()).isEqualTo(result.numberOfInserts);
+        var table1Notifications = result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_1)).toList();
+        var table2Notifications = result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_2)).toList();
+        var table3Notifications = result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_3)).toList();
+        assertThat(table1Notifications.size()).isEqualTo(result.table1Inserts);
+        assertThat(table2Notifications.size()).isEqualTo(result.table2Inserts);
+        assertThat(table3Notifications.size()).isEqualTo(result.table3Inserts);
+        assertThat(table1Notifications.size() + table2Notifications.size() + table3Notifications.size()).isEqualTo(result.notifications.size());
+    }
+
+    @Test
+    void test_multiple_tables_with_duplicate_filtering_with_duplication_filters() {
+        listener = new MultiTableChangeListener<>(jdbi, Duration.ofMillis(50), new JacksonJSONSerializer(objectMapper), localEventBus, true);
+        listener.addDuplicationFilterAsFirst(new QueueNameNotificationDuplicationFilter());
+        listener.addDuplicationFilterAsLast(new NotificationDuplicationFilter.TableNameDuplicationFilter()); // Our filter
+        var result = testMultiTableNotificationDuplication();
+
+        Awaitility.waitAtMost(Duration.ofMillis(2000))
+                  .untilAsserted(() -> {
+                      assertThat(result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_1)).toList().size()).isEqualTo(1);
+                  });
+        assertThat(result.notifications.size()).isEqualTo(3);
+        var table1Notifications = result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_1)).toList();
+        var table2Notifications = result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_2)).toList();
+        var table3Notifications = result.notifications.stream().filter(testTableNotification -> testTableNotification.getTableName().equals(TABLE_3)).toList();
+        assertThat(table1Notifications.size()).isEqualTo(1);
+        assertThat(table2Notifications.size()).isEqualTo(1);
+        assertThat(table3Notifications.size()).isEqualTo(1);
+        assertThat(table1Notifications.size() + table2Notifications.size() + table3Notifications.size()).isEqualTo(result.notifications.size());
+    }
+
+    private MultiTableDuplicationTestResult testMultiTableNotificationDuplication() {
+        jdbi.useTransaction(handle -> {
+            ListenNotify.addChangeNotificationTriggerToTable(handle, TABLE_1, List.of(ListenNotify.SqlOperation.INSERT), "id", "column1", "column2");
+            ListenNotify.addChangeNotificationTriggerToTable(handle, TABLE_2, List.of(ListenNotify.SqlOperation.INSERT), "id", "column3", "column4");
+            ListenNotify.addChangeNotificationTriggerToTable(handle, TABLE_3, List.of(ListenNotify.SqlOperation.INSERT), "id", "column5", "column6");
+        });
+
+        listener.listenToNotificationsFor(TABLE_1, Table1Notification.class);
+        listener.listenToNotificationsFor(TABLE_2, Table2Notification.class);
+        listener.listenToNotificationsFor(TABLE_3, Table3Notification.class);
+
+
+        var notifications = new CopyOnWriteArrayList<TestTableNotification>();
+        localEventBus.addAsyncSubscriber(e -> notifications.add((TestTableNotification) e));
+
+        var numberOfInserts = 300;
+        var counter         = new AtomicInteger();
+        var table1Inserts   = new AtomicInteger();
+        var table2Inserts   = new AtomicInteger();
+        var table3Inserts   = new AtomicInteger();
+
+        jdbi.useTransaction(handle -> {
+            for (var insertIndex = 0; insertIndex < numberOfInserts; insertIndex++) {
+                counter.getAndIncrement();
+                if (counter.get() % 2 == 0) {
+                    var values = " (column3, column4) VALUES ('Column3Value-" + counter + "', 'Column4Value-" + counter + "')";
+                    var sql    = "INSERT INTO " + TABLE_2 + values;
+
+                    log.info("Performing: {}", sql);
+                    handle.execute(sql);
+                    table2Inserts.getAndIncrement();
+                } else if (counter.get() % 3 == 0) {
+                    var values = " (column5, column6) VALUES ('Column5Value-" + counter + "', 'Column6Value-" + counter + "')";
+                    var sql    = "INSERT INTO " + TABLE_3 + values;
+                    log.info("Performing: {}", sql);
+                    handle.execute(sql);
+                    table3Inserts.getAndIncrement();
+                } else {
+                    var values = " (column1, column2) VALUES ('Column1Value-" + counter + "', 'Column2Value-" + counter + "')";
+                    var sql    = "INSERT INTO " + TABLE_1 + values;
+                    log.info("Performing: {}", sql);
+                    handle.execute(sql);
+                    table1Inserts.getAndIncrement();
+                }
+            }
+        });
+        return new MultiTableDuplicationTestResult(numberOfInserts, table1Inserts.get(), table2Inserts.get(), table3Inserts.get(), notifications);
+    }
+
+    record MultiTableDuplicationTestResult(int numberOfInserts, int table1Inserts, int table2Inserts, int table3Inserts, List<TestTableNotification> notifications) {
     }
 
     private ObjectMapper createObjectMapper() {

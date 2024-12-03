@@ -173,7 +173,7 @@ public final class ListenNotify {
      *                                                           To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the {@code tableName} value.<br>
      *                                                           <b>Failure to adequately sanitize and validate this value could expose the application to SQL injection
      *                                                           vulnerabilities, compromising the security and integrity of the database.</b>
-     * @param triggerOnSqlOperations                             what type of {@link SqlOperation should result in a notification
+     * @param triggerOnSqlOperations                             what type of {@link SqlOperation} should result in a notification
      * @param includeAdditionalTableColumnsInNotificationPayload any additional column names that should be included in the NOTIFY JSON formatted String payload<br>
      *                                                           <br>
      *                                                           <strong>Note:</strong><br>

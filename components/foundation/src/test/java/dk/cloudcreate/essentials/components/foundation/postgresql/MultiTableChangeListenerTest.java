@@ -34,7 +34,8 @@ class MultiTableChangeListenerTest {
                 mock(Jdbi.class),
                 Duration.ofSeconds(30), // Very long poll length to avoid errors from the polling mechanism
                 mock(JSONSerializer.class),
-                mock(EventBus.class)
+                mock(EventBus.class),
+                false
         )) {
             assertThatThrownBy(() -> listener.listenToNotificationsFor("where", MultiTableChangeListenerIT.TestTableNotification.class))
                     .isInstanceOf(InvalidTableOrColumnNameException.class);
@@ -51,7 +52,8 @@ class MultiTableChangeListenerTest {
                 mock(Jdbi.class),
                 Duration.ofSeconds(30), // Very long poll length to avoid errors from the polling mechanism
                 mock(JSONSerializer.class),
-                mock(EventBus.class)
+                mock(EventBus.class),
+                false
         )) {
             assertThatThrownBy(() -> listener.unlistenToNotificationsFor("where"))
                     .isInstanceOf(InvalidTableOrColumnNameException.class);
