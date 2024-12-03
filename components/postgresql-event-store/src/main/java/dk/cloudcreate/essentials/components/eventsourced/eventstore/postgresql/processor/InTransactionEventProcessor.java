@@ -153,17 +153,17 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * }</pre>
  */
 public abstract class InTransactionEventProcessor implements Lifecycle {
-    protected final Logger log =                  LoggerFactory.getLogger(this.getClass());
+    protected final Logger                        log = LoggerFactory.getLogger(this.getClass());
     private final   EventStoreSubscriptionManager eventStoreSubscriptionManager;
     protected final DurableLocalCommandBus        commandBus;
     private final   EventStore                    eventStore;
 
-    private boolean                               started;
-    private List<EventStoreSubscription>          eventStoreSubscriptions;
-    private AnnotatedCommandHandler               commandBusHandlerDelegate;
-    private PatternMatchingMessageHandler         patternMatchingHandlerDelegate;
-    private List<MessageHandlerInterceptor>       messageHandlerInterceptors;
-    private boolean                               useExclusively;
+    private boolean                         started;
+    private List<EventStoreSubscription>    eventStoreSubscriptions;
+    private AnnotatedCommandHandler         commandBusHandlerDelegate;
+    private PatternMatchingMessageHandler   patternMatchingHandlerDelegate;
+    private List<MessageHandlerInterceptor> messageHandlerInterceptors;
+    private boolean                         useExclusively;
 
     /**
      * Create a new {@link InTransactionEventProcessor} instance
@@ -176,9 +176,9 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
     protected InTransactionEventProcessor(EventProcessorDependencies eventProcessorDependencies,
                                           boolean useExclusively) {
         this(requireNonNull(eventProcessorDependencies, "No eventProcessorDependencies provided").eventStoreSubscriptionManager,
-                eventProcessorDependencies.commandBus,
-                eventProcessorDependencies.messageHandlerInterceptors,
-                useExclusively);
+             eventProcessorDependencies.commandBus,
+             eventProcessorDependencies.messageHandlerInterceptors,
+             useExclusively);
     }
 
     /**
@@ -190,9 +190,9 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
      */
     protected InTransactionEventProcessor(EventProcessorDependencies eventProcessorDependencies) {
         this(requireNonNull(eventProcessorDependencies, "No eventProcessorDependencies provided").eventStoreSubscriptionManager,
-                eventProcessorDependencies.commandBus,
-                eventProcessorDependencies.messageHandlerInterceptors,
-                false);
+             eventProcessorDependencies.commandBus,
+             eventProcessorDependencies.messageHandlerInterceptors,
+             false);
     }
 
     /**
@@ -242,14 +242,14 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
 
     @Override
     public void start() {
-        if(!started) {
+        if (!started) {
             started = true;
             var processorName              = requireNonNull(getProcessorName(), "getProcessorName() returned null");
             var subscribeToEventsRelatedTo = requireNonNull(reactsToEventsRelatedToAggregateTypes(), "reactsToEventsRelatedToAggregateTypes() returned null");
             log.info("⚙️ [{}] Starting InTransactionEventProcessor - will subscribe '{}' to events related to these AggregatesType's: {}",
-                    processorName,
-                    useExclusively ? "exclusively" : "non-exclusively",
-                    subscribeToEventsRelatedTo);
+                     processorName,
+                     useExclusively ? "exclusively" : "non-exclusively",
+                     subscribeToEventsRelatedTo);
 
             setupMessageHandlerDelegate();
             subscribeInTransaction(subscribeToEventsRelatedTo);
@@ -258,10 +258,10 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
 
     @Override
     public void stop() {
-        if(started) {
+        if (started) {
             started = false;
             log.info("⚙️ [{}] Stopping InTransactionEventProcessor",
-                    getProcessorName());
+                     getProcessorName());
 
             eventStoreSubscriptions.forEach(Lifecycle::stop);
         }
@@ -274,9 +274,8 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
 
     private void subscribeInTransaction(List<AggregateType> subscribeToEventsRelatedTo) {
         eventStoreSubscriptions = subscribeToEventsRelatedTo.stream()
-                .map(this::createEventStoreSubscription).toList();
+                                                            .map(this::createEventStoreSubscription).toList();
     }
-
 
 
     private EventStoreSubscription createEventStoreSubscription(AggregateType aggregateType) {
@@ -285,8 +284,8 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
         EventStoreSubscription subscription = createEventStoreSubscription(aggregateType, subscriberId);
 
         log.info("⚙️ [{}] InTransactionEventProcessor created subscription '{}'",
-                getProcessorName(),
-                subscription);
+                 getProcessorName(),
+                 subscription);
 
         return subscription;
     }
@@ -310,10 +309,10 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
         try {
             log.info("[{}-{}] Processing event: {} using unit of work '{}'", subscriberId, aggregateType, event, unitOfWork.info());
             patternMatchingHandlerDelegate.accept(OrderedMessage.of(event.event().deserialize(),
-                    resolveAggregateIdSerializer(event.aggregateType()).serialize(event.aggregateId()),
-                    event.eventOrder().value(),
-                    new MessageMetaData(event.metaData().deserialize()))
-            );
+                                                                    resolveAggregateIdSerializer(event.aggregateType()).serialize(event.aggregateId()),
+                                                                    event.eventOrder().value(),
+                                                                    new MessageMetaData(event.metaData().deserialize()))
+                                                 );
         } catch (JSONDeserializationException e) {
             log.error("Failed to deserialize PersistedEvent '{}'", event.event().getEventTypeOrNamePersistenceValue(), e);
             throw e;
@@ -324,19 +323,17 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
      * For non-exclusive subscriptions this method returns true if {@link #isStarted()} is true.<br>
      * For exclusive this method returns true if one or more of the underlying {@link FencedLock} are acquired.<br>
      * Otherwise it returns false
+     *
      * @return see description above
      */
     public boolean isActive() {
-        if (isUseExclusively()) {
-            return isStarted();
-        } else {
-           return eventStoreSubscriptions.stream()
-                   .anyMatch(EventStoreSubscription::isActive);
-        }
+        return eventStoreSubscriptions.stream()
+                                      .anyMatch(EventStoreSubscription::isActive);
     }
 
     /**
      * Are the event store subscriptions exclusivity (i.e. using a {@link FencedLock})?
+     *
      * @return if the event store subscriptions use exclusivity (i.e. using a {@link FencedLock})?
      */
     public boolean isUseExclusively() {
