@@ -94,10 +94,16 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
     essentials.reactive.event-bus-backpressure-buffer-size=1024
     essentials.reactive.overflow-max-retries=20
     essentials.reactive.queued-task-cap-factor=1.5
-    #essentials.reactive.parallel-threads=4
+    #essentials.reactive.event-bus-parallel-threads=4
+    #essentials.reactive.command-bus-parallel-send-and-dont-wait-consumers=4
     ```
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
 - `MultiTableChangeListener` which is used for optimizing `PostgresqlDurableQueues` message polling
+  - Supports additional configuration properties:
+  - ```
+    essentials.multi-table-change-listener.filter-duplicate-notifications=true
+    essentials.multi-table-change-listener.polling-interval=100ms
+    ```
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped through the `DefaultLifecycleManager`
   - In addition, during `ContextRefreshedEvent`, it will call `JdbiConfigurationCallback#configure(Jdbi)` on all `ApplicationContext` Beans that implement the `JdbiConfigurationCallback` interface,
   thereby providing them with an instance of the `Jdbi` instance.
