@@ -23,7 +23,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventType;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
 import dk.cloudcreate.essentials.components.foundation.messaging.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
@@ -277,6 +277,8 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
                 .map(this::createEventStoreSubscription).toList();
     }
 
+
+
     private EventStoreSubscription createEventStoreSubscription(AggregateType aggregateType) {
         var subscriberId = SubscriberId.of(getProcessorName() + ":" + aggregateType + ":sync");
 
@@ -318,6 +320,28 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
         }
     }
 
+    /**
+     * For non-exclusive subscriptions this method returns true if {@link #isStarted()} is true.<br>
+     * For exclusive this method returns true if one or more of the underlying {@link FencedLock} are acquired.<br>
+     * Otherwise it returns false
+     * @return see description above
+     */
+    public boolean isActive() {
+        if (isUseExclusively()) {
+            return isStarted();
+        } else {
+           return eventStoreSubscriptions.stream()
+                   .anyMatch(EventStoreSubscription::isActive);
+        }
+    }
+
+    /**
+     * Are the event store subscriptions exclusivity (i.e. using a {@link FencedLock})?
+     * @return if the event store subscriptions use exclusivity (i.e. using a {@link FencedLock})?
+     */
+    public boolean isUseExclusively() {
+        return useExclusively;
+    }
 
     private AggregateIdSerializer resolveAggregateIdSerializer(AggregateType aggregateType) {
         return ((ConfigurableEventStore<?>) eventStore).getAggregateEventStreamConfiguration(aggregateType).aggregateIdSerializer;

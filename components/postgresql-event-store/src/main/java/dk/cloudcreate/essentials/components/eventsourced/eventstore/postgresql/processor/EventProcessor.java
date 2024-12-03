@@ -378,6 +378,18 @@ public abstract class EventProcessor implements Lifecycle {
         return started;
     }
 
+
+    /**
+     * This method returns true if one or more of the underlying {@link FencedLock}'s have been acquired.<br>
+     * Otherwise it returns false
+     *
+     * @return see description above
+     */
+    public boolean isActive() {
+        return eventStoreSubscriptions.stream()
+                                      .anyMatch(EventStoreSubscription::isActive);
+    }
+
     /**
      * Resets all {@link AggregateType} subscriptions fromAndIncluding {@link GlobalEventOrder#FIRST_GLOBAL_EVENT_ORDER}<br>
      * {@link #onSubscriptionsReset(AggregateType, GlobalEventOrder)} will be called for each {@link AggregateType}<br>
