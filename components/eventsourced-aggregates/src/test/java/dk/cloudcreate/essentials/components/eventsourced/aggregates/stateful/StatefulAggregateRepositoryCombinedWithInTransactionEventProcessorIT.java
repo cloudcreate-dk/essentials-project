@@ -187,9 +187,11 @@ public class StatefulAggregateRepositoryCombinedWithInTransactionEventProcessorI
 
         var orderCreated = collectedEvents.get(0).events.get(0).event().deserialize();
         assertThat(orderCreated).isExactlyInstanceOf(OrderEvent.OrderAdded.class);
+        assertThat(collectedEvents.get(0).events.get(0).aggregateId()).isEqualTo(orderId);
 
         var productAddedToOrder = collectedEvents.get(1).events.get(0).event().deserialize();
         assertThat(productAddedToOrder).isExactlyInstanceOf(OrderEvent.ProductAddedToOrder.class);
+        assertThat(collectedEvents.get(1).events.get(0).aggregateId()).isEqualTo(orderId);
 
         var order = unitOfWorkFactory.withUnitOfWork(() -> ordersRepository.load(orderId));
         assertThat(order.productAndQuantity).hasSize(1);
