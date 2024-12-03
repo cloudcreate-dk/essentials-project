@@ -95,7 +95,7 @@ public final class PostgresqlFencedLockStorage implements FencedLockStorage<Hand
      */
     public PostgresqlFencedLockStorage(Jdbi jdbi, String fencedLocksTableName) {
         this.jdbi = requireNonNull(jdbi, "You must supply a jdbi instance");
-        this.fencedLocksTableName = requireNonNull(fencedLocksTableName, "You must supply a fencedLocksTableName instance");
+        this.fencedLocksTableName = requireNonNull(fencedLocksTableName, "You must supply a fencedLocksTableName value");
         PostgresqlUtil.checkIsValidTableOrColumnName(this.fencedLocksTableName);
 
         jdbi.registerArgument(new LockNameArgumentFactory());

@@ -47,7 +47,7 @@ public final class PostgresqlFencedLockManagerBuilder {
     private Jdbi                                                          jdbi;
     private HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory;
     private Optional<String>                                              lockManagerInstanceId = Optional.empty();
-    private String                                                        fencedLocksTableName;
+    private String                                                        fencedLocksTableName = PostgresqlFencedLockStorage.DEFAULT_FENCED_LOCKS_TABLE_NAME;
     private Duration                                                      lockTimeOut;
     private Duration                                                      lockConfirmationInterval;
     boolean releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation = false;
@@ -94,7 +94,7 @@ public final class PostgresqlFencedLockManagerBuilder {
     }
 
     /**
-     * @param fencedLocksTableName the name of the table where the fenced locks will be stored<br>
+     * @param fencedLocksTableName the name of the table where the fenced locks will be stored<br> Default is {@value PostgresqlFencedLockStorage#DEFAULT_FENCED_LOCKS_TABLE_NAME}
      *                             <strong>Note:</strong><br>
      *                             To support customization of storage table name, the {@code fencedLocksTableName} will be directly used in constructing SQL statements
      *                             through string concatenation, which exposes the component to SQL injection attacks.<br>
