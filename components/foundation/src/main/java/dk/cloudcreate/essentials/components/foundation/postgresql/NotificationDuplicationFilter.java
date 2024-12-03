@@ -27,7 +27,7 @@ import java.util.Optional;
  * The key extracted from {@link NotificationDuplicationFilter#extractDuplicationKey(JsonNode)}
  * will be used inside {@link MultiTableChangeListener} for duplication checks <b>across all {@link Notification}'s returned in a single poll</b>.<br>
  * If an empty {@link Optional} is returned then the given notification won't be deduplicated.<br>
- * If two or more {@link Notification}'s in a given pull batch share the same duplication key, then only one of them will be published to the listeners registered with the {@link MultiTableChangeListener}<br>
+ * If two or more {@link Notification}'s in a given poll batch share the same duplication key, then only one of them will be published to the listeners registered with the {@link MultiTableChangeListener}<br>
  */
 public interface NotificationDuplicationFilter {
     /**
@@ -35,7 +35,7 @@ public interface NotificationDuplicationFilter {
      *
      * @param notificationParameterJson a JsonNode representing the JSON structure of the {@link Notification#getParameter()} JSON content
      * @return an {@link Optional} containing the unique key if extraction was successful, otherwise an empty {@link Optional} if this filter doesn't support the given parameter JSON or no filtering is required
-     * This key will be used inside {@link MultiTableChangeListener} for duplication checks across all {@link Notification}'s returned in one pull
+     * This key will be used inside {@link MultiTableChangeListener} for duplication checks across all {@link Notification}'s returned in one poll
      */
     Optional<String> extractDuplicationKey(JsonNode notificationParameterJson);
 

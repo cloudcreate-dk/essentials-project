@@ -140,9 +140,9 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
      * JSON content.<br>
      * The key extracted from {@link NotificationDuplicationFilter#extractDuplicationKey(JsonNode)}
      * will be used inside {@link MultiTableChangeListener} for duplication checks across all {@link Notification}'s
-     * returned in one pull.<br>
+     * returned in one poll.<br>
      * If an empty {@link Optional} is returned then the given notification won't be deduplicated.<br>
-     * If two or more {@link Notification}'s in a given pull batch share the same duplication key, <b>AND {@link #isFilterDuplicateNotifications()} is true</b>,
+     * If two or more {@link Notification}'s in a given poll batch share the same duplication key, <b>AND {@link #isFilterDuplicateNotifications()} is true</b>,
      * then only one of them will be published to the listeners registered with the {@link MultiTableChangeListener}<br>
      * <br>
      * Note: Only a single instance of a particular {@link NotificationDuplicationFilter},
@@ -161,9 +161,9 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
      * JSON content.<br>
      * The key extracted from {@link NotificationDuplicationFilter#extractDuplicationKey(JsonNode)}
      * will be used inside {@link MultiTableChangeListener} for duplication checks across all {@link Notification}'s
-     * returned in one pull.<br>
+     * returned in one poll.<br>
      * If an empty {@link Optional} is returned then the given notification won't be deduplicated.<br>
-     * If two or more {@link Notification}'s in a given pull batch share the same duplication key, <b>AND {@link #isFilterDuplicateNotifications()} is true</b>,
+     * If two or more {@link Notification}'s in a given poll batch share the same duplication key, <b>AND {@link #isFilterDuplicateNotifications()} is true</b>,
      * then only one of them will be published to the listeners registered with the {@link MultiTableChangeListener}<br>
      * <br>
      * Note: Only a single instance of a particular {@link NotificationDuplicationFilter},
