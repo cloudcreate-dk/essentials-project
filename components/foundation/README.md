@@ -42,7 +42,7 @@ To use `foundation` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>foundation</artifactId>
-    <version>0.40.18</version>
+    <version>0.40.19</version>
 </dependency>
 ```
 
