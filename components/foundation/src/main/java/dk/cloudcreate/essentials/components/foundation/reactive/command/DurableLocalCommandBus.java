@@ -51,7 +51,7 @@ public final class DurableLocalCommandBus extends AbstractCommandBus implements 
                                                                                                       20);
     
     private DurableQueues    durableQueues;
-    private int              parallelSendAndDontWaitConsumers = 10;
+    private int              parallelSendAndDontWaitConsumers = Runtime.getRuntime().availableProcessors();
     private QueueName        commandQueueName                 = DEFAULT_COMMAND_QUEUE_NAME;
     private RedeliveryPolicy commandQueueRedeliveryPolicy     = DEFAULT_REDELIVERY_POLICY;
 
