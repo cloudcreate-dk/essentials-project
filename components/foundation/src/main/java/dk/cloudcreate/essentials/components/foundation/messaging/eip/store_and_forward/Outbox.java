@@ -21,7 +21,10 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.function.Consumer;
+
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * The {@link Outbox} supports the transactional Store and Forward pattern from Enterprise Integration Patterns supporting At-Least-Once delivery guarantee.<br>
@@ -111,7 +114,8 @@ public interface Outbox {
 
     /**
      * Send a message (without meta-data) asynchronously.<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param payload the message payload
@@ -123,7 +127,8 @@ public interface Outbox {
 
     /**
      * Send a message (without meta-data) asynchronously and where the message should be delivered later.<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param payload       the message payload
@@ -136,7 +141,8 @@ public interface Outbox {
 
     /**
      * Send a message (with meta-data) asynchronously.<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param payload  the message payload
@@ -149,7 +155,8 @@ public interface Outbox {
 
     /**
      * Send a message (with meta-data) asynchronously and where the message should be delivered later.<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param payload       the message payload
@@ -162,8 +169,63 @@ public interface Outbox {
     }
 
     /**
+     * Send a list of message payloads. The payloads will be converted to {@link Message}'s<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param payloads the list of message payloads
+     * @return this outbox instance
+     */
+    default Outbox sendMessageList(List<? extends Object> payloads) {
+        var messageList = requireNonNull(payloads).stream().map(Message::new).toList();
+        return sendMessages(messageList);
+    }
+
+    /**
+     * Send a list of message payloads with delayed delivery.
+     * The payloads will be converted to {@link Message}'s<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param payloads the list of message payloads
+     * @return this outbox instance
+     */
+    default Outbox sendMessageList(List<? extends Object> payloads, Duration deliveryDelay) {
+        var messageList = requireNonNull(payloads).stream().map(Message::new).toList();
+        return sendMessages(messageList, deliveryDelay);
+    }
+
+    /**
+     * Send a list of messages<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param messages the list of messages
+     * @return this outbox instance
+     * @see OrderedMessage
+     */
+    Outbox sendMessages(List<Message> messages);
+
+    /**
+     * Send a list of messages with delayed delivery<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param messages      the list of messages
+     * @param deliveryDelay duration before the messages should be delivered
+     * @return this outbox instance
+     * @see OrderedMessage
+     */
+    Outbox sendMessages(List<Message> messages, Duration deliveryDelay);
+
+    /**
      * Send a message asynchronously.<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param message the message
@@ -174,7 +236,8 @@ public interface Outbox {
 
     /**
      * Send a message asynchronously and where the message should be delivered later.<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param message       the message
