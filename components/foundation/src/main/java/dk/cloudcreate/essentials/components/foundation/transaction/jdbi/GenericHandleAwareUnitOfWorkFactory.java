@@ -67,6 +67,10 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
         this.jdbi = requireNonNull(jdbi, "No jdbi instance provided");
     }
 
+    public Jdbi getJdbi() {
+        return jdbi;
+    }
+
     @Override
     public UOW getRequiredUnitOfWork() {
         var unitOfWork = unitOfWorks.get();
@@ -163,7 +167,8 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
                                       key.getClass().getName(),
                                       resources.size());
                             var newProcessingStatus = key.beforeCommit(this, resources);
-                            if (newProcessingStatus != processingStatus.get()) {
+                            if (newProcessingStatus == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED &&
+                                    processingStatus.get() == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.COMPLETED) {
                                 log.trace("BeforeCommit: {} changed BeforeCommitProcessing processingStatus back to {}", key.getClass().getName(), newProcessingStatus);
                                 processingStatus.set(newProcessingStatus);
                             }

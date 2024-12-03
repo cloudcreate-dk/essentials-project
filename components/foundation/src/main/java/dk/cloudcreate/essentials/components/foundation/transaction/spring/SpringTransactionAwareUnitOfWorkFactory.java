@@ -169,7 +169,8 @@ public abstract class SpringTransactionAwareUnitOfWorkFactory<TRX_MGR extends Pl
                                   key.getClass().getName(),
                                   resources.size());
                         var newProcessingStatus = key.beforeCommit(unitOfWork, resources);
-                        if (newProcessingStatus != processingStatus.get()) {
+                        if (newProcessingStatus == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED &&
+                                processingStatus.get() == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.COMPLETED) {
                             log.trace("BeforeCommit: {} changed BeforeCommitProcessing processingStatus back to {}", key.getClass().getName(), newProcessingStatus);
                             processingStatus.set(newProcessingStatus);
                         }
