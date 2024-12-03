@@ -28,7 +28,8 @@ import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationE
 import dk.cloudcreate.essentials.components.foundation.messaging.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
-import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus;
+import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.reactive.Handler;
 import dk.cloudcreate.essentials.reactive.command.*;
@@ -50,6 +51,14 @@ import static java.util.stream.Collectors.toMap;
  * Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing {@link CmdHandler} as well as {@link MessageHandler}
  * annotated event handling methods.<br>
  * The {@link EventProcessor} simplifies building event projections or process automations.<br>
+ * <br>
+ * <i><b>Note:</b> If the associated {@link DurableLocalCommandBus} uses the {@link UnitOfWorkControllingCommandBusInterceptor} then all
+ * logic inside {@link CmdHandler} methods will be performed within a {@link UnitOfWork}</i>
+ * <br>
+ * <br>
+ * <i><b>Note:</b> If the associated {@link Inboxes} uses is associated with a {@link UnitOfWorkFactory}, which {@link Inboxes.DurableQueueBasedInboxes} supports, then
+ * all logic inside {@link MessageHandler} methods will be performed within a {@link UnitOfWork}</i>
+ * <br>
  * <br>
  * An {@link EventProcessor} can subscribe to multiple {@link EventStore} Event Streams (e.g. a stream of Order events or a stream of Product events).<br>
  * To ensure efficient processing and prevent conflicts, only a single instance of a concrete {@link EventProcessor} in a cluster can have an active Event Stream subscription at a time (using the {@link FencedLockManager}).

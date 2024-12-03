@@ -53,7 +53,7 @@ public final class EventStoreEventBus implements EventBus, Lifecycle {
     }
 
     /**
-     * Default implementation that provides an internal {@link LocalEventBus} instance.
+     * Default implementation that uses an internal {@link LocalEventBus} instance.
      *
      * @param unitOfWorkFactory the {@link EventStoreUnitOfWorkFactory} that's coordinating the {@link UnitOfWork} life cycle such that
      *                          this {@link EventBus} instance will ensure that {@link PersistedEvents} will be published
@@ -67,7 +67,7 @@ public final class EventStoreEventBus implements EventBus, Lifecycle {
     }
 
     /**
-     * Default implementation that provides an internal {@link LocalEventBus} instance.
+     * Default implementation that uses an internal {@link LocalEventBus} instance.
      *
      * @param unitOfWorkFactory the {@link EventStoreUnitOfWorkFactory} that's coordinating the {@link UnitOfWork} life cycle such that
      *                          this {@link EventBus} instance will ensure that {@link PersistedEvents} will be published
@@ -84,7 +84,7 @@ public final class EventStoreEventBus implements EventBus, Lifecycle {
     }
 
     /**
-     * Default implementation that provides an internal {@link LocalEventBus} instance.
+     * Default implementation that uses an internal {@link LocalEventBus} instance.
      *
      * @param eventStoreUnitOfWorkFactory    the {@link EventStoreUnitOfWorkFactory} that's coordinating the {@link UnitOfWork} life cycle such that
      *                                       this {@link EventBus} instance will ensure that {@link PersistedEvents} will be published
@@ -107,7 +107,7 @@ public final class EventStoreEventBus implements EventBus, Lifecycle {
     }
 
     /**
-     * Default implementation that provides an internal {@link LocalEventBus} instance.
+     * Default implementation that uses an internal {@link LocalEventBus} instance.
      *
      * @param eventStoreUnitOfWorkFactory    the {@link EventStoreUnitOfWorkFactory} that's coordinating the {@link UnitOfWork} life cycle such that
      *                                       this {@link EventBus} instance will ensure that {@link PersistedEvents} will be published

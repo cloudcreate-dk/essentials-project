@@ -133,7 +133,7 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
                                                                                  .mapTo(Long.class)
                                                                                  .first());
         assertThat(initialGlobalEventOrder).isEqualTo(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER.longValue());
-        var newInitialGlobalEventOrder = new GlobalEventOrder(1_000_0000L);
+        var newInitialGlobalEventOrder = new GlobalEventOrder(1_000_000L);
         unitOfWorkFactory.withUnitOfWork(uow -> uow.handle().createUpdate("SELECT setval(:sequenceName, :sequenceValue, false)")
                                                    .bind("sequenceName", globalEventOrderSequenceColumnName)
                                                    .bind("sequenceValue", newInitialGlobalEventOrder)
