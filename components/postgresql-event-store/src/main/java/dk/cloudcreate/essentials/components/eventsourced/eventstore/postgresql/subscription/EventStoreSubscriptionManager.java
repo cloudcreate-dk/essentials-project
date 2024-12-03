@@ -943,7 +943,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
 
             @Override
             public boolean isActive() {
-                return started;
+                return active;
             }
 
             @Override
@@ -953,6 +953,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                         ", subscriberId=" + subscriberId +
                         ", onlyIncludeEventsForTenant=" + onlyIncludeEventsForTenant +
                         ", started=" + started +
+                        ", active=" + active +
                         '}';
             }
 
