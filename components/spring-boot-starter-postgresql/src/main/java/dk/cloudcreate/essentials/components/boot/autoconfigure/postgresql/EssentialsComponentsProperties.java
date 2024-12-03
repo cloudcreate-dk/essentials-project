@@ -169,6 +169,7 @@ public class EssentialsComponentsProperties {
 
         /**
          * Set filterDuplicateNotifications {@link MultiTableChangeListener} if polled notifications should be filtered on registered {@link NotificationDuplicationFilter}'s
+         * such as the {@link QueueNameDuplicationFilter} added by the {@link PostgresqlDurableQueues}
          *
          * @param filterDuplicateNotifications if polled notifications should be filtered based on registered {@link NotificationDuplicationFilter}'s
          */
