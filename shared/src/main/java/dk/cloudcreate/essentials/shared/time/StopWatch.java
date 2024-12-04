@@ -106,5 +106,11 @@ public final class StopWatch {
         return TimingWithResult.of(result, Duration.ofNanos(finish - start));
     }
 
-
+    /**
+     * Return elapsed time as a {@link Duration}
+     * @return elapsed time as a {@link Duration}
+     */
+    public Duration elapsed() {
+        return Duration.ofNanos(System.nanoTime() - start);
+    }
 }

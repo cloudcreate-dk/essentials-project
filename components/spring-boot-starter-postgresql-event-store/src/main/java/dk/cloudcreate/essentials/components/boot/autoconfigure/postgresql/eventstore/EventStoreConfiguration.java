@@ -103,7 +103,7 @@ public class EventStoreConfiguration {
         var localEventBusBuilder = LocalEventBus.builder()
                                                 .busName("EventStoreLocalBus")
                                                 .overflowMaxRetries(properties.getReactive().getOverflowMaxRetries())
-                                                .parallelThreads(properties.getReactive().getParallelThreads())
+                                                .parallelThreads(properties.getReactive().getEventBusParallelThreads())
                                                 .backpressureBufferSize(properties.getReactive().getEventBusBackpressureBufferSize())
                                                 .queuedTaskCapFactor(properties.getReactive().getQueuedTaskCapFactor());
         onErrorHandler.ifPresent(localEventBusBuilder::onErrorHandler);

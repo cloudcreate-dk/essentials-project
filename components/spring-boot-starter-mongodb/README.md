@@ -18,7 +18,7 @@ To use `spring-boot-starter-mongodb` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-mongodb</artifactId>
-    <version>0.40.18</version>
+    <version>0.40.19</version>
 </dependency>
 ```
 
@@ -94,7 +94,8 @@ endangering the security and integrity of the database. It is highly recommended
     essentials.reactive.event-bus-backpressure-buffer-size=1024
     essentials.reactive.overflow-max-retries=20
     essentials.reactive.queued-task-cap-factor=1.5
-    #essentials.reactive.parallel-threads=4
+    #essentials.reactive.event-bus-parallel-threads=4
+    #essentials.reactive.command-bus-parallel-send-and-dont-wait-consumers=4
     ```
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped through the `DefaultLifecycleManager`

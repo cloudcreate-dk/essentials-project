@@ -23,8 +23,9 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
 import dk.cloudcreate.essentials.components.foundation.postgresql.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
+import dk.cloudcreate.essentials.components.queue.postgresql.*;
+import dk.cloudcreate.essentials.reactive.*;
+import dk.cloudcreate.essentials.reactive.command.CommandBus;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Sinks;
@@ -136,6 +137,7 @@ public class EssentialsComponentsProperties {
 
     public static class MultiTableChangeListenerProperties {
         private Duration pollingInterval = Duration.ofMillis(50);
+        private boolean  filterDuplicateNotifications = true;
 
         /**
          * Get the interval with which the {@link MultiTableChangeListener} is polling Postgresql for notification
@@ -153,6 +155,26 @@ public class EssentialsComponentsProperties {
          */
         public void setPollingInterval(Duration pollingInterval) {
             this.pollingInterval = pollingInterval;
+        }
+
+        /**
+         * Get filterDuplicateNotifications {@link MultiTableChangeListener} if polled notifications should be filtered based on registered {@link NotificationDuplicationFilter}'s
+         * such as the {@link QueueNameDuplicationFilter} added by the {@link PostgresqlDurableQueues}
+         *
+         * @return Get filterDuplicateNotifications {@link MultiTableChangeListener} if polled notifications should be filtered based on registered {@link NotificationDuplicationFilter}'s
+         */
+        public boolean isFilterDuplicateNotifications() {
+            return filterDuplicateNotifications;
+        }
+
+        /**
+         * Set filterDuplicateNotifications {@link MultiTableChangeListener} if polled notifications should be filtered on registered {@link NotificationDuplicationFilter}'s
+         * such as the {@link QueueNameDuplicationFilter} added by the {@link PostgresqlDurableQueues}
+         *
+         * @param filterDuplicateNotifications if polled notifications should be filtered based on registered {@link NotificationDuplicationFilter}'s
+         */
+        public void setFilterDuplicateNotifications(boolean filterDuplicateNotifications) {
+            this.filterDuplicateNotifications = filterDuplicateNotifications;
         }
     }
 
@@ -523,10 +545,27 @@ public class EssentialsComponentsProperties {
     }
 
     public static class ReactiveProperties {
-        private int    eventBusBackpressureBufferSize = LocalEventBus.DEFAULT_BACKPRESSURE_BUFFER_SIZE;
-        private int    parallelThreads                = Runtime.getRuntime().availableProcessors();
-        private int    overflowMaxRetries             = LocalEventBus.DEFAULT_OVERFLOW_MAX_RETRIES;
-        private double queuedTaskCapFactor            = LocalEventBus.QUEUED_TASK_CAP_FACTOR;
+        private int eventBusBackpressureBufferSize = LocalEventBus.DEFAULT_BACKPRESSURE_BUFFER_SIZE;
+        private int eventBusParallelThreads        = Runtime.getRuntime().availableProcessors();
+        private int overflowMaxRetries             = LocalEventBus.DEFAULT_OVERFLOW_MAX_RETRIES;
+        private double queuedTaskCapFactor                        = LocalEventBus.QUEUED_TASK_CAP_FACTOR;
+        private int    commandBusParallelSendAndDontWaitConsumers = Runtime.getRuntime().availableProcessors();
+
+        /**
+         * The number of parallel {@link CommandBus#sendAndDontWait(Object)} consumers. Default is the number of available processors
+         * @return the number of parallel {@link CommandBus#sendAndDontWait(Object)} consumers. Default is the number of available processors
+         */
+        public int getCommandBusParallelSendAndDontWaitConsumers() {
+            return commandBusParallelSendAndDontWaitConsumers;
+        }
+
+        /**
+         * The number of parallel {@link CommandBus#sendAndDontWait(Object)} consumers. Default is the number of available processors
+         * @param commandBusParallelSendAndDontWaitConsumers the number of parallel {@link CommandBus#sendAndDontWait(Object)} consumers. Default is the number of available processors
+         */
+        public void setCommandBusParallelSendAndDontWaitConsumers(int commandBusParallelSendAndDontWaitConsumers) {
+            this.commandBusParallelSendAndDontWaitConsumers = commandBusParallelSendAndDontWaitConsumers;
+        }
 
         /**
          * Get property to set as 'eventBusBackpressureBufferSize' value LocalEventBus back pressure size for {@link Sinks.Many}'s onBackpressureBuffer size. The default value set by reactor framework is {@value LocalEventBus#DEFAULT_BACKPRESSURE_BUFFER_SIZE}.
@@ -547,21 +586,21 @@ public class EssentialsComponentsProperties {
         }
 
         /**
-         * Get the number of parallel threads processing asynchronous events. Defaults to the number of available processors on the machine
+         * Get the number of parallel threads processing asynchronous {@link EventBus} events. Defaults to the number of available processors on the machine
          *
          * @return the number of parallel threads processing asynchronous events.
          */
-        public int getParallelThreads() {
-            return parallelThreads;
+        public int getEventBusParallelThreads() {
+            return eventBusParallelThreads;
         }
 
         /**
-         * Set the number of parallel threads processing asynchronous events. Defaults to the number of available processors on the machine
+         * Set the number of parallel threads processing asynchronous {@link EventBus} events. Defaults to the number of available processors on the machine
          *
-         * @param parallelThreads the number of parallel threads processing asynchronous events.
+         * @param eventBusParallelThreads the number of parallel threads processing asynchronous events.
          */
-        public void setParallelThreads(int parallelThreads) {
-            this.parallelThreads = parallelThreads;
+        public void setEventBusParallelThreads(int eventBusParallelThreads) {
+            this.eventBusParallelThreads = eventBusParallelThreads;
         }
 
         /**

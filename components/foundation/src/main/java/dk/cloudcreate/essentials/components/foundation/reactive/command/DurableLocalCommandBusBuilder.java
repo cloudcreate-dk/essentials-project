@@ -31,7 +31,7 @@ import static dk.cloudcreate.essentials.components.foundation.reactive.command.D
  */
 public final class DurableLocalCommandBusBuilder {
     private DurableQueues               durableQueues;
-    private int                         parallelSendAndDontWaitConsumers = 10;
+    private int                         parallelSendAndDontWaitConsumers = Runtime.getRuntime().availableProcessors();
     private QueueName                   commandQueueName                 = DEFAULT_COMMAND_QUEUE_NAME;
     private RedeliveryPolicy            commandQueueRedeliveryPolicy     = DEFAULT_REDELIVERY_POLICY;
     private SendAndDontWaitErrorHandler sendAndDontWaitErrorHandler      = new SendAndDontWaitErrorHandler.RethrowingSendAndDontWaitErrorHandler();
@@ -50,7 +50,7 @@ public final class DurableLocalCommandBusBuilder {
 
     /**
      * Set how many parallel {@link DurableQueues} consumers should listen for messages added using {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}<br>
-     * Defaults to 10
+     * Defaults to the number of available processors
      *
      * @param parallelSendAndDontWaitConsumers How many parallel {@link DurableQueues} consumers should listen for messages added using {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}
      * @return this builder instance

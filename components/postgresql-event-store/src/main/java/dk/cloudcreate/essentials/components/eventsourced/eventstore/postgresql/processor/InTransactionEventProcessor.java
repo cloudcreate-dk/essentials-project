@@ -23,13 +23,14 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventType;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
 import dk.cloudcreate.essentials.components.foundation.messaging.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inboxes.DurableQueueBasedInboxes;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
-import dk.cloudcreate.essentials.components.foundation.reactive.command.DurableLocalCommandBus;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.reactive.Handler;
 import dk.cloudcreate.essentials.reactive.command.*;
@@ -44,23 +45,31 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * annotated event handling methods.<br>
  * The {@link InTransactionEventProcessor} simplifies building event projections or process automations.<br>
  * <br>
+ * <i><b>Note:</b> If the associated {@link DurableLocalCommandBus} uses the {@link UnitOfWorkControllingCommandBusInterceptor} then all
+ * logic inside {@link CmdHandler} methods will be performed within a {@link UnitOfWork}</i>
+ * <br>
+ * <br>
+ * <i><b>Note:</b> If the associated {@link Inboxes} uses is associated with a {@link UnitOfWorkFactory}, which {@link DurableQueueBasedInboxes} supports, then
+ * all logic inside {@link MessageHandler} methods will be performed within a {@link UnitOfWork}</i>
+ * <br>
+ * <br>
  * An {@link InTransactionEventProcessor} can subscribe in transaction to multiple {@link EventStore} Event Streams (e.g. a stream of Order events or a stream of Product events).<br>
  * If useExclusively flag is true only a single instance of a concrete {@link InTransactionEventProcessor} in a cluster can have an active Event Stream subscription at a time (using the {@link FencedLockManager}).
  * <br>
  * To enhance throughput, you can control the number of parallel threads utilized for handling messages. Consequently, events associated with different aggregate instances within an EventStream can be concurrently processed.
  * <br>
- * The {@link InTransactionEventProcessor} also ensures ordered handling of events, partitioned by aggregate id. I.e. events related to a specific aggregate id will always be processed in the exact order they were originally added to the {@link EventStore}.<br>
- * This guarantees the preservation of the chronological sequence of events for each individual aggregate, maintaining data integrity and consistency, even during event redelivery/poison-message handling.<br>
+ * If the useExclusively flag is true, the {@link InTransactionEventProcessor} also ensures ordered handling of events<br>
+ * This guarantees the preservation of the chronological sequence of events for each individual aggregate, maintaining data integrity and consistency.<br>
  * <br>
  * Details:<br>
  * Instead of manually subscribing to the underlying {@link EventStore} using the {@link EventStoreSubscriptionManager}, which requires you to provide your own error and retry handling,
  * you can use the {@link InTransactionEventProcessor} to subscribe to one or more {@link EventStore} event streams, while providing you with error and retry handling using the common {@link RedeliveryPolicy} concept
  * <p>
  * You must override {@link #reactsToEventsRelatedToAggregateTypes()} to specify which EventSourced {@link AggregateType} event-streams the {@link EventProcessor} should subscribe to.<br>
- * The {@link InTransactionEventProcessor} will set up an exclusive asynchronous {@link EventStoreSubscription} for each {@link AggregateType} and will forward any
+ * The {@link InTransactionEventProcessor} will set up an (optionally exclusive) synchronous in-transaction {@link EventStoreSubscription} for each {@link AggregateType} and will forward any
  * {@link PersistedEvent}'s as {@link OrderedMessage}'s IF and ONLY IF the concrete {@link EventProcessor} subclass contains a corresponding {@link MessageHandler}
  * annotated method matching the {@link PersistedEvent#event()}'s {@link EventJSON#getEventType()}'s {@link EventType#toJavaClass()} matches that first argument type.
- * In transaction subscriptions does not support replay.
+ * <b>Note: In transaction subscriptions does not support replay.</b>
  * <p>
  * Example:
  * <pre>{@code
@@ -144,36 +153,36 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  * }</pre>
  */
 public abstract class InTransactionEventProcessor implements Lifecycle {
-    protected final Logger log =                  LoggerFactory.getLogger(this.getClass());
+    protected final Logger                        log = LoggerFactory.getLogger(this.getClass());
     private final   EventStoreSubscriptionManager eventStoreSubscriptionManager;
     protected final DurableLocalCommandBus        commandBus;
     private final   EventStore                    eventStore;
 
-    private boolean                               started;
-    private List<EventStoreSubscription>          eventStoreSubscriptions;
-    private AnnotatedCommandHandler               commandBusHandlerDelegate;
-    private PatternMatchingMessageHandler         patternMatchingHandlerDelegate;
-    private List<MessageHandlerInterceptor>       messageHandlerInterceptors;
-    private boolean                               useExclusively;
+    private boolean                         started;
+    private List<EventStoreSubscription>    eventStoreSubscriptions;
+    private AnnotatedCommandHandler         commandBusHandlerDelegate;
+    private PatternMatchingMessageHandler   patternMatchingHandlerDelegate;
+    private List<MessageHandlerInterceptor> messageHandlerInterceptors;
+    private boolean                         useExclusively;
 
     /**
      * Create a new {@link InTransactionEventProcessor} instance
      *
      * @param eventProcessorDependencies The {@link EventProcessorDependencies} that encapsulates all
      *                                   the dependencies required by an instance of an {@link EventProcessor}
-     * @param useExclusively             If true exclusive subscription (using the {@link FencedLockManager}).
+     * @param useExclusively             If true then exclusive subscriptions are used (using the {@link FencedLockManager}).
      * @see InTransactionEventProcessor#InTransactionEventProcessor(EventStoreSubscriptionManager, DurableLocalCommandBus, List, boolean)
      */
     protected InTransactionEventProcessor(EventProcessorDependencies eventProcessorDependencies,
                                           boolean useExclusively) {
         this(requireNonNull(eventProcessorDependencies, "No eventProcessorDependencies provided").eventStoreSubscriptionManager,
-                eventProcessorDependencies.commandBus,
-                eventProcessorDependencies.messageHandlerInterceptors,
-                useExclusively);
+             eventProcessorDependencies.commandBus,
+             eventProcessorDependencies.messageHandlerInterceptors,
+             useExclusively);
     }
 
     /**
-     * Create a new {@link InTransactionEventProcessor} instance
+     * Create a new {@link InTransactionEventProcessor} instance - using non-exclusive subscriptions
      *
      * @param eventProcessorDependencies The {@link EventProcessorDependencies} that encapsulates all
      *                                   the dependencies required by an instance of an {@link EventProcessor}
@@ -181,18 +190,15 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
      */
     protected InTransactionEventProcessor(EventProcessorDependencies eventProcessorDependencies) {
         this(requireNonNull(eventProcessorDependencies, "No eventProcessorDependencies provided").eventStoreSubscriptionManager,
-                eventProcessorDependencies.commandBus,
-                eventProcessorDependencies.messageHandlerInterceptors,
-                false);
+             eventProcessorDependencies.commandBus,
+             eventProcessorDependencies.messageHandlerInterceptors,
+             false);
     }
 
     /**
      * Create a new {@link InTransactionEventProcessor} instance
      *
      * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions<br>
-     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only queue a reference to
-     *                                      the {@link PersistedEvent} and before the message is forwarded to the corresponding {@link MessageHandler} then we load the {@link PersistedEvent}'s
-     *                                      payload and forward it to the {@link MessageHandler} annotated method
      * @param commandBus                    The {@link CommandBus} where any {@link Handler} or {@link CmdHandler} annotated methods in the subclass of the {@link EventProcessor} will be registered
      * @param messageHandlerInterceptors    The {@link MessageHandlerInterceptor}'s that will intercept calls to the {@link MessageHandler} annotated methods.<br>
      *                                      Unless you override {@link #getMessageHandlerInterceptors()} then these are the {@link MessageHandlerInterceptor}'s that will be used.
@@ -236,14 +242,14 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
 
     @Override
     public void start() {
-        if(!started) {
+        if (!started) {
             started = true;
             var processorName              = requireNonNull(getProcessorName(), "getProcessorName() returned null");
             var subscribeToEventsRelatedTo = requireNonNull(reactsToEventsRelatedToAggregateTypes(), "reactsToEventsRelatedToAggregateTypes() returned null");
             log.info("⚙️ [{}] Starting InTransactionEventProcessor - will subscribe '{}' to events related to these AggregatesType's: {}",
-                    processorName,
-                    useExclusively ? "exclusively" : "non-exclusively",
-                    subscribeToEventsRelatedTo);
+                     processorName,
+                     useExclusively ? "exclusively" : "non-exclusively",
+                     subscribeToEventsRelatedTo);
 
             setupMessageHandlerDelegate();
             subscribeInTransaction(subscribeToEventsRelatedTo);
@@ -252,10 +258,10 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
 
     @Override
     public void stop() {
-        if(started) {
+        if (started) {
             started = false;
             log.info("⚙️ [{}] Stopping InTransactionEventProcessor",
-                    getProcessorName());
+                     getProcessorName());
 
             eventStoreSubscriptions.forEach(Lifecycle::stop);
         }
@@ -268,8 +274,9 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
 
     private void subscribeInTransaction(List<AggregateType> subscribeToEventsRelatedTo) {
         eventStoreSubscriptions = subscribeToEventsRelatedTo.stream()
-                .map(this::createEventStoreSubscription).toList();
+                                                            .map(this::createEventStoreSubscription).toList();
     }
+
 
     private EventStoreSubscription createEventStoreSubscription(AggregateType aggregateType) {
         var subscriberId = SubscriberId.of(getProcessorName() + ":" + aggregateType + ":sync");
@@ -277,8 +284,8 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
         EventStoreSubscription subscription = createEventStoreSubscription(aggregateType, subscriberId);
 
         log.info("⚙️ [{}] InTransactionEventProcessor created subscription '{}'",
-                getProcessorName(),
-                subscription);
+                 getProcessorName(),
+                 subscription);
 
         return subscription;
     }
@@ -302,16 +309,36 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
         try {
             log.info("[{}-{}] Processing event: {} using unit of work '{}'", subscriberId, aggregateType, event, unitOfWork.info());
             patternMatchingHandlerDelegate.accept(OrderedMessage.of(event.event().deserialize(),
-                    resolveAggregateIdSerializer(event.aggregateType()).serialize(event.aggregateId()),
-                    event.eventOrder().value(),
-                    new MessageMetaData(event.metaData().deserialize()))
-            );
+                                                                    resolveAggregateIdSerializer(event.aggregateType()).serialize(event.aggregateId()),
+                                                                    event.eventOrder().value(),
+                                                                    new MessageMetaData(event.metaData().deserialize()))
+                                                 );
         } catch (JSONDeserializationException e) {
             log.error("Failed to deserialize PersistedEvent '{}'", event.event().getEventTypeOrNamePersistenceValue(), e);
             throw e;
         }
     }
 
+    /**
+     * For non-exclusive subscriptions this method returns true if {@link #isStarted()} is true.<br>
+     * For exclusive this method returns true if one or more of the underlying {@link FencedLock} are acquired.<br>
+     * Otherwise it returns false
+     *
+     * @return see description above
+     */
+    public boolean isActive() {
+        return eventStoreSubscriptions.stream()
+                                      .anyMatch(EventStoreSubscription::isActive);
+    }
+
+    /**
+     * Are the event store subscriptions exclusivity (i.e. using a {@link FencedLock})?
+     *
+     * @return if the event store subscriptions use exclusivity (i.e. using a {@link FencedLock})?
+     */
+    public boolean isUseExclusively() {
+        return useExclusively;
+    }
 
     private AggregateIdSerializer resolveAggregateIdSerializer(AggregateType aggregateType) {
         return ((ConfigurableEventStore<?>) eventStore).getAggregateEventStreamConfiguration(aggregateType).aggregateIdSerializer;

@@ -67,6 +67,10 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
         this.jdbi = requireNonNull(jdbi, "No jdbi instance provided");
     }
 
+    public Jdbi getJdbi() {
+        return jdbi;
+    }
+
     @Override
     public UOW getRequiredUnitOfWork() {
         var unitOfWork = unitOfWorks.get();
@@ -119,7 +123,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
         @Override
         public void start() {
             if (status == UnitOfWorkStatus.Ready || status.isCompleted()) {
-                log.debug("Starting Managed UnitOfWork with initial status {}", status);
+                log.debug("Starting Managed UnitOfWork with initial status {}: {}", status, info());
                 log.trace("Opening JDBI handle and will begin a DB transaction");
                 handle = unitOfWorkFactory.jdbi.open();
                 handle.begin();
@@ -152,7 +156,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
         @Override
         public void commit() {
             if (status == UnitOfWorkStatus.Started) {
-                log.trace("Calling UnitOfWorkLifecycleCallbacks#beforeCommit prior to committing the Managed UnitOfWork");
+                log.trace("Calling UnitOfWorkLifecycleCallbacks#beforeCommit prior to committing the Managed UnitOfWork: {}", info());
                 var processingStatus = new AtomicReference<>(UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED);
                 while (processingStatus.get() == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED) {
                     log.trace("BeforeCommit: Performing BeforeCommitProcessing since processingStatus is {}", processingStatus.get());
@@ -163,7 +167,8 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
                                       key.getClass().getName(),
                                       resources.size());
                             var newProcessingStatus = key.beforeCommit(this, resources);
-                            if (newProcessingStatus != processingStatus.get()) {
+                            if (newProcessingStatus == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED &&
+                                    processingStatus.get() == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.COMPLETED) {
                                 log.trace("BeforeCommit: {} changed BeforeCommitProcessing processingStatus back to {}", key.getClass().getName(), newProcessingStatus);
                                 processingStatus.set(newProcessingStatus);
                             }
@@ -177,7 +182,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
                     beforeCommitting();
                 }
 
-                log.trace("Committing Managed UnitOfWork");
+                log.trace("Committing Managed UnitOfWork: {}", info());
                 try {
                     handle.commit();
                 } catch (Exception e) {
@@ -214,7 +219,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
         public void rollback(Exception cause) {
             if (status == UnitOfWorkStatus.Started || status == UnitOfWorkStatus.MarkedForRollbackOnly) {
                 causeOfRollback = cause != null ? cause : causeOfRollback;
-                final String description = msg("Rolling back Managed UnitOfWork with current status {}{}", status, cause != null ? " due to " + causeOfRollback.getMessage() : "");
+                final String description = msg("Rolling back Managed UnitOfWork with current status {}{}: {}", status, cause != null ? " due to " + causeOfRollback.getMessage() : "", info());
                 if (log.isTraceEnabled()) {
                     log.trace(description, causeOfRollback);
                 } else {
@@ -289,7 +294,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
         @Override
         public void markAsRollbackOnly(Exception cause) {
             if (status == UnitOfWorkStatus.Started) {
-                final String description = msg("Marking Managed UnitOfWork for Rollback Only {}", cause != null ? "due to " + cause.getMessage() : "");
+                final String description = msg("Marking Managed UnitOfWork for Rollback Only {}: {}", cause != null ? "due to " + cause.getMessage() : "", info());
                 if (log.isTraceEnabled()) {
                     log.trace(description, cause);
                 } else {
@@ -299,7 +304,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
                 status = UnitOfWorkStatus.MarkedForRollbackOnly;
                 causeOfRollback = cause;
             } else if (status == UnitOfWorkStatus.MarkedForRollbackOnly) {
-                log.debug("Cannot Mark current Managed UnitOfWork for Rollback Only as it has already been marked as such", cause);
+                log.debug(msg("Cannot Mark current Managed UnitOfWork for Rollback Only as it has already been marked as such: {}", info()), cause);
             } else {
                 close();
                 unitOfWorkFactory.removeUnitOfWork();

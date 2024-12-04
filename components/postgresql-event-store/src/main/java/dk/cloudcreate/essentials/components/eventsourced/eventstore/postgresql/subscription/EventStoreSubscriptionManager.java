@@ -367,7 +367,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
 
 
     /**
-     * Create an exclusive inline event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
+     * Create an exclusive in-transaction event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
      * {@link UnitOfWork} is committed. This allows you to create transactional consistent event projections.
      *
      * @param subscriberId               the unique id for the subscriber
@@ -382,7 +382,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                                               TransactionalPersistedEventHandler eventHandler);
 
     /**
-     * Create an inline event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
+     * Create an in-transaction event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
      * {@link UnitOfWork} is committed. This allows you to create transactional consistent event projections.
      *
      * @param subscriberId               the unique id for the subscriber
@@ -397,7 +397,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                                    TransactionalPersistedEventHandler eventHandler);
 
     /**
-     * Create an inline event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
+     * Create an in-transaction event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
      * {@link UnitOfWork} is committed. This allows you to create transactional consistent event projections.
      *
      * @param subscriberId               the unique id for the subscriber
@@ -424,7 +424,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
     }
 
     /**
-     * Create an inline event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
+     * Create an in-transaction event subscription, that will receive {@link PersistedEvent}'s right after they're appended to the {@link EventStore} but before the associated
      * {@link UnitOfWork} is committed. This allows you to create transactional consistent event projections.
      *
      * @param subscriberId     the unique id for the subscriber
@@ -943,7 +943,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
 
             @Override
             public boolean isActive() {
-                return started;
+                return active;
             }
 
             @Override
@@ -953,6 +953,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                         ", subscriberId=" + subscriberId +
                         ", onlyIncludeEventsForTenant=" + onlyIncludeEventsForTenant +
                         ", started=" + started +
+                        ", active=" + active +
                         '}';
             }
 

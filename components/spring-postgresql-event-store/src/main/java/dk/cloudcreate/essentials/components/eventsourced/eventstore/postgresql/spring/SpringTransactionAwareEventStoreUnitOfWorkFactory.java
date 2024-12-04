@@ -64,7 +64,7 @@ public class SpringTransactionAwareEventStoreUnitOfWorkFactory
 
     @Override
     protected void afterCommitAfterCallingLifecycleCallbackResources(SpringTransactionAwareEventStoreUnitOfWork unitOfWork) {
-        log.trace("Calling PersistedEventsCommitLifecycleCallback#afterCommit after committing the Spring Transaction-Aware UnitOfWork");
+        log.trace("Calling PersistedEventsCommitLifecycleCallback#afterCommit after committing the Spring Transaction-Aware UnitOfWork: {}", unitOfWork.info());
         for (var callback : persistedEventsLifecycleCallbacks) {
             try {
                 log.trace("AfterCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), unitOfWork.afterCommitEventsPersisted.size());
@@ -78,7 +78,7 @@ public class SpringTransactionAwareEventStoreUnitOfWorkFactory
 
     @Override
     protected void beforeCommitAfterCallingLifecycleCallbackResources(SpringTransactionAwareEventStoreUnitOfWork unitOfWork) {
-        log.trace("Calling PersistedEventsCommitLifecycleCallback#beforeCommit prior to committing the Spring Transaction-Aware UnitOfWork");
+        log.trace("Calling PersistedEventsCommitLifecycleCallback#beforeCommit prior to committing the Spring Transaction-Aware UnitOfWork: {}", unitOfWork.info());
         for (var callback : persistedEventsLifecycleCallbacks) {
             try {
                 log.trace("BeforeCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), unitOfWork.beforeCommitEventsPersisted.size());

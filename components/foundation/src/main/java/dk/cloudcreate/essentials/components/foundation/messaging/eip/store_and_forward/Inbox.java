@@ -16,17 +16,13 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward;
 
+import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.function.Consumer;
-
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockManager;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.MessageMetaData;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -117,7 +113,8 @@ public interface Inbox {
 
     /**
      * Register or add a message (with meta-data) that has been received<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param payload  the message payload
@@ -130,7 +127,8 @@ public interface Inbox {
 
     /**
      * Register or add a message (with meta-data) that has been received and where the message should be delivered later<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} 
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param payload  the message payload
@@ -144,7 +142,8 @@ public interface Inbox {
 
     /**
      * Register or add a message (without meta-data) that has been received<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} 
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param payload the message payload
@@ -155,7 +154,8 @@ public interface Inbox {
 
     /**
      * Register or add a message (without meta-data) that has been received and where the message should be delivered later<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param payload the message payload
@@ -165,11 +165,30 @@ public interface Inbox {
         return addMessageReceived(new Message(payload), deliveryDelay);
     }
 
+    /**
+     * Register or add a list of message payloads that have been received. The payloads will be converted to {@link Message}'s<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param payloads the list of message payloads
+     * @return this inbox instance
+     */
     default Inbox addMessageListReceived(List<? extends Object> payloads) {
         var messageList = requireNonNull(payloads).stream().map(Message::new).toList();
         return addMessagesReceived(messageList);
     }
 
+    /**
+     * Register or add a list of message payloads that have been received and where the messages should be delivered later.
+     * The payloads will be converted to {@link Message}'s<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param payloads the list of message payloads
+     * @return this inbox instance
+     */
     default Inbox addMessageListReceived(List<? extends Object> payloads, Duration deliveryDelay) {
         var messageList = requireNonNull(payloads).stream().map(Message::new).toList();
         return addMessagesReceived(messageList, deliveryDelay);
@@ -177,7 +196,8 @@ public interface Inbox {
 
     /**
      * Register or add a message that has been received<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} 
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param message the message
@@ -188,7 +208,8 @@ public interface Inbox {
 
     /**
      * Register or add a message that has been received and where the message should be delivered later<br>
-     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} 
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The message will be delivered asynchronously to the message consumer
      *
      * @param message the message
@@ -200,7 +221,8 @@ public interface Inbox {
 
     /**
      * Register or add a list of messages that has been received<br>
-     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The messages will be delivered asynchronously to the message consumer
      *
      * @param messages the list of messages
@@ -211,11 +233,12 @@ public interface Inbox {
 
     /**
      * Register or add a list of messages that has been received and where the message should be delivered later<br>
-     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} (or a new {@link UnitOfWork} will be created in case no there isn't an active {@link UnitOfWork}).<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
      * The messages will be delivered asynchronously to the message consumer
      *
-     * @param messages the list of messages
-     * @param deliveryDelay  duration before the messages should be delivered
+     * @param messages      the list of messages
+     * @param deliveryDelay duration before the messages should be delivered
      * @return this inbox instance
      * @see OrderedMessage
      */

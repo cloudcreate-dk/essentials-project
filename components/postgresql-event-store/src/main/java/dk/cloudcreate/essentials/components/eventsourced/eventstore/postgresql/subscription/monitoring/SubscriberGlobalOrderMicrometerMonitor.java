@@ -7,7 +7,6 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.t
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
 import io.micrometer.core.instrument.*;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.*;
 
 import java.util.*;
@@ -68,7 +67,6 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
         return Pair.of(buildGauge(key, eventOrderDifferenceCount), eventOrderDifferenceCount);
     }
 
-    @NotNull
     private Gauge buildGauge(Pair<SubscriberId, AggregateType> pair, AtomicLong eventOrderDifferenceCount) {
         var subscriberId = pair._1;
         var aggregateType = pair._2;
@@ -89,7 +87,6 @@ public class SubscriberGlobalOrderMicrometerMonitor implements EventStoreSubscri
             });
     }
 
-    @NotNull
     private GlobalEventOrder findHighestGlobalEventOrderPersisted(AggregateType aggregateType) {
         return eventStoreSubscriptionManager.getEventStore().findHighestGlobalEventOrderPersisted(aggregateType).orElse(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER);
     }

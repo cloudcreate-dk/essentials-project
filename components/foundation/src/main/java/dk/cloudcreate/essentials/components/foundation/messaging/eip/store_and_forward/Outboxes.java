@@ -22,7 +22,7 @@ import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.EventHandler;
 
 import java.time.Duration;
-import java.util.Collection;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
@@ -239,6 +239,20 @@ public interface Outboxes {
             @Override
             public void deleteAllMessages() {
                 durableQueues.purgeQueue(outboxQueueName);
+            }
+
+            @Override
+            public Outbox sendMessages(List<Message> messages) {
+                durableQueues.queueMessages(outboxQueueName, messages);
+                return this;
+            }
+
+            @Override
+            public Outbox sendMessages(List<Message> messages, Duration deliveryDelay) {
+                durableQueues.queueMessages(outboxQueueName,
+                                            messages,
+                                            deliveryDelay);
+                return this;
             }
 
             @Override

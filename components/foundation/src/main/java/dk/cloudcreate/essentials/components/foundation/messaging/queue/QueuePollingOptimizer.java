@@ -19,6 +19,8 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import org.slf4j.*;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
@@ -63,16 +65,16 @@ public interface QueuePollingOptimizer extends DurableQueueConsumerNotifications
 
     /**
      * The {@link SimpleQueuePollingOptimizer} supports extending the polling sleep time (i.e. the time between calls to
-     * {@link DurableQueues#getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery)}) up until a given threshold.
+     * {@link DurableQueues#getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery)}) up until a given threshold for a given queue consumer
      */
     class SimpleQueuePollingOptimizer implements QueuePollingOptimizer {
-        private static Logger            log                     = LoggerFactory.getLogger(SimpleQueuePollingOptimizer.class);
-        private final  ThreadLocal<Long> pollingThreadDelay      = ThreadLocal.withInitial(() -> 0L);
-        private final  ThreadLocal<Long> shouldSkipPollCallCount = ThreadLocal.withInitial(() -> 0L);
-        private final  long              delayIncrementMs;
-        private final  long              maxDelayMs;
-        private final  ConsumeFromQueue  consumeFromQueue;
-        private final  long              pollingIntervalMs;
+        private static Logger           log                     = LoggerFactory.getLogger(SimpleQueuePollingOptimizer.class);
+        private final  AtomicLong       pollingThreadDelay      = new AtomicLong();
+        private final  AtomicLong       shouldSkipPollCallCount = new AtomicLong();
+        private final  long             delayIncrementMs;
+        private final  long             maxDelayMs;
+        private final  ConsumeFromQueue consumeFromQueue;
+        private final  long             pollingIntervalMs;
 
         /**
          * Create a new {@link SimpleQueuePollingOptimizer}

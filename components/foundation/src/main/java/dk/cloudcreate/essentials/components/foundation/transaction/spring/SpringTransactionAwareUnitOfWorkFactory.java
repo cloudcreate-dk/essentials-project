@@ -17,6 +17,8 @@
 package dk.cloudcreate.essentials.components.foundation.transaction.spring;
 
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.spring.jdbi.SpringTransactionAwareJdbiUnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.shared.types.GenericType;
 import org.slf4j.*;
 import org.springframework.transaction.*;
@@ -34,8 +36,8 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  *
  * @param <TRX_MGR> the platform transaction manager that this {@link UnitOfWorkFactory} is compatible with
  * @param <UOW>     the Unit of work implementation that this {@link SpringTransactionAwareUnitOfWorkFactory} specialization is compatible with
- * @see dk.cloudcreate.essentials.components.foundation.transaction.spring.jdbi.SpringTransactionAwareJdbiUnitOfWorkFactory
- * @see dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory
+ * @see SpringTransactionAwareJdbiUnitOfWorkFactory
+ * @see SpringMongoTransactionAwareUnitOfWorkFactory
  */
 public abstract class SpringTransactionAwareUnitOfWorkFactory<TRX_MGR extends PlatformTransactionManager, UOW extends SpringTransactionAwareUnitOfWork<TRX_MGR, UOW>> implements UnitOfWorkFactory<UOW> {
     protected static final Logger log = LoggerFactory.getLogger(SpringTransactionAwareUnitOfWorkFactory.class);
@@ -138,7 +140,12 @@ public abstract class SpringTransactionAwareUnitOfWorkFactory<TRX_MGR extends Pl
 
     void removeUnitOfWork() {
         log.debug("Removing Spring Transaction-Aware UnitOfWork");
-        TransactionSynchronizationManager.unbindResource(unitOfWorkType);
+        var resource  = TransactionSynchronizationManager.unbindResource(unitOfWorkType);
+        var uow = (UOW) resource;
+        if (!uow.status.isCompleted) {
+            log.error("UOW in not completed! {}", uow.info());
+        }
+        log.debug("Removed Spring Transaction-Aware UnitOfWork: {}", uow.info());
     }
 
     private class SpringTransactionAwareUnitOfWorkSynchronization implements TransactionSynchronization {
@@ -157,7 +164,7 @@ public abstract class SpringTransactionAwareUnitOfWorkFactory<TRX_MGR extends Pl
                 return;
             }
 
-            log.trace("Calling UnitOfWorkLifecycleCallbacks#beforeCommit prior to committing the Spring Transaction-Aware UnitOfWork");
+            log.trace("Calling UnitOfWorkLifecycleCallbacks#beforeCommit prior to committing the Spring Transaction-Aware UnitOfWork: {}", unitOfWork.info());
             beforeCommitBeforeCallingLifecycleCallbackResources(unitOfWork);
             var processingStatus = new AtomicReference<>(UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED);
             while (processingStatus.get() == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED) {
@@ -169,7 +176,8 @@ public abstract class SpringTransactionAwareUnitOfWorkFactory<TRX_MGR extends Pl
                                   key.getClass().getName(),
                                   resources.size());
                         var newProcessingStatus = key.beforeCommit(unitOfWork, resources);
-                        if (newProcessingStatus != processingStatus.get()) {
+                        if (newProcessingStatus == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.REQUIRED &&
+                                processingStatus.get() == UnitOfWorkLifecycleCallback.BeforeCommitProcessingStatus.COMPLETED) {
                             log.trace("BeforeCommit: {} changed BeforeCommitProcessing processingStatus back to {}", key.getClass().getName(), newProcessingStatus);
                             processingStatus.set(newProcessingStatus);
                         }

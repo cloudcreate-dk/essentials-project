@@ -165,7 +165,7 @@ class StatefulAggregateRepositoryIT {
         Mockito.verify(snapshotRepositorySpy).loadSnapshot(eq(ORDERS), eq(orderId), eq(Order.class));
     }
 
-    private ObjectMapper createObjectMapper() {
+    static ObjectMapper createObjectMapper() {
         var objectMapper = JsonMapper.builder()
                                      .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                      .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
@@ -191,7 +191,7 @@ class StatefulAggregateRepositoryIT {
         return objectMapper;
     }
 
-    private static class TestPersistableEventMapper implements PersistableEventMapper {
+    static class TestPersistableEventMapper implements PersistableEventMapper {
         private final CorrelationId correlationId   = CorrelationId.random();
         private final EventId       causedByEventId = EventId.random();
 

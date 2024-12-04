@@ -16,30 +16,15 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueuesInterceptor;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueEntryId;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.AcknowledgeMessageAsHandled;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.DeleteMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.MarkAsDeadLetterMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.QueueMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.QueueMessageAsDeadLetterMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.QueueMessages;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ResurrectDeadLetterMessage;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.RetryMessage;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
 import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
-import io.micrometer.core.instrument.Gauge;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.*;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -55,8 +40,8 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
     private final MeterRegistry                              meterRegistry;
     private final ConcurrentHashMap<QueueName, GaugeWrapper> queuedMessagesGauges     = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<QueueName, GaugeWrapper> deadLetterMessagesGauges = new ConcurrentHashMap<>();
-    private       DurableQueues durableQueues;
-    private final List<Tag>     commonTags = new ArrayList<>();
+    private       DurableQueues                              durableQueues;
+    private final List<Tag>                                  commonTags               = new ArrayList<>();
 
 
     public DurableQueuesMicrometerInterceptor(MeterRegistry meterRegistry,
