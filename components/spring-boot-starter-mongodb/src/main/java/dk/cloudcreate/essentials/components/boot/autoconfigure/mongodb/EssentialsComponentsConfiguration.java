@@ -373,9 +373,11 @@ public class EssentialsComponentsConfiguration {
                                              Optional<QueueName> optionalCommandQueueName,
                                              Optional<RedeliveryPolicy> optionalCommandQueueRedeliveryPolicy,
                                              Optional<SendAndDontWaitErrorHandler> optionalSendAndDontWaitErrorHandler,
-                                             List<CommandBusInterceptor> commandBusInterceptors) {
+                                             List<CommandBusInterceptor> commandBusInterceptors,
+                                             EssentialsComponentsProperties properties) {
         var durableCommandBusBuilder = DurableLocalCommandBus.builder()
                                                              .setDurableQueues(durableQueues);
+        durableCommandBusBuilder.setParallelSendAndDontWaitConsumers(properties.getReactive().getCommandBusParallelSendAndDontWaitConsumers());
         optionalCommandQueueName.ifPresent(durableCommandBusBuilder::setCommandQueueName);
         optionalCommandQueueRedeliveryPolicy.ifPresent(durableCommandBusBuilder::setCommandQueueRedeliveryPolicy);
         optionalSendAndDontWaitErrorHandler.ifPresent(durableCommandBusBuilder::setSendAndDontWaitErrorHandler);
@@ -390,7 +392,7 @@ public class EssentialsComponentsConfiguration {
      * Configure the {@link EventBus} to use for all event handlers
      *
      * @param onErrorHandler the error handler which will be called if any asynchronous subscriber/consumer fails to handle an event
-     * @param properties The configuration properties
+     * @param properties     The configuration properties
      * @return the {@link EventBus} to use for all event handlers
      */
     @Bean
@@ -399,7 +401,7 @@ public class EssentialsComponentsConfiguration {
         var localEventBusBuilder = LocalEventBus.builder()
                                                 .busName("default")
                                                 .overflowMaxRetries(properties.getReactive().getOverflowMaxRetries())
-                                                .parallelThreads(properties.getReactive().getParallelThreads())
+                                                .parallelThreads(properties.getReactive().getEventBusParallelThreads())
                                                 .backpressureBufferSize(properties.getReactive().getEventBusBackpressureBufferSize())
                                                 .queuedTaskCapFactor(properties.getReactive().getQueuedTaskCapFactor());
         onErrorHandler.ifPresent(localEventBusBuilder::onErrorHandler);
