@@ -110,6 +110,14 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                                                                                                    })
                                                                                                    .build()));
 
+        LOG.info("[{}] {} - Created '{}' with '{}', {} threads and polling interval {} ms",
+                 queueName,
+                 consumeFromQueue.consumerName,
+                 this.getClass().getSimpleName(),
+                 this.queuePollingOptimizer.getClass().getSimpleName(),
+                 consumeFromQueue.getParallelConsumers(),
+                 pollingIntervalMs);
+
     }
 
     @Override
@@ -167,6 +175,12 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
     public QueueName queueName() {
         return queueName;
     }
+
+    @Override
+    public String consumerName() {
+        return consumeFromQueue.consumerName;
+    }
+
 
     @Override
     public void cancel() {
@@ -285,10 +299,17 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                                                                 // TODO: In the future support configurable timeout
 //                                                                .timeout(Duration.ofSeconds(5))
                                                                 .onErrorResume(throwable -> {
-                                                                    LOG.error(msg("[{}] {} - Error occurred during {}.getNextMessageReadyForDelivery queue processing",
-                                                                                  queueName,
-                                                                                  consumeFromQueue.consumerName,
-                                                                                  durableQueues.getClass().getSimpleName()), throwable);
+                                                                    if (IOExceptionUtil.isIOException(throwable)) {
+                                                                        LOG.trace(msg("[{}] {} - Error occurred during {}.getNextMessageReadyForDelivery queue processing",
+                                                                                      queueName,
+                                                                                      consumeFromQueue.consumerName,
+                                                                                      durableQueues.getClass().getSimpleName()), throwable);
+                                                                    } else {
+                                                                        LOG.error(msg("[{}] {} - Error occurred during {}.getNextMessageReadyForDelivery queue processing",
+                                                                                      queueName,
+                                                                                      consumeFromQueue.consumerName,
+                                                                                      durableQueues.getClass().getSimpleName()), throwable);
+                                                                    }
                                                                     return Mono.just(Optional.empty());
                                                                 });
 
@@ -487,7 +508,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
 
     @Override
     public String toString() {
-        return "DurableQueueConsumer{" +
+        return this.getClass().getSimpleName() + "{" +
                 ", started=" + started +
                 consumeFromQueue.toString() +
                 '}';

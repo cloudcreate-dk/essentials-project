@@ -28,5 +28,7 @@ import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 public interface DurableQueueConsumer extends Lifecycle {
     QueueName queueName();
 
+    String consumerName();
+
     void cancel();
 }
