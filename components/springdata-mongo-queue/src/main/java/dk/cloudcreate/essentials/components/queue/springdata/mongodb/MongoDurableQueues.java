@@ -100,7 +100,7 @@ public final class MongoDurableQueues implements DurableQueues {
     protected final String                                              sharedQueueCollectionName;
     private final   ConcurrentMap<QueueName, MongoDurableQueueConsumer> durableQueueConsumers = new ConcurrentHashMap<>();
     private final   ConcurrentMap<QueueName, ReentrantLock>             localQueuePollLock    = new ConcurrentHashMap<>();
-    private final   List<DurableQueuesInterceptor>                      interceptors          = new ArrayList<>();
+    private final   List<DurableQueuesInterceptor>                      interceptors          = new CopyOnWriteArrayList<>();
     private final   MessageListenerContainer                            messageListenerContainer;
 
 
@@ -1385,6 +1385,12 @@ public final class MongoDurableQueues implements DurableQueues {
             if (started) {
                 consumer.start();
             }
+            log.info("[{}] {} - {} {}",
+                     operation.queueName,
+                     operation.consumerName,
+                     started ? "Started" : "Created",
+                     consumer.getClass().getSimpleName()
+                    );
             return consumer;
         });
     }

@@ -89,7 +89,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
     private final String                                                        sharedQueueTableName;
     private final ConcurrentMap<QueueName, PostgresqlDurableQueueConsumer>      durableQueueConsumers                 = new ConcurrentHashMap<>();
     private final QueuedMessageRowMapper                                        queuedMessageMapper;
-    private final List<DurableQueuesInterceptor>                                interceptors                          = new ArrayList<>();
+    private final List<DurableQueuesInterceptor>                                interceptors                          = new CopyOnWriteArrayList<>();
     private final Optional<MultiTableChangeListener<TableChangeNotification>>   multiTableChangeListener;
     private final Function<ConsumeFromQueue, QueuePollingOptimizer>             queuePollingOptimizerFactory;
     private final TransactionalMode                                             transactionalMode;
@@ -480,6 +480,12 @@ public final class PostgresqlDurableQueues implements DurableQueues {
             if (started) {
                 consumer.start();
             }
+            log.info("[{}] {} - {} {}",
+                     operation.queueName,
+                     operation.consumerName,
+                     started ? "Started" : "Created",
+                     consumer.getClass().getSimpleName()
+                     );
             return consumer;
         });
     }
