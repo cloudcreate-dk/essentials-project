@@ -54,6 +54,11 @@ public interface QueuePollingOptimizer extends DurableQueueConsumerNotifications
             @Override
             public void messageAdded(QueuedMessage queuedMessage) {
             }
+
+            @Override
+            public String toString() {
+                return "NoQueuePollingOptimizer";
+            }
         };
     }
 
