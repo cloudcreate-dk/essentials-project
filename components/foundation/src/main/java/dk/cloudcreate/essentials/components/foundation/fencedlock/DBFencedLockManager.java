@@ -239,7 +239,12 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                     }
                 });
             }, e -> {
-                log.error("[{}] Failed to acknowledge the {} locks acquired by this Lock Manager Instance", lockManagerInstanceId, locksAcquiredByThisLockManager.size(), e);
+                if (IOExceptionUtil.isIOException(e)) {
+                    log.debug("[{}] Failed to acknowledge the {} locks acquired by this Lock Manager Instance", lockManagerInstanceId, locksAcquiredByThisLockManager.size(), e);
+                } else {
+                    log.error("[{}] Failed to acknowledge the {} locks acquired by this Lock Manager Instance", lockManagerInstanceId, locksAcquiredByThisLockManager.size(), e);
+                }
+
                 if (IOExceptionUtil.isIOException(e) && releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation) {
                     log.info("[{}] Releasing all locally acquired locks due to IO Exception", lockManagerInstanceId);
                     locksAcquiredByThisLockManager.forEach((lockName, fencedLock) -> {
@@ -539,15 +544,15 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
     public void acquireLockAsync(LockName lockName, LockCallback lockCallback) {
         requireNonNull(lockName, "You must supply a lockName");
         requireNonNull(lockCallback, "You must supply a lockCallback");
-        if (!started) {
-            throw new IllegalStateException(msg("The {} isn't started", this.getClass().getSimpleName()));
-        }
 
         asyncLockAcquirings.computeIfAbsent(lockName, _lockName -> {
             log.debug("[{}] Starting async Lock acquiring for lock '{}'", lockManagerInstanceId, lockName);
             return asyncLockAcquiringExecutor.scheduleAtFixedRate(() -> {
                                                                       try {
                                                                           reentrantLock.lock();
+                                                                          if (!started) {
+                                                                              return;
+                                                                          }
                                                                           var existingLock = locksAcquiredByThisLockManager.get(lockName);
                                                                           if (existingLock == null) {
                                                                               if (paused) {
