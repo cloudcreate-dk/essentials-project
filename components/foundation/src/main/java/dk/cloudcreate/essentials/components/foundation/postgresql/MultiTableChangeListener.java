@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.postgresql;
 
 import com.fasterxml.jackson.databind.*;
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.postgresql.ListenNotify.SqlOperation;
 import dk.cloudcreate.essentials.reactive.EventBus;
@@ -259,7 +260,15 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
         requireNonBlank(tableName, "No tableName provided");
         log.info("Removing table change LISTENER for '{}'", tableName);
         PostgresqlUtil.checkIsValidTableOrColumnName(tableName);
-        getHandle(null).execute("UNLISTEN " + resolveTableChangeChannelName(tableName));
+        try {
+            getHandle(null).execute("UNLISTEN " + resolveTableChangeChannelName(tableName));
+        } catch (Exception e) {
+            if (IOExceptionUtil.isIOException(e)) {
+                log.trace("Failed to unlisten table '{}'", tableName, e);
+            } else {
+                throw new RuntimeException(msg("Failed to unlisten table '{}'", tableName), e);
+            }
+        }
     }
 
     private Stream<PGNotification> filterDuplicateNotifications(PGNotification[] notifications) {
