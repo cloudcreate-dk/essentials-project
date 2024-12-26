@@ -37,6 +37,7 @@ import dk.cloudcreate.essentials.reactive.command.*;
 import org.slf4j.*;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -211,7 +212,7 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
         this.eventStoreSubscriptionManager = requireNonNull(eventStoreSubscriptionManager, "No eventStoreSubscriptionManager provided");
         this.commandBus = requireNonNull(commandBus, "No commandBus provided");
         this.eventStore = requireNonNull(eventStoreSubscriptionManager.getEventStore(), "No eventStore is associated with the eventStoreSubscriptionManager provided");
-        this.messageHandlerInterceptors = requireNonNull(messageHandlerInterceptors, "No messageHandlerInterceptors list provided");
+        this.messageHandlerInterceptors = new CopyOnWriteArrayList<>(requireNonNull(messageHandlerInterceptors, "No messageHandlerInterceptors list provided"));
         this.useExclusively = useExclusively;
         setupCommandHandler();
     }

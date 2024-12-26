@@ -37,7 +37,7 @@ import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorCha
 public abstract class AbstractCommandBus implements CommandBus {
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-    protected final List<CommandBusInterceptor> interceptors    = new ArrayList<>();
+    protected final List<CommandBusInterceptor> interceptors    = new CopyOnWriteArrayList<>();
     protected final Set<CommandHandler>         commandHandlers = new HashSet<>();
     protected final SendAndDontWaitErrorHandler sendAndDontWaitErrorHandler;
 

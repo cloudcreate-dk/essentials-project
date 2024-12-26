@@ -38,6 +38,7 @@ import org.slf4j.*;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -213,7 +214,7 @@ public abstract class EventProcessor implements Lifecycle {
         this.inboxes = requireNonNull(inboxes, "No inboxes instance provided");
         this.commandBus = requireNonNull(commandBus, "No commandBus provided");
         this.eventStore = requireNonNull(eventStoreSubscriptionManager.getEventStore(), "No eventStore is associated with the eventStoreSubscriptionManager provided");
-        this.messageHandlerInterceptors = requireNonNull(messageHandlerInterceptors, "No messageHandlerInterceptors list provided");
+        this.messageHandlerInterceptors = new CopyOnWriteArrayList<>(requireNonNull(messageHandlerInterceptors, "No messageHandlerInterceptors list provided"));
         setupCommandHandler();
     }
 

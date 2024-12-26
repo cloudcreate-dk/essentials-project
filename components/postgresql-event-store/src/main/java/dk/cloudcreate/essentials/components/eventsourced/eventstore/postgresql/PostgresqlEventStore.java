@@ -113,7 +113,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
         this.eventStoreEventBus = eventStoreLocalEventBusOption.orElseGet(() -> new EventStoreEventBus(unitOfWorkFactory));
         this.eventStreamGapHandler = eventStreamGapHandlerFactory.apply(this);
 
-        eventStoreInterceptors = new ArrayList<>();
+        eventStoreInterceptors = new CopyOnWriteArrayList<>();
         inMemoryProjectors = new HashSet<>();
         inMemoryProjectorPerProjectionType = new ConcurrentHashMap<>();
     }

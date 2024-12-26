@@ -24,7 +24,8 @@ import dk.cloudcreate.essentials.shared.reflection.ReflectionException;
 import dk.cloudcreate.essentials.shared.reflection.invocation.*;
 
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
@@ -80,7 +81,7 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
      */
     public PatternMatchingMessageHandler(Object invokeMessageHandlerMethodsOn, List<MessageHandlerInterceptor> interceptors) {
         this.invokeMessageHandlerMethodsOn = requireNonNull(invokeMessageHandlerMethodsOn, "No invokeMessageHandlerMethodsOn provided");
-        this.interceptors = new ArrayList<>(requireNonNull(interceptors, "No interceptors provided"));
+        this.interceptors = new CopyOnWriteArrayList<>(requireNonNull(interceptors, "No interceptors provided"));
         invoker = createMethodInvoker();
     }
 
@@ -98,7 +99,7 @@ public class PatternMatchingMessageHandler implements Consumer<Message> {
      */
     public PatternMatchingMessageHandler(List<MessageHandlerInterceptor> interceptors) {
         this.invokeMessageHandlerMethodsOn = this;
-        this.interceptors = new ArrayList<>(requireNonNull(interceptors, "No interceptors provided"));
+        this.interceptors = new CopyOnWriteArrayList<>(requireNonNull(interceptors, "No interceptors provided"));
         invoker = createMethodInvoker();
     }
 
