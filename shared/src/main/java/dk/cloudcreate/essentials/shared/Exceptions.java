@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.shared;
 
 import java.io.*;
+import java.util.HashSet;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -33,6 +34,7 @@ public final class Exceptions {
 
     /**
      * Get the stacktrace of the <code>throwable</code> as a String
+     *
      * @param throwable the exception
      * @return the <code>throwable</code>'s full stacktrace
      */
@@ -45,21 +47,54 @@ public final class Exceptions {
 
     /**
      * Get the root cause (top most parent) of an Exception.
+     *
      * @param exception the exception we want the root cause of
      * @return the root cause of the exception - will never be null
      */
     public static Throwable getRootCause(Throwable exception) {
         requireNonNull(exception, "You must supply an exception");
-        var rootCause = exception;
-        var parentCause = rootCause.getCause();
-        while (parentCause != null) {
-            rootCause = parentCause;
-            if (parentCause == parentCause.getCause()) {
-                parentCause = null;
-            } else {
-                parentCause = parentCause.getCause();
+
+        var visited        = new HashSet<Throwable>();  // Track visited exceptions to prevent infinite loops
+        var current        = exception;
+        var lastValidCause = current;
+
+        while (current != null) {
+            if (!visited.add(current)) {
+                break; // Circular reference detected
             }
+            lastValidCause = current;
+            current = current.getCause();
         }
-        return rootCause;
+
+        return lastValidCause;
+    }
+
+    /**
+     * Check if the stack trace (including causes) contains an exception of a specified type.
+     *
+     * @param exception     the root exception
+     * @param exceptionType the type of exception to look for
+     * @return true if the exception or one of its causes matches the specified type, false otherwise
+     */
+    public static boolean doesStackTraceContainExceptionOfType(Throwable exception, Class<?> exceptionType) {
+        requireNonNull(exception, "You must supply an exception");
+        requireNonNull(exceptionType, "You must supply an exception type");
+
+        var visited = new HashSet<Throwable>(); // Track visited exceptions to prevent infinite loops
+        var current = exception;
+
+        while (current != null) {
+            if (!visited.add(current)) {
+                break;  // Circular reference detected
+            }
+            visited.add(current);
+
+            if (exceptionType.isAssignableFrom(current.getClass())) {
+                return true;
+            }
+
+            current = current.getCause();
+        }
+        return false;
     }
 }
