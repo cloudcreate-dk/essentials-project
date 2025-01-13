@@ -4,7 +4,6 @@ import dk.cloudcreate.essentials.shared.Lifecycle;
 import org.slf4j.*;
 import org.springframework.beans.BeansException;
 import org.springframework.context.*;
-import org.springframework.context.event.*;
 
 import java.util.Map;
 import java.util.function.Consumer;
@@ -12,16 +11,17 @@ import java.util.function.Consumer;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * Default {@link LifecycleManager} that integrate with Spring to ensure that {@link ApplicationContext} Beans that implement the {@link Lifecycle}
- * interface are started and stopped in response to {@link ContextRefreshedEvent} and {@link ContextClosedEvent}
+ * Default {@link LifecycleManager} that integrate with Spring to ensure that {@link ApplicationContext} Beans
+ * that registered Beans implementing the {@link Lifecycle} interface are started and stopped
  */
-public final class DefaultLifecycleManager implements LifecycleManager, ApplicationListener<ApplicationContextEvent>, ApplicationContextAware {
-    public static final Logger                       log = LoggerFactory.getLogger(DefaultLifecycleManager.class);
+public final class DefaultLifecycleManager implements SmartLifecycle, LifecycleManager, ApplicationContextAware {
+    public static final Logger                       log       = LoggerFactory.getLogger(DefaultLifecycleManager.class);
     private             ApplicationContext           applicationContext;
     private             boolean                      hasStartedLifeCycleBeans;
     private             Map<String, Lifecycle>       lifeCycleBeans;
     private final       Consumer<ApplicationContext> contextRefreshedEventConsumer;
     private final       boolean                      isStartLifecycles;
+    private volatile    boolean                      isRunning = false;
 
     /**
      * @param contextRefreshedEventConsumer callback that will be called after all {@link Lifecycle} Beans {@link Lifecycle#start()} has been called
@@ -48,18 +48,9 @@ public final class DefaultLifecycleManager implements LifecycleManager, Applicat
     }
 
     @Override
-    public void onApplicationEvent(ApplicationContextEvent event) {
-        if (event instanceof ContextRefreshedEvent) {
-            log.info(event.getClass().getSimpleName());
-            startLifecycleBeans();
-        } else if (event instanceof ContextClosedEvent) {
-            log.info("{} - has started life cycle beans: {}", event.getClass().getSimpleName(), hasStartedLifeCycleBeans);
-            onContextClosed();
-        }
-    }
-
-    private void onContextClosed() {
+    public void stop() {
         if (hasStartedLifeCycleBeans) {
+            log.info("Stopping Essentials Lifecycle beans");
             lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
                 if (lifecycleBean.isStarted()) {
                     log.info("Stopping {} bean '{}' of type '{}'", Lifecycle.class.getSimpleName(), beanName, lifecycleBean.getClass().getName());
@@ -67,17 +58,19 @@ public final class DefaultLifecycleManager implements LifecycleManager, Applicat
                 }
             });
             hasStartedLifeCycleBeans = false;
+            log.info("Essentials Lifecycle beans have been stopped");
         }
+        isRunning = false;
     }
 
-    private void startLifecycleBeans() {
+    @Override
+    public void start() {
         if (!isStartLifecycles) {
-            log.debug("Start of lifecycle beans is disabled");
-            contextRefreshedEventConsumer.accept(this.applicationContext);
+            log.info("Start of lifecycle beans is disabled");
             return;
         }
         if (!hasStartedLifeCycleBeans) {
-            contextRefreshedEventConsumer.accept(this.applicationContext);
+            log.info("Starting Essentials Lifecycle beans");
             hasStartedLifeCycleBeans = true;
             lifeCycleBeans = applicationContext.getBeansOfType(Lifecycle.class);
             lifeCycleBeans.forEach((beanName, lifecycleBean) -> {
@@ -86,7 +79,22 @@ public final class DefaultLifecycleManager implements LifecycleManager, Applicat
                     lifecycleBean.start();
                 }
             });
+            log.info("Essentials Lifecycle beans have been started");
+            log.info("Calling {} contextRefreshedEventConsumer", this.getClass().getSimpleName());
+            contextRefreshedEventConsumer.accept(this.applicationContext);
+            log.info("Completed calling {} contextRefreshedEventConsumer", this.getClass().getSimpleName());
         }
+        isRunning = true;
     }
 
+    @Override
+    public boolean isRunning() {
+        return isRunning;
+    }
+
+    @Override
+    public int getPhase() {
+        // The higher the phase value the earlier it is shut down and the later it starts
+        return Integer.MAX_VALUE - 1;
+    }
 }
