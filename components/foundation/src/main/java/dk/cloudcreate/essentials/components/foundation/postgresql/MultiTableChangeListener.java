@@ -109,7 +109,11 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
         try {
             scheduledFuture.cancel(true);
             for (String tableName : listenForNotificationsRelatedToTables.keySet()) {
-                unlisten(tableName);
+                try {
+                    unlisten(tableName);
+                } catch (Exception e) {
+                    log.error("Failed to unlisten table '{}'", tableName, e);
+                }
             }
             scheduledFuture = null;
         } catch (Exception e) {
@@ -253,7 +257,15 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
         requireNonBlank(tableName, "No tableName provided");
         log.info("Setting up Table change LISTENER for '{}'", tableName);
         PostgresqlUtil.checkIsValidTableOrColumnName(tableName);
-        getHandle(null).execute("LISTEN " + resolveTableChangeChannelName(tableName));
+        try {
+            getHandle(null).execute("LISTEN " + resolveTableChangeChannelName(tableName));
+        } catch (Exception e) {
+            if (IOExceptionUtil.isIOException(e)) {
+                log.debug("Failed to add change listener for table '{}'", tableName, e);
+            } else {
+                throw new RuntimeException(msg("Failed to add change listener for table '{}'", tableName), e);
+            }
+        }
     }
 
     private void unlisten(String tableName) {
@@ -301,12 +313,19 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
 
         if (listenForNotificationsRelatedToTables.isEmpty()) return;
 
-        var handle = getHandle(handleCreated -> {
-            for (String tableName : listenForNotificationsRelatedToTables.keySet()) {
-                listen(tableName);
-            }
-        });
+        Handle handle = null;
         try {
+            handle = getHandle(handleCreated -> {
+                for (String tableName : listenForNotificationsRelatedToTables.keySet()) {
+                    try {
+                        listen(tableName);
+                    } catch (Exception e) {
+                        // Log as error to avoid breaking the scheduler
+                        log.error("Failed to add change listener for table '{}' during creation of new Handle", tableName, e);
+                    }
+                }
+            });
+
             var connection    = handle.getConnection().unwrap(PGConnection.class);
             var notifications = connection.getNotifications();
             if (notifications.length > 0) {
@@ -343,21 +362,33 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
             } else {
                 log.trace("Didn't receive any Notifications");
             }
-        } catch (ConnectionException | SQLException e) {
-            log.error(msg("Failed to listen for notifications"),
-                      e);
-            // This may be due to Connection issue, so let's close the handle and reset the reference
-            try {
-                handle.close();
-            } catch (Exception ex) {
-                log.error(msg("Failed to close the listener Handle"),
+        } catch (Exception e) {
+            if (IOExceptionUtil.isIOException(e)) {
+                log.debug(msg("Failed while polling for notifications"),
+                          e);
+            } else {
+                log.error(msg("Failed while polling for notifications"),
                           e);
             }
-            handleReference.set(null);
+            try {
+                if (handle != null) {
+                    handle.close();
+                }
+            } catch (Exception ex) {
+                if (IOExceptionUtil.isIOException(e)) {
+                    log.debug(msg("Failed to close the polling listener Handle"),
+                              e);
+                } else {
+                    log.error(msg("Failed to close the polling listener Handle"),
+                              e);
+                }
+            } finally {
+                handleReference.set(null);
+            }
         }
     }
 
-    private Handle getHandle(Consumer<Handle> onHandleCreated) {
+    private synchronized Handle getHandle(Consumer<Handle> onHandleCreated) {
         try {
             var handle = handleReference.get();
             if (handle == null) {
@@ -371,7 +402,7 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
             }
             return handle;
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to acquire Handle", e);
+            throw new RuntimeException("Failed to acquire a Handle", e);
         }
     }
 
