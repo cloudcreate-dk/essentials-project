@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,11 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.LongStream;
-
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
-import dk.cloudcreate.essentials.types.LongRange;
-import dk.cloudcreate.essentials.types.LongType;
+import dk.cloudcreate.essentials.types.*;
+
+import java.util.List;
+import java.util.stream.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types;
 
-import dk.cloudcreate.essentials.shared.functional.tuple.Either;
-import dk.cloudcreate.essentials.shared.functional.tuple.Tuple;
+import dk.cloudcreate.essentials.shared.functional.tuple.*;
 
 import java.util.Optional;
 import java.util.function.Consumer;
