@@ -67,14 +67,14 @@
 
         <spring-boot.version>3.2.12</spring-boot.version>
         <spring-framework-bom.version>6.1.16</spring-framework-bom.version>
-        <reactor-bom.version>2023.0.13</reactor-bom.version>
+        <reactor-bom.version>2023.0.14</reactor-bom.version>
         <spring-data-mongodb.version>4.2.12</spring-data-mongodb.version>
         <spring-data-jpa.version>3.2.12</spring-data-jpa.version>
         <objenesis.version>3.4</objenesis.version>
-        <postgresql.version>42.7.4</postgresql.version>
+        <postgresql.version>42.7.5</postgresql.version>
         <slf4j.version>2.0.16</slf4j.version>
         <awaitility.version>4.2.2</awaitility.version>
-        <assertj.version>3.27.2</assertj.version>
+        <assertj.version>3.27.3</assertj.version>
         <mongodb-driver-sync.version>4.11.5</mongodb-driver-sync.version>
         <log4j-to-slf4j.version>2.24.3</log4j-to-slf4j.version>
         <json-smart.version>2.5.1</json-smart.version>
@@ -82,7 +82,7 @@
         <snakeyaml.version>2.3</snakeyaml.version>
         <micrometer.version>1.12.13</micrometer.version>
         <micrometer-tracing.version>1.2.12</micrometer-tracing.version>
-        <netty-bom.version>4.1.116.Final</netty-bom.version>
+        <netty-bom.version>4.1.117.Final</netty-bom.version>
         <junit-bom.version>5.11.4</junit-bom.version>
         <testcontainers-bom.version>1.20.4</testcontainers-bom.version>
         <jdbi3-bom.version>3.47.0</jdbi3-bom.version>
@@ -110,7 +110,7 @@
         <versions-maven-plugin.version>2.18.0</versions-maven-plugin.version>
         <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
         <minimum-maven-version>3.8.8</minimum-maven-version>
-        <dependency-check-maven.version>12.0.0</dependency-check-maven.version>
+        <dependency-check-maven.version>12.0.1</dependency-check-maven.version>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
         <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
         <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
