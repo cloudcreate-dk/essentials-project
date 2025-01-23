@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -435,7 +435,7 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueEntryId  the unique id of the message that must we will retry the delivery of
-     * @param causeForRetry the reason why the message delivery has to be retried
+     * @param causeForRetry the reason why the message delivery has to be retried (optional)
      * @param deliveryDelay how long will the queue wait until it delivers the message to the {@link DurableQueueConsumer}
      * @return the {@link QueuedMessage} message wrapped in an {@link Optional} if the operation was successful, otherwise it returns an {@link Optional#empty()}
      */

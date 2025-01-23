@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,8 @@ package dk.cloudcreate.essentials.components.foundation;
 import com.mongodb.MongoSocketException;
 import dk.cloudcreate.essentials.shared.Exceptions;
 import org.jdbi.v3.core.ConnectionException;
-import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
 
-import java.io.*;
-import java.net.ConnectException;
-import java.sql.SQLException;
+import java.io.IOException;
 import java.util.concurrent.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -42,28 +39,35 @@ public final class IOExceptionUtil {
      */
     public static boolean isIOException(Throwable e) {
         requireNonNull(e, "No exception provided");
-        var rootCause = Exceptions.getRootCause(e);
-        var rootCauseMessage  = rootCause != null && rootCause.getMessage() != null ? rootCause.getMessage() : "";
-        var message   = e.getMessage() != null ? e.getMessage() : "";
-        return (
-                (message.contains("An I/O error occurred while sending to the backend") && rootCause instanceof EOFException) ||
-                        (message.contains("Could not open JDBC Connection for transaction") && rootCause instanceof EOFException) ||
-                        (message.contains("Could not open JDBC Connection for transaction") && rootCause instanceof ConnectException) ||
-                        (message.contains("Could not open JDBC Connection for transaction") && rootCause instanceof SQLException && rootCauseMessage.contains("has been closed")) ||
-                        message.contains("Connection is closed") ||
-                        message.contains("Unable to acquire JDBC Connection") ||
-                        message.contains("Could not open JPA EntityManager for transaction") ||
-                        (rootCause != null && rootCause.getClass().getSimpleName().equals("ConnectionException")) ||
-                        (rootCause != null && rootCause.getClass().getSimpleName().equals("MongoSocketReadException")) ||
-                        (isClassAvailable("com.mongodb.MongoSocketException") && rootCause instanceof MongoSocketException) ||
-                        (isClassAvailable("org.jdbi.v3.core.statement.UnableToExecuteStatementException") && rootCause instanceof UnableToExecuteStatementException) ||
-                        rootCause instanceof IOException ||
-                        rootCause instanceof ConnectionException ||
-                        message.contains("has been closed")
-        );
+        var message = e.getMessage() != null ? e.getMessage() : "";
+
+        return e instanceof IOException ||
+                Exceptions.getRootCause(e) instanceof IOException ||
+                containsKnownErrorMessage(message) ||
+                isJdbiRelatedException(e) ||
+                isMongoRelatedException(e);
     }
 
-    private static boolean isClassAvailable(String className) {
+    private static boolean containsKnownErrorMessage(String message) {
+        return message.contains("An I/O error occurred while sending to the backend") ||
+                message.contains("Could not open JDBC Connection for transaction") ||
+                message.contains("Connection is closed") ||
+                message.contains("Unable to acquire JDBC Connection") ||
+                message.contains("Could not open JPA EntityManager for transaction");
+    }
+
+    private static boolean isMongoRelatedException(Throwable e) {
+        return (isClassAvailable("com.mongodb.MongoSocketException") &&
+                Exceptions.doesStackTraceContainExceptionOfType(e, MongoSocketException.class));
+    }
+
+    private static boolean isJdbiRelatedException(Throwable e) {
+        return e.getClass().getName().equals("org.jdbi.v3.core.ConnectionException") ||
+                (isClassAvailable("org.jdbi.v3.core.ConnectionException") && Exceptions.doesStackTraceContainExceptionOfType(e, ConnectionException.class));
+    }
+
+
+    static boolean isClassAvailable(String className) {
         return classCache.computeIfAbsent(className, key -> {
             try {
                 Class.forName(key);

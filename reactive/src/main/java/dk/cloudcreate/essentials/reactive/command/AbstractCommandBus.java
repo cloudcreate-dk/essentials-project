@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorCha
 public abstract class AbstractCommandBus implements CommandBus {
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-    protected final List<CommandBusInterceptor> interceptors    = new ArrayList<>();
+    protected final List<CommandBusInterceptor> interceptors    = new CopyOnWriteArrayList<>();
     protected final Set<CommandHandler>         commandHandlers = new HashSet<>();
     protected final SendAndDontWaitErrorHandler sendAndDontWaitErrorHandler;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.EventHandler;
+import org.slf4j.*;
 
 import java.time.Duration;
 import java.util.*;
@@ -144,7 +145,8 @@ public interface Outboxes {
         }
 
         public class DurableQueueBasedOutbox implements Outbox {
-            private      Consumer<Message>    messageConsumer;
+            private static final Logger            log = LoggerFactory.getLogger(DurableQueueBasedOutbox.class);
+            private              Consumer<Message> messageConsumer;
             public final QueueName            outboxQueueName;
             public final OutboxConfig         config;
             private      DurableQueueConsumer durableQueueConsumer;
@@ -192,16 +194,34 @@ public interface Outboxes {
                 if (this.messageConsumer == null) {
                     throw new IllegalStateException("No message consumer specified. Please call #setMessageConsumer");
                 }
+                log.info("Starting Consuming from Outbox '{}'", config.outboxName);
                 switch (config.messageConsumptionMode) {
                     case SingleGlobalConsumer:
+                        var lockName = config.outboxName.asLockName();
+                        log.info("Creating FencedLock '{}' for Consumer for Outbox '{}'", lockName, config.outboxName);
+
                         fencedLockManager.acquireLockAsync(config.outboxName.asLockName(),
                                                            LockCallback.builder()
-                                                                       .onLockAcquired(lock -> durableQueueConsumer = consumeFromDurableQueue(lock))
-                                                                       .onLockReleased(lock -> durableQueueConsumer.cancel())
+                                                                       .onLockAcquired(lock -> {
+                                                                           log.info("FencedLock '{}' for Outbox '{}' was ACQUIRED - will start Exclusive DurableQueueConsumer", lockName, config.outboxName);
+                                                                           durableQueueConsumer = consumeFromDurableQueue(lock);
+                                                                           log.info("Exclusive DurableQueueConsumer for Outbox '{}': {}", config.outboxName, durableQueueConsumer);
+                                                                       })
+                                                                       .onLockReleased(lock -> {
+                                                                           if (durableQueueConsumer != null) {
+                                                                               log.info("FencedLock '{}' for Outbox '{}' was RELEASED - will stop Exclusive DurableQueueConsumer: {}", lockName, config.outboxName, durableQueueConsumer);
+                                                                               durableQueueConsumer.cancel();
+                                                                               log.info("Stopped Exclusive DurableQueueConsumer for Outbox '{}': {}", config.outboxName, durableQueueConsumer);
+                                                                           } else {
+                                                                               log.warn("FencedLock '{}' for Outbox '{}' was RELEASED - didn't find an Exclusive DurableQueueConsumer!", lockName, config.outboxName);
+                                                                           }
+                                                                       })
                                                                        .build());
                         break;
                     case GlobalCompetingConsumers:
+                        log.info("Starting Non-Exclusive DurableQueueConsumer for Outbox '{}'", config.outboxName);
                         durableQueueConsumer = consumeFromDurableQueue(null);
+                        log.info("Non-Exclusive DurableQueueConsumer for Outbox '{}': {}", config.outboxName, durableQueueConsumer);
                         break;
                     default:
                         throw new IllegalStateException("Unexpected messageConsumptionMode: " + config.messageConsumptionMode);
@@ -212,13 +232,16 @@ public interface Outboxes {
             @Override
             public Outbox stopConsuming() {
                 if (messageConsumer != null) {
-
+                    log.info("Stop Consuming from Outbox '{}'", config.outboxName);
                     switch (config.messageConsumptionMode) {
                         case SingleGlobalConsumer:
-                            fencedLockManager.cancelAsyncLockAcquiring(config.outboxName.asLockName());
+                            var lockName = config.outboxName.asLockName();
+                            log.info("CancelAsyncLockAcquiring FencedLock '{}' for Outbox '{}'", lockName, config.outboxName);
+                            fencedLockManager.cancelAsyncLockAcquiring(lockName);
                             break;
                         case GlobalCompetingConsumers:
                             if (durableQueueConsumer != null) {
+                                log.info("Stopping Non-Exclusive DurableQueueConsumer for Outbox '{}': {}", config.outboxName, durableQueueConsumer);
                                 durableQueueConsumer.cancel();
                                 durableQueueConsumer = null;
                             }

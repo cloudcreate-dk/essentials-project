@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.E
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.jdbi.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
@@ -125,7 +126,7 @@ public final class PostgresqlDurableSubscriptionRepository implements DurableSub
                                          "resume_from_and_including_global_eventorder bigint,\n" +
                                          "last_updated TIMESTAMP WITH TIME ZONE,\n" +
                                          "PRIMARY KEY (subscriber_id, aggregate_type))");
-            log.info("Ensured '{}' table exists", durableSubscriptionsTableName);
+            log.info("Ensured '{}' table exists", this.durableSubscriptionsTableName);
         });
     }
 
@@ -223,47 +224,55 @@ public final class PostgresqlDurableSubscriptionRepository implements DurableSub
             log.trace("Received {} ResumePoints to save: {}", resumePoints.size(), resumePoints);
         }
 
-        unitOfWorkFactory.usingUnitOfWork(uow -> {
-            var now = OffsetDateTime.now(Clock.systemUTC());
-            var preparedBatch = uow.handle().prepareBatch("UPDATE " + this.durableSubscriptionsTableName +
-                                                                  " SET resume_from_and_including_global_eventorder = :resume_from_and_including_global_eventorder, last_updated = :last_updated " +
-                                                                  " WHERE aggregate_type = :aggregate_type AND subscriber_id = :subscriber_id");
+        try {
+            unitOfWorkFactory.usingUnitOfWork(uow -> {
+                var now = OffsetDateTime.now(Clock.systemUTC());
+                var preparedBatch = uow.handle().prepareBatch("UPDATE " + this.durableSubscriptionsTableName +
+                                                                      " SET resume_from_and_including_global_eventorder = :resume_from_and_including_global_eventorder, last_updated = :last_updated " +
+                                                                      " WHERE aggregate_type = :aggregate_type AND subscriber_id = :subscriber_id");
 
-            // TODO: Optimize filtering to happen outside db trx
-            resumePoints.forEach(subscriptionResumePoint -> {
-                if (!subscriptionResumePoint.isChanged()) {
-                    log.debug("Wont save Unchanged {}", subscriptionResumePoint);
-                    return;
-                }
-                log.debug("Saving {}", subscriptionResumePoint);
-                preparedBatch
-                        .bind("aggregate_type", subscriptionResumePoint.getAggregateType())
-                        .bind("subscriber_id", subscriptionResumePoint.getSubscriberId())
-                        .bind("resume_from_and_including_global_eventorder", subscriptionResumePoint.getResumeFromAndIncluding())
-                        .bind("last_updated", now)
-                        .add();
-            });
+                // TODO: Optimize filtering to happen outside db trx
+                resumePoints.forEach(subscriptionResumePoint -> {
+                    if (!subscriptionResumePoint.isChanged()) {
+                        log.debug("Wont save Unchanged {}", subscriptionResumePoint);
+                        return;
+                    }
+                    log.debug("Saving {}", subscriptionResumePoint);
+                    preparedBatch
+                            .bind("aggregate_type", subscriptionResumePoint.getAggregateType())
+                            .bind("subscriber_id", subscriptionResumePoint.getSubscriberId())
+                            .bind("resume_from_and_including_global_eventorder", subscriptionResumePoint.getResumeFromAndIncluding())
+                            .bind("last_updated", now)
+                            .add();
+                });
 
-            var batchSize = preparedBatch.size();
-            var rowsUpdated = Arrays.stream(preparedBatch.execute())
-                                    .reduce(Integer::sum).orElse(0);
-            resumePoints.forEach(subscriptionResumePoint -> {
-                if (subscriptionResumePoint.isChanged()) {
-                    subscriptionResumePoint.setLastUpdated(now);
+                var batchSize = preparedBatch.size();
+                var rowsUpdated = Arrays.stream(preparedBatch.execute())
+                                        .reduce(Integer::sum).orElse(0);
+                resumePoints.forEach(subscriptionResumePoint -> {
+                    if (subscriptionResumePoint.isChanged()) {
+                        subscriptionResumePoint.setLastUpdated(now);
+                    }
+                });
+                if (log.isTraceEnabled()) {
+                    log.trace("Saved {} resumePoints out of {} resulting in {} updated rows: {}",
+                              batchSize,
+                              resumePoints.size(),
+                              rowsUpdated,
+                              resumePoints);
+                } else {
+                    log.debug("Saved {} resumePoints out of {} resulting in {} updated rows",
+                              batchSize,
+                              resumePoints.size(),
+                              rowsUpdated);
                 }
             });
-            if (log.isTraceEnabled()) {
-                log.trace("Saved {} resumePoints out of {} resulting in {} updated rows: {}",
-                          batchSize,
-                          resumePoints.size(),
-                          rowsUpdated,
-                          resumePoints);
+        } catch (Exception e) {
+            if (IOExceptionUtil.isIOException(e)) {
+                log.trace("Failed to save the {} ResumePoints", resumePoints.size(), e);
             } else {
-                log.debug("Saved {} resumePoints out of {} resulting in {} updated rows",
-                          batchSize,
-                          resumePoints.size(),
-                          rowsUpdated);
+                log.error("Failed to save the {} ResumePoints", resumePoints.size(), e);
             }
-        });
+        }
     }
 }

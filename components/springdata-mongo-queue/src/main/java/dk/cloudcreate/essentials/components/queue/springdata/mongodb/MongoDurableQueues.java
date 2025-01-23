@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,7 +100,7 @@ public final class MongoDurableQueues implements DurableQueues {
     protected final String                                              sharedQueueCollectionName;
     private final   ConcurrentMap<QueueName, MongoDurableQueueConsumer> durableQueueConsumers = new ConcurrentHashMap<>();
     private final   ConcurrentMap<QueueName, ReentrantLock>             localQueuePollLock    = new ConcurrentHashMap<>();
-    private final   List<DurableQueuesInterceptor>                      interceptors          = new ArrayList<>();
+    private final   List<DurableQueuesInterceptor>                      interceptors          = new CopyOnWriteArrayList<>();
     private final   MessageListenerContainer                            messageListenerContainer;
 
 
@@ -805,7 +805,7 @@ public final class MongoDurableQueues implements DurableQueues {
                                                    var update = new Update().inc("redeliveryAttempts", 1)
                                                                             .set("isBeingDelivered", false)
                                                                             .set("deliveryTimestamp", null)
-                                                                            .set("lastDeliveryError", Exceptions.getStackTrace(operation.getCauseForRetry()));
+                                                                            .set("lastDeliveryError", operation.getCauseForRetry() != null ? Exceptions.getStackTrace(operation.getCauseForRetry()) : RetryMessage.MANUALLY_REQUESTED_REDELIVERY);
                                                    var updateResult = mongoTemplate.findAndModify(findMessageToRetry,
                                                                                                   update,
                                                                                                   FindAndModifyOptions.options().returnNew(true),
@@ -1385,6 +1385,12 @@ public final class MongoDurableQueues implements DurableQueues {
             if (started) {
                 consumer.start();
             }
+            log.info("[{}] {} - {} {}",
+                     operation.queueName,
+                     operation.consumerName,
+                     started ? "Started" : "Created",
+                     consumer.getClass().getSimpleName()
+                    );
             return consumer;
         });
     }
@@ -1473,6 +1479,8 @@ public final class MongoDurableQueues implements DurableQueues {
         private transient TripleFunction<QueueName, byte[], String, Object> deserializeMessagePayloadFunction;
         @Transient
         private transient Message                                           message;
+        @Transient
+        private Duration manuallyRequestedRedeliveryDelay;
 
         public DurableQueuedMessage() {
         }
@@ -1570,6 +1578,21 @@ public final class MongoDurableQueues implements DurableQueues {
         }
 
         @Override
+        public void markForRedeliveryIn(Duration deliveryDelay) {
+            this.manuallyRequestedRedeliveryDelay = deliveryDelay;
+        }
+
+        @Override
+        public boolean isManuallyMarkedForRedelivery() {
+            return manuallyRequestedRedeliveryDelay != null;
+        }
+
+        @Override
+        public Duration getRedeliveryDelay() {
+            return manuallyRequestedRedeliveryDelay;
+        }
+
+        @Override
         public DeliveryMode getDeliveryMode() {
             return deliveryMode;
         }
@@ -1641,6 +1664,7 @@ public final class MongoDurableQueues implements DurableQueues {
                     ", totalDeliveryAttempts=" + totalDeliveryAttempts +
                     ", redeliveryAttempts=" + redeliveryAttempts +
                     ", isDeadLetterMessage=" + isDeadLetterMessage +
+                    ", manuallyRequestedRedeliveryDelay=" + manuallyRequestedRedeliveryDelay +
                     ", deliveryMode=" + deliveryMode +
                     ", key=" + key +
                     ", keyOrder=" + keyOrder +

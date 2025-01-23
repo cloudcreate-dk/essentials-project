@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.postgresql;
 
+import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import org.jdbi.v3.core.*;
 import org.postgresql.*;
 import org.slf4j.*;
@@ -388,15 +389,30 @@ public final class ListenNotify {
                                return Flux.empty();
                            }
                        } catch (ConnectionException | SQLException e) {
-                           log.error(msg("Failed to listen for notification for table '{}'", tableName),
-                                     e);
+                           if (IOExceptionUtil.isIOException(e)) {
+                               log.debug(msg("Failed to listen for notification for table '{}'", tableName),
+                                         e);
+                           } else {
+                               log.error(msg("Failed to listen for notification for table '{}'", tableName),
+                                         e);
+                           }
+
                            // This may be due to Connection issue, so let's close the handle and reset the reference
                            try {
-                               handle.close();
+                               if (handle != null) {
+                                   handle.close();
+                               }
                            } catch (Exception ex) {
-                               log.error(msg("Failed to close the listener Handle for table '{}'", tableName),
-                                         e);
-                               return Flux.error(ex);
+                               if (IOExceptionUtil.isIOException(ex)) {
+                                   log.debug(msg("Failed to close the listener Handle for table '{}'", tableName),
+                                             e);
+                                   return Flux.empty();
+                               } else {
+                                   log.error(msg("Failed to close the listener Handle for table '{}'", tableName),
+                                             e);
+
+                                   return Flux.error(ex);
+                               }
                            }
                            handleReference.set(null);
                            return Flux.empty();

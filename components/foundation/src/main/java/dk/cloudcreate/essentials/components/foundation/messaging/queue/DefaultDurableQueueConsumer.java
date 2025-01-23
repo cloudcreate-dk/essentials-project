@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
 import org.slf4j.*;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -110,6 +111,14 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                                                                                                    })
                                                                                                    .build()));
 
+        LOG.info("[{}] '{}' - Created '{}' with '{}', {} thread(s) and polling interval {} ms",
+                 queueName,
+                 consumeFromQueue.consumerName,
+                 this.getClass().getSimpleName(),
+                 this.queuePollingOptimizer,
+                 consumeFromQueue.getParallelConsumers(),
+                 pollingIntervalMs);
+
     }
 
     @Override
@@ -167,6 +176,12 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
     public QueueName queueName() {
         return queueName;
     }
+
+    @Override
+    public String consumerName() {
+        return consumeFromQueue.consumerName;
+    }
+
 
     @Override
     public void cancel() {
@@ -285,10 +300,17 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                                                                 // TODO: In the future support configurable timeout
 //                                                                .timeout(Duration.ofSeconds(5))
                                                                 .onErrorResume(throwable -> {
-                                                                    LOG.error(msg("[{}] {} - Error occurred during {}.getNextMessageReadyForDelivery queue processing",
-                                                                                  queueName,
-                                                                                  consumeFromQueue.consumerName,
-                                                                                  durableQueues.getClass().getSimpleName()), throwable);
+                                                                    if (IOExceptionUtil.isIOException(throwable)) {
+                                                                        LOG.trace(msg("[{}] {} - Error occurred during {}.getNextMessageReadyForDelivery queue processing",
+                                                                                      queueName,
+                                                                                      consumeFromQueue.consumerName,
+                                                                                      durableQueues.getClass().getSimpleName()), throwable);
+                                                                    } else {
+                                                                        LOG.error(msg("[{}] {} - Error occurred during {}.getNextMessageReadyForDelivery queue processing",
+                                                                                      queueName,
+                                                                                      consumeFromQueue.consumerName,
+                                                                                      durableQueues.getClass().getSimpleName()), throwable);
+                                                                    }
                                                                     return Mono.just(Optional.empty());
                                                                 });
 
@@ -340,7 +362,6 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
     }
 
 
-
     private List<String> resolveMessageKeysToExclude() {
         var orderedMessageLastHandled = orderedMessageDeliveryThreads.get(Thread.currentThread());
         var allOrderedMessages        = new HashSet<>(orderedMessageDeliveryThreads.values());
@@ -367,15 +388,23 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
         }
         try {
             consumeFromQueue.queueMessageHandler.handle(queuedMessage);
-            LOG.debug("[{}:{}] {} - Message handled successfully. Deleting the message in the Queue Store message. Total attempts: {}, Redelivery Attempts: {}",
-                      queueName,
-                      queuedMessage.getId(),
-                      consumeFromQueue.consumerName,
-                      queuedMessage.getTotalDeliveryAttempts(),
-                      queuedMessage.getRedeliveryAttempts());
-            durableQueues.acknowledgeMessageAsHandled(queuedMessage.getId());
-            orderedMessageDeliveryThreads.remove(Thread.currentThread());
-            return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
+            if (queuedMessage.isManuallyMarkedForRedelivery()) {
+                LOG.debug("[{}:{}] {} - Message handler manually requested redelivery of the message",
+                          queueName,
+                          queuedMessage.getId(),
+                          consumeFromQueue.consumerName);
+                return retryMessage(queuedMessage, null, queuedMessage.getRedeliveryDelay());
+            } else {
+                LOG.debug("[{}:{}] {} - Message handled successfully. Deleting the message in the Queue Store message. Total attempts: {}, Redelivery Attempts: {}",
+                          queueName,
+                          queuedMessage.getId(),
+                          consumeFromQueue.consumerName,
+                          queuedMessage.getTotalDeliveryAttempts(),
+                          queuedMessage.getRedeliveryAttempts());
+                durableQueues.acknowledgeMessageAsHandled(queuedMessage.getId());
+                orderedMessageDeliveryThreads.remove(Thread.currentThread());
+                return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
+            }
         } catch (Throwable e) {
             var isPermanentError = isPermanentError(queuedMessage, e);
             if (isPermanentError || queuedMessage.getTotalDeliveryAttempts() >= consumeFromQueue.getRedeliveryPolicy().maximumNumberOfRedeliveries + 1) {
@@ -428,46 +457,51 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                 }
                 // Redeliver later
                 var redeliveryDelay = consumeFromQueue.getRedeliveryPolicy().calculateNextRedeliveryDelay(queuedMessage.getRedeliveryAttempts());
-                if (MESSAGE_HANDLING_FAILURE_LOG.isDebugEnabled()) {
-                    MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Will redeliver failed message with redeliveryDelay '{}'. Number of Redelivery-Attempts so far: {}",
-                                                           queueName,
-                                                           queuedMessage.getId(),
-                                                           consumeFromQueue.consumerName,
-                                                           redeliveryDelay,
-                                                           queuedMessage.getRedeliveryAttempts()
-                                                          ),
-                                                       e);
-                }
-                try {
-                    // Don't update the polling optimizer as the message stays in the queue
-                    durableQueues.retryMessage(queuedMessage.getId(),
-                                               e,
-                                               redeliveryDelay);
-                    orderedMessageDeliveryThreads.remove(Thread.currentThread());
-                    return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
-                } catch (Throwable ex) {
-                    if (ex.getMessage().contains("Interrupted waiting for lock")) {
-                        // Usually happening when SpringBoot is performing an unclean shutdown
-                        MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Failed to register the message for delayed retry. This can typically happen during JVM or Application shutdown",
-                                                               queueName,
-                                                               queuedMessage.getId(),
-                                                               consumeFromQueue.consumerName), ex);
+                return retryMessage(queuedMessage, e, redeliveryDelay);
+            }
+        }
+    }
 
-                    } else {
-                        var msg = msg("[{}:{}] {} - Failed to register the message for delayed retry.",
-                                      queueName,
-                                      queuedMessage.getId(),
-                                      consumeFromQueue.consumerName);
-                        MESSAGE_HANDLING_FAILURE_LOG.error(msg, ex);
-                        if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
-                            // throw Exception to rollback unit of work
-                            throw new DurableQueueException(msg, ex, queueName);
-                        }
-                    }
-                    // Note: Don't clean up orderedMessageDeliveryThreads yet
-                    return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
+    private Runnable retryMessage(QueuedMessage queuedMessage, Throwable e, Duration redeliveryDelay) {
+        if (MESSAGE_HANDLING_FAILURE_LOG.isDebugEnabled()) {
+            MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Will redeliver {} message with redeliveryDelay '{}'. Number of Redelivery-Attempts so far: {}",
+                                                   queueName,
+                                                   queuedMessage.getId(),
+                                                   consumeFromQueue.consumerName,
+                                                   e != null ? "Failed" : "",
+                                                   redeliveryDelay,
+                                                   queuedMessage.getRedeliveryAttempts()
+                                                  ),
+                                               e);
+        }
+        try {
+            // Don't update the polling optimizer as the message stays in the queue
+            durableQueues.retryMessage(queuedMessage.getId(),
+                                       e,
+                                       redeliveryDelay);
+            orderedMessageDeliveryThreads.remove(Thread.currentThread());
+            return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
+        } catch (Throwable ex) {
+            if (ex.getMessage().contains("Interrupted waiting for lock")) {
+                // Usually happening when SpringBoot is performing an unclean shutdown
+                MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Failed to register the message for delayed retry. This can typically happen during JVM or Application shutdown",
+                                                       queueName,
+                                                       queuedMessage.getId(),
+                                                       consumeFromQueue.consumerName), ex);
+
+            } else {
+                var msg = msg("[{}:{}] {} - Failed to register the message for delayed retry.",
+                              queueName,
+                              queuedMessage.getId(),
+                              consumeFromQueue.consumerName);
+                MESSAGE_HANDLING_FAILURE_LOG.error(msg, ex);
+                if (durableQueues.getTransactionalMode() == TransactionalMode.FullyTransactional) {
+                    // throw Exception to rollback unit of work
+                    throw new DurableQueueException(msg, ex, queueName);
                 }
             }
+            // Note: Don't clean up orderedMessageDeliveryThreads yet
+            return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
         }
     }
 
@@ -487,7 +521,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
 
     @Override
     public String toString() {
-        return "DurableQueueConsumer{" +
+        return this.getClass().getSimpleName() + "{" +
                 ", started=" + started +
                 consumeFromQueue.toString() +
                 '}';

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
     private final String                                                        sharedQueueTableName;
     private final ConcurrentMap<QueueName, PostgresqlDurableQueueConsumer>      durableQueueConsumers                 = new ConcurrentHashMap<>();
     private final QueuedMessageRowMapper                                        queuedMessageMapper;
-    private final List<DurableQueuesInterceptor>                                interceptors                          = new ArrayList<>();
+    private final List<DurableQueuesInterceptor>                                interceptors                          = new CopyOnWriteArrayList<>();
     private final Optional<MultiTableChangeListener<TableChangeNotification>>   multiTableChangeListener;
     private final Function<ConsumeFromQueue, QueuePollingOptimizer>             queuePollingOptimizerFactory;
     private final TransactionalMode                                             transactionalMode;
@@ -480,6 +480,12 @@ public final class PostgresqlDurableQueues implements DurableQueues {
             if (started) {
                 consumer.start();
             }
+            log.info("[{}] {} - {} {}",
+                     operation.queueName,
+                     operation.consumerName,
+                     started ? "Started" : "Created",
+                     consumer.getClass().getSimpleName()
+                     );
             return consumer;
         });
     }
@@ -770,7 +776,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> {
-                                                   var nextDeliveryTimestamp = OffsetDateTime.now(Clock.systemUTC()).plus(operation.getDeliveryDelay());
+                                                   var nextDeliveryTimestamp = Instant.now().plus(operation.getDeliveryDelay());
                                                    var result = unitOfWorkFactory.getRequiredUnitOfWork().handle().createQuery(bind("UPDATE {:tableName} SET\n" +
                                                                                                                                             "     next_delivery_ts = :nextDeliveryTimestamp,\n" +
                                                                                                                                             "     last_delivery_error = :lastDeliveryError,\n" +
@@ -781,7 +787,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                                             " RETURNING *",
                                                                                                                                     arg("tableName", sharedQueueTableName)))
                                                                                  .bind("nextDeliveryTimestamp", nextDeliveryTimestamp)
-                                                                                 .bind("lastDeliveryError", Exceptions.getStackTrace(operation.getCauseForRetry()))
+                                                                                 .bind("lastDeliveryError", operation.getCauseForRetry() != null ? Exceptions.getStackTrace(operation.getCauseForRetry()) : RetryMessage.MANUALLY_REQUESTED_REDELIVERY)
                                                                                  .bind("id", operation.queueEntryId)
                                                                                  .map(queuedMessageMapper)
                                                                                  .findOne();
@@ -835,7 +841,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> {
-                                                   var nextDeliveryTimestamp = OffsetDateTime.now(Clock.systemUTC()).plus(operation.getDeliveryDelay());
+                                                   var nextDeliveryTimestamp = Instant.now().plus(operation.getDeliveryDelay());
                                                    var result = unitOfWorkFactory.getRequiredUnitOfWork().handle().createQuery(bind("UPDATE {:tableName} SET\n" +
                                                                                                                                             "     next_delivery_ts = :nextDeliveryTimestamp,\n" +
                                                                                                                                             "     is_dead_letter_message = FALSE\n" +
@@ -927,7 +933,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                () -> {
                                                    log.trace("[{}] Handling GetNextMessageReadyForDelivery: {}", operation.queueName, operation);
                                                    resetMessagesStuckBeingDelivered(operation.queueName);
-                                                   var now                 = OffsetDateTime.now(Clock.systemUTC());
+                                                   var now                 = Instant.now();
                                                    var excludeKeysLimitSql = "";
                                                    var excludedKeys        = operation.getExcludeOrderedMessagesWithKey() != null ? operation.getExcludeOrderedMessagesWithKey() : List.of();
                                                    if (!excludedKeys.isEmpty()) {

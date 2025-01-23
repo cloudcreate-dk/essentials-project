@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.messaging;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage;
+import dk.cloudcreate.essentials.shared.Exceptions;
 
 import java.util.List;
 
@@ -110,7 +111,7 @@ public final class MessageDeliveryErrorHandlerBuilder {
             private boolean shouldAlwaysRetryOn(Throwable error) {
                 return alwaysRetryOnExceptions.contains(error.getClass()) ||
                         alwaysRetryOnExceptions.stream()
-                                               .anyMatch(exception -> exception.isAssignableFrom(error.getClass()));
+                                               .anyMatch(alwaysRetryOnException -> Exceptions.doesStackTraceContainExceptionOfType(error, alwaysRetryOnException));
             }
 
             @Override

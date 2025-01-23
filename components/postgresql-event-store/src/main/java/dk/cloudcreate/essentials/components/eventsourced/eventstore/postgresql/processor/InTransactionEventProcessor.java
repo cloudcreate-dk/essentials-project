@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ import dk.cloudcreate.essentials.reactive.command.*;
 import org.slf4j.*;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -211,7 +212,7 @@ public abstract class InTransactionEventProcessor implements Lifecycle {
         this.eventStoreSubscriptionManager = requireNonNull(eventStoreSubscriptionManager, "No eventStoreSubscriptionManager provided");
         this.commandBus = requireNonNull(commandBus, "No commandBus provided");
         this.eventStore = requireNonNull(eventStoreSubscriptionManager.getEventStore(), "No eventStore is associated with the eventStoreSubscriptionManager provided");
-        this.messageHandlerInterceptors = requireNonNull(messageHandlerInterceptors, "No messageHandlerInterceptors list provided");
+        this.messageHandlerInterceptors = new CopyOnWriteArrayList<>(requireNonNull(messageHandlerInterceptors, "No messageHandlerInterceptors list provided"));
         this.useExclusively = useExclusively;
         setupCommandHandler();
     }

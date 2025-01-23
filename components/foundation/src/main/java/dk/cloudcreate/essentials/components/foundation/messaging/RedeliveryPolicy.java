@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -176,6 +176,14 @@ public final class RedeliveryPolicy {
                         .build();
     }
 
+    /**
+     * If an exception occurs during message handling, the {@link #isPermanentError(QueuedMessage, Throwable)} will be called with
+     * only the top-level exception - the associated {@link MessageDeliveryErrorHandler#isPermanentError(QueuedMessage, Throwable)} must itself check the error exceptions causal chain
+     * to determine if it represents a permanent error.
+     * @param queuedMessage The message being processed by the message handler
+     * @param error the exception that occurred
+     * @return true if the error represents a permanent error, otherwise false
+     */
     public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
         return deliveryErrorHandler.isPermanentError(queuedMessage, error);
     }

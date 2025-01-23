@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 the original author or authors.
+ * Copyright 2021-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.reactive.command.CommandBus;
+import org.slf4j.*;
 
 import java.time.Duration;
 import java.util.*;
@@ -145,7 +146,7 @@ public interface Inboxes {
         }
 
         public class DurableQueueBasedInbox implements Inbox {
-
+            private static final Logger log = LoggerFactory.getLogger(DurableQueueBasedInbox.class);
             private      Consumer<Message>    messageConsumer;
             public final QueueName            inboxQueueName;
             public final InboxConfig          config;
@@ -183,16 +184,33 @@ public interface Inboxes {
                 if (this.messageConsumer == null) {
                     throw new IllegalStateException("No message consumer specified. Please call #setMessageConsumer");
                 }
+                log.info("Starting Consuming from Inbox '{}'", config.inboxName);
                 switch (config.messageConsumptionMode) {
                     case SingleGlobalConsumer:
-                        fencedLockManager.acquireLockAsync(config.inboxName.asLockName(),
+                        var lockName = config.inboxName.asLockName();
+                        log.info("Creating FencedLock '{}' for Consumer for Inbox '{}'", lockName, config.inboxName);
+                        fencedLockManager.acquireLockAsync(lockName,
                                                            LockCallback.builder()
-                                                                       .onLockAcquired(lock -> durableQueueConsumer = consumeFromDurableQueue(lock))
-                                                                       .onLockReleased(lock -> durableQueueConsumer.cancel())
+                                                                       .onLockAcquired(lock -> {
+                                                                           log.info("FencedLock '{}' for Inbox '{}' was ACQUIRED - will start Exclusive DurableQueueConsumer", lockName, config.inboxName);
+                                                                           durableQueueConsumer = consumeFromDurableQueue(lock);
+                                                                           log.info("Exclusive DurableQueueConsumer for Inbox '{}': {}", config.inboxName, durableQueueConsumer);
+                                                                       })
+                                                                       .onLockReleased(lock -> {
+                                                                           if (durableQueueConsumer != null) {
+                                                                               log.info("FencedLock '{}' for Inbox '{}' was RELEASED - will stop Exclusive DurableQueueConsumer: {}", lockName, config.inboxName, durableQueueConsumer);
+                                                                               durableQueueConsumer.cancel();
+                                                                               log.info("Stopped Exclusive DurableQueueConsumer for Inbox '{}': {}", config.inboxName, durableQueueConsumer);
+                                                                           } else {
+                                                                               log.warn("FencedLock '{}' for Inbox '{}' was RELEASED - didn't find an Exclusive DurableQueueConsumer!", lockName, config.inboxName);
+                                                                           }
+                                                                       })
                                                                        .build());
                         break;
                     case GlobalCompetingConsumers:
+                        log.info("Starting Non-Exclusive DurableQueueConsumer for Inbox '{}'", config.inboxName);
                         durableQueueConsumer = consumeFromDurableQueue(null);
+                        log.info("Non-Exclusive DurableQueueConsumer for Inbox '{}': {}", config.inboxName, durableQueueConsumer);
                         break;
                     default:
                         throw new IllegalStateException("Unexpected messageConsumptionMode: " + config.messageConsumptionMode);
@@ -213,13 +231,16 @@ public interface Inboxes {
             @Override
             public Inbox stopConsuming() {
                 if (messageConsumer != null) {
-
+                    log.info("Stop Consuming from Inbox '{}'", config.inboxName);
                     switch (config.messageConsumptionMode) {
                         case SingleGlobalConsumer:
-                            fencedLockManager.cancelAsyncLockAcquiring(config.inboxName.asLockName());
+                            var lockName = config.inboxName.asLockName();
+                            log.info("CancelAsyncLockAcquiring FencedLock '{}' for Inbox '{}'", lockName, config.inboxName);
+                            fencedLockManager.cancelAsyncLockAcquiring(lockName);
                             break;
                         case GlobalCompetingConsumers:
                             if (durableQueueConsumer != null) {
+                                log.info("Stopping Non-Exclusive DurableQueueConsumer for Inbox '{}': {}", config.inboxName, durableQueueConsumer);
                                 durableQueueConsumer.cancel();
                                 durableQueueConsumer = null;
                             }

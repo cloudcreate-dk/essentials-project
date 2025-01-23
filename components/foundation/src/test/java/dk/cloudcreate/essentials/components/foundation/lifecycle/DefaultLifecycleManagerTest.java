@@ -3,7 +3,6 @@ package dk.cloudcreate.essentials.components.foundation.lifecycle;
 import dk.cloudcreate.essentials.shared.Lifecycle;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.event.*;
 
 import java.util.Map;
 import java.util.function.Consumer;
@@ -23,13 +22,11 @@ class DefaultLifecycleManagerTest {
         var manager = new DefaultLifecycleManager(true);
         manager.setApplicationContext(applicationContext);
 
-        manager.onApplicationEvent(mock(ContextRefreshedEvent.class));
-        verify(lifeCycleBean).start();
+        manager.start();
         verify(lifeCycleBean, times(0)).stop();
 
         when(lifeCycleBean.isStarted()).thenReturn(true);
-        manager.onApplicationEvent(mock(ContextClosedEvent.class));
-        verify(lifeCycleBean).stop();
+        manager.stop();
     }
 
     @Test
@@ -42,12 +39,12 @@ class DefaultLifecycleManagerTest {
         var manager = new DefaultLifecycleManager(true);
         manager.setApplicationContext(applicationContext);
 
-        manager.onApplicationEvent(mock(ContextRefreshedEvent.class));
+        manager.start();
         verify(lifecycleBean, times(0)).start();
     }
 
     @Test
-    void onContextRefreshedEventCustomConsumerTest() {
+    void onStartCustomConsumerTest() {
         var applicationContext = mock(ApplicationContext.class);
         when(applicationContext.getBeansOfType(Lifecycle.class)).thenReturn(Map.of());
 
@@ -55,7 +52,7 @@ class DefaultLifecycleManagerTest {
         var manager = new DefaultLifecycleManager(consumer, true);
         manager.setApplicationContext(applicationContext);
 
-        manager.onApplicationEvent(mock(ContextRefreshedEvent.class));
+        manager.start();
         verify(consumer).accept(applicationContext);
     }
 
@@ -64,11 +61,11 @@ class DefaultLifecycleManagerTest {
         var applicationContext = mock(ApplicationContext.class);
         var manager = new DefaultLifecycleManager(false);
         manager.setApplicationContext(applicationContext);
-        manager.onApplicationEvent(mock(ContextRefreshedEvent.class));
+        manager.start();
 
         verifyNoInteractions(applicationContext);
 
-        manager.onApplicationEvent(mock(ContextClosedEvent.class));
+        manager.stop();
 
         verifyNoInteractions(applicationContext);
     }
