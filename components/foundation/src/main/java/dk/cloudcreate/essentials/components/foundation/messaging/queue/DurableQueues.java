@@ -435,7 +435,7 @@ public interface DurableQueues extends Lifecycle {
      * using {@link TransactionalMode#FullyTransactional}
      *
      * @param queueEntryId  the unique id of the message that must we will retry the delivery of
-     * @param causeForRetry the reason why the message delivery has to be retried
+     * @param causeForRetry the reason why the message delivery has to be retried (optional)
      * @param deliveryDelay how long will the queue wait until it delivers the message to the {@link DurableQueueConsumer}
      * @return the {@link QueuedMessage} message wrapped in an {@link Optional} if the operation was successful, otherwise it returns an {@link Optional#empty()}
      */

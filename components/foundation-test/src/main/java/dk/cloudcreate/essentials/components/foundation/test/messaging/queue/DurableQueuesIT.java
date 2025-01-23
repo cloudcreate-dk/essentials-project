@@ -29,7 +29,7 @@ import org.junit.jupiter.api.*;
 
 import java.time.*;
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import java.util.function.*;
 
@@ -464,7 +464,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(durableQueues.getQueuedMessageCountsFor(queueName)).isEqualTo(new QueuedMessageCounts(queueName, 1, 0));
 
         AtomicInteger deliveryCountForMessage1 = new AtomicInteger();
-        var totalExpectedDeliveries = 1 + 5 + 3;
+        var           totalExpectedDeliveries  = 1 + 5 + 3;
         var recordingQueueMessageHandler = new RecordingQueuedMessageHandler(msg -> {
             var count = deliveryCountForMessage1.incrementAndGet();
             if (count <= totalExpectedDeliveries) { // 1 initial delivery and 5 redeliveries - after that the message will be marked as a dead letter message.
@@ -486,8 +486,8 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
             public Optional<QueuedMessage> intercept(MarkAsDeadLetterMessage operation, InterceptorChain<MarkAsDeadLetterMessage, Optional<QueuedMessage>, DurableQueuesInterceptor> interceptorChain) {
                 var queuedMessage = durableQueues.getQueuedMessage(operation.queueEntryId).get();
                 System.out.println("MarkAsDeadLetterMessage: " + queuedMessage);
-                if (queuedMessage.getTotalDeliveryAttempts() < totalExpectedDeliveries+1) {
-                    System.out.println("---------------> Overriding decision to mark as dead letter message for message " +  operation.queueEntryId + ". Total delivery attempts is " + queuedMessage.getTotalDeliveryAttempts());
+                if (queuedMessage.getTotalDeliveryAttempts() < totalExpectedDeliveries + 1) {
+                    System.out.println("---------------> Overriding decision to mark as dead letter message for message " + operation.queueEntryId + ". Total delivery attempts is " + queuedMessage.getTotalDeliveryAttempts());
                     // Complete marking as dead letter message
                     if (interceptorChain.proceed().isEmpty()) {
                         throw new RuntimeException(msg("Failed to mark message '{}' as Dead Letter Message", operation.queueEntryId));
@@ -510,7 +510,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
 
         // Then
         Awaitility.waitAtMost(Duration.ofSeconds(20))
-                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages).hasSize(totalExpectedDeliveries+1)); // 10 in total (1 initial delivery and 5 redeliveries + 1 resurrection delivery and 2 additional redelivieries + final delivery)
+                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages).hasSize(totalExpectedDeliveries + 1)); // 10 in total (1 initial delivery and 5 redeliveries + 1 resurrection delivery and 2 additional redelivieries + final delivery)
         var messages = new ArrayList<>(recordingQueueMessageHandler.messages);
         assertThat(messages.get(0)).usingRecursiveComparison().isEqualTo(message1);
         assertThat(messages.get(1)).usingRecursiveComparison().isEqualTo(message1);
@@ -591,6 +591,73 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20)).isEmpty();
 
         consumer.cancel();
+    }
+
+    @Test
+    void test_messagehandler_with_call_to_markForRedeliveryIn() {
+        // Given
+        var queueName = QueueName.of("TestQueue");
+
+        // When
+        var message1 = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 1234),
+                                  MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                     "trace_id", UUID.randomUUID().toString()));
+        var idMsg1 = withDurableQueue(() -> durableQueues.queueMessage(queueName, message1));
+
+        var queuedMessages = durableQueues.getQueuedMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 20);
+        assertThat(queuedMessages).hasSize(1);
+
+        assertThat(durableQueues.getQueuedMessage(idMsg1).get()).isEqualTo(queuedMessages.get(0));
+        assertThat(queuedMessages.get(0).getMessage()).usingRecursiveComparison().isEqualTo(message1);
+        assertThat((CharSequence) queuedMessages.get(0).getId()).isEqualTo(idMsg1);
+        assertThat((CharSequence) queuedMessages.get(0).getQueueName()).isEqualTo(queueName);
+        assertThat(queuedMessages.get(0).getAddedTimestamp()).isBefore(OffsetDateTime.now(Clock.systemUTC()));
+        assertThat(queuedMessages.get(0).getNextDeliveryTimestamp()).isBefore(OffsetDateTime.now(Clock.systemUTC()));
+        assertThat(queuedMessages.get(0).isDeadLetterMessage()).isFalse();
+        assertThat(queuedMessages.get(0).getLastDeliveryError()).isEqualTo(null);
+        assertThat(queuedMessages.get(0).getRedeliveryAttempts()).isEqualTo(0);
+        assertThat(queuedMessages.get(0).getTotalDeliveryAttempts()).isEqualTo(0);
+
+        var msgHandler = new QueuedMessageHandler() {
+            List<QueuedMessage> messages = new CopyOnWriteArrayList<>();
+
+            @Override
+            public void handle(QueuedMessage message) {
+                messages.add(message);
+                if (message.getTotalDeliveryAttempts() < 3) {
+                    message.markForRedeliveryIn(Duration.ofMillis(150));
+                }
+            }
+        };
+
+        // When
+        durableQueues.consumeFromQueue(ConsumeFromQueue.builder()
+                                                       .setQueueName(queueName)
+                                                       .setRedeliveryPolicy(
+                                                               RedeliveryPolicy.fixedBackoff()
+                                                                               .setRedeliveryDelay(Duration.ofMillis(200))
+                                                                               .setMaximumNumberOfRedeliveries(5)
+                                                                               .build())
+                                                       .setParallelConsumers(1)
+                                                       .setQueueMessageHandler(msgHandler)
+                                                       .build());
+        assertThat(durableQueues.getQueueNames()).isEqualTo(Set.of(queueName));
+
+        // Then
+        Awaitility.waitAtMost(Duration.ofSeconds(2))
+                  .untilAsserted(() -> assertThat(msgHandler.messages).hasSize(3));
+        Awaitility.waitAtMost(Duration.ofSeconds(2))
+                  .untilAsserted(() -> assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0));
+        assertThat(durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName)).isEqualTo(0);
+        assertThat(durableQueues.getQueuedMessageCountsFor(queueName)).isEqualTo(new QueuedMessageCounts(queueName, 0, 0));
+
+
+        assertThat(msgHandler.messages.get(0).getLastDeliveryError()).isNull();
+        assertThat(msgHandler.messages.get(0).isManuallyMarkedForRedelivery()).isTrue();
+        assertThat(msgHandler.messages.get(1).isManuallyMarkedForRedelivery()).isTrue();
+        assertThat(msgHandler.messages.get(1).getLastDeliveryError()).isEqualTo(RetryMessage.MANUALLY_REQUESTED_REDELIVERY);
+        assertThat(msgHandler.messages.get(2).getLastDeliveryError()).isEqualTo(RetryMessage.MANUALLY_REQUESTED_REDELIVERY);
+        assertThat(msgHandler.messages.get(2).isManuallyMarkedForRedelivery()).isFalse();
     }
 
     static class RecordingQueuedMessageHandler implements QueuedMessageHandler {

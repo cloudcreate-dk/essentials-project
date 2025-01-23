@@ -16,7 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
-import java.time.OffsetDateTime;
+import java.time.*;
 import java.util.Objects;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -39,6 +39,8 @@ public final class DefaultQueuedMessage implements QueuedMessage {
     public final int            redeliveryAttempts;
     public final boolean        isDeadLetterMessage;
     public final boolean        isBeingDelivered;
+
+    private Duration manuallyRequestedRedeliveryDelay;
 
     public DefaultQueuedMessage(QueueEntryId id,
                                 QueueName queueName,
@@ -105,6 +107,21 @@ public final class DefaultQueuedMessage implements QueuedMessage {
     }
 
     @Override
+    public void markForRedeliveryIn(Duration deliveryDelay) {
+        this.manuallyRequestedRedeliveryDelay = deliveryDelay;
+    }
+
+    @Override
+    public boolean isManuallyMarkedForRedelivery() {
+        return manuallyRequestedRedeliveryDelay != null;
+    }
+
+    @Override
+    public Duration getRedeliveryDelay() {
+        return manuallyRequestedRedeliveryDelay;
+    }
+
+    @Override
     public String getLastDeliveryError() {
         return lastDeliveryError;
     }
@@ -151,6 +168,7 @@ public final class DefaultQueuedMessage implements QueuedMessage {
                 ", redeliveryAttempts=" + redeliveryAttempts +
                 ", isDeadLetterMessage=" + isDeadLetterMessage +
                 ", isBeingDelivered=" + isBeingDelivered +
+                ", manuallyRequestedRedeliveryDelay=" + manuallyRequestedRedeliveryDelay +
                 '}';
     }
 }

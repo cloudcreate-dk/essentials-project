@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.messaging;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage;
+import dk.cloudcreate.essentials.shared.Exceptions;
 
 import java.util.List;
 
@@ -110,7 +111,7 @@ public final class MessageDeliveryErrorHandlerBuilder {
             private boolean shouldAlwaysRetryOn(Throwable error) {
                 return alwaysRetryOnExceptions.contains(error.getClass()) ||
                         alwaysRetryOnExceptions.stream()
-                                               .anyMatch(exception -> exception.isAssignableFrom(error.getClass()));
+                                               .anyMatch(alwaysRetryOnException -> Exceptions.doesStackTraceContainExceptionOfType(error, alwaysRetryOnException));
             }
 
             @Override

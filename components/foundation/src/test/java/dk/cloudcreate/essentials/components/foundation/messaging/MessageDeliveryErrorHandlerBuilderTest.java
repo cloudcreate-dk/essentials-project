@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.messaging;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkException;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -38,6 +39,18 @@ class MessageDeliveryErrorHandlerBuilderTest {
                                                  new IllegalStateException()))
                 .isTrue();
         assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new UnitOfWorkException()))
+                .isFalse();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new UnitOfWorkException(new RuntimeException())))
+                .isFalse();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new UnitOfWorkException(new IllegalStateException())))
+                .isTrue();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new UnitOfWorkException(new IllegalStateException(new RuntimeException()))))
+                .isTrue();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
                                                  new IllegalArgumentException()))
                 .isTrue();
     }
@@ -55,12 +68,36 @@ class MessageDeliveryErrorHandlerBuilderTest {
         assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
                                                  new IllegalStateException()))
                 .isTrue();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new UnitOfWorkException()))
+                .isFalse();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new UnitOfWorkException(new RuntimeException())))
+                .isFalse();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new UnitOfWorkException(new IllegalStateException())))
+                .isTrue();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new UnitOfWorkException(new IllegalStateException(new RuntimeException()))))
+                .isTrue();
+
         // Assert that alwaysRetryOn has higher priority than stopRedeliveryOn
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new ConnectException()))
+                .isFalse();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new UnitOfWorkException(new ConnectException())))
+                .isFalse();
+
         assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
                                                  new IllegalArgumentException()))
                 .isFalse();
         assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
-                                                 new ConnectException()))
+                                                 new UnitOfWorkException(new IllegalArgumentException())))
                 .isFalse();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new UnitOfWorkException(new IllegalStateException(new IllegalArgumentException()))))
+                .isFalse();
+
     }
 }

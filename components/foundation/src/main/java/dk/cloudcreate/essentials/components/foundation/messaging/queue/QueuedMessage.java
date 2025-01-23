@@ -16,9 +16,10 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
+import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 
-import java.time.OffsetDateTime;
+import java.time.*;
 
 /**
  * Represents a {@link Message} that has been queued using {@link QueueMessage}/{@link QueueMessages}/{@link QueueMessageAsDeadLetterMessage}
@@ -128,4 +129,28 @@ public interface QueuedMessage {
      * @return the timestamp for when the message delivery started
      */
     OffsetDateTime getDeliveryTimestamp();
+
+    /**
+     * Mark the message for redelivery with the specified deliveryDelay - this manually requested redelivery counts towards the specified {@link RedeliveryPolicy#maximumNumberOfRedeliveries}<br>
+     * A {@link QueuedMessageHandler} can choose to call this method directly to have the message be redelivered.<br>
+     * <b>Note:</b> A {@link QueuedMessageHandler} should never directly call {@link DurableQueues#retryMessage(RetryMessage)} as this doesn't set the {@link #isManuallyMarkedForRedelivery()} flag
+     * which the {@link DefaultDurableQueueConsumer} relies upon for manually requested message redeliveries
+     *
+     * @param deliveryDelay how long will the queue wait until it delivers the message to the {@link DurableQueueConsumer}
+     */
+    void markForRedeliveryIn(Duration deliveryDelay);
+
+    /**
+     * Is the message marked for redelivery - i.e. {@link #markForRedeliveryIn(Duration)} has been called on the message
+     *
+     * @return Is the message marked for redelivery
+     */
+    boolean isManuallyMarkedForRedelivery();
+
+    /**
+     * In case {@link #isManuallyMarkedForRedelivery()} returns true, then this method will return the requested redelivery delay
+     *
+     * @return how long will the queue wait until it delivers the message to the {@link DurableQueueConsumer}
+     */
+    Duration getRedeliveryDelay();
 }

@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.messaging;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.shared.Exceptions;
 
 import java.util.List;
 
@@ -32,7 +33,11 @@ public interface MessageDeliveryErrorHandler {
     /**
      * This method is called when the {@link DurableQueueConsumer} experiences an exception during Message delivery.<br>
      * The result of this method determines if the Message is instantly marked as a Poison-Message/Dead-Letter-Message or
-     * if we can attempt message redelivery according to the specified {@link RedeliveryPolicy}
+     * if we can attempt message redelivery according to the specified {@link RedeliveryPolicy}<br>
+     * <br>
+     * Note: the {@link #isPermanentError(QueuedMessage, Throwable)} will be called with
+     * only the top-level exception - so the implementation of this method must itself check the error exceptions causal chain
+     * to determine if it represents a permanent error.
      *
      * @param queuedMessage the message that failed to be delivered
      * @param error         the error experienced
@@ -85,6 +90,7 @@ public interface MessageDeliveryErrorHandler {
     /**
      * Create a new builder for a flexible {@link MessageDeliveryErrorHandler} which supports
      * both alwaysRetryOnExceptions and stopRedeliveryOnExceptions
+     *
      * @return the builder instance
      */
     static MessageDeliveryErrorHandlerBuilder builder() {
@@ -102,7 +108,7 @@ public interface MessageDeliveryErrorHandler {
         public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
             return exceptions.contains(error.getClass()) ||
                     exceptions.stream()
-                              .anyMatch(exception -> exception.isAssignableFrom(error.getClass()));
+                              .anyMatch(alwaysRetryOnException -> Exceptions.doesStackTraceContainExceptionOfType(error, alwaysRetryOnException));
         }
 
         @Override

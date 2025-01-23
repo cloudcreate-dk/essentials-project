@@ -776,7 +776,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> {
-                                                   var nextDeliveryTimestamp = OffsetDateTime.now(Clock.systemUTC()).plus(operation.getDeliveryDelay());
+                                                   var nextDeliveryTimestamp = Instant.now().plus(operation.getDeliveryDelay());
                                                    var result = unitOfWorkFactory.getRequiredUnitOfWork().handle().createQuery(bind("UPDATE {:tableName} SET\n" +
                                                                                                                                             "     next_delivery_ts = :nextDeliveryTimestamp,\n" +
                                                                                                                                             "     last_delivery_error = :lastDeliveryError,\n" +
@@ -787,7 +787,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                                             " RETURNING *",
                                                                                                                                     arg("tableName", sharedQueueTableName)))
                                                                                  .bind("nextDeliveryTimestamp", nextDeliveryTimestamp)
-                                                                                 .bind("lastDeliveryError", Exceptions.getStackTrace(operation.getCauseForRetry()))
+                                                                                 .bind("lastDeliveryError", operation.getCauseForRetry() != null ? Exceptions.getStackTrace(operation.getCauseForRetry()) : RetryMessage.MANUALLY_REQUESTED_REDELIVERY)
                                                                                  .bind("id", operation.queueEntryId)
                                                                                  .map(queuedMessageMapper)
                                                                                  .findOne();
@@ -841,7 +841,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                                () -> {
-                                                   var nextDeliveryTimestamp = OffsetDateTime.now(Clock.systemUTC()).plus(operation.getDeliveryDelay());
+                                                   var nextDeliveryTimestamp = Instant.now().plus(operation.getDeliveryDelay());
                                                    var result = unitOfWorkFactory.getRequiredUnitOfWork().handle().createQuery(bind("UPDATE {:tableName} SET\n" +
                                                                                                                                             "     next_delivery_ts = :nextDeliveryTimestamp,\n" +
                                                                                                                                             "     is_dead_letter_message = FALSE\n" +
@@ -933,7 +933,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                () -> {
                                                    log.trace("[{}] Handling GetNextMessageReadyForDelivery: {}", operation.queueName, operation);
                                                    resetMessagesStuckBeingDelivered(operation.queueName);
-                                                   var now                 = OffsetDateTime.now(Clock.systemUTC());
+                                                   var now                 = Instant.now();
                                                    var excludeKeysLimitSql = "";
                                                    var excludedKeys        = operation.getExcludeOrderedMessagesWithKey() != null ? operation.getExcludeOrderedMessagesWithKey() : List.of();
                                                    if (!excludedKeys.isEmpty()) {

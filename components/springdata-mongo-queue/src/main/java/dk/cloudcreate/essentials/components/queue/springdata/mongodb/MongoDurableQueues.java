@@ -805,7 +805,7 @@ public final class MongoDurableQueues implements DurableQueues {
                                                    var update = new Update().inc("redeliveryAttempts", 1)
                                                                             .set("isBeingDelivered", false)
                                                                             .set("deliveryTimestamp", null)
-                                                                            .set("lastDeliveryError", Exceptions.getStackTrace(operation.getCauseForRetry()));
+                                                                            .set("lastDeliveryError", operation.getCauseForRetry() != null ? Exceptions.getStackTrace(operation.getCauseForRetry()) : RetryMessage.MANUALLY_REQUESTED_REDELIVERY);
                                                    var updateResult = mongoTemplate.findAndModify(findMessageToRetry,
                                                                                                   update,
                                                                                                   FindAndModifyOptions.options().returnNew(true),
@@ -1479,6 +1479,8 @@ public final class MongoDurableQueues implements DurableQueues {
         private transient TripleFunction<QueueName, byte[], String, Object> deserializeMessagePayloadFunction;
         @Transient
         private transient Message                                           message;
+        @Transient
+        private Duration manuallyRequestedRedeliveryDelay;
 
         public DurableQueuedMessage() {
         }
@@ -1576,6 +1578,21 @@ public final class MongoDurableQueues implements DurableQueues {
         }
 
         @Override
+        public void markForRedeliveryIn(Duration deliveryDelay) {
+            this.manuallyRequestedRedeliveryDelay = deliveryDelay;
+        }
+
+        @Override
+        public boolean isManuallyMarkedForRedelivery() {
+            return manuallyRequestedRedeliveryDelay != null;
+        }
+
+        @Override
+        public Duration getRedeliveryDelay() {
+            return manuallyRequestedRedeliveryDelay;
+        }
+
+        @Override
         public DeliveryMode getDeliveryMode() {
             return deliveryMode;
         }
@@ -1647,6 +1664,7 @@ public final class MongoDurableQueues implements DurableQueues {
                     ", totalDeliveryAttempts=" + totalDeliveryAttempts +
                     ", redeliveryAttempts=" + redeliveryAttempts +
                     ", isDeadLetterMessage=" + isDeadLetterMessage +
+                    ", manuallyRequestedRedeliveryDelay=" + manuallyRequestedRedeliveryDelay +
                     ", deliveryMode=" + deliveryMode +
                     ", key=" + key +
                     ", keyOrder=" + keyOrder +
