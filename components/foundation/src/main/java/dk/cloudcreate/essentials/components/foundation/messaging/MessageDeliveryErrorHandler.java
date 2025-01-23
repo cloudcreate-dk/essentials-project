@@ -17,7 +17,10 @@
 package dk.cloudcreate.essentials.components.foundation.messaging;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.shared.Exceptions;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -100,9 +103,16 @@ public interface MessageDeliveryErrorHandler {
 
         @Override
         public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
-            return exceptions.contains(error.getClass()) ||
+            if (error == null) {
+                return false;
+            }
+            boolean matches = exceptions.contains(error.getClass()) ||
                     exceptions.stream()
-                              .anyMatch(exception -> exception.isAssignableFrom(error.getClass()));
+                            .anyMatch(exception -> exception.isAssignableFrom(error.getClass()));
+            if (matches) {
+                return true;
+            }
+            return isPermanentError(queuedMessage, error.getCause());
         }
 
         @Override

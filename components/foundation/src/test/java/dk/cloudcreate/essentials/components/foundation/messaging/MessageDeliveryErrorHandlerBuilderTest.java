@@ -63,4 +63,24 @@ class MessageDeliveryErrorHandlerBuilderTest {
                                                  new ConnectException()))
                 .isFalse();
     }
+
+    @Test
+    void test_builder_with_stop_redelivery_on_stack_of_exceptions() {
+        var errorHandler = MessageDeliveryErrorHandler.builder()
+                                                      .stopRedeliveryOn(IllegalStateException.class, IllegalArgumentException.class)
+                                                      .build();
+
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new RuntimeException()))
+                .isFalse();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new RuntimeException(new IllegalStateException())))
+                .isTrue();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new Exception(new RuntimeException(new IllegalStateException()))))
+                .isTrue();
+        assertThat(errorHandler.isPermanentError(Mockito.mock(QueuedMessage.class),
+                                                 new Exception(new IllegalStateException(new RuntimeException()))))
+                .isTrue();
+    }
 }
