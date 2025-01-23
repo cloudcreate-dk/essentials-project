@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.messaging;
 
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.shared.Exceptions;
 
 import java.util.List;
 
@@ -100,9 +101,10 @@ public interface MessageDeliveryErrorHandler {
 
         @Override
         public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
+            Class<? extends Throwable> rootCause = Exceptions.getRootCause(error).getClass();
             return exceptions.contains(error.getClass()) ||
                     exceptions.stream()
-                              .anyMatch(exception -> exception.isAssignableFrom(error.getClass()));
+                              .anyMatch(exception -> exception.isAssignableFrom(rootCause));
         }
 
         @Override
