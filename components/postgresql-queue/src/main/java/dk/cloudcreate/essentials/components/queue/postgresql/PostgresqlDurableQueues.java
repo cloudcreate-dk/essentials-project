@@ -16,39 +16,63 @@
 
 package dk.cloudcreate.essentials.components.queue.postgresql;
 
-import com.fasterxml.jackson.annotation.*;
-import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import dk.cloudcreate.essentials.components.foundation.json.*;
+import dk.cloudcreate.essentials.components.foundation.json.JSONSerializationException;
+import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
+import dk.cloudcreate.essentials.components.foundation.json.JacksonJSONSerializer;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
-import dk.cloudcreate.essentials.components.foundation.postgresql.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
-import dk.cloudcreate.essentials.components.queue.postgresql.jdbi.*;
+import dk.cloudcreate.essentials.components.foundation.postgresql.ListenNotify;
+import dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener;
+import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil;
+import dk.cloudcreate.essentials.components.foundation.postgresql.TableChangeNotification;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.queue.postgresql.jdbi.QueueEntryIdArgumentFactory;
+import dk.cloudcreate.essentials.components.queue.postgresql.jdbi.QueueEntryIdColumnMapper;
+import dk.cloudcreate.essentials.components.queue.postgresql.jdbi.QueueNameArgumentFactory;
+import dk.cloudcreate.essentials.components.queue.postgresql.jdbi.QueueNameColumnMapper;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
-import dk.cloudcreate.essentials.reactive.*;
+import dk.cloudcreate.essentials.reactive.AnnotatedEventHandler;
+import dk.cloudcreate.essentials.reactive.Handler;
 import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.collections.Lists;
 import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
-import org.slf4j.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.sql.*;
-import java.time.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Types;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.NamedArgumentBinding.arg;
-import static dk.cloudcreate.essentials.shared.MessageFormatter.*;
+import static dk.cloudcreate.essentials.shared.MessageFormatter.bind;
+import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.sortInterceptorsByOrder;
 import static dk.cloudcreate.essentials.shared.interceptor.InterceptorChain.newInterceptorChainForOperation;
 
@@ -453,6 +477,11 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                                                                           .set());
         dbQueueNames.addAll(consumerQueueNames);
         return dbQueueNames;
+    }
+
+    @Override
+    public Set<QueueName> getActiveQueueNames() {
+        return durableQueueConsumers.keySet();
     }
 
     @Override
