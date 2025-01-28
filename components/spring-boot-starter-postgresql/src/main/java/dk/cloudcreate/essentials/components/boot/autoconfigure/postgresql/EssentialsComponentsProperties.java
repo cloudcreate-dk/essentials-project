@@ -16,21 +16,32 @@
 
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 
-import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.*;
+import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
+import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage;
 import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
-import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.DBFencedLock;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.DBFencedLockManager;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
+import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLockStorage;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueues;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueueName;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.TransactionalMode;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.ConsumeFromQueue;
-import dk.cloudcreate.essentials.components.foundation.postgresql.*;
+import dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener;
+import dk.cloudcreate.essentials.components.foundation.postgresql.NotificationDuplicationFilter;
+import dk.cloudcreate.essentials.components.foundation.postgresql.PostgresqlUtil;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.components.queue.postgresql.*;
-import dk.cloudcreate.essentials.reactive.*;
+import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues;
+import dk.cloudcreate.essentials.components.queue.postgresql.QueueNameDuplicationFilter;
+import dk.cloudcreate.essentials.reactive.EventBus;
+import dk.cloudcreate.essentials.reactive.LocalEventBus;
 import dk.cloudcreate.essentials.reactive.command.CommandBus;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Sinks;
 
-import java.time.*;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 
 /**
  * Properties for the Postgresql focused Essentials Components auto-configuration<br>
@@ -89,6 +100,7 @@ public class EssentialsComponentsProperties {
     private final LifeCycleProperties lifeCycles                    = new LifeCycleProperties();
     private final TracingProperties  tracingProperties             = new TracingProperties();
     private final ReactiveProperties reactive                      = new ReactiveProperties();
+    private final DurableQueuesMonitorProperties durableQueuesMonitor = new DurableQueuesMonitorProperties();
     private       boolean            immutableJacksonModuleEnabled = true;
 
     /**
@@ -135,6 +147,10 @@ public class EssentialsComponentsProperties {
         return this.tracingProperties;
     }
 
+    public DurableQueuesMonitorProperties getDurableQueuesMonitor() {
+        return this.durableQueuesMonitor;
+    }
+
     public static class MultiTableChangeListenerProperties {
         private Duration pollingInterval = Duration.ofMillis(50);
         private boolean  filterDuplicateNotifications = true;
@@ -176,6 +192,68 @@ public class EssentialsComponentsProperties {
         public void setFilterDuplicateNotifications(boolean filterDuplicateNotifications) {
             this.filterDuplicateNotifications = filterDuplicateNotifications;
         }
+    }
+
+    public static class DurableQueuesMonitorProperties {
+        private boolean enabled = false;
+        private Duration interval = Duration.ofMinutes(1);
+        private boolean micrometerMonitorEnabled = false;
+
+        /**
+         * Is monitoring of queued and dead letter messages enabled using implementation of {@link dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerMonitor}
+         * This will disable the {@link dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerInterceptor} and only report on queues in the given interval
+         * @return Is monitoring of queued and dead letter messages enabled
+         */
+        public boolean isMicrometerMonitorEnabled() {
+            return this.micrometerMonitorEnabled;
+        }
+
+        /**
+         * Is monitoring of queued and dead letter messages enabled using implementation of {@link dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerMonitor}
+         * This will disable the {@link dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMicrometerInterceptor} and only report on queues in the given interval
+         * @param micrometerMonitorEnabled Is monitoring of queued and dead letter messages enabled
+         */
+        public void setMicrometerMonitorEnabled(boolean micrometerMonitorEnabled) {
+            this.micrometerMonitorEnabled = micrometerMonitorEnabled;
+        }
+
+        /**
+         * Is monitoring of durable queues enabled
+         * @return Is monitoring of durable queues enabled
+         */
+        public boolean isEnabled() {
+            return this.enabled;
+        }
+
+        /**
+         * Monitoring of durable queues using implementations of
+         * {@link dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMonitor}
+         * @param enabled Monitoring of durable queues
+         */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /**
+         * Monitoring interval
+         * @param interval Monitoring interval
+         */
+        public void setInterval(Duration interval) {
+            this.interval = interval;
+        }
+
+        /**
+         * The interval to execute the {@link dk.cloudcreate.essentials.components.foundation.messaging.queue.micrometer.DurableQueuesMonitor}s
+         * @return monitoring interval
+         */
+        public Duration getInterval() {
+            return this.interval;
+        }
+
+        public boolean isMonitoringDurableQueueSizes() {
+            return this.enabled && this.micrometerMonitorEnabled;
+        }
+
     }
 
     public static class DurableQueuesProperties {
