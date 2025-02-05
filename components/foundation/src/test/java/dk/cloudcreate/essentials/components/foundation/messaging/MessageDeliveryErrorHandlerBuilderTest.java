@@ -19,6 +19,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkException;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.*;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.net.ConnectException;
