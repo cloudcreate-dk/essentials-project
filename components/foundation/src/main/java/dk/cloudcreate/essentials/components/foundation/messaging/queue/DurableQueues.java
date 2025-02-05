@@ -19,12 +19,18 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inbox;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.MessageConsumptionMode;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Outbox;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
 
-import java.time.*;
-import java.util.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -83,6 +89,13 @@ public interface DurableQueues extends Lifecycle {
      * which has an active queue consumer
      */
     Set<QueueName> getQueueNames();
+
+    /**
+     * Get all the {@link QueueName}'s which has an active queue consumer
+     *
+     * @return all the {@link QueueName}'s which has an active queue consumer
+     */
+    Set<QueueName> getActiveQueueNames();
 
     /**
      * Add a {@link DurableQueuesInterceptor} to this {@link DurableQueues} instance<br>

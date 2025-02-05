@@ -20,9 +20,13 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
 import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
-import io.micrometer.core.instrument.*;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -53,7 +57,7 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
     @Override
     public void setDurableQueues(DurableQueues durableQueues) {
         this.durableQueues = requireNonNull(durableQueues, "No durableQueues instance provided");
-        durableQueues.getQueueNames().forEach(this::updateQueueGaugeValues);
+        durableQueues.getActiveQueueNames().forEach(this::updateQueueGaugeValues);
     }
 
     private void updateQueueGaugeValues(QueuedMessage message) {
@@ -61,6 +65,9 @@ public final class DurableQueuesMicrometerInterceptor implements DurableQueuesIn
     }
 
     private void updateQueueGaugeValues(QueueName queueName) {
+        if (!durableQueues.getActiveQueueNames().contains(queueName)) {
+            return;
+        }
         var messageCounts = durableQueues.getQueuedMessageCountsFor(queueName);
         this.queuedMessagesGauges.computeIfAbsent(queueName, this::buildQueuedMessagesGauge)
                                  .setMessageCount(messageCounts.numberOfQueuedMessages());
