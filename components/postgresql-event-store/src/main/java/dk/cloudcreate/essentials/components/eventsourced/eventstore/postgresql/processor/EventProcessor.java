@@ -54,15 +54,15 @@ import static java.util.stream.Collectors.toMap;
  * The {@link EventProcessor} simplifies building event projections or process automations.<br>
  * <br>
  * <i><b>Note:</b> If the associated {@link DurableLocalCommandBus} uses the {@link UnitOfWorkControllingCommandBusInterceptor} then all
- * logic inside {@link CmdHandler} methods will be performed within a {@link UnitOfWork}</i>
+ * logic inside {@link CmdHandler} annotated methods will be performed within a {@link UnitOfWork} (this is the default when configured using the <code>spring-boot-starter-postgresql-event-store</code> module)</i>
  * <br>
  * <br>
- * <i><b>Note:</b> If the associated {@link Inboxes} uses is associated with a {@link UnitOfWorkFactory}, which {@link Inboxes.DurableQueueBasedInboxes} supports, then
- * all logic inside {@link MessageHandler} methods will be performed within a {@link UnitOfWork}</i>
+ * <i><b>Note:</b> If the associated {@link Inboxes} used is associated with a {@link UnitOfWorkFactory}, which {@link Inboxes.DurableQueueBasedInboxes} supports, then
+ * all logic inside {@link MessageHandler} annotated methods will be performed within a {@link UnitOfWork} (this is the default when configured using the <code>spring-boot-starter-postgresql-event-store</code> module)</i>
  * <br>
  * <br>
- * An {@link EventProcessor} can subscribe to multiple {@link EventStore} Event Streams (e.g. a stream of Order events or a stream of Product events).<br>
- * To ensure efficient processing and prevent conflicts, only a single instance of a concrete {@link EventProcessor} in a cluster can have an active Event Stream subscription at a time (using the {@link FencedLockManager}).
+ * An {@link EventProcessor} can subscribe to multiple {@link EventStore} Event/Aggregate-Event Streams (e.g. a stream of Order events or a stream of Product events).<br>
+ * To ensure efficient processing and prevent conflicts, only a single instance of a concrete {@link EventProcessor} in a cluster can have an active Event Stream subscription at a time (internally an {@link FencedLockManager} is used per subscription).
  * <br>
  * To enhance throughput, you can control the number of parallel threads utilized for handling messages. Consequently, events associated with different aggregate instances within an EventStream can be concurrently processed.
  * <br>
@@ -71,7 +71,24 @@ import static java.util.stream.Collectors.toMap;
  * <br>
  * Details:<br>
  * Instead of manually subscribing to the underlying {@link EventStore} using the {@link EventStoreSubscriptionManager}, which requires you to provide your own error and retry handling,
- * you can use the {@link EventProcessor} to subscribe to one or more {@link EventStore} event streams, while providing you with error and retry handling using the common {@link RedeliveryPolicy} concept
+ * you can use the {@link EventProcessor} to subscribe to one or more {@link EventStore} event streams, while providing you with error and retry handling using the common {@link RedeliveryPolicy} concept which can be overridden using
+ * the {@link #getInboxRedeliveryPolicy()} method:
+ * <pre>{@code
+ * @Override
+ * protected RedeliveryPolicy getInboxRedeliveryPolicy() {
+ *     return RedeliveryPolicy.exponentialBackoff()
+ *                            .setInitialRedeliveryDelay(Duration.ofMillis(200))
+ *                            .setFollowupRedeliveryDelay(Duration.ofMillis(200))
+ *                            .setFollowupRedeliveryDelayMultiplier(1.1d)
+ *                            .setMaximumFollowupRedeliveryDelayThreshold(Duration.ofSeconds(3))
+ *                            .setMaximumNumberOfRedeliveries(20)
+ *                            .setDeliveryErrorHandler(
+ *                                    MessageDeliveryErrorHandler.stopRedeliveryOn(
+ *                                            ConstraintViolationException.class,
+ *                                            HttpClientErrorException.BadRequest.class))
+ *                            .build();
+ * }
+ * }</pre>
  * <p>
  * You must override {@link #reactsToEventsRelatedToAggregateTypes()} to specify which EventSourced {@link AggregateType} event-streams the {@link EventProcessor} should subscribe to.<br>
  * The {@link EventProcessor} will set up an exclusive asynchronous {@link EventStoreSubscription} for each {@link AggregateType} and will forward any
@@ -86,16 +103,12 @@ import static java.util.stream.Collectors.toMap;
  *     private final Accounts                accounts;
  *     private final IntraBankMoneyTransfers intraBankMoneyTransfers;
  *
- *     public TransferMoneyProcessor(@NonNull Accounts accounts,
- *                                   @NonNull IntraBankMoneyTransfers intraBankMoneyTransfers,
- *                                   @NonNull EventStoreSubscriptionManager eventStoreSubscriptionManager,
- *                                   @NonNull Inboxes inboxes,
- *                                   @NonNull DurableLocalCommandBus commandBus) {
- *         super(eventStoreSubscriptionManager,
- *               inboxes,
- *               commandBus);
- *         this.accounts = accounts;
- *         this.intraBankMoneyTransfers = intraBankMoneyTransfers;
+ *     public TransferMoneyProcessor(Accounts accounts,
+ *                                   IntraBankMoneyTransfers intraBankMoneyTransfers,
+ *                                   EventProcessorDependencies eventProcessorDependencies) {
+ *         super(eventProcessorDependencies);
+ *         this.accounts = requireNonNull(accounts, "No Accounts provided);
+ *         this.intraBankMoneyTransfers = requireNonNull(intraBankMoneyTransfers, "No IntraBankMoneyTransfers provided");
  *     }
  *
  *     @Override
@@ -109,8 +122,8 @@ import static java.util.stream.Collectors.toMap;
  *                        IntraBankMoneyTransfers.AGGREGATE_TYPE);
  *     }
  *
- *     @Handler
- *     public void handle(@NonNull RequestIntraBankMoneyTransfer cmd) {
+ *     @CmdHandler
+ *     public void handle(RequestIntraBankMoneyTransfer cmd) {
  *         if (accounts.isAccountMissing(cmd.fromAccount)) {
  *             throw new TransactionException(msg("Couldn't find fromAccount with id '{}'", cmd.fromAccount));
  *         }
@@ -159,6 +172,21 @@ import static java.util.stream.Collectors.toMap;
  *         matchingTransfer.ifPresent(transfer -> {
  *             transfer.markToAccountAsDeposited();
  *         });
+ *     }
+ *
+ *     @Override
+ *     protected RedeliveryPolicy getInboxRedeliveryPolicy() {
+ *         return RedeliveryPolicy.exponentialBackoff()
+ *                                .setInitialRedeliveryDelay(Duration.ofMillis(200))
+ *                                .setFollowupRedeliveryDelay(Duration.ofMillis(200))
+ *                                .setFollowupRedeliveryDelayMultiplier(1.1d)
+ *                                .setMaximumFollowupRedeliveryDelayThreshold(Duration.ofSeconds(3))
+ *                                .setMaximumNumberOfRedeliveries(20)
+ *                                .setDeliveryErrorHandler(
+ *                                        MessageDeliveryErrorHandler.stopRedeliveryOn(
+ *                                                ConstraintViolationException.class,
+ *                                                HttpClientErrorException.BadRequest.class))
+ *                                .build();
  *     }
  * }
  * }</pre>

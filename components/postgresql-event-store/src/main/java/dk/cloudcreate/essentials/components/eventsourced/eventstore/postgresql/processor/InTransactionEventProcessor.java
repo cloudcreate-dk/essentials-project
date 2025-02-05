@@ -80,12 +80,12 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *     private final Accounts                accounts;
  *     private final IntraBankMoneyTransfers intraBankMoneyTransfers;
  *
- *     public TransferMoneyProcessor(@NonNull Accounts accounts,
- *                                   @NonNull IntraBankMoneyTransfers intraBankMoneyTransfers,
- *                                   @NonNull EventProcessorDependencies eventProcessorDependencies) {
+ *     public TransferMoneyProcessor(Accounts accounts,
+ *                                   IntraBankMoneyTransfers intraBankMoneyTransfers,
+ *                                   EventProcessorDependencies eventProcessorDependencies) {
  *         super(eventProcessorDependencies, true);
- *         this.accounts = accounts;
- *         this.intraBankMoneyTransfers = intraBankMoneyTransfers;
+ *         this.accounts = requireNonNull(accounts, "No Accounts provided);
+ *         this.intraBankMoneyTransfers = requireNonNull(intraBankMoneyTransfers, "No IntraBankMoneyTransfers provided");
  *     }
  *
  *     @Override
@@ -99,8 +99,8 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *                        IntraBankMoneyTransfers.AGGREGATE_TYPE);
  *     }
  *
- *     @Handler
- *     public void handle(@NonNull RequestIntraBankMoneyTransfer cmd) {
+ *     @CmdHandler
+ *     public void handle(RequestIntraBankMoneyTransfer cmd) {
  *         if (accounts.isAccountMissing(cmd.fromAccount)) {
  *             throw new TransactionException(msg("Couldn't find fromAccount with id '{}'", cmd.fromAccount));
  *         }
