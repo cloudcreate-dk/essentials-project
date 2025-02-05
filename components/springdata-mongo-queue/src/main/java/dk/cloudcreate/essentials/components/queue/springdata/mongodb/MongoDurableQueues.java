@@ -17,57 +17,40 @@
 package dk.cloudcreate.essentials.components.queue.springdata.mongodb;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mongodb.MongoInterruptedException;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
-import dk.cloudcreate.essentials.components.foundation.json.JSONSerializationException;
-import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
-import dk.cloudcreate.essentials.components.foundation.json.JacksonJSONSerializer;
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuePollingOptimizer.SimpleQueuePollingOptimizer;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
 import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.functional.TripleFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
+import org.slf4j.*;
+import org.springframework.data.annotation.*;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.UncategorizedMongoDbException;
-import org.springframework.data.mongodb.core.FindAndModifyOptions;
-import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.*;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.messaging.*;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.query.*;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -77,8 +60,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.sortInterceptorsByOrder;
 import static dk.cloudcreate.essentials.shared.interceptor.InterceptorChain.newInterceptorChainForOperation;
-import static org.springframework.data.mongodb.core.aggregation.Aggregation.match;
-import static org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation;
+import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static org.springframework.data.mongodb.core.query.Query.query;
 
@@ -499,7 +481,17 @@ public final class MongoDurableQueues implements DurableQueues {
     public final void stop() {
         if (started) {
             log.info("Stopping");
-            durableQueueConsumers.values().forEach(MongoDurableQueueConsumer::stop);
+            for (MongoDurableQueueConsumer mongoDurableQueueConsumer : durableQueueConsumers.values()) {
+                try {
+                    mongoDurableQueueConsumer.stop();
+                } catch (Exception ex) {
+                    if (IOExceptionUtil.isIOException(ex)) {
+                        log.debug("Error occurred while stopping DurableQueueConsumer", ex);
+                    } else {
+                        log.error("Error occurred while stopping DurableQueueConsumer", ex);
+                    }
+                }
+            }
             stopCollectionListener();
             started = false;
             log.info("Stopped");
@@ -1503,7 +1495,7 @@ public final class MongoDurableQueues implements DurableQueues {
         @Transient
         private transient Message                                           message;
         @Transient
-        private Duration manuallyRequestedRedeliveryDelay;
+        private           Duration                                          manuallyRequestedRedeliveryDelay;
 
         public DurableQueuedMessage() {
         }

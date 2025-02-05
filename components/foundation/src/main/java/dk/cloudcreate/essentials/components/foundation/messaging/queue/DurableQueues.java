@@ -19,18 +19,12 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inbox;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.MessageConsumptionMode;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Outbox;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.time.*;
+import java.util.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -511,7 +505,7 @@ public interface DurableQueues extends Lifecycle {
      * Note this method MUST be called within an existing {@link UnitOfWork} IF
      * using {@link TransactionalMode#FullyTransactional}
      *
-     * @param queueEntryId                    the unique id of the message that must be marked as a Dead Letter Message
+     * @param queueEntryId the unique id of the message that must be marked as a Dead Letter Message
      * @return the {@link QueuedMessage} message wrapped in an {@link Optional} if the operation was successful, otherwise it returns an {@link Optional#empty()}
      */
     default Optional<QueuedMessage> markAsDeadLetterMessage(QueueEntryId queueEntryId) {
@@ -670,7 +664,8 @@ public interface DurableQueues extends Lifecycle {
 
     /**
      * Get the total number of (non-dead-letter) messages queued and number of queued dead-letter Messages for the given queue
-     * @param queueName  the name of the Queue where we will query for the number of queued messages
+     *
+     * @param queueName the name of the Queue where we will query for the number of queued messages
      * @return the total number of (non-dead-letter) messages queued and number of queued dead-letter Messages for the given queue
      */
     default QueuedMessageCounts getQueuedMessageCountsFor(QueueName queueName) {
@@ -679,6 +674,7 @@ public interface DurableQueues extends Lifecycle {
 
     /**
      * Get the total number of (non-dead-letter) messages queued and number of queued dead-letter Messages for the given queue
+     *
      * @param operation the {@link GetQueuedMessageCountsFor} operation
      * @return the total number of (non-dead-letter) messages queued and number of queued dead-letter Messages for the given queue
      */
