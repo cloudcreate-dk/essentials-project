@@ -28,7 +28,7 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
  */
 public interface SendAndDontWaitErrorHandler {
     /**
-     * Handle an exception that occurred during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}
+     * Handle an exception that occurred while processing a Command sent using {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}
      *
      * @param exception      the exception that occurred during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}
      * @param commandMessage the command message that caused the exception (can be wrapped in an infrastructure wrapper, such as a Message/QueuedMessage, depending on which transport channel is used)
