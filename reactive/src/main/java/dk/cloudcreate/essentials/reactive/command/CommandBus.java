@@ -26,14 +26,86 @@ import java.util.List;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * The {@link CommandBus} provides an indirection between a command and the {@link CommandHandler} that's capable of handling the command.<br>
- * Commands can be sent synchronously using {@link #send(Object)} or asynchronously using {@link #sendAsync(Object)} that returns a {@link Mono}.<br>
- * The handling of a command usually doesn't return any value (according to the principles of CQRS), however the {@link LocalCommandBus} API allows
- * a {@link CommandHandler} to return a value if needed (e.g. such as a server generated id)<br>
- * One important rule is that there can only be one {@link CommandHandler} instance that can handle any given command type.<br>
- * If multiple {@link CommandHandler} claim that they all can handle a given command type then {@link #send(Object)}/{@link #sendAsync(Object)} will throw {@link MultipleCommandHandlersFoundException}<br>
- * If no {@link CommandHandler}'s can handle the given command type then {@link #send(Object)}/{@link #sendAsync(Object)} will throw {@link NoCommandHandlerFoundException}<br>
- * <p></p>
+ * <h1>CommandBus / LocalCommandBus / DurableLocalCommandBus</h1>
+ *
+ * <p>The {@link CommandBus} pattern decouples the sending of commands from their handling
+ * by introducing an indirection between the command and its corresponding {@link CommandHandler}.
+ * This design provides <b>location transparency</b>, meaning that the sender does not need to
+ * know which handler will process the command.
+ * The {@link LocalCommandBus} is the default implementation of the {@link CommandBus} pattern.</p>
+ *
+ * <h2>Single CommandHandler Requirement</h2>
+ * <ul>
+ *   <li><b>Exactly One Handler:</b> Every command must have one, and only one, {@link CommandHandler}.</li>
+ *   <li>If <b>no handler is found</b>, a {@link NoCommandHandlerFoundException} is thrown.</li>
+ *   <li>If <b>more than one handler is found</b>, a {@link MultipleCommandHandlersFoundException} is thrown.</li>
+ * </ul>
+ *
+ * <h2>Command Processing and Return Values</h2>
+ * <ul>
+ *   <li><b>No Expected Return Value:</b> According to CQRS principles, command handling typically does not return a value.</li>
+ *   <li><b>Optional Return Value:</b> The API allows a {@link CommandHandler} to return a value if necessary
+ *       (for example, a server-generated ID).</li>
+ * </ul>
+ *
+ * <h2>Sending Commands</h2>
+ * <p>Commands can be dispatched in different ways depending on your needs:</p>
+ *
+ * <h3>1. Synchronous processing</h3>
+ * <ul>
+ *   <li><b>Method:</b> {@link CommandBus#send(Object)}</li>
+ *   <li><b>Usage:</b> Use this when you need to process a command immediately and receive instant feedback on success or failure.</li>
+ * </ul>
+ *
+ * <h3>2. Asynchronous processing with Feedback</h3>
+ * <ul>
+ *   <li><b>Method:</b> {@link CommandBus#sendAsync(Object)}</li>
+ *   <li><b>Usage:</b> Returns a {@link reactor.core.publisher.Mono} that will eventually contain the result of the command processing.
+ *       This is useful when you want asynchronous processing but still need to know the outcome.</li>
+ * </ul>
+ *
+ * <h3>3. Fire-and-Forget Asynchronous processing</h3>
+ * <ul>
+ *   <li><b>Method:</b> {@link CommandBus#sendAndDontWait(Object)} or {@link CommandBus#sendAndDontWait(Object, java.time.Duration)}</li>
+ *   <li><b>Usage:</b> Sends a command without waiting for a result. This is true fire-and-forget asynchronous processing.</li>
+ *   <li><b>Note:</b> If durability is required (ensuring the command is reliably processed),
+ *       consider using <code>DurableLocalCommandBus</code> from the <code>essentials-components</code>'s <code>foundation</code> module instead.</li>
+ * </ul>
+ *
+ * <h2>Handling Command Processing Failures</h2>
+ *
+ * <h3>Using {@link CommandBus#send(Object)} / {@link CommandBus#sendAsync(Object)}</h3>
+ * <ul>
+ *   <li><b>Immediate Error Feedback:</b> These methods provide quick feedback if command processing fails
+ *       (e.g., due to business validation errors), making error handling straightforward.</li>
+ * </ul>
+ *
+ * <h3>Using {@link CommandBus#sendAndDontWait(Object)}</h3>
+ * <ul>
+ *   <li><b>Delayed Asynchronous Processing:</b> Commands sent via this method are processed in a true asynchronous
+ *       fire-and-forget fashion, with an optional delay.</li>
+ *   <li><b>Spring Boot Starters Default:</b> When using the Essentials Spring Boot starters, the default {@link CommandBus}
+ *       implementation is <code>DurableLocalCommandBus</code>, which places {@link CommandBus#sendAndDontWait(Object)}
+ *       commands on a <code>DurableQueue</code> for reliable processing.</li>
+ *   <li><b>Exception Handling:</b> Because processing is asynchronous fire-and-forget
+ *       (and because commands may be processed on a different node or after a JVM restart),
+ *       exceptions can not be captured by the caller.</li>
+ *   <li><b>Error Management:</b> The {@link SendAndDontWaitErrorHandler} takes care of handling exceptions that occur
+ *       during asynchronous command processing.</li>
+ *   <li><b>Retries:</b> The <code>DurableLocalCommandBus</code> is configured with a <code>RedeliveryPolicy</code>
+ *       to automatically retry commands that fail.</li>
+ * </ul>
+ *
+ * <h2>Summary</h2>
+ * <ul>
+ *   <li><b>For Immediate Feedback:</b>
+ *       Use {@link CommandBus#send(Object)} or {@link CommandBus#sendAsync(Object)} to simplify error handling
+ *       with instant feedback on command processing.</li>
+ *   <li><b>For True Asynchronous, Fire-and-Forget Processing:</b>
+ *       Use {@link CommandBus#sendAndDontWait(Object)} when you require asynchronous processing with retry capabilities.</li>
+ *   <li>Be aware that error handling is deferred to the {@link SendAndDontWaitErrorHandler} and managed by any configured <code>RedeliveryPolicy</code>.</li>
+ * </ul>
+ * <p>
  * Example:
  * <pre>{@code
  *  var commandBus = new LocalCommandBus();
@@ -46,7 +118,7 @@ import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
  *                                         .block(Duration.ofMillis(1000));
  * }
  * </pre>
- * <p></p>
+ * <p>
  * In case you need to colocate multiple related command handling methods inside a single class then you should have your command handling class extend {@link AnnotatedCommandHandler}.<br>
  * Example:
  * <pre>{@code

@@ -110,12 +110,60 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
   - Notice: The `JdbiConfigurationCallback#configure(Jdbi)` will be called BEFORE any `Lifecycle` beans have been started.
   - You can disable starting `Lifecycle` Beans by using setting this property to false:
     - `essentials.life-cycles.start-life-cycles=false`
-- `DurableQueuesMicrometerTracingInterceptor` if property `management.tracing.enabled` has value `true`
+- `DurableQueuesMicrometerTracingInterceptor` and `DurableQueuesMicrometerInterceptor` if property `management.tracing.enabled` has value `true`
   - The default `DurableQueuesMicrometerTracingInterceptor` values can be overridden using Spring properties:
   -  ```
-     essentials.durable-queues.verbose-tracing=true
+       essentials.durable-queues.verbose-tracing=true
+       ```
+- `DurableLocalCommandBus`
+  - The `DurableLocalCommandBus` supports two different error handling concepts for true **fire-and-forget asynchronous command processing** (i.e., when `CommandBus.sendAndDontWait` is used):
+    - `SendAndDontWaitErrorHandler` -  The `SendAndDontWaitErrorHandler` exception handler will handle errors that occur while processing Commands sent using `CommandBus.sendAndDontWait`.  
+      - If this handler doesn't rethrow the exception, then the message will not be retried by the underlying `DurableQueues`,  nor will the message be marked as a dead-letter/poison message.  
+      - Default it uses `SendAndDontWaitErrorHandler.RethrowingSendAndDontWaitErrorHandler`.  
+      - To override this configuration, you need to register a Spring bean of type `SendAndDontWaitErrorHandler`
+    - `RedeliveryPolicy` which sets the `RedeliveryPolicy` used when handling queued commands sent using `CommandBus.sendAndDontWait`. 
+      - Default it's using `DurableLocalCommandBus.DEFAULT_REDELIVERY_POLICY`.
+      - To override this, you need to register a Spring bean of type `RedeliveryPolicy`
+  - Example of custom Spring configuration:  
      ```
-- `DurableQueuesMicrometerInterceptor` if property `management.tracing.enabled` has value `true`
+     /**
+      * Custom {@link RedeliveryPolicy} used by the {@link DurableLocalCommandBus} that is autoconfigured by the springboot starter
+      * @return The {@link RedeliveryPolicy} used for {@link DurableLocalCommandBusBuilder#setCommandQueueRedeliveryPolicy(RedeliveryPolicy)}
+      */
+     @Bean
+     RedeliveryPolicy durableLocalCommandBusRedeliveryPolicy() {
+         return RedeliveryPolicy.exponentialBackoff()
+                                .setInitialRedeliveryDelay(Duration.ofMillis(200))
+                                .setFollowupRedeliveryDelay(Duration.ofMillis(200))
+                                .setFollowupRedeliveryDelayMultiplier(1.1d)
+                                .setMaximumFollowupRedeliveryDelayThreshold(Duration.ofSeconds(3))
+                                .setMaximumNumberOfRedeliveries(20)
+                                .setDeliveryErrorHandler(
+                                        MessageDeliveryErrorHandler.stopRedeliveryOn(
+                                                ConstraintViolationException.class,
+                                                HttpClientErrorException.BadRequest.class))
+                                .build();
+     }
+     
+     
+     /**
+      * Custom {@link SendAndDontWaitErrorHandler} used by the {@link DurableLocalCommandBus} that is autoconfigured by the springboot starter
+      * @return The {@link SendAndDontWaitErrorHandler} used for {@link DurableLocalCommandBusBuilder#setSendAndDontWaitErrorHandler(SendAndDontWaitErrorHandler)}
+      */
+     @Bean
+     SendAndDontWaitErrorHandler sendAndDontWaitErrorHandler() {
+         return (exception, commandMessage, commandHandler) -> {
+             // Example of not retrying HttpClientErrorException.Unauthorized at all -
+             // if this exception is encountered then the failure is logged, but the command is never retried
+             // nor marked as a dead-letter/poison message
+             if (exception instanceof HttpClientErrorException.Unauthorized) {
+                 log.error("Unauthorized exception", exception);
+             } else {
+                 Exceptions.sneakyThrow(exception);
+             }
+         };
+     }
+     ```
 
 
 ## Dependencies
