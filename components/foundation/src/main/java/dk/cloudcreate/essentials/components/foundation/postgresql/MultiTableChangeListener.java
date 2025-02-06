@@ -288,7 +288,7 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
             getHandle(null).execute("UNLISTEN " + resolveTableChangeChannelName(tableName));
         } catch (Exception e) {
             if (IOExceptionUtil.isIOException(e)) {
-                log.trace("Failed to unlisten table '{}'", tableName, e);
+                log.debug("Failed to unlisten table '{}'", tableName, e);
             } else {
                 throw new RuntimeException(msg("Failed to unlisten table '{}'", tableName), e);
             }

@@ -257,7 +257,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
 
     private void handleProcessNextMessageReadyForDeliveryException(Exception e) {
         if (IOExceptionUtil.isIOException(e)) {
-            LOG.trace(msg("[{}] {} - Experienced a Connection issue, will retry later",
+            LOG.debug(msg("[{}] {} - Experienced a Connection issue, will retry later",
                           queueName,
                           consumeFromQueue.consumerName), e);
         } else {
@@ -301,7 +301,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
 //                                                                .timeout(Duration.ofSeconds(5))
                                                                 .onErrorResume(throwable -> {
                                                                     if (IOExceptionUtil.isIOException(throwable)) {
-                                                                        LOG.trace(msg("[{}] {} - Error occurred during {}.getNextMessageReadyForDelivery queue processing",
+                                                                        LOG.debug(msg("[{}] {} - Error occurred during {}.getNextMessageReadyForDelivery queue processing",
                                                                                       queueName,
                                                                                       consumeFromQueue.consumerName,
                                                                                       durableQueues.getClass().getSimpleName()), throwable);

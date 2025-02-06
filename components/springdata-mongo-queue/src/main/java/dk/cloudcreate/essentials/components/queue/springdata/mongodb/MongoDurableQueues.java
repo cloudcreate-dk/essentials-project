@@ -1058,7 +1058,7 @@ public final class MongoDurableQueues implements DurableQueues {
                                                            log.trace("[{}] MongoInterruptedException", queueName);
                                                            return Optional.<QueuedMessage>empty();
                                                        } else if (IOExceptionUtil.isIOException(e)) {
-                                                           log.trace("[{}] Experienced a Mongo related IO exception '{}'", queueName, e.getClass().getSimpleName());
+                                                           log.debug("[{}] Experienced a Mongo related IO exception '{}'", queueName, e.getClass().getSimpleName());
                                                            return Optional.<QueuedMessage>empty();
                                                        } else if (e instanceof IllegalStateException && Objects.equals(e.getMessage(), "state should be: open")) {
                                                            log.trace("[{}] Mongo Session is not open", queueName);
