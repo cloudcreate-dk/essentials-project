@@ -597,6 +597,7 @@ public class MyEventHandler extends PatternMatchingPersistedEventHandler {
 
 }
 ```
+
 ### EventProcessor
 
 The easiest way to asynchronously subscribe to Events from one or more AggregatesTypes/EventStreams is to use the EventProcessor.  
@@ -625,13 +626,9 @@ public class ShippingEventKafkaPublisher extends EventProcessor {
     private final       KafkaTemplate<String, Object> kafkaTemplate;
 
 
-    public ShippingEventKafkaPublisher(@NonNull Inboxes inboxes,
-                                       @NonNull DurableLocalCommandBus commandBus,
-                                       @NonNull EventStoreSubscriptionManager eventStoreSubscriptionManager,
+    public ShippingEventKafkaPublisher(@NonNull EventProcessorDependencies eventProcessorDependencies,
                                        @NonNull KafkaTemplate<String, Object> kafkaTemplate) {
-        super(eventStoreSubscriptionManager,
-              inboxes,
-              commandBus);
+        super(eventProcessorDependencies);
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -661,6 +658,7 @@ public class ShippingEventKafkaPublisher extends EventProcessor {
 
 #### Example Subscribing for Aggregate events and publishing an External Event to Kafka via an Outbox
 
+If you don't want to use the `EventProcessor` then you can use this example of how to subscribe for events and forwarding matching events via an `Outbox`
 ![Subscribe for Aggregate](images/event-subscription.png)
 
 ```java
@@ -784,6 +782,6 @@ To use `Postgresql Event Store` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>postgresql-event-store</artifactId>
-    <version>0.40.19</version>
+    <version>0.40.21</version>
 </dependency>
 ```

@@ -343,9 +343,15 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                 try {
                     lock.release();
                 } catch (Exception e) {
-                    log.warn(msg("[{}] Failed to release FencedLock with name '{}'",
-                                 lockManagerInstanceId,
-                                 lock.getName()), e);
+                    if (IOExceptionUtil.isIOException(e)) {
+                        log.debug(msg("[{}] Failed to release FencedLock with name '{}'",
+                                     lockManagerInstanceId,
+                                     lock.getName()), e);
+                    } else {
+                        log.warn(msg("[{}] Failed to release FencedLock with name '{}'",
+                                     lockManagerInstanceId,
+                                     lock.getName()), e);
+                    }
                 }
             });
             started = false;

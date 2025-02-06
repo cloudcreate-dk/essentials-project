@@ -269,7 +269,7 @@ public final class PostgresqlDurableSubscriptionRepository implements DurableSub
             });
         } catch (Exception e) {
             if (IOExceptionUtil.isIOException(e)) {
-                log.trace("Failed to save the {} ResumePoints", resumePoints.size(), e);
+                log.debug("Failed to save the {} ResumePoints", resumePoints.size(), e);
             } else {
                 log.error("Failed to save the {} ResumePoints", resumePoints.size(), e);
             }

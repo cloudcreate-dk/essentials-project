@@ -17,7 +17,7 @@ To use `Shared` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>shared</artifactId>
-    <version>0.40.19</version>
+    <version>0.40.21</version>
 </dependency>
 ```
 
@@ -58,7 +58,24 @@ Triple<String, String, String> stringTuple2 = tuple.map(Object::toString, Object
 
 Different utility functions for working with Collections, such as
 
-`Stream<Pair<Integer, String>> indexedStream = Lists.toIndexedStream(List.of("A", "B", "C"));`
+```java
+Stream<Pair<Integer, String>> indexedStream = Lists.toIndexedStream(List.of("A", "B", "C"));
+String first = Lists.first(List.of("A", "B", "C")); // first = "A"
+String last = Lists.last(List.of("A", "B", "C")); // first = "C"
+```
+### Streams
+
+Provides a zip function for streams of equal lengths
+
+```java
+var tStream = Stream.of("A", "B", "C", "D", "E");
+var uStream = Stream.of("1", "2", "3", "4", "5");
+
+List<String> result = Streams.zipOrderedAndEqualSizedStreams(tStream, uStream, (t, u) -> t + ":" + u)
+                        .collect(Collectors.toList());
+
+assertThat(result).isEqualTo(List.of("A:1", "B:2", "C:3", "D:4", "E:5"));
+```
 
 ### Functional interfaces
 
@@ -230,10 +247,13 @@ Using this class makes it possible to capture a generic/parameterized argument t
 When you specify a type reference using `.class` you loose any Generic/Parameterized information, as you cannot write `List<Money>.class`, only `List.class`.
 
 With `GenericType` you can specify and capture parameterized type information:  
-`var genericType = new GenericType<List<Money>>(){};` 
+```java
+var genericType = new GenericType<List<Money>>(){};
+```
 
-where genericType.getType() will return `List.class`  
-and genericType#getGenericType() will return `ParameterizedType`, which can be introspected further
+where:
+- `genericType.getType()` will return `List.class`  
+- `genericType#getGenericType()` will return a `ParameterizedType`, which can be introspected further
 
 ### `StopWatch` for timing different methods/operations
 
@@ -249,6 +269,18 @@ Duration duration = result.getDuration();
 String result = result.getResult();
 ```
 
+### `concurrent`
+
+Provides a `ThreadFactoryBuilder` for usage with e.g. `Executors`:
+
+```java
+Executors.newScheduledThreadPool(PARALLEL_CONSUMERS, 
+                                 ThreadFactoryBuilder.builder()
+                                                     .daemon(true)
+                                                     .nameFormat("Handler-Thread-%d")
+                                                     .build());
+```
+
 ### `Exceptions`
 
 That support `sneakyThrow` (use with caution) as well as getting a stacktrace as a String.
@@ -262,7 +294,7 @@ try {
 }
 ```
 
-### High level Reflection package
+### High level `Reflection` package
 
 Writing reflection can be cumbersome and there are many checked exception to handle. The `Reflector` class, and it's supporting classes
 (`Accessibles`, `BoxedTypes`, `Classes`, `Constructors`, `Fields`, `Interfaces`, `Methods`), makes working with Reflection easier.

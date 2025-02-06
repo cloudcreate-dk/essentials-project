@@ -91,8 +91,8 @@ public final class DurableLocalCommandBusBuilder {
     }
 
     /**
-     * Set the Exception handler that will handle errors that occur during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}. If this handler doesn't rethrow the exeption,
-     * then the message will not be retried by the underlying {@link DurableQueues}
+     * Set the Exception handler that will handle errors that occur while processing Commands sent using {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}. If this handler doesn't rethrow the exception,
+     * then the message will not be retried by the underlying {@link DurableQueues} nor will the message be marked as a dead-letter/poison message.
      *
      * @param sendAndDontWaitErrorHandler The Exception handler that will handle errors that occur during {@link CommandBus#sendAndDontWait(Object)}/{@link CommandBus#sendAndDontWait(Object, Duration)}. If this handler doesn't rethrow the exeption,
      *                                    then the message will not be retried by the underlying {@link DurableQueues}

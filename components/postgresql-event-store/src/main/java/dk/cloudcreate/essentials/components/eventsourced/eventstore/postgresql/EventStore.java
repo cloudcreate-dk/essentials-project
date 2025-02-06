@@ -32,7 +32,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.stream.Stream;
 
-import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventOrder.FIRST_EVENT_ORDER;
+import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.EventOrder.*;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
@@ -139,7 +139,7 @@ public interface EventStore {
                                                       List<?> eventsToAppend) {
         return appendToStream(aggregateType,
                               aggregateId,
-                              Optional.empty(),
+                              NO_EVENTS_PREVIOUSLY_PERSISTED,
                               eventsToAppend);
     }
 
@@ -160,7 +160,7 @@ public interface EventStore {
                                                       Object... eventsToAppend) {
         return appendToStream(aggregateType,
                               aggregateId,
-                              Optional.empty(),
+                              NO_EVENTS_PREVIOUSLY_PERSISTED,
                               List.of(eventsToAppend));
     }
 

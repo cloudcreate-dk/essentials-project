@@ -107,17 +107,29 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
     public void close() {
         log.info("Closing");
         try {
-            scheduledFuture.cancel(true);
-            for (String tableName : listenForNotificationsRelatedToTables.keySet()) {
-                try {
-                    unlisten(tableName);
-                } catch (Exception e) {
-                    log.error("Failed to unlisten table '{}'", tableName, e);
-                }
+            if (scheduledFuture != null) {
+                log.info("Cancelling scheduled future");
+                scheduledFuture.cancel(true);
             }
-            scheduledFuture = null;
         } catch (Exception e) {
-            // Do nothing
+            log.trace("Failed to cancel scheduledFuture", e);
+        } finally {
+            scheduledFuture = null;
+        }
+
+        for (String tableName : listenForNotificationsRelatedToTables.keySet()) {
+            try {
+                unlisten(tableName);
+            } catch (Exception e) {
+                log.error("Failed to unlisten table '{}'", tableName, e);
+            }
+        }
+
+        if (executorService != null) {
+            log.info("Shutting down scheduled executor service");
+            executorService.shutdownNow();
+            executorService = null;
+            log.info("Scheduled Executor service shutdown");
         }
         log.info("Closed");
     }
@@ -276,7 +288,7 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
             getHandle(null).execute("UNLISTEN " + resolveTableChangeChannelName(tableName));
         } catch (Exception e) {
             if (IOExceptionUtil.isIOException(e)) {
-                log.trace("Failed to unlisten table '{}'", tableName, e);
+                log.debug("Failed to unlisten table '{}'", tableName, e);
             } else {
                 throw new RuntimeException(msg("Failed to unlisten table '{}'", tableName), e);
             }
@@ -310,6 +322,11 @@ public final class MultiTableChangeListener<T extends TableChangeNotification> i
         log.trace("Polling for notifications related to {} tables: {}",
                   listenForNotificationsRelatedToTables.size(),
                   listenForNotificationsRelatedToTables.keySet());
+
+        if (scheduledFuture == null || scheduledFuture.isCancelled() || scheduledFuture.isDone()) {
+            log.trace("Skipping polling since scheduledFuture is missing, cancelled or done");
+            return;
+        }
 
         if (listenForNotificationsRelatedToTables.isEmpty()) return;
 
