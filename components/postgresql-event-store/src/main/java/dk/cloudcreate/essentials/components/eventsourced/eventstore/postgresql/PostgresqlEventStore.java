@@ -41,6 +41,7 @@ import java.util.function.Function;
 import java.util.stream.*;
 
 import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptorChain.newInterceptorChainForOperation;
+import static dk.cloudcreate.essentials.shared.Exceptions.isCriticalError;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.sortInterceptorsByOrder;
@@ -306,7 +307,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
     @Override
     public Optional<GlobalEventOrder> findLowestGlobalEventOrderPersisted(AggregateType aggregateType) {
         return persistenceStrategy.findLowestGlobalEventOrderPersisted(unitOfWorkFactory.getRequiredUnitOfWork(),
-                                                                        aggregateType);
+                                                                       aggregateType);
     }
 
     @Override
@@ -540,11 +541,15 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                       nextFromInclusiveGlobalOrder.get(),
                                       nextGlobalOrder);
             nextFromInclusiveGlobalOrder.set(nextGlobalOrder);
-        }).doOnError(throwable -> {
+        }).onErrorResume(throwable -> {
+            if (isCriticalError(throwable)) {
+                return Flux.error(throwable);
+            }
             eventStoreStreamLog.error(msg("[{}] Failed: {}",
                                           eventStreamLogName,
                                           throwable.getMessage()),
                                       throwable);
+            return Flux.empty();
         });
 
         return persistedEventsFlux

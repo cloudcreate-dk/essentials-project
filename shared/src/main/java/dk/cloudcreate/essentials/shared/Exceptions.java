@@ -17,7 +17,7 @@
 package dk.cloudcreate.essentials.shared;
 
 import java.io.*;
-import java.util.HashSet;
+import java.util.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -96,5 +96,82 @@ public final class Exceptions {
             current = current.getCause();
         }
         return false;
+    }
+
+    /**
+     * Rethrows a {@link Throwable} (or anything in its causal chain), using {@link #sneakyThrow(Throwable)},
+     * if the exception represents a critical, unrecoverable error that should not be caught/handled
+     * by normal application logic.
+     * <p>
+     * This includes:
+     * <ul>
+     *   <li>{@link VirtualMachineError} (e.g., {@link OutOfMemoryError}, {@link StackOverflowError})</li>
+     *   <li>{@link ThreadDeath}</li>
+     *   <li>{@link LinkageError}</li>
+     * </ul>
+     * <p>
+     * In addition, if such an error appears as a suppressed exception or as the
+     * cause of another exception, it is also treated as critical.
+     *
+     * @param throwable the {@link Throwable} to check
+     * @see #isCriticalError(Throwable)
+     */
+    public static <T extends Throwable> void rethrowIfCriticalError(T throwable) {
+        requireNonNull(throwable, "You must supply an exception");
+        if (isCriticalError(throwable)) {
+            Exceptions.sneakyThrow(throwable);
+        }
+    }
+
+    /**
+     * Determines whether a {@link Throwable} (or anything in its causal chain)
+     * represents a critical, unrecoverable error that should not be caught/handled
+     * by normal application logic.
+     * <p>
+     * This includes:
+     * <ul>
+     *   <li>{@link VirtualMachineError} (e.g., {@link OutOfMemoryError}, {@link StackOverflowError})</li>
+     *   <li>{@link ThreadDeath}</li>
+     *   <li>{@link LinkageError}</li>
+     * </ul>
+     * <p>
+     * In addition, if such an error appears as a suppressed exception or as the
+     * cause of another exception, it is also treated as critical.
+     *
+     * @param t the {@link Throwable} to check
+     * @return {@code true} if the throwable (or any suppressed/caused throwable)
+     * is considered critical; {@code false} otherwise
+     */
+    public static boolean isCriticalError(Throwable t) {
+        return isCriticalErrorRecursive(t, new HashSet<>());
+    }
+
+    /**
+     * Recursive helper method that traverses causes and suppressed exceptions,
+     * keeping track of already visited {@code Throwable} instances to avoid
+     * infinite loops if there is a cyclical cause/suppressed chain.
+     */
+    private static boolean isCriticalErrorRecursive(Throwable t, Set<Throwable> visited) {
+        if (t == null || visited.contains(t)) {
+            return false;
+        }
+        visited.add(t);
+
+        // Is this exception one of the critical types
+        if (t instanceof VirtualMachineError ||
+                t instanceof ThreadDeath ||
+                t instanceof LinkageError) {
+            return true;
+        }
+
+        // Check suppressed exceptions
+        for (var suppressed : t.getSuppressed()) {
+            if (isCriticalErrorRecursive(suppressed, visited)) {
+                return true;
+            }
+        }
+
+        // Check the cause of this exception
+        return isCriticalErrorRecursive(t.getCause(), visited);
     }
 }

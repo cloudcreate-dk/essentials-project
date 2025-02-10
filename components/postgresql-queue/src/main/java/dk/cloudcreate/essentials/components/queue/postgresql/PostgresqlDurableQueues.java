@@ -47,6 +47,7 @@ import java.util.concurrent.*;
 import java.util.function.*;
 import java.util.stream.Collectors;
 
+import static dk.cloudcreate.essentials.shared.Exceptions.rethrowIfCriticalError;
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.NamedArgumentBinding.arg;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.*;
@@ -1284,6 +1285,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
         try {
             return jsonSerializer.deserialize(messagePayload, messagePayloadType);
         } catch (Throwable e) {
+            rethrowIfCriticalError(e);
             throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
         }
     }
@@ -1294,6 +1296,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
         try {
             return jsonSerializer.deserialize(metaData, MessageMetaData.class);
         } catch (Throwable e) {
+            rethrowIfCriticalError(e);
             throw new DurableQueueException(msg("Failed to deserialize message meta-data"), e, queueName);
         }
     }

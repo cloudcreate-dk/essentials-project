@@ -197,9 +197,10 @@ class EventStoreSubscriptionManager_exclusivelySubscribeToAggregateEventsAsynchr
 
         // Check the ResumePoints are updated
         var lastEventOrder = allReceivedEvents.get(totalNumberOfOrderEvents - 1);
-        if (subscription.subscription.currentResumePoint().isPresent()) {
-            assertThat(subscription.subscription.currentResumePoint().get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // When the subscriber is stopped we store the next global event order
-        }
+        Awaitility.waitAtMost(Duration.ofSeconds(2))
+                  .untilAsserted(() -> {
+                      assertThat(subscription.subscription.currentResumePoint().get().getResumeFromAndIncluding()).isEqualTo(lastEventOrder.globalEventOrder().increment()); // When the subscriber is stopped we store the next global event order
+                  });
     }
 
     private EventSubscriber createOrderSubscription(EventStoreSubscriptionManager eventStoreSubscriptionManager) {

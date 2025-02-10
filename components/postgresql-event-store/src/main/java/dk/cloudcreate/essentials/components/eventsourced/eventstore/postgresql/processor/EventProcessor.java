@@ -555,12 +555,12 @@ public abstract class EventProcessor implements Lifecycle {
 
     /**
      * Get the number of message consumption threads that will consume messages from the underlying {@link Inbox}<br>
-     * Default is: is the number of available CPU processors
+     * Default is: 1
      *
      * @return the number of message consumption threads that will consume messages from the underlying {@link Inbox}
      */
     protected int getNumberOfParallelInboxMessageConsumers() {
-        return Runtime.getRuntime().availableProcessors();
+        return 1;
     }
 
     /**

@@ -76,23 +76,62 @@ public class OrderEventsHandler extends AnnotatedEventHandler {
 }
 ```
 
-### CommandBus/LocalCommandBus
-The `LocalCommandBus` provides the default implementation for the `CommandBus` concepts, which provides an indirection between a command and the `CommandHandler` 
-that's capable of handling the command.  
-The `CommandBus` pattern provides location transparency, the sender of the command doesn't need to know which `CommandHandler` supports
-the given command.   
+# CommandBus / LocalCommandBus / DurableLocalCommandBus
 
-There MUST always be one and only one `CommandHandler` capable of handling a given Command.  
-All other cases will result in either a `NoCommandHandlerFoundException` or `MultipleCommandHandlersFoundException` being thrown.
+The `CommandBus` pattern decouples the sending of commands from their handling by introducing an indirection between the command and its corresponding `CommandHandler`.  
+This design provides **location transparency**, meaning that the sender does not need to know which handler will process the command.  
+The `LocalCommandBus` is the default implementation of the CommandBus pattern.
 
-The handling of a command usually doesn't return any value (according to the principles of CQRS), however the `LocalCommandBus` API allows
-a `CommandHandler` to return a value if needed (e.g. such as a server generated id)  
+## Single CommandHandler Requirement
 
-Commands can be:
-- Sent synchronously using `#send(Object)`  
-- Sent asynchronously using `#sendAsync(Object)` which returns a `Mono` that will contain the result of the command handling
-- Send asynchronously without waiting for the result of processing the Command using `#sendAndDontWait(Object)`/`#sendAndDontWait(Object, Duration)`
-  - If you need durability for the Commands sent using `sendAndDontWait` please use `DurableLocalCommandBus` from `essentials-components`'s `foundation` instead.
+- **Exactly One Handler:** Every command must have one, and only one, `CommandHandler`.
+  - If **no handler is found**, a `NoCommandHandlerFoundException` is thrown.
+  - If **more than one handler is found**, a `MultipleCommandHandlersFoundException` is thrown.
+
+## Command Processing and Return Values
+
+- **No Expected Return Value:** According to CQRS principles, command handling typically does not return a value.
+- **Optional Return Value:** The API allows a `CommandHandler` to return a value if necessary (for example, a server-generated ID).
+
+## Sending Commands
+
+Commands can be dispatched in different ways depending on your needs:
+
+1. **Synchronous processing**
+  - **Method:** `CommandBus.send(Object)`
+  - **Usage:** Use this when you need to process a command immediately and receive instant feedback on success or failure.
+
+2. **Asynchronous processing with Feedback**
+  - **Method:** `CommandBus.sendAsync(Object)`
+  - **Usage:** Returns a `Mono` that will eventually contain the result of the command processing. This is useful when you want asynchronous processing but still need to know the outcome.
+
+3. **Fire-and-Forget Asynchronous Processing**
+  - **Method:** `CommandBus.sendAndDontWait(Object)` or `CommandBus.sendAndDontWait(Object, Duration)`
+  - **Usage:** Sends a command without waiting for a result. This is true asynchronous fire-and-forget processing.
+  - **Note:** If durability is required (ensuring the command is reliably processed), consider using `DurableLocalCommandBus` from the `essentials-components`'s `foundation` module instead.
+
+## Handling Command Processing Failures
+
+### Using `send` / `sendAsync`
+
+- **Immediate Error Feedback:** These methods provide quick feedback if command processing fails (e.g., due to business validation errors), making error handling straightforward.
+
+### Using `sendAndDontWait`
+
+- **Delayed Asynchronous processing:** Commands sent via this method are processed in a true asynchronous fire-and-forget fashion, with an optional delay.
+- **Spring Boot Starters Default:** When using the Essentials Spring Boot starters, the default `CommandBus` implementation is `DurableLocalCommandBus`, which places `sendAndDontWait` commands on a `DurableQueue` for reliable processing.
+- **Exception Handling:** Because processing is asynchronous fire-and-forget (and because commands may be processed on a different node or after a JVM restart), exceptions can not be captured by the caller.
+  - **Error Management:** The `SendAndDontWaitErrorHandler` takes care of handling exceptions that occur during asynchronous command processing.
+  - **Retries:** The `DurableLocalCommandBus` is configured with a `RedeliveryPolicy` to automatically retry commands that fail.
+
+## Summary
+
+- **For Immediate Feedback:**  
+  Use `CommandBus.send` or `CommandBus.sendAsync` to simplify error handling with instant feedback on command processing.
+
+- **For True Asynchronous, Fire-and-Forget Processing:**  
+  Use `CommandBus.sendAndDontWait` when you require asynchronous processing with retry capabilities.
+  - Be aware that error handling is deferred to the `SendAndDontWaitErrorHandler` and managed by any configured `RedeliveryPolicy`.
 
 ```
 var commandBus = new LocalCommandBus();

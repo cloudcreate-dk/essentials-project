@@ -56,6 +56,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static dk.cloudcreate.essentials.shared.Exceptions.rethrowIfCriticalError;
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain.sortInterceptorsByOrder;
@@ -714,6 +715,7 @@ public final class MongoDurableQueues implements DurableQueues {
         try {
             return jsonSerializer.deserialize(messagePayload, messagePayloadType);
         } catch (Throwable e) {
+            rethrowIfCriticalError(e);
             throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
         }
     }

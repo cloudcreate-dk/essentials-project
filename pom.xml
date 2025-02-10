@@ -432,6 +432,12 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
+                    <configuration>
+                        <parallel>classes</parallel>  <!-- Can also use "classes" or "both" -->
+                        <threadCount>1</threadCount>
+                        <forkCount>2</forkCount>  <!-- Number of JVM forks for parallel execution -->
+                        <reuseForks>true</reuseForks>  <!-- Reuse JVM forks for efficiency -->
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -504,6 +510,12 @@
                         </goals>
                     </execution>
                 </executions>
+<!--                <configuration>-->
+<!--                    <parallel>classes</parallel>  &lt;!&ndash; Can also use "classes" or "both" &ndash;&gt;-->
+<!--                    <threadCount>1</threadCount>-->
+<!--                    <forkCount>2</forkCount>  &lt;!&ndash; Number of JVM forks for parallel execution &ndash;&gt;-->
+<!--                    <reuseForks>true</reuseForks>  &lt;!&ndash; Reuse JVM forks for efficiency &ndash;&gt;-->
+<!--                </configuration>-->
             </plugin>
             <plugin>
                 <groupId>org.owasp</groupId>

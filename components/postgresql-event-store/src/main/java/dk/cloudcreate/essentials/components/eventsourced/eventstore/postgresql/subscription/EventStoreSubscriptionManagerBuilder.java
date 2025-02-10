@@ -40,7 +40,7 @@ public final class EventStoreSubscriptionManagerBuilder {
     }
 
     /**
-     * @param eventStorePollingBatchSize how many events should The {@link EventStore} maximum return when polling for events
+     * @param eventStorePollingBatchSize how many events should The {@link EventStore} maximum return when polling for events - default 100
      * @return this builder
      */
     public EventStoreSubscriptionManagerBuilder setEventStorePollingBatchSize(int eventStorePollingBatchSize) {
@@ -49,7 +49,7 @@ public final class EventStoreSubscriptionManagerBuilder {
     }
 
     /**
-     * @param eventStorePollingInterval how often should the {@link EventStore} be polled for new events
+     * @param eventStorePollingInterval how often should the {@link EventStore} be polled for new events - default 500 ms
      * @return this builder
      */
     public EventStoreSubscriptionManagerBuilder setEventStorePollingInterval(Duration eventStorePollingInterval) {
@@ -67,7 +67,8 @@ public final class EventStoreSubscriptionManagerBuilder {
     }
 
     /**
-     * @param snapshotResumePointsEvery How often should active (for exclusive subscribers this means subscribers that have acquired a distributed lock) subscribers have their {@link SubscriptionResumePoint} saved
+     * @param snapshotResumePointsEvery How often should active (for exclusive subscribers this means subscribers that have acquired a distributed lock)
+     *                                  subscribers have their {@link SubscriptionResumePoint} saved - default: every 1 second
      * @return this builder
      */
     public EventStoreSubscriptionManagerBuilder setSnapshotResumePointsEvery(Duration snapshotResumePointsEvery) {
