@@ -433,7 +433,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <parallel>methods</parallel>  <!-- Can also use "classes" or "both" -->
+                        <parallel>classes</parallel>  <!-- Can also use "classes" or "both" -->
                         <threadCount>1</threadCount>
                         <forkCount>2</forkCount>  <!-- Number of JVM forks for parallel execution -->
                         <reuseForks>true</reuseForks>  <!-- Reuse JVM forks for efficiency -->
@@ -511,8 +511,8 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <parallel>methods</parallel>  <!-- Can also use "classes" or "both" -->
-                    <threadCount>4</threadCount>
+                    <parallel>classes</parallel>  <!-- Can also use "classes" or "both" -->
+                    <threadCount>1</threadCount>
                     <forkCount>2</forkCount>  <!-- Number of JVM forks for parallel execution -->
                     <reuseForks>true</reuseForks>  <!-- Reuse JVM forks for efficiency -->
                 </configuration>
