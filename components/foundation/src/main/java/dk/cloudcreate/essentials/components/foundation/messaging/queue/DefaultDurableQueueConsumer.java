@@ -32,6 +32,7 @@ import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static dk.cloudcreate.essentials.shared.Exceptions.*;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
@@ -243,6 +244,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                       queueName,
                       consumeFromQueue.consumerName);
         } catch (Throwable e) {
+            rethrowIfCriticalError(e);
             if (IOExceptionUtil.isIOException(e)) {
                 LOG.debug(msg("[{}] {} - Experienced a Connection issue while polling queue",
                               queueName,
@@ -300,6 +302,9 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                                                                 // TODO: In the future support configurable timeout
 //                                                                .timeout(Duration.ofSeconds(5))
                                                                 .onErrorResume(throwable -> {
+                                                                    if (isCriticalError(throwable)) {
+                                                                        return Mono.error(throwable);
+                                                                    }
                                                                     if (IOExceptionUtil.isIOException(throwable)) {
                                                                         LOG.debug(msg("[{}] {} - Error occurred during {}.getNextMessageReadyForDelivery queue processing",
                                                                                       queueName,
@@ -343,6 +348,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                 return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
             }
         } catch (Throwable e) {
+            rethrowIfCriticalError(e);
             if (IOExceptionUtil.isIOException(e)) {
                 LOG.debug(msg("[{}] {} Can't Poll Queue - Connection seems to be broken or closed, this can happen during JVM or application shutdown",
                               queueName,
@@ -406,6 +412,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                 return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
             }
         } catch (Throwable e) {
+            rethrowIfCriticalError(e);
             var isPermanentError = isPermanentError(queuedMessage, e);
             if (isPermanentError || queuedMessage.getTotalDeliveryAttempts() >= consumeFromQueue.getRedeliveryPolicy().maximumNumberOfRedeliveries + 1) {
                 // Dead letter message
@@ -432,6 +439,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                     orderedMessageDeliveryThreads.remove(Thread.currentThread());
                     return () -> queuePollingOptimizer.queuePollingReturnedMessage(queuedMessage);
                 } catch (Throwable ex) {
+                    rethrowIfCriticalError(e);
                     var msg = msg("[{}:{}] {} - Failed to mark the Message as a Dead Letter Message. Details: Is Permanent Error: {}. Message: {}",
                                   queueName,
                                   queuedMessage.getId(),
@@ -482,6 +490,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
             orderedMessageDeliveryThreads.remove(Thread.currentThread());
             return NO_POSTPROCESSING_AFTER_PROCESS_NEXT_MESSAGE;
         } catch (Throwable ex) {
+            rethrowIfCriticalError(e);
             if (ex.getMessage().contains("Interrupted waiting for lock")) {
                 // Usually happening when SpringBoot is performing an unclean shutdown
                 MESSAGE_HANDLING_FAILURE_LOG.debug(msg("[{}:{}] {} - Failed to register the message for delayed retry. This can typically happen during JVM or Application shutdown",

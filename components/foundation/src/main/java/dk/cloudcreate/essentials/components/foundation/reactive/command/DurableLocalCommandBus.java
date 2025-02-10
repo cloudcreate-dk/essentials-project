@@ -27,6 +27,7 @@ import org.slf4j.*;
 import java.time.Duration;
 import java.util.*;
 
+import static dk.cloudcreate.essentials.shared.Exceptions.rethrowIfCriticalError;
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 
 /**
@@ -428,6 +429,7 @@ public final class DurableLocalCommandBus extends AbstractCommandBus implements 
                                                            try {
                                                                return commandHandler.handle(command);
                                                            } catch (Throwable e) {
+                                                               rethrowIfCriticalError(e);
                                                                sendAndDontWaitErrorHandler.handleError(e,
                                                                                                        queuedMessage,
                                                                                                        commandHandler);
