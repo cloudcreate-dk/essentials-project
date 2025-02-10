@@ -48,8 +48,8 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
 
         lockManagerNode1 = createLockManagerNode1();
         assertThat(lockManagerNode1).isNotNull();
-        lockManagerNode1.start();
         lockManagerNode1.deleteAllLocksInDB();
+        lockManagerNode1.start();
 
         lockManagerNode2 = createLockManagerNode2();
         assertThat(lockManagerNode1).isNotNull();
