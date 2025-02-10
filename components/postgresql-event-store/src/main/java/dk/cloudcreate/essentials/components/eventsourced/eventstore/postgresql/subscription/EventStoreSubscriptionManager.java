@@ -42,6 +42,7 @@ import java.util.concurrent.*;
 import java.util.function.*;
 import java.util.stream.Collectors;
 
+import static dk.cloudcreate.essentials.shared.Exceptions.rethrowIfCriticalError;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
@@ -510,6 +511,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         private volatile boolean                                                                  started;
         private          ScheduledFuture<?>                                                       saveResumePointsFuture;
         private final    boolean                                                                  startLifeCycles;
+        private          ScheduledExecutorService                                                 resumePointsScheduledExecutorService;
 
         public DefaultEventStoreSubscriptionManager(EventStore eventStore,
                                                     int eventStorePollingBatchSize,
@@ -552,14 +554,15 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                     fencedLockManager.start();
                 }
 
-                saveResumePointsFuture = Executors.newSingleThreadScheduledExecutor(ThreadFactoryBuilder.builder()
-                                                                                                        .nameFormat("EventStoreSubscriptionManager-" + fencedLockManager.getLockManagerInstanceId() + "-%d")
-                                                                                                        .daemon(true)
-                                                                                                        .build())
-                                                  .scheduleAtFixedRate(this::saveResumePointsForAllSubscribers,
-                                                                       snapshotResumePointsEvery.toMillis(),
-                                                                       snapshotResumePointsEvery.toMillis(),
-                                                                       TimeUnit.MILLISECONDS);
+                resumePointsScheduledExecutorService = Executors.newSingleThreadScheduledExecutor(ThreadFactoryBuilder.builder()
+                                                                                                                      .nameFormat("EventStoreSubscriptionManager-SaveResumePoints-" + fencedLockManager.getLockManagerInstanceId() + "-%d")
+                                                                                                                      .daemon(true)
+                                                                                                                      .build());
+                saveResumePointsFuture = resumePointsScheduledExecutorService
+                        .scheduleAtFixedRate(this::saveResumePointsForAllSubscribers,
+                                             snapshotResumePointsEvery.toMillis(),
+                                             snapshotResumePointsEvery.toMillis(),
+                                             TimeUnit.MILLISECONDS);
                 started = true;
                 // Start any subscribers added prior to us starting
                 subscribers.values().forEach(Lifecycle::start);
@@ -572,15 +575,28 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         public void stop() {
             if (started) {
                 log.info("[{}] Stopping EventStore Subscription Manager", fencedLockManager.getLockManagerInstanceId());
-                saveResumePointsFuture.cancel(true);
                 subscribers.forEach((subscriberIdAggregateTypePair, eventStoreSubscription) -> eventStoreSubscription.stop());
+                if (saveResumePointsFuture != null) {
+                    log.debug("[{}] Cancelling saveResumePointsFuture", fencedLockManager.getLockManagerInstanceId());
+                    saveResumePointsFuture.cancel(true);
+                    saveResumePointsFuture = null;
+                    log.debug("[{}] Cancelled saveResumePointsFuture", fencedLockManager.getLockManagerInstanceId());
+                }
+                if (resumePointsScheduledExecutorService != null) {
+                    log.debug("[{}] Shutting down resumePointsScheduledExecutorService", fencedLockManager.getLockManagerInstanceId());
+                    resumePointsScheduledExecutorService.shutdownNow();
+                    resumePointsScheduledExecutorService = null;
+                    log.debug("[{}] Shutdown resumePointsScheduledExecutorService", fencedLockManager.getLockManagerInstanceId());
+                }
                 if (fencedLockManager.isStarted()) {
+                    log.debug("[{}] Stopping fencedLockManager", fencedLockManager.getLockManagerInstanceId());
                     fencedLockManager.stop();
                 }
+
                 started = false;
                 log.info("[{}] Stopped EventStore Subscription Manager", fencedLockManager.getLockManagerInstanceId());
             } else {
-                log.debug("[{}] EventStore Subscription Manager was already stopped", fencedLockManager.getLockManagerInstanceId());
+                log.info("[{}] EventStore Subscription Manager was already stopped", fencedLockManager.getLockManagerInstanceId());
             }
         }
 
@@ -708,14 +724,14 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             requireNonNull(eventHandler, "No eventHandler provided");
 
             return addEventStoreSubscription(subscriberId,
-                                            forAggregateType,
-                                            new ExclusiveInTransactionSubscription(eventStore,
-                                                                                   fencedLockManager,
-                                                                                   forAggregateType,
-                                                                                   subscriberId,
-                                                                                   onlyIncludeEventsForTenant,
-                                                                                   eventHandler
-                                            ));
+                                             forAggregateType,
+                                             new ExclusiveInTransactionSubscription(eventStore,
+                                                                                    fencedLockManager,
+                                                                                    forAggregateType,
+                                                                                    subscriberId,
+                                                                                    onlyIncludeEventsForTenant,
+                                                                                    eventHandler
+                                             ));
         }
 
         @Override
@@ -796,19 +812,19 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                     started = true;
 
                     log.info("[{}-{}] Starting subscription",
-                            subscriberId,
-                            aggregateType);
+                             subscriberId,
+                             aggregateType);
 
                     fencedLockManager.acquireLockAsync(lockName, new LockCallback() {
                         @Override
                         public void lockAcquired(FencedLock lock) {
                             log.info("[{}-{}] Acquired lock.",
-                                    subscriberId,
-                                    aggregateType);
+                                     subscriberId,
+                                     aggregateType);
                             active = true;
 
                             eventStore.localEventBus()
-                                    .addSyncSubscriber(ExclusiveInTransactionSubscription.this::onEvent);
+                                      .addSyncSubscriber(ExclusiveInTransactionSubscription.this::onEvent);
 
                         }
 
@@ -818,29 +834,29 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                 return;
                             }
                             log.info("[{}-{}] Lock Released. Stopping subscription",
-                                    subscriberId,
-                                    aggregateType);
+                                     subscriberId,
+                                     aggregateType);
                             try {
                                 eventStore.localEventBus()
-                                        .removeSyncSubscriber(ExclusiveInTransactionSubscription.this::onEvent);
+                                          .removeSyncSubscriber(ExclusiveInTransactionSubscription.this::onEvent);
                             } catch (Exception e) {
                                 log.error(msg("[{}-{}] Failed to dispose subscription flux",
-                                        subscriberId,
-                                        aggregateType), e);
+                                              subscriberId,
+                                              aggregateType), e);
                             }
 
                             active = false;
                             log.info("[{}-{}] Stopped subscription",
-                                    subscriberId,
-                                    aggregateType);
+                                     subscriberId,
+                                     aggregateType);
                         }
 
                     });
 
                 } else {
                     log.debug("[{}-{}] Subscription was already started",
-                            subscriberId,
-                            aggregateType);
+                              subscriberId,
+                              aggregateType);
                 }
             }
 
@@ -852,38 +868,39 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                 var persistedEvents = (PersistedEvents) e;
                 if (persistedEvents.commitStage == CommitStage.BeforeCommit || persistedEvents.commitStage == CommitStage.Flush) {
                     persistedEvents.events.stream()
-                            .filter(event -> event.aggregateType().equals(aggregateType))
-                            .forEach(event -> {
-                                log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {} during commit-stage '{}'",
-                                        subscriberId,
-                                        aggregateType,
-                                        event.globalEventOrder(),
-                                        event.event().getEventTypeOrName().toString(),
-                                        event.eventId(),
-                                        event.aggregateId(),
-                                        event.eventOrder(),
-                                        persistedEvents.commitStage
-                                );
-                                try {
-                                    eventHandler.handle(event, persistedEvents.unitOfWork);
-                                    if (persistedEvents.commitStage == CommitStage.Flush) {
-                                        persistedEvents.unitOfWork.removeFlushedEventPersisted(event);
-                                    }
-                                } catch (Exception cause) {
-                                    onErrorHandlingEvent(event, cause);
-                                }
-                            });
+                                          .filter(event -> event.aggregateType().equals(aggregateType))
+                                          .forEach(event -> {
+                                              log.trace("[{}-{}] (#{}) Received {} event with eventId '{}', aggregateId: '{}', eventOrder: {} during commit-stage '{}'",
+                                                        subscriberId,
+                                                        aggregateType,
+                                                        event.globalEventOrder(),
+                                                        event.event().getEventTypeOrName().toString(),
+                                                        event.eventId(),
+                                                        event.aggregateId(),
+                                                        event.eventOrder(),
+                                                        persistedEvents.commitStage
+                                                       );
+                                              try {
+                                                  eventHandler.handle(event, persistedEvents.unitOfWork);
+                                                  if (persistedEvents.commitStage == CommitStage.Flush) {
+                                                      persistedEvents.unitOfWork.removeFlushedEventPersisted(event);
+                                                  }
+                                              } catch (Throwable cause) {
+                                                  rethrowIfCriticalError(cause);
+                                                  onErrorHandlingEvent(event, cause);
+                                              }
+                                          });
 
                 }
             }
 
-            protected void onErrorHandlingEvent(PersistedEvent e, Exception cause) {
+            protected void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
                 // TODO: Add better retry mechanism, poison event handling, etc.
                 log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
-                        subscriberId,
-                        aggregateType,
-                        e.globalEventOrder(),
-                        e.event().getEventTypeOrName().getValue()), cause);
+                              subscriberId,
+                              aggregateType,
+                              e.globalEventOrder(),
+                              e.event().getEventTypeOrName().getValue()), cause);
             }
 
             @Override
@@ -895,31 +912,31 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             public void stop() {
                 if (started) {
                     log.info("[{}-{}] Stopping subscription",
-                            subscriberId,
-                            aggregateType);
+                             subscriberId,
+                             aggregateType);
                     try {
                         log.debug("[{}-{}] Stopping subscription flux",
-                                subscriberId,
-                                aggregateType);
+                                  subscriberId,
+                                  aggregateType);
                         eventStore.localEventBus()
-                                .removeSyncSubscriber(ExclusiveInTransactionSubscription.this::onEvent);
+                                  .removeSyncSubscriber(ExclusiveInTransactionSubscription.this::onEvent);
                     } catch (Exception e) {
                         log.error(msg("[{}-{}] Failed to dispose subscription flux",
-                                subscriberId,
-                                aggregateType), e);
+                                      subscriberId,
+                                      aggregateType), e);
                     }
                     started = false;
                     log.info("[{}-{}] Stopped subscription",
-                            subscriberId,
-                            aggregateType);
+                             subscriberId,
+                             aggregateType);
                 }
             }
 
             @Override
             public void unsubscribe() {
                 log.info("[{}-{}] Initiating unsubscription",
-                        subscriberId,
-                        aggregateType);
+                         subscriberId,
+                         aggregateType);
                 stop();
                 DefaultEventStoreSubscriptionManager.this.unsubscribe(this);
             }
@@ -927,8 +944,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             @Override
             public void resetFrom(GlobalEventOrder subscribeFromAndIncludingGlobalOrder, Consumer<GlobalEventOrder> resetProcessor) {
                 throw new EventStoreException(msg("[{}-{}] Reset of ResumePoint isn't support for an In-Transaction subscription",
-                        subscriberId,
-                        aggregateType));
+                                                  subscriberId,
+                                                  aggregateType));
             }
 
             @Override
@@ -1039,7 +1056,8 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                   if (persistedEvents.commitStage == CommitStage.Flush) {
                                                       persistedEvents.unitOfWork.removeFlushedEventPersisted(event);
                                                   }
-                                              } catch (Exception cause) {
+                                              } catch (Throwable cause) {
+                                                  rethrowIfCriticalError(cause);
                                                   onErrorHandlingEvent(event, cause);
                                               }
                                           });
@@ -1047,7 +1065,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                 }
             }
 
-            protected void onErrorHandlingEvent(PersistedEvent e, Exception cause) {
+            protected void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
                 // TODO: Add better retry mechanism, poison event handling, etc.
                 log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
                               subscriberId,
@@ -1729,20 +1747,20 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
          *                                   <b>Note: Default behaviour needs to at least request one more event</b><br>
          *                                   Similar to:
          *                                   <pre>{@code
-         *                                   void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
-         *                                        log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
-         *                                                        subscriberId,
-         *                                                        aggregateType,
-         *                                                        e.globalEventOrder(),
-         *                                                        e.event().getEventTypeOrName().getValue()), cause);
-         *                                        log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
-         *                                                    subscriberId(),
-         *                                                    aggregateType(),
-         *                                                    e.globalEventOrder()
-         *                                                    );
-         *                                        eventStoreSubscription.request(1);
-         *                                   }
-         *                                   }</pre>
+         *                                                                     void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
+         *                                                                          log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+         *                                                                                          subscriberId,
+         *                                                                                          aggregateType,
+         *                                                                                          e.globalEventOrder(),
+         *                                                                                          e.event().getEventTypeOrName().getValue()), cause);
+         *                                                                          log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+         *                                                                                      subscriberId(),
+         *                                                                                      aggregateType(),
+         *                                                                                      e.globalEventOrder()
+         *                                                                                      );
+         *                                                                          eventStoreSubscription.request(1);
+         *                                                                     }
+         *                                                                     }</pre>
          * @param eventStorePollingBatchSize The batch size used when polling events from the {@link EventStore}
          * @param eventStore                 The {@link EventStore} to use
          */
@@ -1771,29 +1789,29 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
          *                                              <b>Note: Default behaviour needs to at least request one more event</b><br>
          *                                              Similar to:
          *                                              <pre>{@code
-         *                                              void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
-         *                                                   log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
-         *                                                                   subscriberId,
-         *                                                                   aggregateType,
-         *                                                                   e.globalEventOrder(),
-         *                                                                   e.event().getEventTypeOrName().getValue()), cause);
-         *                                                   log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
-         *                                                               subscriberId(),
-         *                                                               aggregateType(),
-         *                                                               e.globalEventOrder()
-         *                                                               );
-         *                                                   eventStoreSubscription.request(1);
-         *                                              }
-         *                                              }</pre>
+         *                                                                                           void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
+         *                                                                                                log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+         *                                                                                                                subscriberId,
+         *                                                                                                                aggregateType,
+         *                                                                                                                e.globalEventOrder(),
+         *                                                                                                                e.event().getEventTypeOrName().getValue()), cause);
+         *                                                                                                log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+         *                                                                                                            subscriberId(),
+         *                                                                                                            aggregateType(),
+         *                                                                                                            e.globalEventOrder()
+         *                                                                                                            );
+         *                                                                                                eventStoreSubscription.request(1);
+         *                                                                                           }
+         *                                                                                           }</pre>
          * @param forwardToEventHandlerRetryBackoffSpec The {@link RetryBackoffSpec} used.<br>
          *                                              Example:
          *                                              <pre>{@code
-         *                                              Retry.backoff(Long.MAX_VALUE, Duration.ofMillis(100)) // Initial delay of 100ms
-         *                                                   .maxBackoff(Duration.ofSeconds(1)) // Maximum backoff of 1 second
-         *                                                   .jitter(0.5)
-         *                                                   .filter(IOExceptionUtil::isIOException)
-         *                                              }
-         *                                              </pre>
+         *                                                                                           Retry.backoff(Long.MAX_VALUE, Duration.ofMillis(100)) // Initial delay of 100ms
+         *                                                                                                .maxBackoff(Duration.ofSeconds(1)) // Maximum backoff of 1 second
+         *                                                                                                .jitter(0.5)
+         *                                                                                                .filter(IOExceptionUtil::isIOException)
+         *                                                                                           }
+         *                                                                                           </pre>
          * @param eventStorePollingBatchSize            The batch size used when polling events from the {@link EventStore}
          * @param eventStore                            The {@link EventStore} to use
          */
@@ -1884,6 +1902,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                }
                            },
                            error -> {
+                               rethrowIfCriticalError(error);
                                onErrorHandler.accept(e, error.getCause());
                            });
         }
