@@ -292,7 +292,7 @@ class LocalEventBusTest {
     private static class BlockingEventHandler implements EventHandler {
         private static final Logger log = LoggerFactory.getLogger(BlockingEventHandler.class);
         long         blockForMilliseconds;
-        List<Object> eventsReceived = new ArrayList<>();
+        List<Object> eventsReceived = new CopyOnWriteArrayList<>();
 
         public BlockingEventHandler(long blockForMilliseconds) {
             this.blockForMilliseconds = blockForMilliseconds;
