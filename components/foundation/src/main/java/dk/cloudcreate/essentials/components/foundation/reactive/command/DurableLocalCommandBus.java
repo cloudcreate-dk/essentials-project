@@ -348,8 +348,10 @@ public final class DurableLocalCommandBus extends AbstractCommandBus implements 
             log.info("Stopping...");
             started = false;
             if (durableQueueConsumer != null) {
+                log.debug("Stopping durableQueueConsumer");
                 durableQueueConsumer.stop();
                 durableQueueConsumer = null;
+                log.debug("Stopped durableQueueConsumer");
             }
             log.info("Stopped");
         }
