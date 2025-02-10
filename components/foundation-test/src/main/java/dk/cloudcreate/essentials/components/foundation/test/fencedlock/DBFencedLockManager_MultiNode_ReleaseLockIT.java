@@ -22,6 +22,7 @@ import org.junit.jupiter.api.*;
 
 import java.time.Duration;
 
+import static dk.cloudcreate.essentials.components.foundation.test.fencedlock.DBFencedLockManagerIT.deleteAllLocksInDBWithRetry;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class DBFencedLockManager_MultiNode_ReleaseLockIT<LOCK_MANAGER extends DBFencedLockManager<?, ?>> {
@@ -48,8 +49,8 @@ public abstract class DBFencedLockManager_MultiNode_ReleaseLockIT<LOCK_MANAGER e
 
         lockManagerNode1 = createLockManagerNode1();
         assertThat(lockManagerNode1).isNotNull();
+        deleteAllLocksInDBWithRetry(lockManagerNode1);
         lockManagerNode1.start();
-        lockManagerNode1.deleteAllLocksInDB();
 
         lockManagerNode2 = createLockManagerNode2();
         assertThat(lockManagerNode1).isNotNull();

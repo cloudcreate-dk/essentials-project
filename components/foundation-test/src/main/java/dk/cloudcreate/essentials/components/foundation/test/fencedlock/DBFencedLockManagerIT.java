@@ -48,8 +48,8 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
 
         lockManagerNode1 = createLockManagerNode1();
         assertThat(lockManagerNode1).isNotNull();
+        deleteAllLocksInDBWithRetry(lockManagerNode1);
         lockManagerNode1.start();
-        lockManagerNode1.deleteAllLocksInDB();
 
         lockManagerNode2 = createLockManagerNode2();
         assertThat(lockManagerNode1).isNotNull();
@@ -63,6 +63,27 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
     protected abstract void disruptDatabaseConnection();
 
     protected abstract void restoreDatabaseConnection();
+
+    public static void deleteAllLocksInDBWithRetry(DBFencedLockManager<?, ?> lockManager) {
+        int maxRetries = 5;
+        int retryCount = 0;
+        while (retryCount < maxRetries) {
+            try {
+                lockManager.deleteAllLocksInDB();
+                return; // Success
+            } catch (RuntimeException e) {
+                if (e.getMessage().contains("WriteConflict")) {
+                    retryCount++;
+                    try {
+                        Thread.sleep(100 * retryCount); // Exponential backoff
+                    } catch (InterruptedException ignored) {}
+                } else {
+                    throw e; // Not a transient error, rethrow
+                }
+            }
+        }
+        throw new RuntimeException("Failed to deleteAllLocksInDB after " + maxRetries + " retries.");
+    }
 
     @AfterEach
     void cleanup() {

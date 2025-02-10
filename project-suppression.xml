@@ -277,4 +277,13 @@
         <packageUrl regex="true">^pkg:maven/com\.jayway\.jsonpath/json\-path@.*$</packageUrl>
         <vulnerabilityName>CVE-2023-51074</vulnerabilityName>
     </suppress>
+    <suppress>
+        <notes><![CDATA[
+   file name: json-smart-2.5.1.jar
+   The issue is related to a potential DoS - which is an issue for applications using json-smart directly.
+   In Essentials json-smart is only used for tests (included with test scope)
+   ]]></notes>
+        <packageUrl regex="true">^pkg:maven/net\.minidev/json-smart@.*$</packageUrl>
+        <vulnerabilityName>CVE-2024-57699</vulnerabilityName>
+    </suppress>
 </suppressions>

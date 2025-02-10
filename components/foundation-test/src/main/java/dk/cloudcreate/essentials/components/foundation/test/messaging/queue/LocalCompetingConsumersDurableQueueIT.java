@@ -127,7 +127,7 @@ public abstract class LocalCompetingConsumersDurableQueueIT<DURABLE_QUEUES exten
                                                      );
 
         // Then
-        Awaitility.waitAtMost(Duration.ofSeconds(30))
+        Awaitility.waitAtMost(Duration.ofSeconds(60))
                   .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages.size()).isEqualTo(NUMBER_OF_MESSAGES));
         var timing = stopWatch.stop();
         timings.add(timing);

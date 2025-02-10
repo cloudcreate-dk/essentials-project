@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.LockSupport;
 
+import static dk.cloudcreate.essentials.shared.Exceptions.isCriticalError;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
@@ -107,7 +108,13 @@ public final class LocalEventBus implements EventBus {
         this.overflowMaxRetries = overflowMaxRetries;
         this.eventSink = Sinks.many().multicast().onBackpressureBuffer(backpressureBufferSize, false);
         this.eventFlux = eventSink.asFlux()
-                                  .doOnError(throwable -> log.error("Error in event stream", throwable));
+                                  .onErrorResume(throwable -> {
+                                      if (isCriticalError(throwable)) {
+                                          return Flux.error(throwable);
+                                      }
+                                      log.error("Error in event stream", throwable);
+                                      return Flux.empty();
+                                  });
         this.asyncSubscribers = new ConcurrentHashMap<>();
         this.syncSubscribers = new CopyOnWriteArraySet<>();
         start();
@@ -362,6 +369,9 @@ public final class LocalEventBus implements EventBus {
 //                                          .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
 //                                                          .filter(throwable -> !(throwable instanceof TimeoutException)))
                                                .onErrorResume(throwable -> {
+                                                   if (isCriticalError(throwable)) {
+                                                       return Mono.error(throwable);
+                                                   }
                                                    try {
                                                        onErrorHandler.handle(subscriber, event, (Exception) throwable);
                                                    } catch (Exception ex) {

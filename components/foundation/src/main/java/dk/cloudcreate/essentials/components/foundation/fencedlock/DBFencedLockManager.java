@@ -31,6 +31,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static dk.cloudcreate.essentials.shared.Exceptions.rethrowIfCriticalError;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
@@ -62,9 +63,9 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
     private final String                                      lockManagerInstanceId;
 
     private final UnitOfWorkFactory<? extends UOW> unitOfWorkFactory;
-    private final Optional<EventBus> eventBus;
-    private final ReentrantLock      reentrantLock = new ReentrantLock(true);
-    private final boolean            releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation;
+    private final Optional<EventBus>               eventBus;
+    private final ReentrantLock                    reentrantLock = new ReentrantLock(true);
+    private final boolean                          releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation;
 
     private volatile boolean started;
     private volatile boolean stopping;
@@ -79,18 +80,19 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
      * {@link #tryAcquireLock(LockName)}/{@link #tryAcquireLock(LockName, Duration)} and {@link #acquireLock(LockName)} pause interval between retries
      */
     protected int                      syncAcquireLockPauseIntervalMs = 100;
+    private   ScheduledFuture<?>       confirmationScheduledFuture;
 
     /**
-     * @param lockStorage              the lock storage used for the lock manager
-     * @param unitOfWorkFactory        the {@link UnitOfWork} factory
-     * @param lockManagerInstanceId    The unique name for this lock manager instance. If left {@link Optional#empty()} then the machines hostname is used
-     * @param lockTimeOut              the period between {@link FencedLock#getLockLastConfirmedTimestamp()} and the current time before the lock is marked as timed out
-     * @param lockConfirmationInterval how often should the locks be confirmed. MUST is less than the <code>lockTimeOut</code>
+     * @param lockStorage                                                    the lock storage used for the lock manager
+     * @param unitOfWorkFactory                                              the {@link UnitOfWork} factory
+     * @param lockManagerInstanceId                                          The unique name for this lock manager instance. If left {@link Optional#empty()} then the machines hostname is used
+     * @param lockTimeOut                                                    the period between {@link FencedLock#getLockLastConfirmedTimestamp()} and the current time before the lock is marked as timed out
+     * @param lockConfirmationInterval                                       how often should the locks be confirmed. MUST is less than the <code>lockTimeOut</code>
      * @param releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation Should {@link FencedLock}'s acquired by this {@link FencedLockManager} be released in case calls to {@link FencedLockStorage#confirmLockInDB(DBFencedLockManager, UnitOfWork, DBFencedLock, OffsetDateTime)} fails
-     *                                                               with an exception where {@link IOExceptionUtil#isIOException(Throwable)} returns true -
-     *                                                               If releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation is true, then {@link FencedLock}'s will be released locally,
-     *                                                               otherwise we will retain the {@link FencedLock}'s as locked.
-     * @param eventBus                 optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
+     *                                                                       with an exception where {@link IOExceptionUtil#isIOException(Throwable)} returns true -
+     *                                                                       If releaseAcquiredLocksInCaseOfIOExceptionsDuringLockConfirmation is true, then {@link FencedLock}'s will be released locally,
+     *                                                                       otherwise we will retain the {@link FencedLock}'s as locked.
+     * @param eventBus                                                       optional {@link LocalEventBus} where {@link FencedLockEvents} will be published
      */
     protected DBFencedLockManager(FencedLockStorage<UOW, LOCK> lockStorage,
                                   UnitOfWorkFactory<? extends UOW> unitOfWorkFactory,
@@ -126,7 +128,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                  lockTimeOut.toMillis());
         usingUnitOfWork(uow -> lockStorage.initializeLockStorage(this, uow),
                         e -> {
-                            throw new IllegalStateException(msg("[{}] Failed to initialize lock storage", lockManagerInstanceId), e);
+                            throw new IllegalStateException(msg("[{}] Failed to initialize lock storage", this.lockManagerInstanceId), e);
                         });
     }
 
@@ -147,15 +149,15 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                                                                                               .daemon(true)
                                                                                               .build());
 
-            lockConfirmationExecutor.scheduleAtFixedRate(this::confirmAllLocallyAcquiredLocks,
-                                                         lockConfirmationInterval.toMillis(),
-                                                         lockConfirmationInterval.toMillis(),
-                                                         TimeUnit.MILLISECONDS);
+            confirmationScheduledFuture = lockConfirmationExecutor.scheduleAtFixedRate(this::confirmAllLocallyAcquiredLocks,
+                                                                                       lockConfirmationInterval.toMillis(),
+                                                                                       lockConfirmationInterval.toMillis(),
+                                                                                       TimeUnit.MILLISECONDS);
 
 
             started = true;
             log.info("[{}] Started lock manager", lockManagerInstanceId);
-            notify(new FencedLockManagerStopped(this));
+            notify(new FencedLockManagerStarted(this));
         } else {
             log.debug("[{}] Lock Manager was already started", lockManagerInstanceId);
         }
@@ -296,7 +298,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                           lockManagerInstanceId, lock.getName());
                 usingUnitOfWork(uow -> {
                     lockStorage.lookupLockInDB(this, uow, lock.getName()).ifPresent(lockAcquiredByAnotherLockManager -> {
-                        log.debug("[{}] Post release of Lock '{}' DB reported owner status: '{}'", lockManagerInstanceId, lock.getName(), lockAcquiredByAnotherLockManager.getLockedByLockManagerInstanceId());
+                        log.debug("[{}] Post release of Lock '{}' DB reported current-owner status: {}", lockManagerInstanceId, lock.getName(), lockAcquiredByAnotherLockManager);
                     });
                 }, e -> log.debug("[{}] Post release of Lock '{}' - failed to look-up in the DB which node has acquired the lock", lockManagerInstanceId, lock.getName(), e));
             }
@@ -329,24 +331,28 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
     @Override
     public void stop() {
         if (started) {
-            log.debug("[{}] Stopping lock manager", lockManagerInstanceId);
+            log.info("[{}] Stopping lock manager", lockManagerInstanceId);
             stopping = true;
-            if (asyncLockAcquiringExecutor != null) {
-                asyncLockAcquiringExecutor.shutdownNow();
-                asyncLockAcquiringExecutor = null;
+            if (confirmationScheduledFuture != null) {
+                log.debug("[{}] Stopping confirmationScheduledFuture",
+                          lockManagerInstanceId);
+                confirmationScheduledFuture.cancel(true);
+                confirmationScheduledFuture = null;
+                log.debug("[{}] Stopped confirmationScheduledFuture",
+                          lockManagerInstanceId);
             }
-            if (lockConfirmationExecutor != null) {
-                lockConfirmationExecutor.shutdownNow();
-                lockConfirmationExecutor = null;
-            }
+
             locksAcquiredByThisLockManager.values().forEach(lock -> {
+                log.debug("[{}] Releasing acquired Lock '{}' due to Stopping",
+                          lockManagerInstanceId,
+                          lock.getName());
                 try {
                     lock.release();
                 } catch (Exception e) {
                     if (IOExceptionUtil.isIOException(e)) {
                         log.debug(msg("[{}] Failed to release FencedLock with name '{}'",
-                                     lockManagerInstanceId,
-                                     lock.getName()), e);
+                                      lockManagerInstanceId,
+                                      lock.getName()), e);
                     } else {
                         log.warn(msg("[{}] Failed to release FencedLock with name '{}'",
                                      lockManagerInstanceId,
@@ -354,12 +360,53 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
                     }
                 }
             });
+            locksAcquiredByThisLockManager.clear();
+
+            asyncLockAcquirings.forEach((lockName, scheduledFuture) -> {
+                log.debug("[{}] Cancelling acquiring of Lock '{}' due to Stopping",
+                          lockManagerInstanceId,
+                          lockName);
+
+                try {
+                    scheduledFuture.cancel(true);
+                } catch (Exception e) {
+                    if (IOExceptionUtil.isIOException(e)) {
+                        log.debug(msg("[{}] Failed to stop acquiring of FencedLock with name '{}'",
+                                      lockManagerInstanceId,
+                                      lockName), e);
+                    } else {
+                        log.warn(msg("[{}] Failed to stop acquiring of FencedLock with name '{}'",
+                                     lockManagerInstanceId,
+                                     lockName), e);
+                    }
+                }
+            });
+            asyncLockAcquirings.clear();
+
+            if (asyncLockAcquiringExecutor != null) {
+                log.debug("[{}] Shutting down asyncLockAcquiringExecutor",
+                          lockManagerInstanceId);
+                asyncLockAcquiringExecutor.shutdownNow();
+                asyncLockAcquiringExecutor = null;
+                log.debug("[{}] Shutdown asyncLockAcquiringExecutor",
+                          lockManagerInstanceId);
+            }
+            if (lockConfirmationExecutor != null) {
+                log.debug("[{}] Shutting down lockConfirmationExecutor",
+                          lockManagerInstanceId);
+
+                lockConfirmationExecutor.shutdownNow();
+                lockConfirmationExecutor = null;
+                log.debug("[{}] Shutdown lockConfirmationExecutor",
+                          lockManagerInstanceId);
+            }
+
             started = false;
             stopping = false;
-            log.debug("[{}] Stopped lock manager", lockManagerInstanceId);
+            log.info("[{}] Stopped lock manager", lockManagerInstanceId);
             notify(new FencedLockManagerStopped(this));
         } else {
-            log.debug("[{}] Lock Manager was already stopped", lockManagerInstanceId);
+            log.info("[{}] Lock Manager was already stopped", lockManagerInstanceId);
         }
     }
 
@@ -666,11 +713,12 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
      * @param unitOfWorkConsumer the consumer of the created {@link UnitOfWork}
      * @param onError            The consumer that consumes any exception caused by calling {@link UnitOfWorkFactory#usingUnitOfWork(CheckedConsumer)}
      */
-    protected void usingUnitOfWork(CheckedConsumer<UOW> unitOfWorkConsumer, CheckedConsumer<Exception> onError) {
+    protected void usingUnitOfWork(CheckedConsumer<UOW> unitOfWorkConsumer, CheckedConsumer<Throwable> onError) {
         reentrantLock.lock();
         try {
             unitOfWorkFactory.usingUnitOfWork(unitOfWorkConsumer::accept);
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            rethrowIfCriticalError(e);
             log.debug(msg("[{}] Technical error performing usingUnitOfWork", lockManagerInstanceId), e);
             try {
                 onError.accept(e);
@@ -690,11 +738,12 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
      * @param <R>                the return value from the <code>unitOfWorkFunction</code>
      * @return the result of the calling the <code>unitOfWorkFunction</code>
      */
-    protected <R> R withUnitOfWork(CheckedFunction<UOW, R> unitOfWorkFunction, CheckedFunction<Exception, R> onError) {
+    protected <R> R withUnitOfWork(CheckedFunction<UOW, R> unitOfWorkFunction, CheckedFunction<Throwable, R> onError) {
         reentrantLock.lock();
         try {
             return unitOfWorkFactory.withUnitOfWork(unitOfWorkFunction::apply);
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            rethrowIfCriticalError(e);
             log.debug(msg("[{}] Technical error performing withUnitOfWork", lockManagerInstanceId), e);
             try {
                 return onError.apply(e);
