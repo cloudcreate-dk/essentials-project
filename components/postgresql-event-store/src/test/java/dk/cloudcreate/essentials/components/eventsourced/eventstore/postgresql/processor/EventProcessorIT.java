@@ -391,20 +391,16 @@ public class EventProcessorIT {
 
         @CmdHandler
         public void handle(PlaceOrderCommand cmd) {
-            eventStore.getUnitOfWorkFactory().usingUnitOfWork(() -> {
-                // Start a new event stream for this order
-                var event = new OrderPlacedEvent(cmd.orderId, cmd.orderDetails);
-                eventStore.startStream(TEST_ORDERS, cmd.orderId, List.of(event));
-            });
+            // Start a new event stream for this order
+            var event = new OrderPlacedEvent(cmd.orderId, cmd.orderDetails);
+            eventStore.startStream(TEST_ORDERS, cmd.orderId, List.of(event));
         }
 
         @CmdHandler
         public void handle(ConfirmOrderCommand cmd) {
-            eventStore.getUnitOfWorkFactory().usingUnitOfWork(() -> {
-                // Append the confirmation event to the existing stream
-                var event = new OrderConfirmedEvent(cmd.orderId);
-                eventStore.appendToStream(TEST_ORDERS, cmd.orderId, event);
-            });
+            // Append the confirmation event to the existing stream
+            var event = new OrderConfirmedEvent(cmd.orderId);
+            eventStore.appendToStream(TEST_ORDERS, cmd.orderId, event);
         }
 
 
