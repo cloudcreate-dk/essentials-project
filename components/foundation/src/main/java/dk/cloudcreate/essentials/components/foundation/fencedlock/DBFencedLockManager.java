@@ -157,7 +157,7 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
 
             started = true;
             log.info("[{}] Started lock manager", lockManagerInstanceId);
-            notify(new FencedLockManagerStopped(this));
+            notify(new FencedLockManagerStarted(this));
         } else {
             log.debug("[{}] Lock Manager was already started", lockManagerInstanceId);
         }
