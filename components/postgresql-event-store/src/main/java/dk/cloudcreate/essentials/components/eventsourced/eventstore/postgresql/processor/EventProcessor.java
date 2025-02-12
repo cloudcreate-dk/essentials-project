@@ -34,7 +34,6 @@ import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.reactive.Handler;
 import dk.cloudcreate.essentials.reactive.command.*;
 import dk.cloudcreate.essentials.types.LongRange;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.*;
 
 import java.time.Duration;
@@ -579,18 +578,18 @@ public abstract class EventProcessor implements Lifecycle {
                                .build();
     }
 
-    @NotNull
     private Function<AggregateType, GlobalEventOrder> startSubscriptionFromGlobalEventOrder() {
         if (isStartSubscriptionFromLatestEvent()) {
             return aggregateType -> eventStore.getUnitOfWorkFactory().withUnitOfWork(() -> eventStore.findHighestGlobalEventOrderPersisted(aggregateType)
-                    .map(GlobalEventOrder::increment)
-                    .orElse(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER));
+                                                                                                     .map(GlobalEventOrder::increment)
+                                                                                                     .orElse(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER));
         }
         return aggregateType -> GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER;
     }
 
     /**
      * New subscriptions should start consuming events from the latest event. Default false
+     *
      * @return is new subscriptions should start consuming events from the latest event.
      */
     protected boolean isStartSubscriptionFromLatestEvent() {
