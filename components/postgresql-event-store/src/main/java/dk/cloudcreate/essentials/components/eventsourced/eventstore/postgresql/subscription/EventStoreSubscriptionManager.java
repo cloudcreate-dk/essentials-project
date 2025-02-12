@@ -16,35 +16,36 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription;
 
-import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
+import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
+import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.*;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inbox;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
-import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.types.*;
-import dk.cloudcreate.essentials.shared.FailFast;
-import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
-import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
-import org.reactivestreams.Subscription;
+import dk.cloudcreate.essentials.shared.*;
+import dk.cloudcreate.essentials.shared.concurrent.*;
+import dk.cloudcreate.essentials.shared.functional.tuple.*;
+import org.reactivestreams.*;
 import org.slf4j.*;
 import reactor.core.publisher.*;
 import reactor.util.retry.*;
 
-import java.time.Duration;
+import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.*;
-import java.util.stream.Collectors;
+import java.util.stream.*;
 
-import static dk.cloudcreate.essentials.shared.Exceptions.rethrowIfCriticalError;
-import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
-import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
+import static dk.cloudcreate.essentials.shared.Exceptions.*;
+import static dk.cloudcreate.essentials.shared.FailFast.*;
+import static dk.cloudcreate.essentials.shared.MessageFormatter.*;
 
 /**
  * Provides support for durable {@link EventStore} subscriptions.<br>
@@ -191,9 +192,42 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      *                                                                please use {@link #exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId, AggregateType, GlobalEventOrder, Optional, FencedLockAwareSubscriber, Inbox)}
      * @return the subscription handle
      */
+    default EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
+                                                                                       AggregateType forAggregateType,
+                                                                                       GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                                       Optional<Tenant> onlyIncludeEventsForTenant,
+                                                                                       FencedLockAwareSubscriber fencedLockAwareSubscriber,
+                                                                                       PersistedEventHandler eventHandler) {
+        return exclusivelySubscribeToAggregateEventsAsynchronously(
+                subscriberId,
+                forAggregateType,
+                a -> onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                onlyIncludeEventsForTenant,
+                fencedLockAwareSubscriber,
+                eventHandler
+        );
+    }
+
+    /**
+     * Create an exclusive asynchronous subscription that will receive {@link PersistedEvent} after they have been committed to the {@link EventStore}<br>
+     * This ensures that the handling of events can occur in a separate transaction, than the one that persisted the events, thereby avoiding the dual write problem<br>
+     * An exclusive subscription means that the {@link EventStoreSubscriptionManager} will acquire a distributed {@link FencedLock} to ensure that only one active subscriber in a cluster,
+     * out of all subscribers that share the same <code>subscriberId</code>, is allowed to have an active subscribe at a time
+     *
+     * @param subscriberId                                            the unique id for the subscriber
+     * @param forAggregateType                                        the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using the returned {@link GlobalEventOrder} as the starting point in the
+     *                                                                EventStream associated with the <code>aggregateType</code>
+     * @param onlyIncludeEventsForTenant                              if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
+     * @param fencedLockAwareSubscriber                               Callback interface that will be called when the exclusive/fenced lock is acquired or released
+     * @param eventHandler                                            the event handler that will receive the published {@link PersistedEvent}'s<br>
+     *                                                                Exceptions thrown from the eventHandler will cause the event to be skipped. If you need a retry capability
+     *                                                                please use {@link #exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId, AggregateType, GlobalEventOrder, Optional, FencedLockAwareSubscriber, Inbox)}
+     * @return the subscription handle
+     */
     EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
                                                                                AggregateType forAggregateType,
-                                                                               GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                               Function<AggregateType, GlobalEventOrder> onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
                                                                                Optional<Tenant> onlyIncludeEventsForTenant,
                                                                                FencedLockAwareSubscriber fencedLockAwareSubscriber,
                                                                                PersistedEventHandler eventHandler);
@@ -695,7 +729,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         @Override
         public EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
                                                                                           AggregateType forAggregateType,
-                                                                                          GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                                          Function<AggregateType, GlobalEventOrder> onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
                                                                                           Optional<Tenant> onlyIncludeEventsForTenant,
                                                                                           FencedLockAwareSubscriber fencedLockAwareSubscriber,
                                                                                           PersistedEventHandler eventHandler) {
@@ -1405,7 +1439,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             private final DurableSubscriptionRepository durableSubscriptionRepository;
             private final AggregateType                 aggregateType;
             private final SubscriberId                  subscriberId;
-            private final GlobalEventOrder              onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder;
+            private final Function<AggregateType, GlobalEventOrder>              onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder;
             private final Optional<Tenant>              onlyIncludeEventsForTenant;
             private final FencedLockAwareSubscriber     fencedLockAwareSubscriber;
             private final PersistedEventHandler         eventHandler;
@@ -1422,7 +1456,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                      DurableSubscriptionRepository durableSubscriptionRepository,
                                                      AggregateType aggregateType,
                                                      SubscriberId subscriberId,
-                                                     GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                     Function<AggregateType, GlobalEventOrder> onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
                                                      Optional<Tenant> onlyIncludeEventsForTenant,
                                                      FencedLockAwareSubscriber fencedLockAwareSubscriber,
                                                      PersistedEventHandler eventHandler) {

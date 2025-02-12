@@ -18,35 +18,35 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
-import dk.cloudcreate.essentials.components.foundation.Lifecycle;
+import dk.cloudcreate.essentials.components.foundation.*;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
-import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
-import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
-import dk.cloudcreate.essentials.reactive.Handler;
+import dk.cloudcreate.essentials.components.foundation.types.*;
+import dk.cloudcreate.essentials.reactive.*;
 import dk.cloudcreate.essentials.reactive.command.*;
-import dk.cloudcreate.essentials.types.LongRange;
+import dk.cloudcreate.essentials.types.*;
+import org.jetbrains.annotations.*;
 import org.slf4j.*;
 
-import java.time.Duration;
+import java.time.*;
 import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.function.*;
 
-import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
-import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
-import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.toMap;
+import static dk.cloudcreate.essentials.shared.FailFast.*;
+import static dk.cloudcreate.essentials.shared.MessageFormatter.*;
+import static java.util.function.Function.*;
+import static java.util.stream.Collectors.*;
 
 /**
  * Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing {@link CmdHandler} as well as {@link MessageHandler}
@@ -358,7 +358,8 @@ public abstract class EventProcessor implements Lifecycle {
                                                                     var subscription = eventStoreSubscriptionManager.exclusivelySubscribeToAggregateEventsAsynchronously(
                                                                             subscriberId,
                                                                             aggregateType,
-                                                                            GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
+                                                                            startSubscriptionFromGlobalEventOrder(),
+                                                                            Optional.empty(),
                                                                             new FencedLockAwareSubscriber() {
                                                                                 @Override
                                                                                 public void onLockAcquired(FencedLock fencedLock, SubscriptionResumePoint resumeFromAndIncluding) {
@@ -383,7 +384,7 @@ public abstract class EventProcessor implements Lifecycle {
                                                                              subscription);
                                                                     return subscription;
                                                                 })
-                                                                .collect(Collectors.toList());
+                                                                .toList();
 
             log.info("⚙️ [{}] Started. # of undelivered Inbox messages: {}",
                      processorName,
@@ -578,6 +579,23 @@ public abstract class EventProcessor implements Lifecycle {
                                .build();
     }
 
+    @NotNull
+    private Function<AggregateType, GlobalEventOrder> startSubscriptionFromGlobalEventOrder() {
+        if (isStartSubscriptionFromLatestEvent()) {
+            return aggregateType -> eventStore.getUnitOfWorkFactory().withUnitOfWork(() -> eventStore.findHighestGlobalEventOrderPersisted(aggregateType)
+                    .map(GlobalEventOrder::increment)
+                    .orElse(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER));
+        }
+        return aggregateType -> GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER;
+    }
+
+    /**
+     * New subscriptions should start consuming events from the latest event. Default false
+     * @return is new subscriptions should start consuming events from the latest event.
+     */
+    protected boolean isStartSubscriptionFromLatestEvent() {
+        return false;
+    }
 
     @Override
     public String toString() {
