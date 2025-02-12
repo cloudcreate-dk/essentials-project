@@ -16,36 +16,35 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription;
 
-import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.*;
+import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
-import dk.cloudcreate.essentials.components.foundation.Lifecycle;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.*;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
-import dk.cloudcreate.essentials.components.foundation.transaction.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.Inbox;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.OrderedMessage;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.types.*;
-import dk.cloudcreate.essentials.shared.*;
-import dk.cloudcreate.essentials.shared.concurrent.*;
-import dk.cloudcreate.essentials.shared.functional.tuple.*;
-import org.reactivestreams.*;
+import dk.cloudcreate.essentials.shared.FailFast;
+import dk.cloudcreate.essentials.shared.concurrent.ThreadFactoryBuilder;
+import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
+import org.reactivestreams.Subscription;
 import org.slf4j.*;
 import reactor.core.publisher.*;
 import reactor.util.retry.*;
 
-import java.time.*;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.*;
-import java.util.stream.*;
+import java.util.stream.Collectors;
 
-import static dk.cloudcreate.essentials.shared.Exceptions.*;
-import static dk.cloudcreate.essentials.shared.FailFast.*;
-import static dk.cloudcreate.essentials.shared.MessageFormatter.*;
+import static dk.cloudcreate.essentials.shared.Exceptions.rethrowIfCriticalError;
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
+import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 /**
  * Provides support for durable {@link EventStore} subscriptions.<br>

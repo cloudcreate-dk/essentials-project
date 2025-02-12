@@ -16,15 +16,15 @@
 
 package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription;
 
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
-import dk.cloudcreate.essentials.components.foundation.types.*;
-import dk.cloudcreate.essentials.shared.functional.tuple.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.AggregateType;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
+import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
+import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
 
 import java.util.*;
-import java.util.function.*;
+import java.util.function.Function;
 
-import static dk.cloudcreate.essentials.shared.FailFast.*;
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * Repository responsible for persisting {@link SubscriptionResumePoint}'s maintained by the {@link EventStoreSubscriptionManager}
