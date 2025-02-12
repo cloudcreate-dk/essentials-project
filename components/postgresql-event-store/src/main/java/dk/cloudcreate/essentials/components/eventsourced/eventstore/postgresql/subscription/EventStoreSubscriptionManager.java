@@ -1781,20 +1781,20 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
          *                                   <b>Note: Default behaviour needs to at least request one more event</b><br>
          *                                   Similar to:
          *                                   <pre>{@code
-         *                                                                     void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
-         *                                                                          log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
-         *                                                                                          subscriberId,
-         *                                                                                          aggregateType,
-         *                                                                                          e.globalEventOrder(),
-         *                                                                                          e.event().getEventTypeOrName().getValue()), cause);
-         *                                                                          log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
-         *                                                                                      subscriberId(),
-         *                                                                                      aggregateType(),
-         *                                                                                      e.globalEventOrder()
-         *                                                                                      );
-         *                                                                          eventStoreSubscription.request(1);
-         *                                                                     }
-         *                                                                     }</pre>
+         *                                                                                                       void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
+         *                                                                                                            log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+         *                                                                                                                            subscriberId,
+         *                                                                                                                            aggregateType,
+         *                                                                                                                            e.globalEventOrder(),
+         *                                                                                                                            e.event().getEventTypeOrName().getValue()), cause);
+         *                                                                                                            log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+         *                                                                                                                        subscriberId(),
+         *                                                                                                                        aggregateType(),
+         *                                                                                                                        e.globalEventOrder()
+         *                                                                                                                        );
+         *                                                                                                            eventStoreSubscription.request(1);
+         *                                                                                                       }
+         *                                                                                                       }</pre>
          * @param eventStorePollingBatchSize The batch size used when polling events from the {@link EventStore}
          * @param eventStore                 The {@link EventStore} to use
          */
@@ -1823,29 +1823,29 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
          *                                              <b>Note: Default behaviour needs to at least request one more event</b><br>
          *                                              Similar to:
          *                                              <pre>{@code
-         *                                                                                           void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
-         *                                                                                                log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
-         *                                                                                                                subscriberId,
-         *                                                                                                                aggregateType,
-         *                                                                                                                e.globalEventOrder(),
-         *                                                                                                                e.event().getEventTypeOrName().getValue()), cause);
-         *                                                                                                log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
-         *                                                                                                            subscriberId(),
-         *                                                                                                            aggregateType(),
-         *                                                                                                            e.globalEventOrder()
-         *                                                                                                            );
-         *                                                                                                eventStoreSubscription.request(1);
-         *                                                                                           }
-         *                                                                                           }</pre>
+         *                                                                                                                                        void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
+         *                                                                                                                                             log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+         *                                                                                                                                                             subscriberId,
+         *                                                                                                                                                             aggregateType,
+         *                                                                                                                                                             e.globalEventOrder(),
+         *                                                                                                                                                             e.event().getEventTypeOrName().getValue()), cause);
+         *                                                                                                                                             log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+         *                                                                                                                                                         subscriberId(),
+         *                                                                                                                                                         aggregateType(),
+         *                                                                                                                                                         e.globalEventOrder()
+         *                                                                                                                                                         );
+         *                                                                                                                                             eventStoreSubscription.request(1);
+         *                                                                                                                                        }
+         *                                                                                                                                        }</pre>
          * @param forwardToEventHandlerRetryBackoffSpec The {@link RetryBackoffSpec} used.<br>
          *                                              Example:
          *                                              <pre>{@code
-         *                                                                                           Retry.backoff(Long.MAX_VALUE, Duration.ofMillis(100)) // Initial delay of 100ms
-         *                                                                                                .maxBackoff(Duration.ofSeconds(1)) // Maximum backoff of 1 second
-         *                                                                                                .jitter(0.5)
-         *                                                                                                .filter(IOExceptionUtil::isIOException)
-         *                                                                                           }
-         *                                                                                           </pre>
+         *                                                                                                                                        Retry.backoff(Long.MAX_VALUE, Duration.ofMillis(100)) // Initial delay of 100ms
+         *                                                                                                                                             .maxBackoff(Duration.ofSeconds(1)) // Maximum backoff of 1 second
+         *                                                                                                                                             .jitter(0.5)
+         *                                                                                                                                             .filter(IOExceptionUtil::isIOException)
+         *                                                                                                                                        }
+         *                                                                                                                                        </pre>
          * @param eventStorePollingBatchSize            The batch size used when polling events from the {@link EventStore}
          * @param eventStore                            The {@link EventStore} to use
          */
