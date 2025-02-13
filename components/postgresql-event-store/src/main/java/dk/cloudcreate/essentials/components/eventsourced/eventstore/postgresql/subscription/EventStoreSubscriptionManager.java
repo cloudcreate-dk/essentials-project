@@ -191,9 +191,42 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
      *                                                                please use {@link #exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId, AggregateType, GlobalEventOrder, Optional, FencedLockAwareSubscriber, Inbox)}
      * @return the subscription handle
      */
+    default EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
+                                                                                       AggregateType forAggregateType,
+                                                                                       GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                                       Optional<Tenant> onlyIncludeEventsForTenant,
+                                                                                       FencedLockAwareSubscriber fencedLockAwareSubscriber,
+                                                                                       PersistedEventHandler eventHandler) {
+        return exclusivelySubscribeToAggregateEventsAsynchronously(
+                subscriberId,
+                forAggregateType,
+                a -> onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                onlyIncludeEventsForTenant,
+                fencedLockAwareSubscriber,
+                eventHandler
+        );
+    }
+
+    /**
+     * Create an exclusive asynchronous subscription that will receive {@link PersistedEvent} after they have been committed to the {@link EventStore}<br>
+     * This ensures that the handling of events can occur in a separate transaction, than the one that persisted the events, thereby avoiding the dual write problem<br>
+     * An exclusive subscription means that the {@link EventStoreSubscriptionManager} will acquire a distributed {@link FencedLock} to ensure that only one active subscriber in a cluster,
+     * out of all subscribers that share the same <code>subscriberId</code>, is allowed to have an active subscribe at a time
+     *
+     * @param subscriberId                                            the unique id for the subscriber
+     * @param forAggregateType                                        the type of aggregate that we're subscribing for {@link PersistedEvent}'s related to
+     * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder If it's the first time the given <code>subscriberId</code> is subscribing then the subscription will be using the returned {@link GlobalEventOrder} as the starting point in the
+     *                                                                EventStream associated with the <code>aggregateType</code>
+     * @param onlyIncludeEventsForTenant                              if {@link Optional#isPresent()} then only include events that belong to the specified {@link Tenant}, otherwise all Events matching the criteria are returned
+     * @param fencedLockAwareSubscriber                               Callback interface that will be called when the exclusive/fenced lock is acquired or released
+     * @param eventHandler                                            the event handler that will receive the published {@link PersistedEvent}'s<br>
+     *                                                                Exceptions thrown from the eventHandler will cause the event to be skipped. If you need a retry capability
+     *                                                                please use {@link #exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId, AggregateType, GlobalEventOrder, Optional, FencedLockAwareSubscriber, Inbox)}
+     * @return the subscription handle
+     */
     EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
                                                                                AggregateType forAggregateType,
-                                                                               GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                               Function<AggregateType, GlobalEventOrder> onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
                                                                                Optional<Tenant> onlyIncludeEventsForTenant,
                                                                                FencedLockAwareSubscriber fencedLockAwareSubscriber,
                                                                                PersistedEventHandler eventHandler);
@@ -695,7 +728,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
         @Override
         public EventStoreSubscription exclusivelySubscribeToAggregateEventsAsynchronously(SubscriberId subscriberId,
                                                                                           AggregateType forAggregateType,
-                                                                                          GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                                                          Function<AggregateType, GlobalEventOrder> onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
                                                                                           Optional<Tenant> onlyIncludeEventsForTenant,
                                                                                           FencedLockAwareSubscriber fencedLockAwareSubscriber,
                                                                                           PersistedEventHandler eventHandler) {
@@ -1405,7 +1438,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
             private final DurableSubscriptionRepository durableSubscriptionRepository;
             private final AggregateType                 aggregateType;
             private final SubscriberId                  subscriberId;
-            private final GlobalEventOrder              onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder;
+            private final Function<AggregateType, GlobalEventOrder>              onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder;
             private final Optional<Tenant>              onlyIncludeEventsForTenant;
             private final FencedLockAwareSubscriber     fencedLockAwareSubscriber;
             private final PersistedEventHandler         eventHandler;
@@ -1422,7 +1455,7 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
                                                      DurableSubscriptionRepository durableSubscriptionRepository,
                                                      AggregateType aggregateType,
                                                      SubscriberId subscriberId,
-                                                     GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
+                                                     Function<AggregateType, GlobalEventOrder> onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder,
                                                      Optional<Tenant> onlyIncludeEventsForTenant,
                                                      FencedLockAwareSubscriber fencedLockAwareSubscriber,
                                                      PersistedEventHandler eventHandler) {
@@ -1747,20 +1780,20 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
          *                                   <b>Note: Default behaviour needs to at least request one more event</b><br>
          *                                   Similar to:
          *                                   <pre>{@code
-         *                                                                     void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
-         *                                                                          log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
-         *                                                                                          subscriberId,
-         *                                                                                          aggregateType,
-         *                                                                                          e.globalEventOrder(),
-         *                                                                                          e.event().getEventTypeOrName().getValue()), cause);
-         *                                                                          log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
-         *                                                                                      subscriberId(),
-         *                                                                                      aggregateType(),
-         *                                                                                      e.globalEventOrder()
-         *                                                                                      );
-         *                                                                          eventStoreSubscription.request(1);
-         *                                                                     }
-         *                                                                     }</pre>
+         *                                                                                                       void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
+         *                                                                                                            log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+         *                                                                                                                            subscriberId,
+         *                                                                                                                            aggregateType,
+         *                                                                                                                            e.globalEventOrder(),
+         *                                                                                                                            e.event().getEventTypeOrName().getValue()), cause);
+         *                                                                                                            log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+         *                                                                                                                        subscriberId(),
+         *                                                                                                                        aggregateType(),
+         *                                                                                                                        e.globalEventOrder()
+         *                                                                                                                        );
+         *                                                                                                            eventStoreSubscription.request(1);
+         *                                                                                                       }
+         *                                                                                                       }</pre>
          * @param eventStorePollingBatchSize The batch size used when polling events from the {@link EventStore}
          * @param eventStore                 The {@link EventStore} to use
          */
@@ -1789,29 +1822,29 @@ public interface EventStoreSubscriptionManager extends Lifecycle {
          *                                              <b>Note: Default behaviour needs to at least request one more event</b><br>
          *                                              Similar to:
          *                                              <pre>{@code
-         *                                                                                           void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
-         *                                                                                                log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
-         *                                                                                                                subscriberId,
-         *                                                                                                                aggregateType,
-         *                                                                                                                e.globalEventOrder(),
-         *                                                                                                                e.event().getEventTypeOrName().getValue()), cause);
-         *                                                                                                log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
-         *                                                                                                            subscriberId(),
-         *                                                                                                            aggregateType(),
-         *                                                                                                            e.globalEventOrder()
-         *                                                                                                            );
-         *                                                                                                eventStoreSubscription.request(1);
-         *                                                                                           }
-         *                                                                                           }</pre>
+         *                                                                                                                                        void onErrorHandlingEvent(PersistedEvent e, Throwable cause) {
+         *                                                                                                                                             log.error(msg("[{}-{}] (#{}) Skipping {} event because of error",
+         *                                                                                                                                                             subscriberId,
+         *                                                                                                                                                             aggregateType,
+         *                                                                                                                                                             e.globalEventOrder(),
+         *                                                                                                                                                             e.event().getEventTypeOrName().getValue()), cause);
+         *                                                                                                                                             log.trace("[{}-{}] (#{}) Requesting 1 event from the EventStore",
+         *                                                                                                                                                         subscriberId(),
+         *                                                                                                                                                         aggregateType(),
+         *                                                                                                                                                         e.globalEventOrder()
+         *                                                                                                                                                         );
+         *                                                                                                                                             eventStoreSubscription.request(1);
+         *                                                                                                                                        }
+         *                                                                                                                                        }</pre>
          * @param forwardToEventHandlerRetryBackoffSpec The {@link RetryBackoffSpec} used.<br>
          *                                              Example:
          *                                              <pre>{@code
-         *                                                                                           Retry.backoff(Long.MAX_VALUE, Duration.ofMillis(100)) // Initial delay of 100ms
-         *                                                                                                .maxBackoff(Duration.ofSeconds(1)) // Maximum backoff of 1 second
-         *                                                                                                .jitter(0.5)
-         *                                                                                                .filter(IOExceptionUtil::isIOException)
-         *                                                                                           }
-         *                                                                                           </pre>
+         *                                                                                                                                        Retry.backoff(Long.MAX_VALUE, Duration.ofMillis(100)) // Initial delay of 100ms
+         *                                                                                                                                             .maxBackoff(Duration.ofSeconds(1)) // Maximum backoff of 1 second
+         *                                                                                                                                             .jitter(0.5)
+         *                                                                                                                                             .filter(IOExceptionUtil::isIOException)
+         *                                                                                                                                        }
+         *                                                                                                                                        </pre>
          * @param eventStorePollingBatchSize            The batch size used when polling events from the {@link EventStore}
          * @param eventStore                            The {@link EventStore} to use
          */

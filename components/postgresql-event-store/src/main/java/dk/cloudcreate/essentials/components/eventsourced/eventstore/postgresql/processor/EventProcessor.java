@@ -40,8 +40,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
+import java.util.function.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -358,7 +357,8 @@ public abstract class EventProcessor implements Lifecycle {
                                                                     var subscription = eventStoreSubscriptionManager.exclusivelySubscribeToAggregateEventsAsynchronously(
                                                                             subscriberId,
                                                                             aggregateType,
-                                                                            GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER,
+                                                                            startSubscriptionFromGlobalEventOrder(),
+                                                                            Optional.empty(),
                                                                             new FencedLockAwareSubscriber() {
                                                                                 @Override
                                                                                 public void onLockAcquired(FencedLock fencedLock, SubscriptionResumePoint resumeFromAndIncluding) {
@@ -383,7 +383,7 @@ public abstract class EventProcessor implements Lifecycle {
                                                                              subscription);
                                                                     return subscription;
                                                                 })
-                                                                .collect(Collectors.toList());
+                                                                .toList();
 
             log.info("⚙️ [{}] Started. # of undelivered Inbox messages: {}",
                      processorName,
@@ -578,6 +578,23 @@ public abstract class EventProcessor implements Lifecycle {
                                .build();
     }
 
+    private Function<AggregateType, GlobalEventOrder> startSubscriptionFromGlobalEventOrder() {
+        if (isStartSubscriptionFromLatestEvent()) {
+            return aggregateType -> eventStore.getUnitOfWorkFactory().withUnitOfWork(() -> eventStore.findHighestGlobalEventOrderPersisted(aggregateType)
+                                                                                                     .map(GlobalEventOrder::increment)
+                                                                                                     .orElse(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER));
+        }
+        return aggregateType -> GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER;
+    }
+
+    /**
+     * New subscriptions should start consuming events from the latest event. Default false
+     *
+     * @return is new subscriptions should start consuming events from the latest event.
+     */
+    protected boolean isStartSubscriptionFromLatestEvent() {
+        return false;
+    }
 
     @Override
     public String toString() {

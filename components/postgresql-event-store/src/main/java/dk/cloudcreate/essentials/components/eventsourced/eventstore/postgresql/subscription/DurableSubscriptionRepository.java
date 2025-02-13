@@ -22,6 +22,7 @@ import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.shared.functional.tuple.Pair;
 
 import java.util.*;
+import java.util.function.Function;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
@@ -133,10 +134,26 @@ public interface DurableSubscriptionRepository {
     default SubscriptionResumePoint getOrCreateResumePoint(SubscriberId subscriberId,
                                                            AggregateType forAggregateType,
                                                            GlobalEventOrder onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder) {
+        return getOrCreateResumePoint(subscriberId, forAggregateType, p -> onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder);
+    }
+
+    /**
+     * Get or Create a Resume point for the combination of {@link SubscriberId} and {@link AggregateType} which uniquely define a resume point<br>
+     * Logic is:<br>
+     * {@link #getResumePoint(SubscriberId, AggregateType)} and if the resume point doesn't exist then {@link #createResumePoint(SubscriberId, AggregateType, GlobalEventOrder)}
+     *
+     * @param subscriberId                                            the subscriber id
+     * @param forAggregateType                                        the aggregate type
+     * @param onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder the {@link GlobalEventOrder} resume point that will be used if the resume didn't exist
+     * @return the resume point
+     */
+    default SubscriptionResumePoint getOrCreateResumePoint(SubscriberId subscriberId,
+                                                           AggregateType forAggregateType,
+                                                           Function<AggregateType, GlobalEventOrder> onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder) {
         return getResumePoint(subscriberId,
-                              forAggregateType)
+                forAggregateType)
                 .orElseGet(() -> createResumePoint(subscriberId,
-                                                   forAggregateType,
-                                                   onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder));
+                        forAggregateType,
+                        onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder.apply(forAggregateType)));
     }
 }
