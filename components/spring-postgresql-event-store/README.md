@@ -45,7 +45,7 @@ To use `Spring Postgresql Event Store` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-postgresql-event-store</artifactId>
-    <version>0.40.21</version>
+    <version>0.40.22</version>
 </dependency>
 ```
 
