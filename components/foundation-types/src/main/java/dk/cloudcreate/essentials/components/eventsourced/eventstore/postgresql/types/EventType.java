@@ -44,6 +44,10 @@ public final class EventType extends CharSequenceType<EventType> implements Iden
         super(isSerializedEventType(value) ? value : FQCN_PREFIX + value);
     }
 
+    public EventType(String value) {
+        super(isSerializedEventType(value) ? value : FQCN_PREFIX + value);
+    }
+
     public static EventType of(CharSequence value) {
         return new EventType(value);
     }

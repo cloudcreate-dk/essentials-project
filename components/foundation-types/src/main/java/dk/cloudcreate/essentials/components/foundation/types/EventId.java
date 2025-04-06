@@ -28,6 +28,10 @@ public final class EventId extends CharSequenceType<EventId> implements Identifi
         super(value);
     }
 
+    public EventId(String value) {
+        super(value);
+    }
+
     public static EventId of(CharSequence value) {
         return new EventId(value);
     }

@@ -26,6 +26,10 @@ public final class MessageId extends CharSequenceType<MessageId> implements Iden
         super(value);
     }
 
+    public MessageId(String value) {
+        super(value);
+    }
+
     public static MessageId of(CharSequence value) {
         return new MessageId(value);
     }
