@@ -129,6 +129,31 @@ class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
      * Define the expected event outcome when [GivenWhenThenScenario] is calling the [Decider.handle] with the command
      * provided in [when_] and past events provided in [given]
      *
+     * Example:
+     * ```
+     * scenario
+     *    .given()
+     *    .when_(
+     *        RegisterDocument(
+     *            id = id,
+     *            attributes = attributes,
+     *            payload = payload
+     *        )
+     *    )
+     *    .thenAssert { actualEvent ->
+     *        assertThat(actualEvent).isNotNull
+     *        assertThat(actualEvent).isInstanceOf(DocumentRegistered::class.java)
+     *
+     *        val documentRegistered = actualEvent as DocumentRegistered
+     *        assertThat(documentRegistered.id).isEqualTo(id)
+     *        assertThat(documentRegistered.version).isEqualTo(DocumentVersion.FIRST)
+     *        assertThat(documentRegistered.attributes).isEqualTo(attributes)
+     *        assertThat(documentRegistered.registeredAt)
+     *            .isAfter(now)
+     *            .isBefore(now.plus(Duration.ofSeconds(1)))
+     *    }
+     * ```
+     *
      * This step is also known as the **Assert** step in Arrange, Act, Assert
      * @param actualEventAsserter A [Consumer] that will receive the **actual** event that resulted from handling
      * handling the [_whenCommand] using the [_givenEvents] past events. This [Consumer] is expected to manually assert
@@ -150,6 +175,27 @@ class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
      * Define that we don't expect any events outcome when [GivenWhenThenScenario]  is calling the [Decider.handle] with the command
      * provided in [when_] and past events provided in [given]
      *
+     * Example:
+     * ```
+     * scenario
+     *    .given(
+     *        DocumentRegistered(
+     *            id = id,
+     *            version = DocumentVersion.FIRST,
+     *            attributes = attributes,
+     *            registeredAt = now
+     *        )
+     *    )
+     *    .when_(
+     *        RegisterDocument(
+     *            id = id,
+     *            attributes = attributes,
+     *            payload = payload
+     *        )
+     *    )
+     *    .thenExpectNoEvent()
+     * ```
+     *
      * This step is also known as the **Assert** step in Arrange, Act, Assert
      * @param expectedEvent The event we expect to be returned from the [Decider.handle] method as a result of
      * handling the [_whenCommand] using the [_givenEvents] past events
@@ -169,6 +215,20 @@ class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
      * instance when the [GivenWhenThenScenario]  is calling the [Decider.handle] with the command
      * provided in [when_] and past events provided in [given]
      *
+     * Example:
+     * ```
+     * scenario
+     *    .given(
+     *    )
+     *    .when_(
+     *        ChangeProductPrice(
+     *            productId,
+     *            price
+     *        )
+     *    )
+     *    .thenFailsWithException(ProductHasNotBeenAddedException(productId))
+     * ```
+     *ﬁ
      * This step is also known as the **Assert** step in Arrange, Act, Assert
      * @param expectedException The exception that we expect the [Decider.handle] to throw
      * when handling the [_whenCommand] using the [_givenEvents] past events
@@ -197,6 +257,26 @@ class GivenWhenThenScenario<CMD, EVENT>(val decider: Decider<CMD, EVENT>) {
      * Define that we expect the scenario to fail with an [expectedExceptionType]  of a specific [Exception] type
      * when the [GivenWhenThenScenario]  is calling the [Decider.handle] with the command
      * provided in [when_] and past events provided in [given]
+     *
+     * Example:
+     * ```
+     * scenario
+     *     .given(
+     *         ProductAdded(
+     *             productId,
+     *             productName,
+     *             price
+     *         )
+     *     )
+     *     .when_(
+     *         AddProduct(
+     *             ProductId.random(), // Different ProductId
+     *             productName,
+     *             price
+     *         )
+     *     )
+     *     .thenFailsWithExceptionType(RuntimeException::class)
+     * ```
      *
      * This step is also known as the **Assert** step in Arrange, Act, Assert
      * @param expectedException The exception that we expect the [Decider.handle] to throw
