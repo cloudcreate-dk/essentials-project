@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import static dk.cloudcreate.essentials.shared.Exceptions.*;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
+import static dk.cloudcreate.essentials.shared.interceptor.InterceptorChain.newInterceptorChainForOperation;
 
 /**
  * The default {@link DurableQueueConsumer} which provides basic implementation (including retrying messages
@@ -58,6 +59,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
 
     public final     QueueName                             queueName;
     private final    ConsumeFromQueue                      consumeFromQueue;
+    private final    List<DurableQueuesInterceptor>        interceptors;
     private volatile boolean                               started;
     private final    ScheduledExecutorService              scheduler;
     private final    DURABLE_QUEUES                        durableQueues;
@@ -79,8 +81,10 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                                        DURABLE_QUEUES durableQueues,
                                        Consumer<DurableQueueConsumer> removeDurableQueueConsumer,
                                        long pollingIntervalMs,
-                                       QueuePollingOptimizer queuePollingOptimizer) {
+                                       QueuePollingOptimizer queuePollingOptimizer,
+                                       List<DurableQueuesInterceptor> interceptors) {
         this.consumeFromQueue = requireNonNull(consumeFromQueue, "consumeFromQueue is missing");
+        this.interceptors = new CopyOnWriteArrayList<>(requireNonNull(interceptors, "interceptors is missing"));
         consumeFromQueue.validate();
 
         this.durableQueues = requireNonNull(durableQueues, "durableQueues is missing");
@@ -393,7 +397,16 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
             orderedMessageDeliveryThreads.put(Thread.currentThread(), (OrderedMessage) queuedMessage.getMessage());
         }
         try {
-            consumeFromQueue.queueMessageHandler.handle(queuedMessage);
+            var operation = new HandleQueuedMessage(queuedMessage, consumeFromQueue.queueMessageHandler);
+            newInterceptorChainForOperation(operation,
+                                            interceptors,
+                                            (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
+                                            () -> {
+                                                consumeFromQueue.queueMessageHandler.handle(queuedMessage);
+                                                return (Void)null;
+                                            })
+                    .proceed();
+
             if (queuedMessage.isManuallyMarkedForRedelivery()) {
                 LOG.debug("[{}:{}] {} - Message handler manually requested redelivery of the message",
                           queueName,
@@ -517,6 +530,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
     protected boolean isPermanentError(QueuedMessage queuedMessage, Throwable e) {
         var rootCause = Exceptions.getRootCause(e);
         return consumeFromQueue.getRedeliveryPolicy().isPermanentError(queuedMessage, e) ||
+                e instanceof DurableQueueDeserializationException ||
                 e instanceof ClassCastException || rootCause instanceof ClassCastException ||
                 e instanceof NoClassDefFoundError || rootCause instanceof NoClassDefFoundError ||
                 rootCause instanceof MismatchedInputException ||

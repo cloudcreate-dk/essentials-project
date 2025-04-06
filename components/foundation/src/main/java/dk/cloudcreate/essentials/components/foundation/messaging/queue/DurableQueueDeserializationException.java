@@ -16,21 +16,16 @@
 
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
-import dk.cloudcreate.essentials.types.*;
-
-/**
- * The name of a Durable Queue
- */
-public final class QueueName extends CharSequenceType<QueueName> implements Identifier {
-    public QueueName(CharSequence value) {
-        super(value);
+public class DurableQueueDeserializationException extends DurableQueueException {
+    public DurableQueueDeserializationException(String message, QueueName queueName, QueueEntryId queueEntryId) {
+        super(message, queueName, queueEntryId);
     }
 
-    public QueueName(String value) {
-        super(value);
+    public DurableQueueDeserializationException(Throwable cause, QueueName queueName, QueueEntryId queueEntryId) {
+        super(cause, queueName, queueEntryId);
     }
 
-    public static QueueName of(CharSequence value) {
-        return new QueueName(value);
+    public DurableQueueDeserializationException(String message, Throwable cause, QueueName queueName, QueueEntryId queueEntryId) {
+        super(message, cause, queueName, queueEntryId);
     }
 }
