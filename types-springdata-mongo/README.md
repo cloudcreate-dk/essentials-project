@@ -22,7 +22,7 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-mongo</artifactId>
-    <version>0.40.22</version>
+    <version>0.40.23</version>
 </dependency>
 ```
 
