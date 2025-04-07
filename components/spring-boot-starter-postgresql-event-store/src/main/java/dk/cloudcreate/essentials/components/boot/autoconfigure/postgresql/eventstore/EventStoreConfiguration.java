@@ -17,8 +17,8 @@
 package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.eventstore;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -28,7 +28,9 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.b
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.micrometer.MicrometerTracingEventStoreInterceptor;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.micrometer.*;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.observability.EventStoreSubscriptionObserver;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.observability.micrometer.MeasurementEventStoreSubscriptionObserver;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.processor.*;
@@ -95,11 +97,11 @@ public class EventStoreConfiguration {
      * @param properties                  The configuration properties
      * @return the {@link EventStoreEventBus}
      */
-    @Bean
+    @Bean("essentialsEventBus")
     @ConditionalOnMissingBean
     public EventStoreEventBus eventBus(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
-                             Optional<OnErrorHandler> onErrorHandler,
-                             EssentialsComponentsProperties properties) {
+                                       Optional<OnErrorHandler> onErrorHandler,
+                                       EssentialsComponentsProperties properties) {
         var localEventBusBuilder = LocalEventBus.builder()
                                                 .busName("EventStoreLocalBus")
                                                 .overflowMaxRetries(properties.getReactive().getOverflowMaxRetries())
@@ -198,24 +200,29 @@ public class EventStoreConfiguration {
     /**
      * The configurable {@link EventStore} that allows us to persist and load Events associated with different {@link AggregateType}'s
      *
-     * @param eventStoreUnitOfWorkFactory the {@link EventStoreUnitOfWorkFactory} that is required for the {@link EventStore} in order handle events associated with a given transaction
-     * @param persistenceStrategy         the strategy for how {@link AggregateType} event-streams should be persisted.
-     * @param eventStoreLocalEventBus     the Local EventBus where the {@link EventStore} publishes persisted event
+     * @param eventStoreUnitOfWorkFactory    the {@link EventStoreUnitOfWorkFactory} that is required for the {@link EventStore} in order handle events associated with a given transaction
+     * @param persistenceStrategy            the strategy for how {@link AggregateType} event-streams should be persisted.
+     * @param eventStoreLocalEventBus        the Local EventBus where the {@link EventStore} publishes persisted event
+     * @param essentialsComponentsProperties {@link EssentialsEventStoreProperties} configuration properties
+     * @param eventStoreInterceptors         {@link EventStoreInterceptor}'s discovered in the Application context
+     * @param eventStoreSubscriptionObserver The {@link EventStoreSubscriptionObserver} to use for collecting subscriber statistics
      * @return the configurable {@link EventStore}
      */
-    @Bean
+    @Bean("essentialsEventStore")
     @ConditionalOnMissingBean
     public ConfigurableEventStore<SeparateTablePerAggregateEventStreamConfiguration> eventStore(EventStoreUnitOfWorkFactory<? extends EventStoreUnitOfWork> eventStoreUnitOfWorkFactory,
                                                                                                 AggregateEventStreamPersistenceStrategy<SeparateTablePerAggregateEventStreamConfiguration> persistenceStrategy,
                                                                                                 EventStoreEventBus eventStoreLocalEventBus,
                                                                                                 EssentialsEventStoreProperties essentialsComponentsProperties,
-                                                                                                List<EventStoreInterceptor> eventStoreInterceptors) {
+                                                                                                List<EventStoreInterceptor> eventStoreInterceptors,
+                                                                                                EventStoreSubscriptionObserver eventStoreSubscriptionObserver) {
         var configurableEventStore = new PostgresqlEventStore<>(eventStoreUnitOfWorkFactory,
                                                                 persistenceStrategy,
                                                                 Optional.of(eventStoreLocalEventBus),
                                                                 eventStore -> essentialsComponentsProperties.isUseEventStreamGapHandler() ?
                                                                               new PostgresqlEventStreamGapHandler<>(eventStore, eventStoreUnitOfWorkFactory) :
-                                                                              new NoEventStreamGapHandler<>());
+                                                                              new NoEventStreamGapHandler<>(),
+                                                                eventStoreSubscriptionObserver);
         configurableEventStore.addEventStoreInterceptors(eventStoreInterceptors);
         return configurableEventStore;
     }
@@ -317,7 +324,35 @@ public class EventStoreConfiguration {
                                                                                          EssentialsComponentsProperties properties) {
         requireTrue(meterRegistry.isPresent(), "MeterRegistry is not configured");
         return new SubscriberGlobalOrderMicrometerMonitor(eventStoreSubscriptionManager,
-                                                          meterRegistry.orElse(null), eventStoreUnitOfWorkFactory, properties.getTracingProperties().getModuleTag());
+                                                          meterRegistry.orElse(null),
+                                                          eventStoreUnitOfWorkFactory,
+                                                          properties.getTracingProperties().getModuleTag());
     }
 
+    /**
+     * The {@link EventStoreSubscriptionObserver} to use for collecting statistics related to {@link EventStoreSubscription} and {@link EventStore} event polling - default is {@link MeasurementEventStoreSubscriptionObserver}
+     *
+     * @return the {@link EventStoreSubscriptionObserver} to use for collecting statistics - default is {@link MeasurementEventStoreSubscriptionObserver}
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public MeasurementEventStoreSubscriptionObserver eventStoreSubscriptionObserver(EssentialsEventStoreProperties properties,
+                                                                                    Optional<MeterRegistry> meterRegistry,
+                                                                                    EssentialsComponentsProperties essentialsProperties) {
+        return new MeasurementEventStoreSubscriptionObserver(meterRegistry,
+                                                             properties.getSubscriptionManager().getMetrics().isEnabled(),
+                                                             properties.getSubscriptionManager().getMetrics().toLogThresholds(),
+                                                             essentialsProperties.getTracingProperties().getModuleTag());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RecordExecutionTimeEventStoreInterceptor measurementEventStoreInterceptor(EssentialsEventStoreProperties properties,
+                                                                                     Optional<MeterRegistry> meterRegistry,
+                                                                                     EssentialsComponentsProperties essentialsProperties) {
+        return new RecordExecutionTimeEventStoreInterceptor(meterRegistry,
+                                                            properties.getMetrics().isEnabled(),
+                                                            properties.getMetrics().toLogThresholds(),
+                                                            essentialsProperties.getTracingProperties().getModuleTag());
+    }
 }
