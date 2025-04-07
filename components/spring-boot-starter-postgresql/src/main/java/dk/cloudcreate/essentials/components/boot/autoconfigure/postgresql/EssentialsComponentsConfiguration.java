@@ -18,14 +18,15 @@ package dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql;
 
 
 import com.fasterxml.jackson.annotation.*;
-import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.EssentialsComponentsProperties.*;
 import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.*;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
+import dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.*;
 import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.lifecycle.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
@@ -56,8 +57,8 @@ import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.event.EventListener;
 import org.springframework.context.event.*;
+import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -138,12 +139,13 @@ public class EssentialsComponentsConfiguration {
 
     /**
      * Auto-registers any {@link CommandHandler} with the single {@link CommandBus} bean found<br>
-     * AND auto-registers any {@link EventHandler} with all {@link EventBus} beans foound
+     * AND auto-registers any {@link EventHandler} with all {@link EventBus} beans found
      *
      * @return the {@link ReactiveHandlersBeanPostProcessor} bean
      */
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "essentials", name = "reactive-bean-post-processor-enabled", havingValue = "true", matchIfMissing = true)
     public static ReactiveHandlersBeanPostProcessor reactiveHandlersBeanPostProcessor() {
         return new ReactiveHandlersBeanPostProcessor();
     }
@@ -310,7 +312,7 @@ public class EssentialsComponentsConfiguration {
                                                   fencedLockManager);
     }
 
-    @Bean
+    @Bean("essentialsCommandBus")
     @ConditionalOnMissingBean
     public DurableLocalCommandBus commandBus(DurableQueues durableQueues,
                                              UnitOfWorkFactory<? extends UnitOfWork> unitOfWorkFactory,
@@ -339,7 +341,7 @@ public class EssentialsComponentsConfiguration {
      * @param properties     The configuration properties
      * @return the {@link EventBus} to use for all event handlers
      */
-    @Bean
+    @Bean("essentialsEventBus")
     @ConditionalOnMissingClass("dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.EventStoreEventBus")
     @ConditionalOnMissingBean
     public EventBus eventBus(Optional<OnErrorHandler> onErrorHandler, EssentialsComponentsProperties properties) {
@@ -441,5 +443,35 @@ public class EssentialsComponentsConfiguration {
                 jacksonJSONSerializer.setClassLoader(event.getApplicationContext().getClassLoader());
             }
         }
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RecordExecutionTimeMessageHandlerInterceptor measurementMessageHandlerInterceptor(EssentialsComponentsProperties properties,
+                                                                                             Optional<MeterRegistry> meterRegistry) {
+        return new RecordExecutionTimeMessageHandlerInterceptor(meterRegistry,
+                                                                properties.getMetrics().getMessageHandler().isEnabled(),
+                                                                properties.getMetrics().getMessageHandler().toLogThresholds(),
+                                                                properties.getTracingProperties().getModuleTag());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RecordExecutionTimeCommandBusInterceptor measurementCommandBusInterceptor(EssentialsComponentsProperties properties,
+                                                                                     Optional<MeterRegistry> meterRegistry) {
+        return new RecordExecutionTimeCommandBusInterceptor(meterRegistry,
+                                                            properties.getMetrics().getCommandBus().isEnabled(),
+                                                            properties.getMetrics().getCommandBus().toLogThresholds(),
+                                                            properties.getTracingProperties().getModuleTag());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RecordExecutionTimeDurableQueueInterceptor measurementDurableQueuesInterceptor(EssentialsComponentsProperties properties,
+                                                                                          Optional<MeterRegistry> meterRegistry) {
+        return new RecordExecutionTimeDurableQueueInterceptor(meterRegistry,
+                                                              properties.getMetrics().getDurableQueues().isEnabled(),
+                                                              properties.getMetrics().getDurableQueues().toLogThresholds(),
+                                                              properties.getTracingProperties().getModuleTag());
     }
 }

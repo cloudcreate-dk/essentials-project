@@ -24,8 +24,10 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.operation
 import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues;
-import dk.cloudcreate.essentials.reactive.LocalEventBus;
-import dk.cloudcreate.essentials.reactive.command.CommandBus;
+import dk.cloudcreate.essentials.reactive.*;
+import dk.cloudcreate.essentials.reactive.command.*;
+import dk.cloudcreate.essentials.reactive.spring.ReactiveHandlersBeanPostProcessor;
+import dk.cloudcreate.essentials.shared.measurement.*;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Sinks;
@@ -77,12 +79,14 @@ import java.time.*;
 @Configuration
 @ConfigurationProperties(prefix = "essentials")
 public class EssentialsComponentsProperties {
-    private final FencedLockManager   fencedLockManager             = new FencedLockManager();
-    private final DurableQueues       durableQueues                 = new DurableQueues();
-    private final LifeCycleProperties lifeCycles                    = new LifeCycleProperties();
-    private final TracingProperties   tracingProperties             = new TracingProperties();
-    private       boolean             immutableJacksonModuleEnabled = true;
-    private final ReactiveProperties  reactive                      = new ReactiveProperties();
+    private final FencedLockManager                     fencedLockManager                = new FencedLockManager();
+    private final DurableQueues                         durableQueues                    = new DurableQueues();
+    private final LifeCycleProperties                   lifeCycles                       = new LifeCycleProperties();
+    private final MicrometerTaggingProperties           tracingProperties                = new MicrometerTaggingProperties();
+    private       boolean                               immutableJacksonModuleEnabled    = true;
+    private final ReactiveProperties                    reactive                         = new ReactiveProperties();
+    private       boolean                               reactiveBeanPostProcessorEnabled = true;
+    private final EssentialsComponentsMetricsProperties metrics                          = new EssentialsComponentsMetricsProperties();
 
     /**
      * Should the EssentialsImmutableJacksonModule be included in the ObjectMapper configuration - default is true<br>
@@ -104,6 +108,28 @@ public class EssentialsComponentsProperties {
         this.immutableJacksonModuleEnabled = immutableJacksonModuleEnabled;
     }
 
+    /**
+     * Should the {@link ReactiveHandlersBeanPostProcessor} be enabled - default is true<br>
+     * Setting this value to <code>false</code> will result in all beans implementing {@link EventHandler} and {@link CommandHandler} will not being auto registered
+     * with the defined {@link EventBus} and {@link CommandBus}
+     *
+     * @return Should the {@link ReactiveHandlersBeanPostProcessor} be enabled
+     */
+    public boolean isReactiveBeanPostProcessorEnabled() {
+        return reactiveBeanPostProcessorEnabled;
+    }
+
+    /**
+     * Should the ReactiveHandlersBeanPostProcessor be enabled  - default is true<br>
+     * Setting this value to <code>false</code> will result in all beans implementing {@link EventHandler} and {@link CommandHandler} will not being auto registered
+     * with the defined {@link EventBus} and {@link CommandBus}
+     *
+     * @param reactiveBeanPostProcessorEnabled Should the {@link ReactiveHandlersBeanPostProcessor} be enabled
+     */
+    public void setReactiveBeanPostProcessorEnabled(boolean reactiveBeanPostProcessorEnabled) {
+        this.reactiveBeanPostProcessorEnabled = reactiveBeanPostProcessorEnabled;
+    }
+
     public FencedLockManager getFencedLockManager() {
         return fencedLockManager;
     }
@@ -116,12 +142,80 @@ public class EssentialsComponentsProperties {
         return this.lifeCycles;
     }
 
-    public TracingProperties getTracingProperties() {
+    public MicrometerTaggingProperties getTracingProperties() {
         return this.tracingProperties;
     }
 
     public ReactiveProperties getReactive() {
         return reactive;
+    }
+
+    /**
+     * Configuration properties for essentials metrics collection and logging.
+     * <p>
+     * This configuration is used to enable and fine-tune metrics gathering and logging for different components,
+     * such as durable queues, command bus, and message handlers. If a given component's <code>enabled</code> property is
+     * set to <code>false</code>, then no performance metrics will be collected or logged for that component.
+     * <p>
+     * <b>YAML example:</b>
+     * <pre>{@code
+     * essentials:
+     *   metrics:
+     *     durable-queues:
+     *       enabled: true
+     *       thresholds:
+     *         debug: 25ms
+     *         info: 200ms
+     *         warn: 500ms
+     *         error: 5000ms
+     *     command-bus:
+     *       enabled: true
+     *       thresholds:
+     *         debug: 25ms
+     *         info: 200ms
+     *         warn: 500ms
+     *         error: 5000ms
+     *     message-handler:
+     *       enabled: true
+     *       thresholds:
+     *         debug: 25ms
+     *         info: 200ms
+     *         warn: 500ms
+     *         error: 5000ms
+     * }</pre>
+     * <b>Properties example:</b>
+     * <pre>{@code
+     * essentials.metrics.durable-queues.enabled=true
+     * essentials.metrics.durable-queues.thresholds.debug=25ms
+     * essentials.metrics.durable-queues.thresholds.info=200ms
+     * essentials.metrics.durable-queues.thresholds.warn=500ms
+     * essentials.metrics.durable-queues.thresholds.error=5000ms
+     *
+     * essentials.metrics.command-bus.enabled=true
+     * essentials.metrics.command-bus.thresholds.debug=25ms
+     * essentials.metrics.command-bus.thresholds.info=200ms
+     * essentials.metrics.command-bus.thresholds.warn=500ms
+     * essentials.metrics.command-bus.thresholds.error=5000ms
+     *
+     * essentials.metrics.message-handler.enabled=true
+     * essentials.metrics.message-handler.thresholds.debug=25ms
+     * essentials.metrics.message-handler.thresholds.info=200ms
+     * essentials.metrics.message-handler.thresholds.warn=500ms
+     * essentials.metrics.message-handler.thresholds.error=5000ms
+     * }</pre>
+     * <p>
+     * You can further control the log levels by adjusting the minimum log level for the respective loggers:
+     * <table border="1">
+     *     <tr><th>Metric</th><th>Logger Class</th></tr>
+     *     <tr><td>essentials.metrics.durable-queues</td><td>dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeDurableQueueInterceptor</td></tr>
+     *     <tr><td>essentials.metrics.command-bus</td><td>dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeCommandBusInterceptor</td></tr>
+     *     <tr><td>essentials.metrics.message-handler</td><td>dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeMessageHandlerInterceptor</td></tr>
+     * </table>
+     *
+     * @return essentials metrics properties
+     */
+    public EssentialsComponentsMetricsProperties getMetrics() {
+        return metrics;
     }
 
     public static class DurableQueues {
@@ -435,7 +529,7 @@ public class EssentialsComponentsProperties {
         }
     }
 
-    public static class TracingProperties {
+    public static class MicrometerTaggingProperties {
         private String moduleTag;
 
         /**
@@ -454,6 +548,308 @@ public class EssentialsComponentsProperties {
          */
         public void setModuleTag(String moduleTag) {
             this.moduleTag = moduleTag;
+        }
+    }
+
+    /**
+     * Configuration properties for metrics collection (using {@link MeasurementTaker}) and logging thresholds.
+     * <p>
+     * These properties control the logging behavior for performance measurements.
+     * When a measured operation’s duration exceeds a given threshold, it is logged at the
+     * corresponding log level. Specifically:
+     * <ul>
+     *   <li><strong>errorThreshold</strong>: If the duration exceeds this threshold, the operation is logged at ERROR level.</li>
+     *   <li><strong>warnThreshold</strong>: If the duration exceeds this threshold, the operation is logged at WARN level.</li>
+     *   <li><strong>infoThreshold</strong>: If the duration exceeds this threshold, the operation is logged at INFO level.</li>
+     *   <li><strong>debugThreshold</strong>: If the duration exceeds this threshold, the operation is logged at DEBUG level.</li>
+     * </ul>
+     * If none of the thresholds are exceeded and metrics collection and logging is enabled, then the statistics are logged using TRACE level.
+     * <p>
+     * Note that by default, the metrics collection and logging is disabled.
+     * </p>
+     */
+    public static class MetricsProperties {
+        /**
+         * Flag to enable metrics collection.<br>
+         * If this is set to false, then no performance metrics will be collected using the {@link MeasurementTaker},
+         * and hence no metrics will be either.
+         * <p>Default: {@code false}</p>
+         */
+        private boolean enabled = false;
+
+        /**
+         * The thresholds for logging measured execution times.
+         * These thresholds determine the log level based on the measured duration.
+         */
+        private MetricsThresholds thresholds = new MetricsThresholds();
+
+        /**
+         * Indicates whether metrics collection is enabled.<br>
+         * If this is set to false, then no performance metrics will be collected using the {@link MeasurementTaker},
+         * and hence no metrics will be either.
+         * <p>Default: {@code false}</p>
+         *
+         * @return {@code true} if metrics collection is enabled; {@code false} otherwise.
+         */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /**
+         * Sets whether metrics collection is enabled.<br>
+         * If this is set to false, then no performance metrics will be collected using the {@link MeasurementTaker},
+         * and hence no metrics will be either.
+         * <p>Default: {@code false}</p>
+         *
+         * @param enabled {@code true} to enable metrics collection; {@code false} to disable.
+         */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /**
+         * Returns the metrics threshold properties.
+         * <p>
+         * These thresholds determine the log level for a measured operation:
+         * <ul>
+         *   <li><strong>debugThreshold</strong>: Minimum duration (as a {@link Duration})
+         *       for DEBUG logging (e.g. <code>25ms</code> by default).</li>
+         *   <li><strong>infoThreshold</strong>: Minimum duration for INFO logging (e.g. <code>200ms</code> by default).</li>
+         *   <li><strong>warnThreshold</strong>: Minimum duration for WARN logging (e.g. <code>500ms</code> by default).</li>
+         *   <li><strong>errorThreshold</strong>: Minimum duration for ERROR logging (e.g. <code>5000ms</code> by default).</li>
+         * </ul>
+         * </p>
+         *
+         * @return the metrics threshold properties.
+         */
+        public MetricsThresholds getThresholds() {
+            return thresholds;
+        }
+
+        /**
+         * Converts these metrics properties into {@link LogThresholds}.
+         * <p>
+         * This method extracts the threshold durations (in milliseconds) from {@link MetricsThresholds}
+         * and constructs a {@link LogThresholds} instance that is used to determine the log level for a given measured duration.
+         * </p>
+         *
+         * @return a new {@link LogThresholds} instance based on the current metrics thresholds.
+         */
+        public LogThresholds toLogThresholds() {
+            return new LogThresholds(
+                    thresholds.debugThreshold.toMillis(),
+                    thresholds.infoThreshold.toMillis(),
+                    thresholds.warnThreshold.toMillis(),
+                    thresholds.errorThreshold.toMillis());
+        }
+    }
+
+
+    /**
+     * Holds the duration thresholds that determine at which log level performance metrics are recorded.
+     * <p>
+     * When a measured operation completes, its execution duration is compared against these thresholds:
+     * <ul>
+     *   <li>If the duration is greater than or equal to the <strong>errorThreshold</strong>, the operation is logged at ERROR level.</li>
+     *   <li>If the duration is greater than or equal to the <strong>warnThreshold</strong> (but less than the error threshold), it is logged at WARN level.</li>
+     *   <li>If the duration is greater than or equal to the <strong>infoThreshold</strong> (but less than the warn threshold), it is logged at INFO level.</li>
+     *   <li>If the duration is greater than or equal to the <strong>debugThreshold</strong> (but less than the info threshold), it is logged at DEBUG level.</li>
+     * </ul>
+     * <p>
+     * If none of these thresholds are exceeded and metrics collection is enabled, the operation is logged at TRACE level.
+     * </p>
+     */
+    public static class MetricsThresholds {
+        /**
+         * Threshold for debug-level logging.
+         * <p>Default: 25 ms</p>
+         */
+        private Duration debugThreshold = Duration.ofMillis(25);
+
+        /**
+         * Threshold for info-level logging.
+         * <p>Default: 200 ms</p>
+         */
+        private Duration infoThreshold = Duration.ofMillis(200);
+
+        /**
+         * Threshold for warn-level logging.
+         * <p>Default: 500 ms</p>
+         */
+        private Duration warnThreshold = Duration.ofMillis(500);
+
+        /**
+         * Threshold for error-level logging.
+         * <p>Default: 5000 ms</p>
+         */
+        private Duration errorThreshold = Duration.ofMillis(5000);
+
+        /**
+         * Returns the debug-level logging threshold.
+         *
+         * @return the debug threshold as a {@link Duration}; default is 25 ms.
+         */
+        public Duration getDebugThreshold() {
+            return debugThreshold;
+        }
+
+        /**
+         * Sets the debug-level logging threshold.
+         *
+         * @param debugThreshold the debug threshold as a {@link Duration}.
+         */
+        public void setDebugThreshold(Duration debugThreshold) {
+            this.debugThreshold = debugThreshold;
+        }
+
+        /**
+         * Returns the info-level logging threshold.
+         *
+         * @return the info threshold as a {@link Duration}; default is 200 ms.
+         */
+        public Duration getInfoThreshold() {
+            return infoThreshold;
+        }
+
+        /**
+         * Sets the info-level logging threshold.
+         *
+         * @param infoThreshold the info threshold as a {@link Duration}.
+         */
+        public void setInfoThreshold(Duration infoThreshold) {
+            this.infoThreshold = infoThreshold;
+        }
+
+        /**
+         * Returns the warn-level logging threshold.
+         *
+         * @return the warn threshold as a {@link Duration}; default is 500 ms.
+         */
+        public Duration getWarnThreshold() {
+            return warnThreshold;
+        }
+
+        /**
+         * Sets the warn-level logging threshold.
+         *
+         * @param warnThreshold the warn threshold as a {@link Duration}.
+         */
+        public void setWarnThreshold(Duration warnThreshold) {
+            this.warnThreshold = warnThreshold;
+        }
+
+        /**
+         * Returns the error-level logging threshold.
+         *
+         * @return the error threshold as a {@link Duration}; default is 5000 ms.
+         */
+        public Duration getErrorThreshold() {
+            return errorThreshold;
+        }
+
+        /**
+         * Sets the error-level logging threshold.
+         *
+         * @param errorThreshold the error threshold as a {@link Duration}.
+         */
+        public void setErrorThreshold(Duration errorThreshold) {
+            this.errorThreshold = errorThreshold;
+        }
+    }
+
+
+    /**
+     * Configuration properties for essentials metrics collection and logging.
+     * <p>
+     * This configuration is used to enable and fine-tune metrics gathering and logging for different components,
+     * such as durable queues, command bus, and message handlers. If a given component's <code>enabled</code> property is
+     * set to <code>false</code>, then no performance metrics will be collected or logged for that component.
+     * <p>
+     * <b>YAML example:</b>
+     * <pre>{@code
+     * essentials:
+     *   metrics:
+     *     durable-queues:
+     *       enabled: true
+     *       thresholds:
+     *         debug: 25ms
+     *         info: 200ms
+     *         warn: 500ms
+     *         error: 5000ms
+     *     command-bus:
+     *       enabled: true
+     *       thresholds:
+     *         debug: 25ms
+     *         info: 200ms
+     *         warn: 500ms
+     *         error: 5000ms
+     *     message-handler:
+     *       enabled: true
+     *       thresholds:
+     *         debug: 25ms
+     *         info: 200ms
+     *         warn: 500ms
+     *         error: 5000ms
+     * }</pre>
+     * <b>Properties example:</b>
+     * <pre>{@code
+     * essentials.metrics.durable-queues.enabled=true
+     * essentials.metrics.durable-queues.thresholds.debug=25ms
+     * essentials.metrics.durable-queues.thresholds.info=200ms
+     * essentials.metrics.durable-queues.thresholds.warn=500ms
+     * essentials.metrics.durable-queues.thresholds.error=5000ms
+     *
+     * essentials.metrics.command-bus.enabled=true
+     * essentials.metrics.command-bus.thresholds.debug=25ms
+     * essentials.metrics.command-bus.thresholds.info=200ms
+     * essentials.metrics.command-bus.thresholds.warn=500ms
+     * essentials.metrics.command-bus.thresholds.error=5000ms
+     *
+     * essentials.metrics.message-handler.enabled=true
+     * essentials.metrics.message-handler.thresholds.debug=25ms
+     * essentials.metrics.message-handler.thresholds.info=200ms
+     * essentials.metrics.message-handler.thresholds.warn=500ms
+     * essentials.metrics.message-handler.thresholds.error=5000ms
+     * }</pre>
+     * <p>
+     * You can further control the log levels by adjusting the minimum log level for the respective loggers:
+     * <table border="1">
+     *     <tr><th>Metric</th><th>Logger Class</th></tr>
+     *     <tr><td>essentials.metrics.durable-queues</td><td>dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeDurableQueueInterceptor</td></tr>
+     *     <tr><td>essentials.metrics.command-bus</td><td>dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeCommandBusInterceptor</td></tr>
+     *     <tr><td>essentials.metrics.message-handler</td><td>dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeMessageHandlerInterceptor</td></tr>
+     * </table>
+     */
+    public static class EssentialsComponentsMetricsProperties {
+        private MetricsProperties commandBus     = new MetricsProperties();
+        private MetricsProperties durableQueues  = new MetricsProperties();
+        private MetricsProperties messageHandler = new MetricsProperties();
+
+        /**
+         * Returns the metrics properties for the command bus.
+         *
+         * @return the command bus metrics properties.
+         */
+        public MetricsProperties getCommandBus() {
+            return commandBus;
+        }
+
+        /**
+         * Returns the metrics properties for durable queues.
+         *
+         * @return the durable queues metrics properties.
+         */
+        public MetricsProperties getDurableQueues() {
+            return durableQueues;
+        }
+
+        /**
+         * Returns the metrics properties for message handlers.
+         *
+         * @return the message handler metrics properties.
+         */
+        public MetricsProperties getMessageHandler() {
+            return messageHandler;
         }
     }
 
