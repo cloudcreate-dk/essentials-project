@@ -16,12 +16,11 @@
 
 package dk.cloudcreate.essentials.types;
 
-import dk.cloudcreate.essentials.shared.FailFast;
-
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
-import java.util.Objects;
 import java.util.stream.IntStream;
+
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * Base class for all {@link SingleValueType}'s that encapsulate {@link CharSequence}/{@link String}.<br>
@@ -57,12 +56,16 @@ public abstract class CharSequenceType<CONCRETE_TYPE extends CharSequenceType<CO
     private final String value;
 
     public CharSequenceType(CharSequence value) {
-        FailFast.requireNonNull(value, "You must provide a value");
+        requireNonNull(value, "You must provide a value");
         if (value instanceof String) {
             this.value = (String) value;
         } else {
             this.value = value.toString();
         }
+    }
+
+    public CharSequenceType(String value) {
+        this.value = requireNonNull(value, "You must provide a value");
     }
 
     /**
@@ -248,7 +251,7 @@ public abstract class CharSequenceType<CONCRETE_TYPE extends CharSequenceType<CO
     }
 
     public boolean containsIgnoreCase(String str) {
-        Objects.requireNonNull(str);
+        requireNonNull(str);
         return value.toLowerCase().contains(str.toLowerCase());
     }
 

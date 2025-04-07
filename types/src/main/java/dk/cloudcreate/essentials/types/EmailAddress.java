@@ -56,6 +56,17 @@ public final class EmailAddress extends CharSequenceType<EmailAddress> {
         super(validate(emailAddress));
     }
 
+    /**
+     * Create a typed {@link EmailAddress} for an email address string value
+     *
+     * @param emailAddress the email address
+     * @throws IllegalArgumentException in case the email address is null
+     * @throws RuntimeException         in case the email address is not invalid. The actual exception depends on the {@link EmailAddressValidator} implementation used
+     */
+    public EmailAddress(String emailAddress) {
+        super(validate(emailAddress));
+    }
+
     private static String validate(CharSequence emailAddress) {
         requireNonNull(emailAddress, "emailAddress is null");
         var emailAsString = emailAddress.toString();
