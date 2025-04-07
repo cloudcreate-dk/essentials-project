@@ -25,6 +25,7 @@ import dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.Po
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.PostgresqlEventStreamGapHandler;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.observability.EventStoreSubscriptionObserver;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
@@ -109,7 +110,8 @@ public class EventProcessorIT {
                                                 persistenceStrategy,
                                                 Optional.empty(),
                                                 eventStore -> new PostgresqlEventStreamGapHandler<>(eventStore,
-                                                                                                    unitOfWorkFactory));
+                                                                                                    unitOfWorkFactory),
+                                                new EventStoreSubscriptionObserver.NoOpEventStoreSubscriptionObserver());
 
         fencedLockManager = PostgresqlFencedLockManager.builder()
                                                        .setEventBus(eventStore.localEventBus())

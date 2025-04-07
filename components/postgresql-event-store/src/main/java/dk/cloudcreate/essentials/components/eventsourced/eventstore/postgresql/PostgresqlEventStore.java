@@ -20,14 +20,18 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.b
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.observability.EventStoreSubscriptionObserver;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.observability.EventStoreSubscriptionObserver.NoOpEventStoreSubscriptionObserver;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.operations.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.EventStoreSubscriptionManager;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.reactive.EventBus;
+import dk.cloudcreate.essentials.shared.time.StopWatch;
 import dk.cloudcreate.essentials.types.LongRange;
 import org.slf4j.*;
 import reactor.core.publisher.*;
@@ -64,6 +68,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
 
     private final EventStoreUnitOfWorkFactory<EventStoreUnitOfWork> unitOfWorkFactory;
     private final AggregateEventStreamPersistenceStrategy<CONFIG>   persistenceStrategy;
+    private final EventStoreSubscriptionObserver                    eventStoreSubscriptionObserver;
 
 
     /**
@@ -79,7 +84,8 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
     private final EventStreamGapHandler<CONFIG>              eventStreamGapHandler;
 
     /**
-     * Create a {@link PostgresqlEventStore} without EventStreamGapHandler (specifically with {@link NoEventStreamGapHandler}) as a backwards compatible configuration
+     * Create a {@link PostgresqlEventStore} without EventStreamGapHandler (specifically with {@link NoEventStreamGapHandler}) as a backwards compatible configuration and
+     * {@link NoOpEventStoreSubscriptionObserver}
      *
      * @param unitOfWorkFactory                       the unit of work factory
      * @param aggregateEventStreamPersistenceStrategy the persistence strategy - please see {@link AggregateEventStreamPersistenceStrategy} documentation regarding <b>Security</b> considerations
@@ -90,7 +96,26 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
         this(unitOfWorkFactory,
              aggregateEventStreamPersistenceStrategy,
              Optional.empty(),
-             eventStore -> new NoEventStreamGapHandler<>());
+             eventStore -> new NoEventStreamGapHandler<>(),
+             new NoOpEventStoreSubscriptionObserver());
+    }
+
+    /**
+     * Create a {@link PostgresqlEventStore} without EventStreamGapHandler (specifically with {@link NoEventStreamGapHandler}) as a backwards compatible configuration and
+     * {@link NoOpEventStoreSubscriptionObserver}
+     *
+     * @param unitOfWorkFactory                       the unit of work factory
+     * @param aggregateEventStreamPersistenceStrategy the persistence strategy - please see {@link AggregateEventStreamPersistenceStrategy} documentation regarding <b>Security</b> considerations
+     * @param <STRATEGY>                              the persistence strategy type
+     */
+    public <STRATEGY extends AggregateEventStreamPersistenceStrategy<CONFIG>> PostgresqlEventStore(EventStoreUnitOfWorkFactory unitOfWorkFactory,
+                                                                                                   STRATEGY aggregateEventStreamPersistenceStrategy,
+                                                                                                   EventStoreSubscriptionObserver eventStoreSubscriptionObserver) {
+        this(unitOfWorkFactory,
+                aggregateEventStreamPersistenceStrategy,
+                Optional.empty(),
+                eventStore -> new NoEventStreamGapHandler<>(),
+                eventStoreSubscriptionObserver);
     }
 
 
@@ -101,18 +126,23 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
      * @param aggregateEventStreamPersistenceStrategy the persistence strategy - please see {@link AggregateEventStreamPersistenceStrategy} documentation regarding <b>Security</b> considerations
      * @param eventStoreLocalEventBusOption           option that contains {@link EventStoreEventBus} to use. If empty a new {@link EventStoreEventBus} instance will be used
      * @param eventStreamGapHandlerFactory            the {@link EventStreamGapHandler} to use for tracking event stream gaps
+     * @param eventStoreSubscriptionObserver          The {@link EventStoreSubscriptionObserver} that will be used the {@link EventStore} and {@link EventStoreSubscriptionManager} to track and
+     *                                                measure statistics related to {@link EventStoreSubscription}'s
+     *                                                and calls to {@link #pollEvents(AggregateType, long, Optional, Optional, Optional, Optional)}
      * @param <STRATEGY>                              the persistence strategy type
      */
     public <STRATEGY extends AggregateEventStreamPersistenceStrategy<CONFIG>> PostgresqlEventStore(EventStoreUnitOfWorkFactory unitOfWorkFactory,
                                                                                                    STRATEGY aggregateEventStreamPersistenceStrategy,
                                                                                                    Optional<EventStoreEventBus> eventStoreLocalEventBusOption,
-                                                                                                   Function<PostgresqlEventStore<CONFIG>, EventStreamGapHandler<CONFIG>> eventStreamGapHandlerFactory) {
+                                                                                                   Function<PostgresqlEventStore<CONFIG>, EventStreamGapHandler<CONFIG>> eventStreamGapHandlerFactory,
+                                                                                                   EventStoreSubscriptionObserver eventStoreSubscriptionObserver) {
         this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "No unitOfWorkFactory provided");
         this.persistenceStrategy = requireNonNull(aggregateEventStreamPersistenceStrategy, "No eventStreamPersistenceStrategy provided");
         requireNonNull(eventStoreLocalEventBusOption, "No eventStoreLocalEventBus option provided");
         requireNonNull(eventStreamGapHandlerFactory, "No eventStreamGapHandlerFactory provided");
         this.eventStoreEventBus = eventStoreLocalEventBusOption.orElseGet(() -> new EventStoreEventBus(unitOfWorkFactory));
         this.eventStreamGapHandler = eventStreamGapHandlerFactory.apply(this);
+        this.eventStoreSubscriptionObserver = requireNonNull(eventStoreSubscriptionObserver, "No eventStoreSubscriptionObserver provided");
 
         eventStoreInterceptors = new CopyOnWriteArrayList<>();
         inMemoryProjectors = new HashSet<>();
@@ -134,12 +164,14 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
         return new PostgresqlEventStore<>(unitOfWorkFactory,
                                           aggregateEventStreamPersistenceStrategy,
                                           Optional.empty(),
-                                          eventStore -> new NoEventStreamGapHandler<>());
+                                          eventStore -> new NoEventStreamGapHandler<>(),
+                                          new NoOpEventStoreSubscriptionObserver());
     }
 
     /**
      * Create a {@link PostgresqlEventStore} with {@link EventStreamGapHandler} (specifically with {@link PostgresqlEventStreamGapHandler})<br>
-     * Same as calling {@link #PostgresqlEventStore(EventStoreUnitOfWorkFactory, AggregateEventStreamPersistenceStrategy, Optional, Function)} with an empty {@link EventStoreEventBus} {@link Optional}
+     * Same as calling {@link #PostgresqlEventStore(EventStoreUnitOfWorkFactory, AggregateEventStreamPersistenceStrategy, Optional, Function, EventStoreSubscriptionObserver)} with an empty {@link EventStoreEventBus} {@link Optional}
+     * and {@link NoOpEventStoreSubscriptionObserver}
      *
      * @param unitOfWorkFactory                       the unit of work factory
      * @param aggregateEventStreamPersistenceStrategy the persistence strategy - please see {@link AggregateEventStreamPersistenceStrategy} documentation regarding <b>Security</b> considerations
@@ -152,7 +184,8 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
         return new PostgresqlEventStore<>(unitOfWorkFactory,
                                           aggregateEventStreamPersistenceStrategy,
                                           Optional.empty(),
-                                          eventStore -> new PostgresqlEventStreamGapHandler<>(eventStore, unitOfWorkFactory));
+                                          eventStore -> new PostgresqlEventStreamGapHandler<>(eventStore, unitOfWorkFactory),
+                                          new NoOpEventStoreSubscriptionObserver());
     }
 
     /**
@@ -211,6 +244,11 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
         this.eventStoreInterceptors.remove(requireNonNull(eventStoreInterceptor, "No eventStoreInterceptor provided"));
         sortInterceptorsByOrder(this.eventStoreInterceptors);
         return this;
+    }
+
+    @Override
+    public EventStoreSubscriptionObserver getEventStoreSubscriptionObserver() {
+        return eventStoreSubscriptionObserver;
     }
 
     @Override
@@ -392,7 +430,8 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
         var subscriptionGapHandler               = subscriberId.map(eventStreamGapHandler::gapHandlerFor);
 
         return Flux.create((FluxSink<PersistedEvent> sink) -> {
-            var scheduler = Schedulers.newSingle("Publish-" + subscriberId.orElse(NO_SUBSCRIBER_ID) + "-" + aggregateType, true);
+            var actualSubscriberId = subscriberId.orElse(NO_SUBSCRIBER_ID);
+            var scheduler          = Schedulers.newSingle("Publish-" + actualSubscriberId + "-" + aggregateType, true);
             sink.onRequest(eventDemandSize -> {
                 eventStoreStreamLog.debug("[{}] Received demand for {} events",
                                           eventStreamLogName,
@@ -408,7 +447,8 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                                           batchFetchSize,
                                                           lastBatchSizeForThisQuery,
                                                           nextFromInclusiveGlobalOrder,
-                                                          subscriptionGapHandler));
+                                                          subscriptionGapHandler,
+                                                          actualSubscriberId));
 
             });
 
@@ -442,6 +482,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
         var lastBatchSizeForThisQuery            = new AtomicLong(batchFetchSize);
         var nextFromInclusiveGlobalOrder         = new AtomicLong(fromInclusiveGlobalOrder);
         var subscriptionGapHandler               = subscriberId.map(eventStreamGapHandler::gapHandlerFor);
+        var actualSubscriberId = subscriberId.orElse(NO_SUBSCRIBER_ID);
         var persistedEventsFlux = Flux.defer(() -> {
             EventStoreUnitOfWork unitOfWork;
             try {
@@ -462,6 +503,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
             }
 
             try {
+                var resolveBatchSizeForThisQueryTiming = StopWatch.start("resolveBatchSizeForThisQuery (" + subscriberId + ", " + aggregateType + ")");
                 long batchSizeForThisQuery = resolveBatchSizeForThisQuery(aggregateType,
                                                                           eventStreamLogName,
                                                                           eventStoreStreamLog,
@@ -470,6 +512,15 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                                                           consecutiveNoPersistedEventsReturned,
                                                                           nextFromInclusiveGlobalOrder,
                                                                           unitOfWork);
+                eventStoreSubscriptionObserver.resolvedBatchSizeForEventStorePoll(actualSubscriberId,
+                                                                                  aggregateType,
+                                                                                  batchFetchSize,
+                                                                                  Long.MAX_VALUE,
+                                                                                  lastBatchSizeForThisQuery.get(),
+                                                                                  consecutiveNoPersistedEventsReturned.get(), nextFromInclusiveGlobalOrder.get(), batchSizeForThisQuery,
+                                                                                  resolveBatchSizeForThisQueryTiming.stop().getDuration()
+                                                                                 );
+
                 if (batchSizeForThisQuery == 0) {
                     consecutiveNoPersistedEventsReturned.set(0);
                     lastBatchSizeForThisQuery.set(batchFetchSize);
@@ -484,14 +535,32 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                 var globalOrderRange = LongRange.from(nextFromInclusiveGlobalOrder.get(), batchSizeForThisQuery);
                 var transientGapsToIncludeInQuery = subscriptionGapHandler.map(gapHandler -> gapHandler.findTransientGapsToIncludeInQuery(aggregateType, globalOrderRange))
                                                                           .orElse(null);
+
+                var loadEventsByGlobalOrderTiming = StopWatch.start("loadEventsByGlobalOrder(" + subscriberId + ", " + aggregateType + ")");
                 var persistedEvents = loadEventsByGlobalOrder(aggregateType,
                                                               globalOrderRange,
                                                               transientGapsToIncludeInQuery,
                                                               onlyIncludeEventIfItBelongsToTenant).collect(Collectors.toList());
-                subscriptionGapHandler.ifPresent(gapHandler -> gapHandler.reconcileGaps(aggregateType,
-                                                                                        globalOrderRange,
-                                                                                        persistedEvents,
-                                                                                        transientGapsToIncludeInQuery));
+                eventStoreSubscriptionObserver.eventStorePolled(actualSubscriberId,
+                                                                aggregateType,
+                                                                globalOrderRange,
+                                                                transientGapsToIncludeInQuery,
+                                                                onlyIncludeEventIfItBelongsToTenant,
+                                                                persistedEvents,
+                                                                loadEventsByGlobalOrderTiming.stop().getDuration());
+                subscriptionGapHandler.ifPresent(gapHandler -> {
+                    var reconcileGapsTiming = StopWatch.start("reconcileGaps(" + actualSubscriberId + ", " + aggregateType + ")");
+                    gapHandler.reconcileGaps(aggregateType,
+                                             globalOrderRange,
+                                             persistedEvents,
+                                             transientGapsToIncludeInQuery);
+                    eventStoreSubscriptionObserver.reconciledGaps(actualSubscriberId,
+                                                                  aggregateType,
+                                                                  globalOrderRange,
+                                                                  transientGapsToIncludeInQuery, persistedEvents,
+                                                                  reconcileGapsTiming.stop().getDuration());
+
+                });
                 unitOfWork.commit();
                 if (persistedEvents.size() > 0) {
                     consecutiveNoPersistedEventsReturned.set(0);
@@ -558,14 +627,14 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                             .publishOn(Schedulers.newSingle("Publish-" + subscriberId.orElse(NO_SUBSCRIBER_ID) + "-" + aggregateType, true)));
     }
 
-    protected long resolveBatchSizeForThisQuery(AggregateType aggregateType,
-                                                String eventStreamLogName,
-                                                Logger eventStoreStreamLog,
-                                                long lastBatchSizeForThisQuery,
-                                                long defaultBatchFetchSize,
-                                                AtomicInteger consecutiveNoPersistedEventsReturned,
-                                                AtomicLong nextFromInclusiveGlobalOrder,
-                                                EventStoreUnitOfWork unitOfWork) {
+    private long resolveBatchSizeForThisQuery(AggregateType aggregateType,
+                                              String eventStreamLogName,
+                                              Logger eventStoreStreamLog,
+                                              long lastBatchSizeForThisQuery,
+                                              long defaultBatchFetchSize,
+                                              AtomicInteger consecutiveNoPersistedEventsReturned,
+                                              AtomicLong nextFromInclusiveGlobalOrder,
+                                              EventStoreUnitOfWork unitOfWork) {
         var batchSizeForThisQuery                       = lastBatchSizeForThisQuery;
         var currentConsecutiveNoPersistedEventsReturned = consecutiveNoPersistedEventsReturned.get();
         if (currentConsecutiveNoPersistedEventsReturned > 0 && currentConsecutiveNoPersistedEventsReturned % 100 == 0) {
@@ -599,6 +668,12 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                                   currentConsecutiveNoPersistedEventsReturned);
                     }
                 }
+            } else {
+                // No events persisted for this aggregate type
+                eventStoreStreamLog.debug("[{}] loadEventsByGlobalOrder RESETTING query batchSize back to default {} since no events has ever been persisted",
+                                          eventStreamLogName,
+                                          defaultBatchFetchSize);
+                batchSizeForThisQuery = 0;
             }
         } else if (currentConsecutiveNoPersistedEventsReturned > 0 && currentConsecutiveNoPersistedEventsReturned % 10 == 0) {
             batchSizeForThisQuery = (long) (batchSizeForThisQuery + defaultBatchFetchSize * (currentConsecutiveNoPersistedEventsReturned / 10) * 0.5f);
@@ -672,6 +747,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
         private final AtomicLong                       lastBatchSizeForThisQuery;
         private final AtomicLong                       nextFromInclusiveGlobalOrder;
         private final Optional<SubscriptionGapHandler> subscriptionGapHandler;
+        private final SubscriberId                     subscriberId;
 
         public PollEventStoreTask(long demandForEvents,
                                   FluxSink<PersistedEvent> sink,
@@ -684,7 +760,8 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                   long batchFetchSize,
                                   AtomicLong lastBatchSizeForThisQuery,
                                   AtomicLong nextFromInclusiveGlobalOrder,
-                                  Optional<SubscriptionGapHandler> subscriptionGapHandler) {
+                                  Optional<SubscriptionGapHandler> subscriptionGapHandler,
+                                  SubscriberId subscriberId) {
             this.demandForEvents = demandForEvents;
             this.sink = sink;
             this.aggregateType = aggregateType;
@@ -697,6 +774,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
             this.lastBatchSizeForThisQuery = lastBatchSizeForThisQuery;
             this.nextFromInclusiveGlobalOrder = nextFromInclusiveGlobalOrder;
             this.subscriptionGapHandler = subscriptionGapHandler;
+            this.subscriberId = subscriberId;
         }
 
         @Override
@@ -713,11 +791,13 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                           eventStreamLogName,
                                           numberOfEventsPublished,
                                           remainingDemandForEvents);
-                try {
-                    Thread.sleep(pollingSleep);
-                } catch (InterruptedException e) {
-                    // Ignore
-                    Thread.currentThread().interrupt();
+                if (numberOfEventsPublished == 0) {
+                    try {
+                        Thread.sleep(pollingSleep);
+                    } catch (InterruptedException e) {
+                        // Ignore
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
             eventStoreStreamLog.debug("[{}] Polling worker - Completed with remaining demand for events {}. Is Cancelled: {}",
@@ -755,6 +835,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
             }
 
             try {
+                var resolveBatchSizeForThisQueryTiming = StopWatch.start("resolveBatchSizeForThisQuery (" + subscriberId + ", " + aggregateType + ")");
                 long batchSizeForThisQuery = resolveBatchSizeForThisQuery(aggregateType,
                                                                           eventStreamLogName,
                                                                           eventStoreStreamLog,
@@ -763,7 +844,27 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                                                           consecutiveNoPersistedEventsReturned,
                                                                           nextFromInclusiveGlobalOrder,
                                                                           unitOfWork);
+                eventStoreSubscriptionObserver.resolvedBatchSizeForEventStorePoll(subscriberId,
+                                                                                  aggregateType,
+                                                                                  batchFetchSize,
+                                                                                  remainingDemandForEvents,
+                                                                                  lastBatchSizeForThisQuery.get(),
+                                                                                  consecutiveNoPersistedEventsReturned.get(),
+                                                                                  nextFromInclusiveGlobalOrder.get(),
+                                                                                  batchSizeForThisQuery,
+                                                                                  resolveBatchSizeForThisQueryTiming.stop().getDuration()
+                                                                                 );
+
                 if (batchSizeForThisQuery == 0) {
+                    eventStoreSubscriptionObserver.skippingPollingDueToNoNewEventsPersisted(subscriberId,
+                                                                                            aggregateType,
+                                                                                            batchFetchSize,
+                                                                                            remainingDemandForEvents,
+                                                                                            lastBatchSizeForThisQuery.get(),
+                                                                                            consecutiveNoPersistedEventsReturned.get(),
+                                                                                            nextFromInclusiveGlobalOrder.get(),
+                                                                                            batchSizeForThisQuery
+                                                                                           );
                     consecutiveNoPersistedEventsReturned.set(0);
                     lastBatchSizeForThisQuery.set(remainingDemandForEvents);
 
@@ -780,14 +881,33 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                 var globalOrderRange = LongRange.from(nextFromInclusiveGlobalOrder.get(), batchSizeForThisQuery);
                 var transientGapsToIncludeInQuery = subscriptionGapHandler.map(gapHandler -> gapHandler.findTransientGapsToIncludeInQuery(aggregateType, globalOrderRange))
                                                                           .orElse(null);
+
+                var loadEventsByGlobalOrderTiming = StopWatch.start("loadEventsByGlobalOrder(" + subscriberId + ", " + aggregateType + ")");
                 var persistedEvents = loadEventsByGlobalOrder(aggregateType,
                                                               globalOrderRange,
                                                               transientGapsToIncludeInQuery,
-                                                              onlyIncludeEventIfItBelongsToTenant).collect(Collectors.toList());
-                subscriptionGapHandler.ifPresent(gapHandler -> gapHandler.reconcileGaps(aggregateType,
-                                                                                        globalOrderRange,
-                                                                                        persistedEvents,
-                                                                                        transientGapsToIncludeInQuery));
+                                                              onlyIncludeEventIfItBelongsToTenant)
+                        .toList();
+                eventStoreSubscriptionObserver.eventStorePolled(subscriberId,
+                                                                aggregateType,
+                                                                globalOrderRange,
+                                                                transientGapsToIncludeInQuery,
+                                                                onlyIncludeEventIfItBelongsToTenant,
+                                                                persistedEvents,
+                                                                loadEventsByGlobalOrderTiming.stop().getDuration());
+
+                subscriptionGapHandler.ifPresent(gapHandler -> {
+                    var reconcileGapsTiming = StopWatch.start("reconcileGaps(" + subscriberId + ", " + aggregateType + ")");
+                    gapHandler.reconcileGaps(aggregateType,
+                                             globalOrderRange,
+                                             persistedEvents,
+                                             transientGapsToIncludeInQuery);
+                    eventStoreSubscriptionObserver.reconciledGaps(subscriberId,
+                                                                  aggregateType,
+                                                                  globalOrderRange,
+                                                                  transientGapsToIncludeInQuery, persistedEvents,
+                                                                  reconcileGapsTiming.stop().getDuration());
+                });
                 unitOfWork.commit();
                 unitOfWork = null;
                 if (!persistedEvents.isEmpty()) {
@@ -861,7 +981,12 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                       persistedEvent.aggregateType(),
                                       persistedEvent.event().getEventTypeOrNamePersistenceValue(),
                                       persistedEvent.globalEventOrder());
+            var publishEventTiming  = StopWatch.start("publishEventToSink (" + subscriberId + ", " + aggregateType + ")");
             sink.next(persistedEvent);
+            eventStoreSubscriptionObserver.publishEvent(subscriberId,
+                                                        aggregateType,
+                                                        persistedEvent,
+                                                        publishEventTiming.stop().getDuration());
             var nextGlobalOrder = persistedEvent.globalEventOrder().longValue() + 1L;
             eventStoreStreamLog.trace("[{}] Polling worker - Updating nextFromInclusiveGlobalOrder from {} to {}",
                                       eventStreamLogName,

@@ -25,6 +25,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.P
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.bus.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.PostgresqlEventStreamGapHandler;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.observability.EventStoreSubscriptionObserver;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
@@ -94,7 +95,8 @@ class FlushAndPublishPersistedEventsToEventBusRightAfterAppendToStreamIT {
                                                 persistenceStrategy,
                                                 Optional.empty(),
                                                 eventStore -> new PostgresqlEventStreamGapHandler<>(eventStore,
-                                                                                                    unitOfWorkFactory));
+                                                                                                    unitOfWorkFactory),
+                                                new EventStoreSubscriptionObserver.NoOpEventStoreSubscriptionObserver());
         eventStore.addAggregateEventStreamConfiguration(aggregateType,
                                                         AggregateIdSerializer.serializerFor(OrderId.class));
         eventStore.addEventStoreInterceptor(new FlushAndPublishPersistedEventsToEventBusRightAfterAppendToStream());

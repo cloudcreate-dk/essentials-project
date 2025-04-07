@@ -24,6 +24,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.PostgresqlEventStore;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.gap.PostgresqlEventStreamGapHandler.ResolveTransientGapsToPermanentGapsPromotionStrategy;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.observability.EventStoreSubscriptionObserver;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.JacksonJSONEventSerializer;
@@ -103,7 +104,8 @@ class PostgresqlEventStreamGapHandlerIT {
                                                                                                                                                            .map(Pair::_1)
                                                                                                                                                            .collect(Collectors.toList()) : NO_TRANSIENT_GAPS;
                                                                                                     },
-                                                                                                    ResolveTransientGapsToPermanentGapsPromotionStrategy.thresholdBased(1)));
+                                                                                                    ResolveTransientGapsToPermanentGapsPromotionStrategy.thresholdBased(1)),
+                                                new EventStoreSubscriptionObserver.NoOpEventStoreSubscriptionObserver());
     }
 
     @AfterEach
