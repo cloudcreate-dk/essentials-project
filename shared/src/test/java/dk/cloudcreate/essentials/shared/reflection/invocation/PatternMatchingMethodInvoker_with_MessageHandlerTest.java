@@ -34,7 +34,8 @@ class PatternMatchingMethodInvoker_with_MessageHandlerTest {
         var patternMatchingInvoker = new PatternMatchingMethodInvoker<>(testSubject,
                                                                         new MessageHandlerPatternMatcher(),
                                                                         InvocationStrategy.InvokeMostSpecificTypeMatched,
-                                                                        Optional.of(noMatchingMethodsHandler));
+                                                                        Optional.of(noMatchingMethodsHandler),
+                                                                        Optional.empty());
 
         // When
         var orderCreatedMessage   = new Message(new OrderCreated("1"));
@@ -64,6 +65,7 @@ class PatternMatchingMethodInvoker_with_MessageHandlerTest {
         var patternMatchingInvoker = new PatternMatchingMethodInvoker<>(testSubject,
                                                                         new MessageHandlerPatternMatcher(),
                                                                         InvocationStrategy.InvokeMostSpecificTypeMatched,
+                                                                        Optional.empty(),
                                                                         Optional.empty());
 
         // And
@@ -106,7 +108,8 @@ class PatternMatchingMethodInvoker_with_MessageHandlerTest {
         var patternMatchingInvoker = new PatternMatchingMethodInvoker<>(testSubject,
                                                                         new MessageHandlerPatternMatcher(),
                                                                         InvocationStrategy.InvokeAllMatches,
-                                                                        Optional.of(noMatchingMethodsHandler));
+                                                                        Optional.of(noMatchingMethodsHandler),
+                                                                        Optional.empty());
 
         // And
         var orderCreatedMessage  = new Message(new OrderCreated("1"));
@@ -141,6 +144,7 @@ class PatternMatchingMethodInvoker_with_MessageHandlerTest {
         var patternMatchingInvoker = new PatternMatchingMethodInvoker<>(testSubject,
                                                                         new MessageHandlerPatternMatcher(),
                                                                         InvocationStrategy.InvokeAllMatches,
+                                                                        Optional.empty(),
                                                                         Optional.empty());
 
         // And

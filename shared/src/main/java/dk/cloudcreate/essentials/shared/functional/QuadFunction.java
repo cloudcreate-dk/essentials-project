@@ -22,25 +22,27 @@ import java.util.function.Function;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
- * Represents a function that accepts three arguments and produces a result.<br>
- * This is a specialization of the {@link Function} interface.
+ * Represents a function that accepts four arguments and produces a result.<br>
+ * This is a specialization of a function interface.
  *
  * @param <T1> the first function argument type
  * @param <T2> the second function argument type
  * @param <T3> the third function argument type
+ * @param <T4> the fourth function argument type
  * @param <R>  the type of the result of the function
  */
 @FunctionalInterface
-public interface TripleFunction<T1, T2, T3, R> extends Serializable {
+public interface QuadFunction<T1, T2, T3, T4, R> extends Serializable {
     /**
      * Applies this function to the given arguments.
      *
      * @param t1 the first function argument
      * @param t2 the second function argument
      * @param t3 the third function argument
+     * @param t4 the fourth function argument
      * @return the function result
      */
-    R apply(T1 t1, T2 t2, T3 t3);
+    R apply(T1 t1, T2 t2, T3 t3, T4 t4);
 
     /**
      * Returns a composed function that first applies this function to its input, and then applies the after function to the result.
@@ -50,8 +52,8 @@ public interface TripleFunction<T1, T2, T3, R> extends Serializable {
      * @param <V>   return type of the <code>after</code> function
      * @return a function composed of this and after
      */
-    default <V> TripleFunction<T1, T2, T3, V> andThen(Function<? super R, ? extends V> after) {
-        requireNonNull(after, "You must supply and after function");
-        return (t1, t2, t3) -> after.apply(apply(t1, t2, t3));
+    default <V> QuadFunction<T1, T2, T3, T4, V> andThen(Function<? super R, ? extends V> after) {
+        requireNonNull(after, "You must supply an after function");
+        return (t1, t2, t3, t4) -> after.apply(apply(t1, t2, t3, t4));
     }
 }
