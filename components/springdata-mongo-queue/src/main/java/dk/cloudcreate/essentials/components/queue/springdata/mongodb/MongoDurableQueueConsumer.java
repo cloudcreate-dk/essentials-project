@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.operation
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 public final class MongoDurableQueueConsumer extends DefaultDurableQueueConsumer<MongoDurableQueues, SpringMongoTransactionAwareUnitOfWork, SpringMongoTransactionAwareUnitOfWorkFactory> {
@@ -29,7 +30,8 @@ public final class MongoDurableQueueConsumer extends DefaultDurableQueueConsumer
                                      MongoDurableQueues durableQueues,
                                      Consumer<DurableQueueConsumer> removeDurableQueueConsumer,
                                      long pollingIntervalMs,
-                                     QueuePollingOptimizer queuePollingOptimizer) {
-        super(consumeFromQueue, unitOfWorkFactory, durableQueues, removeDurableQueueConsumer, pollingIntervalMs, queuePollingOptimizer);
+                                     QueuePollingOptimizer queuePollingOptimizer,
+                                     List<DurableQueuesInterceptor> interceptors) {
+        super(consumeFromQueue, unitOfWorkFactory, durableQueues, removeDurableQueueConsumer, pollingIntervalMs, queuePollingOptimizer, interceptors);
     }
 }

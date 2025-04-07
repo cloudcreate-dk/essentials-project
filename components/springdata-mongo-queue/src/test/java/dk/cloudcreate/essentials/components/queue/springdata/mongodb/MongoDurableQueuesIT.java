@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.queue.springdata.mongodb;
 
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.DurableQueuesIT;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory.SpringMongoTransactionAwareUnitOfWork;
@@ -27,6 +28,8 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.*;
+
+import static dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues.createDefaultObjectMapper;
 
 @Testcontainers
 @DataMongoTest
@@ -50,9 +53,16 @@ class MongoDurableQueuesIT extends DurableQueuesIT<MongoDurableQueues, SpringMon
     private MongoTransactionManager transactionManager;
 
     @Override
-    protected MongoDurableQueues createDurableQueues(SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory) {
+    protected JSONSerializer createJSONSerializer() {
+        return new JacksonJSONSerializer(createDefaultObjectMapper());
+    }
+
+    @Override
+    protected MongoDurableQueues createDurableQueues(SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
+                                                     JSONSerializer jsonSerializer) {
         return new MongoDurableQueues(mongoTemplate,
-                                      unitOfWorkFactory);
+                                      unitOfWorkFactory,
+                                      jsonSerializer);
     }
 
     @Override

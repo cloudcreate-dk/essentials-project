@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.test.messaging.queue;
 
+import dk.cloudcreate.essentials.components.foundation.json.JSONSerializer;
 import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
@@ -37,16 +38,22 @@ import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>> {
-    protected UOW_FACTORY    unitOfWorkFactory;
-    protected DURABLE_QUEUES durableQueues;
+    protected UOW_FACTORY         unitOfWorkFactory;
+    protected DURABLE_QUEUES      durableQueues;
+    protected ProxyJSONSerializer jsonSerializerProxy;
 
     @BeforeEach
     void setup() {
         unitOfWorkFactory = createUnitOfWorkFactory();
         resetQueueStorage(unitOfWorkFactory);
-        durableQueues = createDurableQueues(unitOfWorkFactory);
+
+        jsonSerializerProxy = new ProxyJSONSerializer(createJSONSerializer());
+
+        durableQueues = createDurableQueues(unitOfWorkFactory, jsonSerializerProxy);
         durableQueues.start();
     }
+
+    protected abstract JSONSerializer createJSONSerializer();
 
     @AfterEach
     void cleanup() {
@@ -55,7 +62,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         }
     }
 
-    protected abstract DURABLE_QUEUES createDurableQueues(UOW_FACTORY unitOfWorkFactory);
+    protected abstract DURABLE_QUEUES createDurableQueues(UOW_FACTORY unitOfWorkFactory, JSONSerializer jsonSerializer);
 
     protected abstract UOW_FACTORY createUnitOfWorkFactory();
 
@@ -660,6 +667,54 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(msgHandler.messages.get(2).isManuallyMarkedForRedelivery()).isFalse();
     }
 
+    @Test
+    void verify_json_deserialization_problem_causes_message_to_be_marked_as_dead_letter_message() {
+        // Given
+        var queueName = QueueName.of("TestQueue");
+
+        var message = Message.of(new OrderEvent.OrderAdded(OrderId.random(), CustomerId.random(), 123456),
+                                 MessageMetaData.of("correlation_id", CorrelationId.random(),
+                                                    "trace_id", UUID.randomUUID().toString()));
+
+        // Configure the proxy to corrupt the JSON during OrderEvent.OrderAdded deserialization to trigger a DurableQueueDeserializationException
+        jsonSerializerProxy.enableJSONCorruptionDuringDeserialization(OrderEvent.OrderAdded.class);
+
+        // When
+        var messageId = withDurableQueue(() -> durableQueues.queueMessage(queueName, message));
+
+        // The message is queued but should fail during deserialization
+        var recordingQueueMessageHandler = new RecordingQueuedMessageHandler();
+        var consumer = durableQueues.consumeFromQueue(queueName,
+                                                      RedeliveryPolicy.fixedBackoff(Duration.ofMillis(200), 5),
+                                                      1,
+                                                      recordingQueueMessageHandler);
+
+        // Then
+        // Since deserialization fails immediately, the message should be marked as a dead letter
+        // without being processed by the handler
+        Awaitility.waitAtMost(Duration.ofSeconds(2))
+                  .untilAsserted(() -> {
+                      // The handler should not receive any messages since deserialization fails
+                      assertThat(recordingQueueMessageHandler.messages).isEmpty();
+
+                      // The message should be marked as a dead letter message
+                      var deadLetterMessage = withDurableQueue(() -> durableQueues.getDeadLetterMessage(messageId));
+                      assertThat(deadLetterMessage).isPresent();
+
+                      // Check that it has the original message information
+                      assertThat(deadLetterMessage.get().getMessage().getMetaData())
+                              .usingRecursiveComparison()
+                              .isEqualTo(message.getMetaData());
+
+                      // Verify the error description references JSON deserialization
+                      assertThat(deadLetterMessage.get().getLastDeliveryError())
+                              .contains("DurableQueueDeserializationException");
+                  });
+
+        consumer.cancel();
+    }
+
+
     static class RecordingQueuedMessageHandler implements QueuedMessageHandler {
         Consumer<Message>              functionLogic;
         ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
@@ -679,4 +734,5 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
             }
         }
     }
+
 }

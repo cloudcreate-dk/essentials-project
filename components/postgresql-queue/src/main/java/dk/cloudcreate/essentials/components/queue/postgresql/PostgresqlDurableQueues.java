@@ -500,7 +500,8 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                                                                                                                                                             this,
                                                                                                                                                                                             this::removeQueueConsumer,
                                                                                                                                                                                             pollingIntervalMs,
-                                                                                                                                                                                            queuePollingOptimizer);
+                                                                                                                                                                                            queuePollingOptimizer,
+                                                                                                                                                                                            interceptors);
                                                                                                                        }).proceed();
             if (started) {
                 consumer.start();
@@ -1013,9 +1014,16 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                    if (!excludedKeys.isEmpty()) {
                                                        query.bindList("excludedKeys", excludedKeys);
                                                    }
-                                                   var result = query
-                                                           .map(queuedMessageMapper)
-                                                           .findOne();
+                                                   Optional<QueuedMessage> result = null;
+                                                   try {
+                                                       result = query
+                                                               .map(queuedMessageMapper)
+                                                               .findOne();
+                                                   } catch (DurableQueueDeserializationException e) {
+                                                       log.error("[{}] Marking Message as DeadLetterMessage due to DurableQueueDeserializationException while deserializing message with id '{}'", operation.queueName, e.queueEntryId.get(), e);
+                                                       markAsDeadLetterMessage(e.queueEntryId.get(), e);
+                                                       return Optional.<QueuedMessage>empty();
+                                                   }
                                                    log.trace("[{}] Completed GetNextMessageReadyForDelivery: {}", operation.queueName, operation);
                                                    return result;
                                                }).proceed();
@@ -1278,26 +1286,28 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                                                               .findOne());
     }
 
-    private Object deserializeMessagePayload(QueueName queueName, String messagePayload, String messagePayloadType) {
+    private Object deserializeMessagePayload(QueueName queueName, QueueEntryId queueEntryId, String messagePayload, String messagePayloadType) {
         requireNonNull(queueName, "No queueName provided");
+        requireNonNull(queueEntryId, "No queueEntryId provided");
         requireNonNull(messagePayload, "No messagePayload provided");
         requireNonNull(messagePayloadType, "No messagePayloadType provided");
         try {
             return jsonSerializer.deserialize(messagePayload, messagePayloadType);
         } catch (Throwable e) {
             rethrowIfCriticalError(e);
-            throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
+            throw new DurableQueueDeserializationException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName, queueEntryId);
         }
     }
 
-    private MessageMetaData deserializeMessageMetadata(QueueName queueName, String metaData) {
+    private MessageMetaData deserializeMessageMetadata(QueueName queueName, QueueEntryId queueEntryId, String metaData) {
         requireNonNull(queueName, "No queueName provided");
+        requireNonNull(queueEntryId, "No queueEntryId provided");
         requireNonNull(metaData, "No messagePayload provided");
         try {
             return jsonSerializer.deserialize(metaData, MessageMetaData.class);
         } catch (Throwable e) {
             rethrowIfCriticalError(e);
-            throw new DurableQueueException(msg("Failed to deserialize message meta-data"), e, queueName);
+            throw new DurableQueueDeserializationException(msg("Failed to deserialize message meta-data"), e, queueName, queueEntryId);
         }
     }
 
@@ -1430,12 +1440,13 @@ public final class PostgresqlDurableQueues implements DurableQueues {
         @Override
         public QueuedMessage map(ResultSet rs, StatementContext ctx) throws SQLException {
             var queueName      = QueueName.of(rs.getString("queue_name"));
-            var messagePayload = PostgresqlDurableQueues.this.deserializeMessagePayload(queueName, rs.getString("message_payload"), rs.getString("message_payload_type"));
+            var queueEntryId = QueueEntryId.of(rs.getString("id"));
+            var messagePayload = PostgresqlDurableQueues.this.deserializeMessagePayload(queueName, queueEntryId, rs.getString("message_payload"), rs.getString("message_payload_type"));
 
             MessageMetaData messageMetaData     = null;
             var             metaDataColumnValue = rs.getString("meta_data");
             if (metaDataColumnValue != null) {
-                messageMetaData = PostgresqlDurableQueues.this.deserializeMessageMetadata(queueName, metaDataColumnValue);
+                messageMetaData = PostgresqlDurableQueues.this.deserializeMessageMetadata(queueName, queueEntryId, metaDataColumnValue);
             } else {
                 messageMetaData = new MessageMetaData();
             }

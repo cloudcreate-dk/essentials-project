@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.queue.postgresql;
 
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.DurableQueuesIT;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.test_data.*;
@@ -29,6 +30,7 @@ import org.testcontainers.junit.jupiter.*;
 import java.time.Duration;
 import java.util.UUID;
 
+import static dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues.createDefaultObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
@@ -40,12 +42,19 @@ class SingleOperationTransactionPostgresqlDurableQueuesIT extends DurableQueuesI
             .withPassword("secret-password");
 
     @Override
-    protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory) {
+    protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory,
+                                                          JSONSerializer jsonSerializer) {
         return PostgresqlDurableQueues.builder()
                                       .setUnitOfWorkFactory(unitOfWorkFactory)
                                       .setTransactionalMode(TransactionalMode.SingleOperationTransaction)
                                       .setMessageHandlingTimeout(Duration.ofSeconds(5))
+                                      .setJsonSerializer(jsonSerializer)
                                       .build();
+    }
+
+    @Override
+    protected JSONSerializer createJSONSerializer() {
+        return new JacksonJSONSerializer(createDefaultObjectMapper());
     }
 
     @Override

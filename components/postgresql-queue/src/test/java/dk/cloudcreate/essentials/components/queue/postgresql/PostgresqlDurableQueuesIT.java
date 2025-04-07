@@ -16,12 +16,15 @@
 
 package dk.cloudcreate.essentials.components.queue.postgresql;
 
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.DurableQueuesIT;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.GenericHandleAwareUnitOfWorkFactory.GenericHandleAwareUnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.JdbiUnitOfWorkFactory;
 import org.jdbi.v3.core.Jdbi;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.*;
+
+import static dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues.createDefaultObjectMapper;
 
 @Testcontainers
 class PostgresqlDurableQueuesIT extends DurableQueuesIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
@@ -32,8 +35,17 @@ class PostgresqlDurableQueuesIT extends DurableQueuesIT<PostgresqlDurableQueues,
             .withPassword("secret-password");
 
     @Override
-    protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory) {
-        return PostgresqlDurableQueues.builder().setUnitOfWorkFactory(unitOfWorkFactory).build();
+    protected JSONSerializer createJSONSerializer() {
+        return new JacksonJSONSerializer(createDefaultObjectMapper());
+    }
+
+    @Override
+    protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory,
+                                                          JSONSerializer jsonSerializer) {
+        return PostgresqlDurableQueues.builder()
+                                      .setUnitOfWorkFactory(unitOfWorkFactory)
+                                      .setJsonSerializer(jsonSerializer)
+                                      .build();
     }
 
     @Override
