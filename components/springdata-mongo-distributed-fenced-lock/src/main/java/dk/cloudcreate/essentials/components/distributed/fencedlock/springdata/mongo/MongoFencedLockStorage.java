@@ -19,10 +19,12 @@ package dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.m
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
 import dk.cloudcreate.essentials.components.foundation.transaction.mongo.ClientSessionAwareUnitOfWork;
+import dk.cloudcreate.essentials.shared.Exceptions;
 import org.slf4j.*;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.UncategorizedMongoDbException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.*;
@@ -195,9 +197,17 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
                 .set("lockAcquiredTimestamp", newLockReadyToBeAcquiredLocally.getLockAcquiredTimestamp().toInstant())
                 .set("lockLastConfirmedTimestamp", newLockReadyToBeAcquiredLocally.getLockLastConfirmedTimestamp().toInstant());
 
-        var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
-
-        return result.getModifiedCount() == 1;
+        try {
+            var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
+            return result.getModifiedCount() == 1;
+        } catch (Exception e) {
+            if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
+                log.trace("[{}] WriteConflict updating lock to token '{}'", newLockReadyToBeAcquiredLocally.getName(), newLockReadyToBeAcquiredLocally.getCurrentToken());
+                return false;
+            } else {
+                return Exceptions.sneakyThrow(e);
+            }
+        }
     }
 
 
@@ -213,9 +223,17 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
         var update = new Update()
                 .set("lockLastConfirmedTimestamp", confirmedTimestamp.toInstant());
 
-        var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
-
-        return result.getModifiedCount() == 1;
+        try {
+            var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
+            return result.getModifiedCount() == 1;
+        } catch (Exception e) {
+            if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
+                log.trace("[{}] WriteConflict confirming lock with token '{}'", fencedLock.getName(), fencedLock.getCurrentToken());
+                return false;
+            } else {
+                return Exceptions.sneakyThrow(e);
+            }
+        }
     }
 
     @Override
@@ -227,9 +245,17 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
 
         var update = new Update().unset("lockedByLockManagerInstanceId");
 
-        var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
-
-        return result.getModifiedCount() == 1;
+        try {
+            var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
+            return result.getModifiedCount() == 1;
+        } catch (Exception e) {
+            if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
+                log.trace("[{}] WriteConflict releasing lock with token '{}'", fencedLock.getName(), fencedLock.getCurrentToken());
+                return false;
+            } else {
+                return Exceptions.sneakyThrow(e);
+            }
+        }
     }
 
     @Override
