@@ -24,7 +24,7 @@ import org.slf4j.*;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.UncategorizedMongoDbException;
+import org.springframework.data.mongodb.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.*;
@@ -251,6 +251,9 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
         } catch (Exception e) {
             if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
                 log.trace("[{}] WriteConflict releasing lock with token '{}'", fencedLock.getName(), fencedLock.getCurrentToken());
+                return false;
+            } else if (e instanceof MongoTransactionException) {
+                log.trace("[{}] Transactional issue releasing lock with token '{}'", fencedLock.getName(), fencedLock.getCurrentToken(), e);
                 return false;
             } else {
                 return Exceptions.sneakyThrow(e);
