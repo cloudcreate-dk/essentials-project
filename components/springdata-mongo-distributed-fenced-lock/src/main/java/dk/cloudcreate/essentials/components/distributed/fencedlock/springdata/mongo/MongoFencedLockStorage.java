@@ -265,16 +265,25 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
     public final Optional<DBFencedLock> lookupLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
                                                        ClientSessionAwareUnitOfWork unitOfWork,
                                                        LockName lockName) {
-        var lock_ = mongoTemplate.findOne(Query.query(Criteria.where("name").is(lockName.toString())),
-                                          MongoFencedLock.class,
-                                          this.fencedLocksCollectionName);
-        return Optional.ofNullable(lock_)
-                       .map(lock -> new DBFencedLock(lockManager,
-                                                     lockName,
-                                                     lock.getLastIssuedFencedToken(),
-                                                     lock.getLockedByLockManagerInstanceId(),
-                                                     lock.lockAcquiredTimestamp != null ? lock.lockAcquiredTimestamp.atOffset(ZoneOffset.UTC) : null,
-                                                     lock.lockLastConfirmedTimestamp != null ? lock.lockLastConfirmedTimestamp.atOffset(ZoneOffset.UTC) : null));
+        try {
+            var lock_ = mongoTemplate.findOne(Query.query(Criteria.where("name").is(lockName.toString())),
+                                              MongoFencedLock.class,
+                                              this.fencedLocksCollectionName);
+            return Optional.ofNullable(lock_)
+                           .map(lock -> new DBFencedLock(lockManager,
+                                                         lockName,
+                                                         lock.getLastIssuedFencedToken(),
+                                                         lock.getLockedByLockManagerInstanceId(),
+                                                         lock.lockAcquiredTimestamp != null ? lock.lockAcquiredTimestamp.atOffset(ZoneOffset.UTC) : null,
+                                                         lock.lockLastConfirmedTimestamp != null ? lock.lockLastConfirmedTimestamp.atOffset(ZoneOffset.UTC) : null));
+        } catch (Exception e) {
+            if (e instanceof MongoTransactionException) {
+                log.trace("[{}] Transactional issue looking up Lock", lockName);
+                return Optional.empty();
+            } else {
+                return Exceptions.sneakyThrow(e);
+            }
+        }
 
     }
 
