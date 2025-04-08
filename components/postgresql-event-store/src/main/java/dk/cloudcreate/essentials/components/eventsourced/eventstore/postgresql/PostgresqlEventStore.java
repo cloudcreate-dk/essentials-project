@@ -503,7 +503,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
             }
 
             try {
-                var resolveBatchSizeForThisQueryTiming = StopWatch.start("resolveBatchSizeForThisQuery (" + subscriberId + ", " + aggregateType + ")");
+                var resolveBatchSizeForThisQueryTiming = StopWatch.start("resolveBatchSizeForThisQuery (" + actualSubscriberId + ", " + aggregateType + ")");
                 long batchSizeForThisQuery = resolveBatchSizeForThisQuery(aggregateType,
                                                                           eventStreamLogName,
                                                                           eventStoreStreamLog,
@@ -517,7 +517,9 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                                                                                   batchFetchSize,
                                                                                   Long.MAX_VALUE,
                                                                                   lastBatchSizeForThisQuery.get(),
-                                                                                  consecutiveNoPersistedEventsReturned.get(), nextFromInclusiveGlobalOrder.get(), batchSizeForThisQuery,
+                                                                                  consecutiveNoPersistedEventsReturned.get(),
+                                                                                  nextFromInclusiveGlobalOrder.get(),
+                                                                                  batchSizeForThisQuery,
                                                                                   resolveBatchSizeForThisQueryTiming.stop().getDuration()
                                                                                  );
 
@@ -536,7 +538,7 @@ public final class PostgresqlEventStore<CONFIG extends AggregateEventStreamConfi
                 var transientGapsToIncludeInQuery = subscriptionGapHandler.map(gapHandler -> gapHandler.findTransientGapsToIncludeInQuery(aggregateType, globalOrderRange))
                                                                           .orElse(null);
 
-                var loadEventsByGlobalOrderTiming = StopWatch.start("loadEventsByGlobalOrder(" + subscriberId + ", " + aggregateType + ")");
+                var loadEventsByGlobalOrderTiming = StopWatch.start("loadEventsByGlobalOrder(" + actualSubscriberId + ", " + aggregateType + ")");
                 var persistedEvents = loadEventsByGlobalOrder(aggregateType,
                                                               globalOrderRange,
                                                               transientGapsToIncludeInQuery,
