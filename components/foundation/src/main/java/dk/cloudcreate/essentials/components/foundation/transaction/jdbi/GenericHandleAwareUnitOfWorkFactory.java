@@ -111,7 +111,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
         private final Map<UnitOfWorkLifecycleCallback<Object>, List<Object>> unitOfWorkLifecycleCallbackResources;
 
         private UnitOfWorkStatus status;
-        private Exception        causeOfRollback;
+        private Throwable        causeOfRollback;
         private Handle           handle;
 
         public GenericHandleAwareUnitOfWork(GenericHandleAwareUnitOfWorkFactory<?> unitOfWorkFactory) {
@@ -216,7 +216,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
 
 
         @Override
-        public void rollback(Exception cause) {
+        public void rollback(Throwable cause) {
             if (status == UnitOfWorkStatus.Started || status == UnitOfWorkStatus.MarkedForRollbackOnly) {
                 causeOfRollback = cause != null ? cause : causeOfRollback;
                 final String description = msg("Rolling back Managed UnitOfWork with current status {}{}: {}", status, cause != null ? " due to " + causeOfRollback.getMessage() : "", info());
@@ -287,12 +287,12 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
         }
 
         @Override
-        public Exception getCauseOfRollback() {
+        public Throwable getCauseOfRollback() {
             return causeOfRollback;
         }
 
         @Override
-        public void markAsRollbackOnly(Exception cause) {
+        public void markAsRollbackOnly(Throwable cause) {
             if (status == UnitOfWorkStatus.Started) {
                 final String description = msg("Marking Managed UnitOfWork for Rollback Only {}: {}", cause != null ? "due to " + cause.getMessage() : "", info());
                 if (log.isTraceEnabled()) {
@@ -345,7 +345,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
          *
          * @param cause the cause of the rollback
          */
-        protected void afterRollback(Exception cause) {
+        protected void afterRollback(Throwable cause) {
 
         }
 
@@ -354,7 +354,7 @@ public abstract class GenericHandleAwareUnitOfWorkFactory<UOW extends HandleAwar
          *
          * @param cause the cause of the rollback
          */
-        protected void beforeRollback(Exception cause) {
+        protected void beforeRollback(Throwable cause) {
 
         }
     }

@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.foundation.transaction;
 
+import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.functional.*;
 import org.slf4j.*;
 
@@ -103,7 +104,7 @@ public interface UnitOfWorkFactory<UOW extends UnitOfWork> {
             } else {
                 unitOfWorkLog.debug("NestedUnitOfWork: Won't commit the UnitOfWork as it wasn't created by this usingUnitOfWork(CheckedConsumer) method call '{}'", unitOfWork.info());
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             if (existingUnitOfWork.isEmpty()) {
                 unitOfWorkLog.debug("Rolling back the UnitOfWork created by this usingUnitOfWork(CheckedConsumer) method call '{}'", unitOfWork.info());
                 unitOfWork.rollback(e);
@@ -111,6 +112,7 @@ public interface UnitOfWorkFactory<UOW extends UnitOfWork> {
                 unitOfWorkLog.debug("NestedUnitOfWork: Marking UnitOfWork as rollback only as it wasn't created by this usingUnitOfWork(CheckedConsumer) method call '{}'", unitOfWork.info());
                 unitOfWork.markAsRollbackOnly(e);
             }
+            Exceptions.rethrowIfCriticalError(e);
             throw new UnitOfWorkException(e);
         }
     }
@@ -150,7 +152,7 @@ public interface UnitOfWorkFactory<UOW extends UnitOfWork> {
             }
 
             return result;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             if (existingUnitOfWork.isEmpty()) {
                 unitOfWorkLog.debug("Rolling back the UnitOfWork created by this withUnitOfWork(CheckedFunction) method call '{}'", unitOfWork.info());
                 unitOfWork.rollback(e);
@@ -158,6 +160,7 @@ public interface UnitOfWorkFactory<UOW extends UnitOfWork> {
                 unitOfWorkLog.debug("NestedUnitOfWork: Marking UnitOfWork as rollback only as it wasn't created by this withUnitOfWork(CheckedFunction) method call '{}'", unitOfWork.info());
                 unitOfWork.markAsRollbackOnly(e);
             }
+            Exceptions.rethrowIfCriticalError(e);
             throw new UnitOfWorkException(e);
         }
     }

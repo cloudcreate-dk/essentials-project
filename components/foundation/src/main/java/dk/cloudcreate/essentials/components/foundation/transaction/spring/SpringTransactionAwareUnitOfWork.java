@@ -37,7 +37,7 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
 
     protected SpringTransactionAwareUnitOfWorkFactory<TRX_MGR, UOW> unitOfWorkFactory;
     private   Optional<TransactionStatus>                           manuallyStartedSpringTransaction;
-    Exception        causeOfRollback;
+    Throwable        causeOfRollback;
     UnitOfWorkStatus status;
     protected Map<UnitOfWorkLifecycleCallback<Object>, List<Object>> unitOfWorkLifecycleCallbackResources;
 
@@ -124,7 +124,7 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
     }
 
     @Override
-    public void rollback(Exception cause) {
+    public void rollback(Throwable cause) {
         causeOfRollback = cause != null ? cause : causeOfRollback;
         var correctStatus = status == UnitOfWorkStatus.Started || status == UnitOfWorkStatus.MarkedForRollbackOnly;
         if (correctStatus && manuallyStartedSpringTransaction.isPresent()) {
@@ -151,7 +151,7 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
 
     @Override
     public String info() {
-        return "TYPE:" + this.getClass().getSimpleName() + ":HASH:" + this.hashCode() + ":STATUS:" + this.status() ;
+        return "TYPE:" + this.getClass().getSimpleName() + ":HASH:" + this.hashCode() + ":STATUS:" + this.status();
     }
 
     @Override
@@ -160,12 +160,12 @@ public class SpringTransactionAwareUnitOfWork<TRX_MGR extends PlatformTransactio
     }
 
     @Override
-    public Exception getCauseOfRollback() {
+    public Throwable getCauseOfRollback() {
         return causeOfRollback;
     }
 
     @Override
-    public void markAsRollbackOnly(Exception cause) {
+    public void markAsRollbackOnly(Throwable cause) {
         if (status == UnitOfWorkStatus.Started && manuallyStartedSpringTransaction.isPresent()) {
             final String description = msg("Marking the manually managed Spring Transaction associated with this UnitOfWork for Rollback Only {}: {}", cause != null ? "due to " + cause.getMessage() : "", info());
             if (log.isTraceEnabled()) {

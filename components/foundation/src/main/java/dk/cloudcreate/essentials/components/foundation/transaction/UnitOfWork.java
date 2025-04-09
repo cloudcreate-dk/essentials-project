@@ -32,7 +32,7 @@ public interface UnitOfWork {
      *
      * @param cause the cause of the rollback
      */
-    void rollback(Exception cause);
+    void rollback(Throwable cause);
 
     /**
      * Get the status of the {@link UnitOfWork}
@@ -40,15 +40,15 @@ public interface UnitOfWork {
     UnitOfWorkStatus status();
 
     /**
-     * The cause of a Rollback or a {@link #markAsRollbackOnly(Exception)}
+     * The cause of a Rollback or a {@link #markAsRollbackOnly(Throwable)}
      */
-    Exception getCauseOfRollback();
+    Throwable getCauseOfRollback();
 
     default void markAsRollbackOnly() {
         markAsRollbackOnly(null);
     }
 
-    void markAsRollbackOnly(Exception cause);
+    void markAsRollbackOnly(Throwable cause);
 
     default String info() {
         return toString();

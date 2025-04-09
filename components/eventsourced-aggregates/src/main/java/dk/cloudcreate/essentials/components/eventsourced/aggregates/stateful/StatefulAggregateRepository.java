@@ -661,12 +661,12 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
             }
 
             @Override
-            public void beforeRollback(UnitOfWork unitOfWork, java.util.List<AGGREGATE_IMPL_TYPE> associatedResources, Exception causeOfTheRollback) {
+            public void beforeRollback(UnitOfWork unitOfWork, java.util.List<AGGREGATE_IMPL_TYPE> associatedResources, Throwable causeOfTheRollback) {
 
             }
 
             @Override
-            public void afterRollback(UnitOfWork unitOfWork, java.util.List<AGGREGATE_IMPL_TYPE> associatedResources, Exception causeOfTheRollback) {
+            public void afterRollback(UnitOfWork unitOfWork, java.util.List<AGGREGATE_IMPL_TYPE> associatedResources, Throwable causeOfTheRollback) {
 
             }
         }

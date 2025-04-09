@@ -34,7 +34,7 @@ public interface UnitOfWorkLifecycleCallback<RESOURCE_TYPE> {
 
     void afterCommit(UnitOfWork unitOfWork, List<RESOURCE_TYPE> associatedResources);
 
-    void beforeRollback(UnitOfWork unitOfWork, List<RESOURCE_TYPE> associatedResources, Exception causeOfTheRollback);
+    void beforeRollback(UnitOfWork unitOfWork, List<RESOURCE_TYPE> associatedResources, Throwable causeOfTheRollback);
 
-    void afterRollback(UnitOfWork unitOfWork, List<RESOURCE_TYPE> associatedResources, Exception causeOfTheRollback);
+    void afterRollback(UnitOfWork unitOfWork, List<RESOURCE_TYPE> associatedResources, Throwable causeOfTheRollback);
 }

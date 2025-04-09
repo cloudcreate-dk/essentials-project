@@ -395,12 +395,12 @@ public interface FlexAggregateRepository<ID, AGGREGATE_TYPE extends FlexAggregat
             }
 
             @Override
-            public void beforeRollback(UnitOfWork unitOfWork, java.util.List<EventsToPersist<ID, Object>> associatedResources, Exception causeOfTheRollback) {
+            public void beforeRollback(UnitOfWork unitOfWork, java.util.List<EventsToPersist<ID, Object>> associatedResources, Throwable causeOfTheRollback) {
 
             }
 
             @Override
-            public void afterRollback(UnitOfWork unitOfWork, java.util.List<EventsToPersist<ID, Object>> associatedResources, Exception causeOfTheRollback) {
+            public void afterRollback(UnitOfWork unitOfWork, java.util.List<EventsToPersist<ID, Object>> associatedResources, Throwable causeOfTheRollback) {
 
             }
         }
