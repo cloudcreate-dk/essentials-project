@@ -25,7 +25,7 @@
     </appender>
 
     <logger name="dk.cloudcreate.essentials" level="TRACE"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.transaction" level="INFO"/>
+    <logger name="dk.cloudcreate.essentials.components.foundation.transaction" level="TRACE"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
