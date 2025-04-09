@@ -143,12 +143,7 @@ public abstract class SpringTransactionAwareUnitOfWorkFactory<TRX_MGR extends Pl
         var resource  = TransactionSynchronizationManager.unbindResource(unitOfWorkType);
         var uow = (UOW) resource;
         if (!uow.status.isCompleted) {
-            log.error("UOW in not completed - will try to roll it back: {}", uow.info());
-            try {
-                uow.rollback();
-            } catch (Exception e) {
-                log.error("Failed to rollback transaction for non completed UOW! {}", uow.info());
-            }
+            log.error("UOW in not completed {}", uow.info());
         }
         log.debug("Removed Spring Transaction-Aware UnitOfWork: {}", uow.info());
     }

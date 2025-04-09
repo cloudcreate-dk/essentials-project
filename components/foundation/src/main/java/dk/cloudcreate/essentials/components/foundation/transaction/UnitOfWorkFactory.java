@@ -154,8 +154,12 @@ public interface UnitOfWorkFactory<UOW extends UnitOfWork> {
             return result;
         } catch (Throwable e) {
             if (existingUnitOfWork.isEmpty()) {
-                unitOfWorkLog.debug("Rolling back the UnitOfWork created by this withUnitOfWork(CheckedFunction) method call '{}'", unitOfWork.info());
-                unitOfWork.rollback(e);
+                if (unitOfWork.status() == UnitOfWorkStatus.RolledBack) {
+                    unitOfWorkLog.debug("Committing the UnitOfWork created by this withUnitOfWork(CheckedFunction) failed - but the UnitOfWork is already rolled-back '{}'", unitOfWork.info());
+                } else {
+                    unitOfWorkLog.debug("Rolling back the UnitOfWork created by this withUnitOfWork(CheckedFunction) method call '{}'", unitOfWork.info());
+                    unitOfWork.rollback(e);
+                }
             } else {
                 unitOfWorkLog.debug("NestedUnitOfWork: Marking UnitOfWork as rollback only as it wasn't created by this withUnitOfWork(CheckedFunction) method call '{}'", unitOfWork.info());
                 unitOfWork.markAsRollbackOnly(e);
