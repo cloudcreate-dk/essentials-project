@@ -41,6 +41,12 @@
             <version>${slf4j.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <version>${micrometer.version}</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 
     <build>

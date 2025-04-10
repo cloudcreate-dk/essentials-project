@@ -28,6 +28,10 @@ public final class CorrelationId extends CharSequenceType<CorrelationId> impleme
         super(value);
     }
 
+    public CorrelationId(String value) {
+        super(value);
+    }
+
     /**
      * Converts a non-null <code>value</code> to an {@link Optional#of(Object)} with argument {@link CorrelationId},
      * otherwise it returns an {@link Optional#empty()}

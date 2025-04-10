@@ -16,10 +16,10 @@
 
 package dk.cloudcreate.essentials.shared.functional;
 
-import dk.cloudcreate.essentials.shared.FailFast;
-
 import java.io.Serializable;
 import java.util.function.Function;
+
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 
 /**
  * Represents a function that accepts three arguments and produces a result.<br>
@@ -51,7 +51,7 @@ public interface TripleFunction<T1, T2, T3, R> extends Serializable {
      * @return a function composed of this and after
      */
     default <V> TripleFunction<T1, T2, T3, V> andThen(Function<? super R, ? extends V> after) {
-        FailFast.requireNonNull(after, "You must supply and after function");
+        requireNonNull(after, "You must supply and after function");
         return (t1, t2, t3) -> after.apply(apply(t1, t2, t3));
     }
 }

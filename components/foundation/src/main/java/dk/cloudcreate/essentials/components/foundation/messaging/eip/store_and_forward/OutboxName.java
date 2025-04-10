@@ -28,6 +28,10 @@ public final class OutboxName extends CharSequenceType<OutboxName> implements Id
         super(value);
     }
 
+    public OutboxName(String value) {
+        super(value);
+    }
+
     public static OutboxName of(CharSequence value) {
         return new OutboxName(value);
     }

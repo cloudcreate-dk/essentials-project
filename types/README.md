@@ -23,7 +23,7 @@ To use `Types` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types</artifactId>
-    <version>0.40.22</version>
+    <version>0.40.23</version>
 </dependency>
 ```
 
@@ -72,7 +72,7 @@ This code might at the surface look okay, but returning to it after a few weeks 
     - Is the `key` the `ProductId` ?
     - Is the `value` a `Quantity` ?
 
-### Creating your own custom type
+### Java Creating your own custom type
 
 A `SingleValueType` encapsulates a **single** NON-NULL _value_ of a given supported **Value type**:
 
@@ -80,6 +80,7 @@ A `SingleValueType` encapsulates a **single** NON-NULL _value_ of a given suppor
 |----------------------------------|-------------------------|
 | `BigDecimalType`                 | `BigDecimal`            |
 | `BigIntegerType`                 | `BigInteger`            |
+| `BooleanType`                    | `Boolean`               |
 | `ByteType`                       | `Byte`                  |
 | `CharSequenceType`               | `CharSequence`/`String` |
 | `DoubleType`                     | `Double`                |
@@ -123,9 +124,16 @@ Amount totalSales = totalAmountWithoutSalesTax.add(salesTaxAmount); // 125.00
 
 `OrderId` is a custom String based `SingleValueType` that extends the provided `CharSequenceType`:
 
-```
+*Note: To retain compatibility with Jackson version 2.18.* subclasses of `CharSequenceType` must provide
+two constructors, on that accepts a `String` and one that accepts a `CharSequence`* 
+
+```java
 public class OrderId extends CharSequenceType<OrderId> implements Identifier {
     public OrderId(CharSequence value) {
+        super(value);
+    }
+    
+    public OrderId(String value) {
         super(value);
     }
 }
@@ -185,3 +193,44 @@ libraries:
 - **Spring Data JPA**: using the  `types-springdata-jpa` library
 - **Jdbi v3**: using the `types-jdbi` library
 - **Avro**: using the `types-avro` library
+
+### Kotlin - Creating your own custom type
+
+Essentials support building Semantic Values types:
+
+| `SemanticType` specialization | Value Type       | 
+|-------------------------------|------------------|
+| `BigDecimalValueType`         | `BigDecimal`     |
+| `BigIntegerValueType`         | `BigInteger`     |
+| `BooleanValueType`            | `Boolean`        |
+| `ByteValueType`               | `Byte`           |
+| `DoubleValueType`             | `Double`         |
+| `FloatValueType`              | `Float`          |
+| `InstantValueType`            | `Instant`        |
+| `IntValueType`                | `Int`            |
+| `LocalDateTimeValueType`      | `LocalDateTime`  |
+| `LocalDateValueType`          | `LocalDate`      |
+| `LocalTimeValueType`          | `LocalTime`      |
+| `LongValueType`               | `Long`           |
+| `OffsetDateTimeValueType`     | `OffsetDateTime` |
+| `ShortValueType`              | `Short`          |
+| `StringValueType`             | `String`         |
+| `ZonedDateTimeValueType`      | `ZonedDateTime`  |
+
+with concrete high level types `Amount` and `CountryCode` being provided
+
+Example of creating a custom Semantic type:
+```kotlin
+@JvmInline
+value class DocumentId(override val value: String) : StringValueType<DocumentId> {
+    companion object {
+        fun of(value: String): DocumentId {
+            return DocumentId(value)
+        }
+
+        fun random(): DocumentId {
+            return DocumentId(RandomIdGenerator.generate())
+        }
+    }
+}
+```

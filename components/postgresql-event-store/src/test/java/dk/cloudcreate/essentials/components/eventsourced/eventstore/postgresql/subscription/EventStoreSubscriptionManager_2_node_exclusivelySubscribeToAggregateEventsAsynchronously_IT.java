@@ -270,7 +270,12 @@ class EventStoreSubscriptionManager_2_node_exclusivelySubscribeToAggregateEvents
 
                     @Override
                     public void handle(PersistedEvent event) {
-                        System.out.println("Received Order event: " + event);
+                        var isDuplicateEvent = orderEventsReceived.contains(event);
+                        if (isDuplicateEvent) {
+                            System.out.println("Received DUPLICATE Order event: " + event);
+                        } else {
+                            System.out.println("Received Order event: " + event);
+                        }
                         orderEventsReceived.add(event);
                     }
                 });

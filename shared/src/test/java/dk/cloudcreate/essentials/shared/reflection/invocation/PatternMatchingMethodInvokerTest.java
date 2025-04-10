@@ -34,7 +34,8 @@ class PatternMatchingMethodInvokerTest {
                                                                         new SingleArgumentAnnotatedMethodPatternMatcher<>(EventHandler.class,
                                                                                                                           OrderEvent.class),
                                                                         InvocationStrategy.InvokeMostSpecificTypeMatched,
-                                                                        Optional.of(noMatchingMethodsHandler));
+                                                                        Optional.of(noMatchingMethodsHandler),
+                                                                        Optional.empty());
 
         // When
         var orderCreated   = new OrderCreated("1");
@@ -62,6 +63,7 @@ class PatternMatchingMethodInvokerTest {
                                                                         new SingleArgumentAnnotatedMethodPatternMatcher<>(EventHandler.class,
                                                                                                                           new GenericType<OrderEvent>() {}),
                                                                         InvocationStrategy.InvokeMostSpecificTypeMatched,
+                                                                        Optional.empty(),
                                                                         Optional.empty());
 
         // And
@@ -103,7 +105,8 @@ class PatternMatchingMethodInvokerTest {
                                                                         new SingleArgumentAnnotatedMethodPatternMatcher<>(EventHandler.class,
                                                                                                                           OrderEvent.class),
                                                                         InvocationStrategy.InvokeAllMatches,
-                                                                        Optional.of(noMatchingMethodsHandler));
+                                                                        Optional.of(noMatchingMethodsHandler),
+                                                                        Optional.empty());
 
         // And
         var orderCreated  = new OrderCreated("1");
@@ -136,6 +139,7 @@ class PatternMatchingMethodInvokerTest {
                                                                         new SingleArgumentAnnotatedMethodPatternMatcher<>(EventHandler.class,
                                                                                                                           OrderEvent.class),
                                                                         InvocationStrategy.InvokeAllMatches,
+                                                                        Optional.empty(),
                                                                         Optional.empty());
 
         // And

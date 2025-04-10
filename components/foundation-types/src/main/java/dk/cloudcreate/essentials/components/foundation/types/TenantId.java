@@ -26,6 +26,10 @@ public final class TenantId extends CharSequenceType<TenantId> implements Tenant
         super(value);
     }
 
+    public TenantId(String value) {
+        super(value);
+    }
+
     public static TenantId of(CharSequence value) {
         return new TenantId(value);
     }

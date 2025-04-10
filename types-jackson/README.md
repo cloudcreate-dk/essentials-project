@@ -23,7 +23,7 @@ To use `Types-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jackson</artifactId>
-    <version>0.40.22</version>
+    <version>0.40.23</version>
 </dependency>
 ```
 
@@ -70,6 +70,24 @@ It also supports registering additional Jackson modules:
 
 ```
 ObjectMapper objectMapper = EssentialTypesJacksonModule.createObjectMapper(new EssentialsImmutableJacksonModule(), new Jdk8Module(), new JavaTimeModule());
+```
+
+### `CharSequenceType`
+
+To retain compatibility with Jackson version 2.18.* subclasses of `CharSequenceType` must provide
+two constructors, on that accepts a `String` and one that accepts a `CharSequence`
+
+Example:
+```java
+public class OrderId extends CharSequenceType<OrderId> implements Identifier {
+    public OrderId(CharSequence value) {
+        super(value);
+    }
+    
+    public OrderId(String value) {
+        super(value);
+    }
+}
 ```
 
 ### JSR 310 Semantic Types

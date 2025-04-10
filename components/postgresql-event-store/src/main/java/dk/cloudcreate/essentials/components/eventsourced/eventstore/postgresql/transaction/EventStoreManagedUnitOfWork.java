@@ -92,7 +92,7 @@ final class EventStoreManagedUnitOfWork extends GenericHandleAwareUnitOfWorkFact
     }
 
     @Override
-    protected void afterRollback(Exception cause) {
+    protected void afterRollback(Throwable cause) {
         for (PersistedEventsCommitLifecycleCallback callback : lifecycleCallbacks) {
             try {
                 log.trace("AfterCommit PersistedEvents for {} with {} persisted events", callback.getClass().getName(), afterCommitEventsPersisted.size());

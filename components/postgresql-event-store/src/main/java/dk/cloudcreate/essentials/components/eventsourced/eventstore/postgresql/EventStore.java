@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql;
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.EventStoreInterceptor;
+import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.observability.EventStoreSubscriptionObserver;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.operations.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.AggregateEventStreamConfiguration;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.transaction.*;
@@ -25,6 +26,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.t
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import dk.cloudcreate.essentials.reactive.*;
+import dk.cloudcreate.essentials.shared.interceptor.InterceptorOrder;
 import dk.cloudcreate.essentials.types.*;
 import reactor.core.publisher.Flux;
 
@@ -50,7 +52,8 @@ public interface EventStore {
      */
     int DEFAULT_QUERY_BATCH_SIZE              = 100;
     /**
-     * Default Polling Interface for {@link #pollEvents(AggregateType, long, Optional, Optional, Optional, Optional)}/{@link #pollEvents(AggregateType, GlobalEventOrder, Optional, Optional, Optional, Optional)}
+     * Default Polling Interface for {@link #pollEvents(AggregateType, long, Optional, Optional, Optional, Optional)}/
+     * {@link #pollEvents(AggregateType, GlobalEventOrder, Optional, Optional, Optional, Optional)}
      */
     int DEFAULT_POLLING_INTERVAL_MILLISECONDS = 500;
 
@@ -69,8 +72,16 @@ public interface EventStore {
     EventBus localEventBus();
 
     /**
-     * Get an immutable list of all registered {@link EventStoreInterceptor}'s ordered according to their {@link dk.cloudcreate.essentials.shared.interceptor.InterceptorOrder}
-     * @return an immutable list of all registered {@link EventStoreInterceptor}'s ordered according to their {@link dk.cloudcreate.essentials.shared.interceptor.InterceptorOrder}
+     * Get the {@link EventStoreSubscriptionObserver} registered with the {@link EventStore}
+     *
+     * @return the {@link EventStoreSubscriptionObserver} registered with the {@link EventStore}
+     */
+    EventStoreSubscriptionObserver getEventStoreSubscriptionObserver();
+
+    /**
+     * Get an immutable list of all registered {@link EventStoreInterceptor}'s ordered according to their {@link InterceptorOrder}
+     *
+     * @return an immutable list of all registered {@link EventStoreInterceptor}'s ordered according to their {@link InterceptorOrder}
      * @see ConfigurableEventStore#addEventStoreInterceptor(EventStoreInterceptor)
      * @see ConfigurableEventStore#removeEventStoreInterceptor(EventStoreInterceptor)
      */
@@ -347,11 +358,11 @@ public interface EventStore {
      * Load the events belonging to <code>aggregateType</code> which have the specified <code>eventId</code>'s
      *
      * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream}, for which we want to load the events specified by the <code>eventIds</code> parameter
-     * @param eventIds       the list of identifiers of the {@link PersistedEvent}'s we want to load
+     * @param eventIds      the list of identifiers of the {@link PersistedEvent}'s we want to load
      * @return list of the matching events
      */
     default List<PersistedEvent> loadEvents(AggregateType aggregateType,
-                                                List<EventId> eventIds) {
+                                            List<EventId> eventIds) {
         return loadEvents(new LoadEvents(aggregateType, eventIds));
     }
 
@@ -360,11 +371,11 @@ public interface EventStore {
      * Load the events belonging to <code>aggregateType</code> which have the specified <code>eventId</code>'s
      *
      * @param aggregateType the aggregate type that the underlying {@link AggregateEventStream}, for which we want to load the events specified by the <code>eventIds</code> parameter
-     * @param eventIds       the identifiers of the {@link PersistedEvent}'s we want to load
+     * @param eventIds      the identifiers of the {@link PersistedEvent}'s we want to load
      * @return list of the matching events
      */
     default List<PersistedEvent> loadEvents(AggregateType aggregateType,
-                                               EventId... eventIds) {
+                                            EventId... eventIds) {
         return loadEvents(new LoadEvents(aggregateType, List.of(eventIds)));
     }
 

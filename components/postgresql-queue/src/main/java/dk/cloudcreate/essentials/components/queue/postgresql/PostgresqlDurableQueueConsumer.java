@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.components.foundation.messaging.queue.operation
 import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory;
 import dk.cloudcreate.essentials.components.foundation.transaction.jdbi.*;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 @SuppressWarnings("unchecked")
@@ -32,7 +33,8 @@ public final class PostgresqlDurableQueueConsumer extends DefaultDurableQueueCon
                                           PostgresqlDurableQueues durableQueues,
                                           Consumer<DurableQueueConsumer> removeDurableQueueConsumer,
                                           long pollingIntervalMs,
-                                          QueuePollingOptimizer queuePollingOptimizer) {
-        super(consumeFromQueue, unitOfWorkFactory, durableQueues, removeDurableQueueConsumer, pollingIntervalMs, queuePollingOptimizer);
+                                          QueuePollingOptimizer queuePollingOptimizer,
+                                          List<DurableQueuesInterceptor> interceptors) {
+        super(consumeFromQueue, unitOfWorkFactory, durableQueues, removeDurableQueueConsumer, pollingIntervalMs, queuePollingOptimizer, interceptors);
     }
 }

@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.m
 
 import dk.cloudcreate.essentials.components.foundation.test.fencedlock.DBFencedLockManagerIT;
 import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.SpringMongoTransactionAwareUnitOfWorkFactory;
+import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
@@ -88,6 +89,16 @@ class MongoFencedLockManagerIT extends DBFencedLockManagerIT<MongoFencedLockMana
     protected void restoreDatabaseConnection() {
         var dockerClient = mongoDBContainer.getDockerClient();
         dockerClient.unpauseContainerCmd(mongoDBContainer.getContainerId()).exec();
+    }
+
+    @Override
+    protected boolean isConnectionRestored() {
+        try {
+            var pingResult = mongoTemplate.executeCommand(new Document("ping", 1));
+            return pingResult.getDouble("ok") == 1.0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Test

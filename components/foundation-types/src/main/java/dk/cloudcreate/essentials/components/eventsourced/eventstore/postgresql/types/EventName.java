@@ -29,6 +29,10 @@ public final class EventName extends CharSequenceType<EventName> implements Iden
         super(value);
     }
 
+    public EventName(String value) {
+        super(value);
+    }
+
     public static EventName of(CharSequence value) {
         return new EventName(value);
     }

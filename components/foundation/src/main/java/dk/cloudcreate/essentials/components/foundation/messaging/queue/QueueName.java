@@ -26,6 +26,10 @@ public final class QueueName extends CharSequenceType<QueueName> implements Iden
         super(value);
     }
 
+    public QueueName(String value) {
+        super(value);
+    }
+
     public static QueueName of(CharSequence value) {
         return new QueueName(value);
     }

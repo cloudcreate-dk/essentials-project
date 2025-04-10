@@ -29,6 +29,8 @@ import java.util.Optional;
 
 @Testcontainers
 class PostgresqlFencedLockManagerIT extends DBFencedLockManagerIT<PostgresqlFencedLockManager> {
+    private JdbiUnitOfWorkFactory unitOfWorkFactory;
+
     @Container
     private final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
             .withDatabaseName("lock-db")
@@ -38,12 +40,13 @@ class PostgresqlFencedLockManagerIT extends DBFencedLockManagerIT<PostgresqlFenc
     @Override
     protected PostgresqlFencedLockManager createLockManagerNode2() {
         var jdbi = Jdbi.create(postgreSQLContainer.getJdbcUrl() + "?connectTimeout=1&socketTimeout=1",
-                                postgreSQLContainer.getUsername(),
-                                postgreSQLContainer.getPassword());
+                               postgreSQLContainer.getUsername(),
+                               postgreSQLContainer.getPassword());
+        unitOfWorkFactory = new JdbiUnitOfWorkFactory(jdbi);
         jdbi.installPlugin(new PostgresPlugin());
         jdbi.setSqlLogger(new SqlExecutionTimeLogger());
         return new PostgresqlFencedLockManager(jdbi,
-                                               new JdbiUnitOfWorkFactory(jdbi),
+                                               unitOfWorkFactory,
                                                Optional.of("node2"),
                                                Duration.ofSeconds(3),
                                                Duration.ofSeconds(1),
@@ -53,8 +56,8 @@ class PostgresqlFencedLockManagerIT extends DBFencedLockManagerIT<PostgresqlFenc
     @Override
     protected PostgresqlFencedLockManager createLockManagerNode1() {
         var jdbi = Jdbi.create(postgreSQLContainer.getJdbcUrl() + "?connectTimeout=1&socketTimeout=1",
-                                postgreSQLContainer.getUsername(),
-                                postgreSQLContainer.getPassword());
+                               postgreSQLContainer.getUsername(),
+                               postgreSQLContainer.getPassword());
         jdbi.installPlugin(new PostgresPlugin());
         jdbi.setSqlLogger(new SqlExecutionTimeLogger());
         return new PostgresqlFencedLockManager(jdbi,
@@ -75,5 +78,19 @@ class PostgresqlFencedLockManagerIT extends DBFencedLockManagerIT<PostgresqlFenc
     protected void restoreDatabaseConnection() {
         var dockerClient = postgreSQLContainer.getDockerClient();
         dockerClient.unpauseContainerCmd(postgreSQLContainer.getContainerId()).exec();
+    }
+
+    @Override
+    protected boolean isConnectionRestored() {
+        try {
+            return unitOfWorkFactory.withUnitOfWork(uow -> {
+                var result = uow.handle().createQuery("SELECT 1")
+                                .mapTo(Integer.class)
+                                .one();
+                return result != null && result == 1;
+            });
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

@@ -22,7 +22,7 @@ import java.util.Optional;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
-public final class DurableQueueException extends RuntimeException {
+public class DurableQueueException extends RuntimeException {
     public final QueueName              queueName;
     public final Optional<QueueEntryId> queueEntryId;
 

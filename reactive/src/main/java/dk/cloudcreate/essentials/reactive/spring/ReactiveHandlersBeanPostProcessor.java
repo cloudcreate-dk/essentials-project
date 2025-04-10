@@ -21,7 +21,9 @@ import dk.cloudcreate.essentials.reactive.command.*;
 import org.slf4j.*;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.config.*;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.*;
 
 import java.util.Collection;
@@ -40,12 +42,17 @@ import java.util.Collection;
 public class ReactiveHandlersBeanPostProcessor implements DestructionAwareBeanPostProcessor, ApplicationContextAware {
     private static final Logger log = LoggerFactory.getLogger(ReactiveHandlersBeanPostProcessor.class);
 
-    private ApplicationContext   applicationContext;
-    private Collection<EventBus> eventBus;
-    private CommandBus           commandBus;
+    private ConfigurableListableBeanFactory beanFactory;
+    private ApplicationContext              applicationContext;
+    private Collection<EventBus>            eventBus;
+    private CommandBus                      commandBus;
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        if (shouldSkipPostProcessing(bean, beanName)) {
+            log.debug("Skipping post-processing of bean '{}'", beanName);
+            return bean;
+        }
         if (isEventHandler(bean)) {
             var actualHandlerClass = resolveBeanClass(bean);
             if (actualHandlerClass.isAnnotationPresent(AsyncEventHandler.class)) {
@@ -95,6 +102,23 @@ public class ReactiveHandlersBeanPostProcessor implements DestructionAwareBeanPo
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
+        if (applicationContext instanceof ConfigurableApplicationContext) {
+            this.beanFactory = ((ConfigurableApplicationContext) applicationContext).getBeanFactory();
+        }
+    }
+
+    private boolean shouldSkipPostProcessing(Object bean, String beanName) {
+        if (this.beanFactory != null) {
+            try {
+                BeanDefinition beanDefinition = this.beanFactory.getBeanDefinition(beanName);
+                if (beanDefinition.getRole() == BeanDefinition.ROLE_INFRASTRUCTURE || bean.getClass().isAnnotationPresent(AutoConfiguration.class)) {
+                    return true;
+                }
+            } catch (NoSuchBeanDefinitionException e) {
+                // Ignore
+            }
+        }
+        return false;
     }
 
     private Collection<EventBus> eventBusses() {

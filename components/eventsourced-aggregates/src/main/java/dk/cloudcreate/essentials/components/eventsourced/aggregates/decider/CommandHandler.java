@@ -281,12 +281,12 @@ public interface CommandHandler<COMMAND, EVENT, ERROR> {
                 }
 
                 @Override
-                public void beforeRollback(UnitOfWork unitOfWork, List<EventsToAppendToStream<ID, EVENT, STATE>> associatedResources, Exception causeOfTheRollback) {
+                public void beforeRollback(UnitOfWork unitOfWork, List<EventsToAppendToStream<ID, EVENT, STATE>> associatedResources, Throwable causeOfTheRollback) {
 
                 }
 
                 @Override
-                public void afterRollback(UnitOfWork unitOfWork, List<EventsToAppendToStream<ID, EVENT, STATE>> associatedResources, Exception causeOfTheRollback) {
+                public void afterRollback(UnitOfWork unitOfWork, List<EventsToAppendToStream<ID, EVENT, STATE>> associatedResources, Throwable causeOfTheRollback) {
 
                 }
             }

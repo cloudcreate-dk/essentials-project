@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.s
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.GlobalEventOrder;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.FencedLock;
+import dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWork;
 import dk.cloudcreate.essentials.components.foundation.types.*;
 import org.reactivestreams.Subscription;
 
@@ -53,6 +54,28 @@ public interface EventStoreSubscription extends Lifecycle, Subscription {
     @Override
     default void cancel() {
         unsubscribe();
+    }
+
+    /**
+     * Is this subscription exclusive, i.e. governed by a {@link FencedLock}
+     * @return if this subscription is exclusive, i.e. governed by a {@link FencedLock}
+     */
+    boolean isExclusive();
+
+    /**
+     * Is this a subscription that where event handling joins in on the {@link UnitOfWork}
+     * that event was persisted in
+     * @return if this subscription's event handling joins in on the {@link UnitOfWork} that event was persisted in
+     */
+    boolean isInTransaction();
+
+    /**
+     * Is the subscription asynchronous (i.e. NOT {@link #isInTransaction()})<br>
+     * Default implementation returns <code>!isInTransaction()</code>
+     * @return Is the subscription asynchronous (i.e. NOT {@link #isInTransaction()})
+     */
+    default boolean isAsynchronous() {
+        return !isInTransaction();
     }
 
     /**

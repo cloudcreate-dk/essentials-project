@@ -306,6 +306,7 @@ public abstract class EventProcessor implements Lifecycle {
                                                            eventOrder));
                 }
                 var persistedEvent = events.get(0);
+                log.debug("[{}:{}] Handling Event of type '{}'", aggregateType, aggregateId, persistedEvent.event().getEventTypeOrNamePersistenceValue());
                 try {
                     patternMatchingInboxMessageHandlerDelegate.accept(OrderedMessage.of(persistedEvent.event().deserialize(),
                                                                                         stringAggregateId,
@@ -514,7 +515,7 @@ public abstract class EventProcessor implements Lifecycle {
                 patternMatchingInboxMessageHandlerDelegate.handlesMessageWithPayload(event.event().getEventTypeAsJavaClass().get())) {
             var aggregateType         = event.aggregateType();
             var aggregateIdSerializer = resolveAggregateIdSerializer(aggregateType);
-
+            log.debug("[{}:{}] Forwarding-To-Inbox Event of type '{}'", aggregateType, event.aggregateId(), event.event().getEventTypeOrNamePersistenceValue());
             forwardToInbox.addMessageReceived(new EventReferenceOrderedMessage(aggregateType,
                                                                                aggregateIdSerializer.serialize(event.aggregateId()),
                                                                                event.eventOrder(),

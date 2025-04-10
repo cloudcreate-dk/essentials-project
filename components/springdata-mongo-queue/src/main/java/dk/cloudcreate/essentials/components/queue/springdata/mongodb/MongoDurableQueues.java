@@ -21,12 +21,12 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.mongodb.MongoInterruptedException;
+import com.mongodb.*;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
 import dk.cloudcreate.essentials.components.foundation.json.*;
-import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
+import dk.cloudcreate.essentials.components.foundation.messaging.queue.Message;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuePollingOptimizer.SimpleQueuePollingOptimizer;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
@@ -35,7 +35,7 @@ import dk.cloudcreate.essentials.components.foundation.transaction.spring.mongo.
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
 import dk.cloudcreate.essentials.shared.Exceptions;
-import dk.cloudcreate.essentials.shared.functional.TripleFunction;
+import dk.cloudcreate.essentials.shared.functional.QuadFunction;
 import org.slf4j.*;
 import org.springframework.data.annotation.*;
 import org.springframework.data.domain.Sort;
@@ -56,6 +56,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil.isWriteConflict;
 import static dk.cloudcreate.essentials.shared.Exceptions.rethrowIfCriticalError;
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -163,6 +164,45 @@ public final class MongoDurableQueues implements DurableQueues {
                               SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory) {
         this(mongoTemplate,
              unitOfWorkFactory,
+             (Function<ConsumeFromQueue, QueuePollingOptimizer>) null);
+    }
+
+    /**
+     * Create {@link DurableQueues} running in {@link TransactionalMode#SingleOperationTransaction} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME},
+     * the specified jsonSerializer and provided messageHandlingTimeout
+     *
+     * @param mongoTemplate          the {@link MongoTemplate} used
+     * @param jsonSerializer         the {@link JSONSerializer} to use for serializing/deserializing message payloads
+     * @param messageHandlingTimeout Defines the timeout for messages being delivered, but haven't yet been acknowledged.
+     *                               After this timeout the message delivery will be reset and the message will again be a candidate for delivery
+     */
+    public MongoDurableQueues(MongoTemplate mongoTemplate,
+                              JSONSerializer jsonSerializer,
+                              Duration messageHandlingTimeout) {
+        this(TransactionalMode.SingleOperationTransaction,
+             mongoTemplate,
+             null,
+             messageHandlingTimeout,
+             jsonSerializer,
+             DEFAULT_DURABLE_QUEUES_COLLECTION_NAME,
+             null);
+    }
+
+    /**
+     * Create {@link DurableQueues} running in {@link TransactionalMode#FullyTransactional} with sharedQueueCollectionName: {@value DEFAULT_DURABLE_QUEUES_COLLECTION_NAME} and
+     * the default {@link JacksonJSONSerializer} using {@link #createDefaultObjectMapper()}
+     * configuration
+     *
+     * @param mongoTemplate     the {@link MongoTemplate} used
+     * @param unitOfWorkFactory the {@link UnitOfWorkFactory} needed to access the database
+     * @param jsonSerializer    the {@link JSONSerializer} to use for serializing/deserializing message payloads
+     */
+    public MongoDurableQueues(MongoTemplate mongoTemplate,
+                              SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
+                              JSONSerializer jsonSerializer) {
+        this(mongoTemplate,
+             unitOfWorkFactory,
+             jsonSerializer,
              null);
     }
 
@@ -711,12 +751,17 @@ public final class MongoDurableQueues implements DurableQueues {
                        .map(durableQueuedMessage -> durableQueuedMessage.setDeserializeMessagePayloadFunction(this::deserializeMessagePayload));
     }
 
-    private Object deserializeMessagePayload(QueueName queueName, byte[] messagePayload, String messagePayloadType) {
+    private Object deserializeMessagePayload(QueueName queueName, QueueEntryId queueEntryId, byte[] messagePayload, String messagePayloadType) {
+        requireNonNull(queueName, "No queueName provided");
+        requireNonNull(queueEntryId, "No queueEntryId provided");
+        requireNonNull(messagePayload, "No messagePayload provided");
+        requireNonNull(messagePayloadType, "No messagePayloadType provided");
+
         try {
             return jsonSerializer.deserialize(messagePayload, messagePayloadType);
         } catch (Throwable e) {
             rethrowIfCriticalError(e);
-            throw new DurableQueueException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName);
+            throw new DurableQueueDeserializationException(msg("Failed to deserialize message payload of type {}", messagePayloadType), e, queueName, queueEntryId);
         }
     }
 
@@ -1038,8 +1083,19 @@ public final class MongoDurableQueues implements DurableQueues {
 
                                                            if (deliverMessage) {
                                                                log.debug("[{}] Found a message ready for delivery: {}", queueName, nextMessageToDeliver.id);
-                                                               return Optional.of(nextMessageToDeliver)
-                                                                              .map(durableQueuedMessage -> (QueuedMessage) durableQueuedMessage.setDeserializeMessagePayloadFunction(this::deserializeMessagePayload));
+                                                               try {
+                                                                   return Optional.of(nextMessageToDeliver)
+                                                                                  .map(durableQueuedMessage -> {
+                                                                                      durableQueuedMessage.setDeserializeMessagePayloadFunction(this::deserializeMessagePayload);
+                                                                                      // Perform deserialization early to catch issues
+                                                                                      durableQueuedMessage.getMessage();
+                                                                                      return (QueuedMessage) durableQueuedMessage;
+                                                                                  });
+                                                               } catch (DurableQueueDeserializationException e) {
+                                                                   log.error("[{}] Marking Message as DeadLetterMessage due to DurableQueueDeserializationException while deserializing message with id '{}'", operation.queueName, e.queueEntryId.get(), e);
+                                                                   markAsDeadLetterMessageInternal(e);
+                                                                   return Optional.<QueuedMessage>empty();
+                                                               }
                                                            } else {
                                                                log.trace("[{}] Didn't find a message ready for delivery (deliverMessage: {} for '{}')", queueName, deliverMessage, nextMessageToDeliver.getId());
                                                                return Optional.<QueuedMessage>empty();
@@ -1049,7 +1105,7 @@ public final class MongoDurableQueues implements DurableQueues {
                                                            return Optional.<QueuedMessage>empty();
                                                        }
                                                    } catch (Exception e) {
-                                                       if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
+                                                       if (isWriteConflict(e)) {
                                                            log.trace("[{}] WriteConflict finding next message ready for delivery. Will retry", queueName);
                                                            if (transactionalMode == TransactionalMode.FullyTransactional) {
                                                                unitOfWorkFactory.getRequiredUnitOfWork().markAsRollbackOnly(e);
@@ -1071,6 +1127,28 @@ public final class MongoDurableQueues implements DurableQueues {
                                                        lock.unlock();
                                                    }
                                                }).proceed();
+    }
+
+    private void markAsDeadLetterMessageInternal(DurableQueueDeserializationException e) {
+        if (transactionalMode == TransactionalMode.FullyTransactional) {
+            // Avoid "state should be: open" error
+            var session = mongoTemplate.getMongoDatabaseFactory().getSession(ClientSessionOptions.builder()
+                                                                                                 .defaultTransactionOptions(TransactionOptions.builder()
+                                                                                                                                              .readConcern(ReadConcern.MAJORITY)
+                                                                                                                                              .writeConcern(WriteConcern.MAJORITY)
+                                                                                                                                              .build())
+                                                                                                 .build());
+            session.startTransaction();
+            try {
+                markAsDeadLetterMessage(e.queueEntryId.get(), e);
+                session.commitTransaction();
+            } catch (RuntimeException ex) {
+                session.abortTransaction();
+                Exceptions.sneakyThrow(ex);
+            }
+        } else {
+            markAsDeadLetterMessage(e.queueEntryId.get(), e);
+        }
     }
 
     private boolean resolveIfMessageShouldBeDelivered(QueueName queueName, DurableQueuedMessage nextMessageToDeliver) {
@@ -1398,7 +1476,8 @@ public final class MongoDurableQueues implements DurableQueues {
                                                                                                                                                                         this,
                                                                                                                                                                         this::removeQueueConsumer,
                                                                                                                                                                         operation.getPollingInterval().toMillis(),
-                                                                                                                                                                        createQueuePollingOptimizerFor(operation))).proceed();
+                                                                                                                                                                        createQueuePollingOptimizerFor(operation),
+                                                                                                                                                                        interceptors)).proceed();
             if (started) {
                 consumer.start();
             }
@@ -1443,7 +1522,7 @@ public final class MongoDurableQueues implements DurableQueues {
         }
     }
 
-    private static ObjectMapper createDefaultObjectMapper() {
+    public static ObjectMapper createDefaultObjectMapper() {
         var objectMapper = JsonMapper.builder()
                                      .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                      .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
@@ -1493,11 +1572,11 @@ public final class MongoDurableQueues implements DurableQueues {
         private long         keyOrder     = -1L;
 
         @Transient
-        private transient TripleFunction<QueueName, byte[], String, Object> deserializeMessagePayloadFunction;
+        private transient QuadFunction<QueueName, QueueEntryId, byte[], String, Object> deserializeMessagePayloadFunction;
         @Transient
-        private transient Message                                           message;
+        private transient Message                                                       message;
         @Transient
-        private           Duration                                          manuallyRequestedRedeliveryDelay;
+        private           Duration                                                      manuallyRequestedRedeliveryDelay;
 
         public DurableQueuedMessage() {
         }
@@ -1629,12 +1708,14 @@ public final class MongoDurableQueues implements DurableQueues {
                 switch (deliveryMode) {
                     case NORMAL:
                         message = new Message(deserializeMessagePayloadFunction.apply(queueName,
+                                                                                      id,
                                                                                       messagePayload,
                                                                                       messagePayloadType),
                                               getMetaData());
                         break;
                     case IN_ORDER:
                         message = new OrderedMessage(deserializeMessagePayloadFunction.apply(queueName,
+                                                                                             id,
                                                                                              messagePayload,
                                                                                              messagePayloadType),
                                                      key,
@@ -1689,7 +1770,7 @@ public final class MongoDurableQueues implements DurableQueues {
                     '}';
         }
 
-        public DurableQueuedMessage setDeserializeMessagePayloadFunction(TripleFunction<QueueName, byte[], String, Object> deserializeMessagePayloadFunction) {
+        public DurableQueuedMessage setDeserializeMessagePayloadFunction(QuadFunction<QueueName, QueueEntryId, byte[], String, Object> deserializeMessagePayloadFunction) {
             this.deserializeMessagePayloadFunction = requireNonNull(deserializeMessagePayloadFunction, "No deserializeMessagePayloadFunction provided");
             return this;
         }

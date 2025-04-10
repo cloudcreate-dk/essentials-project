@@ -40,6 +40,16 @@ public final class CountryCode extends CharSequenceType<CountryCode> {
         super(validate(countryCode));
     }
 
+    /**
+     * Create a typed {@link CountryCode} from a String ISO-3166 2 character country code
+     *
+     * @param countryCode the ISO-3166 2 character country code with the <code>countryCode</code> as UPPER CASE value
+     * @throws IllegalArgumentException in case the  ISO-3166 2 character country code is not known or otherwise invalid.
+     */
+    public CountryCode(String countryCode) {
+        super(validate(countryCode));
+    }
+
     private static String validate(CharSequence countryCode) {
         requireNonNull(countryCode, "countryCode is null");
         if (countryCode.length() != 2) {

@@ -115,6 +115,7 @@ public final class PatternMatchingMethodInvoker<ARGUMENT_COMMON_ROOT_TYPE> {
     private final MethodPatternMatcher<ARGUMENT_COMMON_ROOT_TYPE> methodPatternMatcher;
     private final InvocationStrategy                              invocationStrategy;
     private final NoMatchingMethodsHandler                        defaultNoMatchingMethodsHandler;
+    private final InvocationTracker                               invocationTracker;
     /**
      * The object that contains the methods that we will perform pattern matching and invoke methods on
      */
@@ -153,6 +154,7 @@ public final class PatternMatchingMethodInvoker<ARGUMENT_COMMON_ROOT_TYPE> {
         this(invokeMethodsOn,
              methodPatternMatcher,
              invocationStrategy,
+             Optional.empty(),
              Optional.empty());
     }
 
@@ -167,16 +169,21 @@ public final class PatternMatchingMethodInvoker<ARGUMENT_COMMON_ROOT_TYPE> {
     public PatternMatchingMethodInvoker(Object invokeMethodsOn,
                                         MethodPatternMatcher<ARGUMENT_COMMON_ROOT_TYPE> methodPatternMatcher,
                                         InvocationStrategy invocationStrategy,
-                                        Optional<NoMatchingMethodsHandler> defaultNoMatchingMethodsHandler) {
+                                        Optional<NoMatchingMethodsHandler> defaultNoMatchingMethodsHandler,
+                                        Optional<InvocationTracker> invocationTracker) {
         requireNonNull(defaultNoMatchingMethodsHandler, "No defaultNoMatchingMethodsHandler instance provided");
         this.invokeMethodsOn = requireNonNull(invokeMethodsOn, "You must provide an object where methods will be invoked on - aka invokeMethodsOn");
         this.methodPatternMatcher = requireNonNull(methodPatternMatcher, "You must provide a methodPatternMatcher");
         this.invocationStrategy = requireNonNull(invocationStrategy, "You must provide an invocationStrategy");
         this.defaultNoMatchingMethodsHandler = defaultNoMatchingMethodsHandler.orElseGet(() -> argument -> {
         });
+        this.invocationTracker = invocationTracker.orElse(new InvocationTracker.NoOpInvocationTracker());
 
         log = LoggerFactory.getLogger(invokeMethodsOn.getClass());
         resolveInvokableMethods();
+        if (this.invocationTracker instanceof LoggerAwareInvocationTracker i) {
+            i.setLogger(log);
+        }
     }
 
     private void resolveInvokableMethods() {
@@ -197,7 +204,7 @@ public final class PatternMatchingMethodInvoker<ARGUMENT_COMMON_ROOT_TYPE> {
     /**
      * Invoke matching methods based on the <code>argument</code> on the {@link #invokeMethodsOn} based on
      * the {@link MethodPatternMatcher} and {@link InvocationStrategy} using the default <code>defaultNoMatchingMethodsHandler</code>
-     * defined in the {@link PatternMatchingMethodInvoker#PatternMatchingMethodInvoker(Object, MethodPatternMatcher, InvocationStrategy, Optional)}
+     * defined in the {@link PatternMatchingMethodInvoker#PatternMatchingMethodInvoker(Object, MethodPatternMatcher, InvocationStrategy, Optional, Optional)}
      *
      * @param argument The argument that will be forwarded to the {@link MethodPatternMatcher} for method invocation
      */
@@ -336,6 +343,7 @@ public final class PatternMatchingMethodInvoker<ARGUMENT_COMMON_ROOT_TYPE> {
         try {
             log.trace("Invoking {}", contextDescription);
             var duration = time(CheckedRunnable.safe(() -> methodPatternMatcher.invokeMethod(methodToInvoke, argument, invokeMethodsOn, resolvedInvokeMethodWithArgumentOfType)));
+            invocationTracker.trackMethodInvoked(methodToInvoke, invokeMethodsOn, duration, argument);
             log.trace("Took {} ms to invoke {}", duration.toMillis(), contextDescription);
         } catch (CheckedExceptionRethrownException e) {
             log.debug(msg("Failed to invoke {}", contextDescription), e.getCause());

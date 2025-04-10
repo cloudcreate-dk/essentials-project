@@ -553,21 +553,23 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
                                                                        aggregateId,
                                                                        LongRange.from(loadMoreEventsWithEventOrderFromAndIncluding));
             if (aggregateSnapshot.isPresent() && potentialPersistedEventStream.isEmpty()) {
-                log.trace("[{}:{}] Didn't find a any {} events persisted after eventOrder: {}. Has SNAPSHOT: {}",
+                log.debug("[{}:{}] Didn't find a any '{}' events persisted after eventOrder: {}. Has SNAPSHOT: {}",
                           aggregateType, aggregateId, aggregateImplementationType.getName(), loadMoreEventsWithEventOrderFromAndIncluding, aggregateSnapshot.isPresent());
                 return aggregateSnapshot.map(snapshot -> {
-                    log.trace("[{}:{}] Returning '{}' SNAPSHOT as it's up-to-date as of eventOrderOfLastIncludedEvent: {}",
+                    log.debug("[{}:{}] Returning '{}' SNAPSHOT as it's up-to-date as of eventOrderOfLastIncludedEvent: {}",
                               aggregateType, aggregateId, aggregateImplementationType.getName(), aggregateSnapshot.get().eventOrderOfLastIncludedEvent);
                     return (AGGREGATE_IMPL_TYPE) snapshot.aggregateSnapshot;
                 });
             } else if (aggregateSnapshot.isEmpty() && potentialPersistedEventStream.isEmpty()) {
+                log.debug("[{}:{}] Didn't find any '{}' events using loadMoreEventsWithEventOrderFromAndIncluding: {}",
+                          aggregateType, aggregateId, aggregateImplementationType.getName(), loadMoreEventsWithEventOrderFromAndIncluding);
                 return Optional.empty();
             } else {
                 var persistedEventsStream = potentialPersistedEventStream.get();
                 if (expectedLatestEventOrder.isPresent()) {
                     PersistedEvent lastEventPersisted = persistedEventsStream.eventList().get(persistedEventsStream.eventList().size() - 1);
                     if (!lastEventPersisted.eventOrder().equals(expectedLatestEventOrder.get())) {
-                        log.trace("Found {} with id '{}' but expectedLatestEventOrder {} != actualLatestEventOrder {}",
+                        log.debug("Found {} with id '{}' but expectedLatestEventOrder {} != actualLatestEventOrder {}",
                                   aggregateImplementationType.getName(),
                                   aggregateId,
                                   expectedLatestEventOrder.get(),
@@ -659,12 +661,12 @@ public interface StatefulAggregateRepository<ID, EVENT_TYPE, AGGREGATE_IMPL_TYPE
             }
 
             @Override
-            public void beforeRollback(UnitOfWork unitOfWork, java.util.List<AGGREGATE_IMPL_TYPE> associatedResources, Exception causeOfTheRollback) {
+            public void beforeRollback(UnitOfWork unitOfWork, java.util.List<AGGREGATE_IMPL_TYPE> associatedResources, Throwable causeOfTheRollback) {
 
             }
 
             @Override
-            public void afterRollback(UnitOfWork unitOfWork, java.util.List<AGGREGATE_IMPL_TYPE> associatedResources, Exception causeOfTheRollback) {
+            public void afterRollback(UnitOfWork unitOfWork, java.util.List<AGGREGATE_IMPL_TYPE> associatedResources, Throwable causeOfTheRollback) {
 
             }
         }

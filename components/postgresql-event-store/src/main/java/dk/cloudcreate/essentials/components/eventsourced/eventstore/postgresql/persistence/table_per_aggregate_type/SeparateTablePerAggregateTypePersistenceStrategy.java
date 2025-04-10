@@ -32,6 +32,7 @@ import dk.cloudcreate.essentials.types.LongRange;
 import org.jdbi.v3.core.*;
 import org.jdbi.v3.core.result.ResultBearing;
 import org.jdbi.v3.core.statement.*;
+import org.postgresql.util.PSQLException;
 import org.slf4j.*;
 
 import java.time.*;
@@ -528,17 +529,17 @@ public final class SeparateTablePerAggregateTypePersistenceStrategy implements A
 
     @Override
     public Optional<String> resolveGlobalEventOrderSequenceName(EventStoreUnitOfWork unitOfWork,
-                                                      AggregateType aggregateType) {
+                                                                AggregateType aggregateType) {
         requireNonNull(unitOfWork, "No unitOfWork provided");
         requireNonNull(aggregateType, "No aggregateType provided");
         var configuration = getAggregateEventStreamConfiguration(aggregateType);
         var query = unitOfWork.handle()
-                .createQuery("SELECT pg_get_serial_sequence(:eventTableName, :globalEventOrderColumnName) AS sequence_name");
+                              .createQuery("SELECT pg_get_serial_sequence(:eventTableName, :globalEventOrderColumnName) AS sequence_name");
         var sequenceName = query.bind("eventTableName", configuration.eventStreamTableName)
-                                      .bind("globalEventOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn)
-                                      .setFetchSize(1)
-                                      .mapTo(String.class)
-                                      .findOne();
+                                .bind("globalEventOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn)
+                                .setFetchSize(1)
+                                .mapTo(String.class)
+                                .findOne();
         if (sequenceName.isPresent()) {
             log.debug("[{}] Found GlobalEventOrder sequence-name", configuration.aggregateType);
         } else {
@@ -617,31 +618,97 @@ public final class SeparateTablePerAggregateTypePersistenceStrategy implements A
                                                              eventOrder.longValue()),
                                            persistedEvents);
         } catch (RuntimeException e) {
-            var cause = Exceptions.getRootCause(e);
+            var cause                   = Exceptions.getRootCause(e);
             var firstEventOrderAppended = initialEventOrder + 1;
-            var eventOrderRange = persistableEvents.size() == 1 ? firstEventOrderAppended : (firstEventOrderAppended + ".." + (initialEventOrder + persistableEvents.size()));
-            var uniqueAggregateIdEventOrderKeyName = configuration.eventStreamTableColumnNames.aggregateIdColumn + "_" + configuration.eventStreamTableColumnNames.eventOrderColumn + "_key";
-            if (cause.getMessage() != null && cause.getMessage().contains("ERROR: duplicate key value violates unique constraint") && cause.getMessage().contains(uniqueAggregateIdEventOrderKeyName)) {
-                var msg = msg("[{}] Optimistic-Concurrency-Exception: Failed to append {} Event(s), with Event-Order range [{}], to Stream related to Aggregate with id '{}'. See DEBUG log for more details.",
+            var eventOrderRange = persistableEvents.size() == 1
+                                  ? String.valueOf(firstEventOrderAppended)
+                                  : (firstEventOrderAppended + ".." + (initialEventOrder + persistableEvents.size()));
+
+            var uniqueAggregateIdEventOrderKeyName = configuration.eventStreamTableColumnNames.aggregateIdColumn +
+                    "_" +
+                    configuration.eventStreamTableColumnNames.eventOrderColumn +
+                    "_key";
+            if (isOptimisticConcurrencyViolation(cause, uniqueAggregateIdEventOrderKeyName)) {
+                var msg = msg("""
+                              [{}] Optimistic-Concurrency-Exception: Failed to append {} Event(s), with Event-Order range [{}], to Stream related to Aggregate with ID '{}'.
+                              This happens when multiple processes try to append events to the same aggregate (ID: '{}') simultaneously.
+                              Another transaction has already appended events with the same event order(s) to this aggregate,
+                              meaning the aggregate state changed between when you read it and when you tried to save your changes.
+                              
+                              Resolution options:
+                              1) Retry the operation after loading the latest state of this aggregate, e.g. by catching {}
+                              2) Implement domain-specific conflict resolution logic for this aggregate type
+                              3) Consider using a different concurrency control strategy if conflicts are frequent
+                              
+                              See DEBUG log for technical details
+                              """,
                               configuration.aggregateType,
                               persistableEvents.size(),
                               eventOrderRange,
-                              aggregateId);
-                log.debug("{}{}Cause: {}",
+                              aggregateId,
+                              aggregateId,
+                              OptimisticAppendToStreamException.class.getSimpleName());
+                log.debug("""
+                          {}
+                          >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                          {}
+                          ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                          Caused by {}: {}
+                          ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                          <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                          """,
+                          OptimisticAppendToStreamException.class.getName(),
                           msg,
-                          System.lineSeparator(),
+                          cause.getClass().getSimpleName(),
                           cause.getMessage());
                 throw new OptimisticAppendToStreamException(msg);
             } else {
-                var msg = msg("[{}] Append-To-Stream-Exception: Failed to append {} Event(s), with Event-Order range [{}], to Stream related to Aggregate with id '{}'. See ERROR log for more details.",
+                var msg = msg("""
+                              [{}] Append-To-Stream-Exception: Failed to append {} Event(s), with Event-Order range [{}], to Stream related to Aggregate with ID '{}'.
+                              This is a general persistence failure not related to concurrent modifications.
+                              Check database connectivity, schema issues, or data validation errors.
+                              See ERROR log for technical details.
+                              """,
                               configuration.aggregateType,
                               persistableEvents.size(),
                               eventOrderRange,
                               aggregateId);
-                log.error(msg, e);
+                log.error("""
+                          {}
+                          >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                          {}
+                          ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                          Caused by {}: {}
+                          ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                          <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                          """,
+                          AppendToStreamException.class.getName(),
+                          msg,
+                          cause.getClass().getSimpleName(),
+                          cause.getMessage(),
+                          e);
                 throw new AppendToStreamException(msg);
             }
         }
+    }
+
+    /**
+     * Checks if the exception is caused by an optimistic concurrency violation.
+     *
+     * @param cause                The root cause of the exception
+     * @param uniqueConstraintName The name of the unique constraint that would be violated
+     * @return true if this is an optimistic concurrency violation
+     */
+    private boolean isOptimisticConcurrencyViolation(Throwable cause, String uniqueConstraintName) {
+        if (cause instanceof PSQLException psqlException && "23505".equals(psqlException.getSQLState())) {
+            var detailMsg = psqlException.getMessage();
+            return detailMsg != null && detailMsg.contains(uniqueConstraintName);
+        }
+
+        // Fallback
+        return cause.getMessage() != null &&
+                cause.getMessage().contains("ERROR: duplicate key value violates unique constraint") &&
+                cause.getMessage().contains(uniqueConstraintName);
     }
 
     @Override
@@ -896,12 +963,12 @@ public final class SeparateTablePerAggregateTypePersistenceStrategy implements A
 
         var configuration = getAggregateEventStreamConfiguration(aggregateType);
         var highestGlobalOrderPersisted = unitOfWork.handle()
-                                           .createQuery(bind("SELECT MAX({:globalOrderColumnName}) FROM {:tableName}",
-                                                             arg("globalOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn),
-                                                             arg("tableName", configuration.eventStreamTableName)))
-                                           .setFetchSize(1)
-                                           .mapTo(GlobalEventOrder.class)
-                                           .one();
+                                                    .createQuery(bind("SELECT MAX({:globalOrderColumnName}) FROM {:tableName}",
+                                                                      arg("globalOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn),
+                                                                      arg("tableName", configuration.eventStreamTableName)))
+                                                    .setFetchSize(1)
+                                                    .mapTo(GlobalEventOrder.class)
+                                                    .one();
         if (highestGlobalOrderPersisted != null && highestGlobalOrderPersisted.isGreaterThanOrEqualTo(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER)) {
             return Optional.of(highestGlobalOrderPersisted);
         } else {
@@ -916,12 +983,12 @@ public final class SeparateTablePerAggregateTypePersistenceStrategy implements A
 
         var configuration = getAggregateEventStreamConfiguration(aggregateType);
         var lowestGlobalOrderPersisted = unitOfWork.handle()
-                                           .createQuery(bind("SELECT MIN({:globalOrderColumnName}) FROM {:tableName}",
-                                                             arg("globalOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn),
-                                                             arg("tableName", configuration.eventStreamTableName)))
-                                           .setFetchSize(1)
-                                           .mapTo(GlobalEventOrder.class)
-                                           .one();
+                                                   .createQuery(bind("SELECT MIN({:globalOrderColumnName}) FROM {:tableName}",
+                                                                     arg("globalOrderColumnName", configuration.eventStreamTableColumnNames.globalOrderColumn),
+                                                                     arg("tableName", configuration.eventStreamTableName)))
+                                                   .setFetchSize(1)
+                                                   .mapTo(GlobalEventOrder.class)
+                                                   .one();
         if (lowestGlobalOrderPersisted != null && lowestGlobalOrderPersisted.isGreaterThanOrEqualTo(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER)) {
             return Optional.of(lowestGlobalOrderPersisted);
         } else {

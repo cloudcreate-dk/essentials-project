@@ -43,6 +43,16 @@ public final class CurrencyCode extends CharSequenceType<CurrencyCode> {
         super(validate(currencyCode));
     }
 
+    /**
+     * Create a typed {@link CurrencyCode} from a String ISO-4217 3 character currency code with the <code>currencyCode</code> as UPPER CASE value
+     * @param currencyCode the ISO-4217 3 character currency code
+     * @throws IllegalArgumentException in case the  ISO-4217 3 character currency code is not known or otherwise invalid.
+     * @see #addKnownCurrencyCode(String)
+     */
+    public CurrencyCode(String currencyCode) {
+        super(validate(currencyCode));
+    }
+
     private static String validate(CharSequence currencyCode) {
         requireNonNull(currencyCode, "currencyCode is null");
         if (currencyCode.length() != 3) {

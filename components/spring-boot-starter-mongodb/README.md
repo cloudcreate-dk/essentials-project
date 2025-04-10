@@ -18,7 +18,7 @@ To use `spring-boot-starter-mongodb` to add the following dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components</groupId>
     <artifactId>spring-boot-starter-mongodb</artifactId>
-    <version>0.40.22</version>
+    <version>0.40.23</version>
 </dependency>
 ```
 
@@ -97,7 +97,82 @@ endangering the security and integrity of the database. It is highly recommended
     #essentials.reactive.event-bus-parallel-threads=4
     #essentials.reactive.command-bus-parallel-send-and-dont-wait-consumers=4
     ```
+- **Metrics:**
+  - **Overview:**  
+    This configuration controls the collection of performance metrics and determines the log level at which operations are reported.    
+    When metrics collection is enabled for a component (such as durable queues, command bus, or message handlers), the duration of each operation is measured.   
+    If the duration exceeds certain thresholds, the operation is logged at the corresponding level:
+    - **errorThreshold:** If the duration exceeds this value, the operation is logged at **ERROR** level.
+    - **warnThreshold:** If the duration exceeds this value (but is less than the error threshold), it is logged at **WARN** level.
+    - **infoThreshold:** If the duration exceeds this value (but is less than the warn threshold), it is logged at **INFO** level.
+    - **debugThreshold:** If the duration exceeds this value (but is less than the info threshold), it is logged at **DEBUG** level.
+    - If none of the thresholds are met and metrics collection is enabled, the operation is logged at **TRACE** level.
+
+  - **How to Configure:**  
+    Each component can be configured individually. For each component, you can:
+    - Enable or disable metrics collection.
+    - Set the minimum duration (using a time unit such as `ms`) for each logging level.  
+      These settings allow you to fine-tune how sensitive the logging should be, based on the performance characteristics you expect.
+
+  - **YAML Example:**
+    ```yaml
+    essentials:
+      metrics:
+        durable-queues:
+          enabled: true
+          thresholds:
+            debug: 25ms    # Log at DEBUG if duration ≥ 25ms (and below the INFO threshold)
+            info: 200ms    # Log at INFO if duration ≥ 200ms (and below the WARN threshold)
+            warn: 500ms    # Log at WARN if duration ≥ 500ms (and below the ERROR threshold)
+            error: 5000ms  # Log at ERROR if duration ≥ 5000ms
+        command-bus:
+          enabled: true
+          thresholds:
+            debug: 25ms
+            info: 200ms
+            warn: 500ms
+            error: 5000ms
+        message-handler:
+          enabled: true
+          thresholds:
+            debug: 25ms
+            info: 200ms
+            warn: 500ms
+            error: 5000ms
+    ```
+
+  - **Properties Example:**
+    ```properties
+    essentials.metrics.durable-queues.enabled=true
+    essentials.metrics.durable-queues.thresholds.debug=25ms
+    essentials.metrics.durable-queues.thresholds.info=200ms
+    essentials.metrics.durable-queues.thresholds.warn=500ms
+    essentials.metrics.durable-queues.thresholds.error=5000ms
+
+    essentials.metrics.command-bus.enabled=true
+    essentials.metrics.command-bus.thresholds.debug=25ms
+    essentials.metrics.command-bus.thresholds.info=200ms
+    essentials.metrics.command-bus.thresholds.warn=500ms
+    essentials.metrics.command-bus.thresholds.error=5000ms
+
+    essentials.metrics.message-handler.enabled=true
+    essentials.metrics.message-handler.thresholds.debug=25ms
+    essentials.metrics.message-handler.thresholds.info=200ms
+    essentials.metrics.message-handler.thresholds.warn=500ms
+    essentials.metrics.message-handler.thresholds.error=5000ms
+    ```
+
+  - **Adjusting Log Levels:**  
+    In addition to these properties, you can control which metrics are actually written to your log files by configuring the log levels for the corresponding logger classes in your logging framework (e.g. Logback or Log4j). For example:
+    - For durable queues metrics, adjust the log level for:  
+      `dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeDurableQueueInterceptor`
+    - For command bus metrics, adjust the log level for:  
+      `dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeCommandBusInterceptor`
+    - For message handler metrics, adjust the log level for:  
+      `dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeMessageHandlerInterceptor`
+
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
+  - You can disable post-processing by setting: `essentials.reactive-bean-post-processor-enabled=false`
 - Automatically calling `Lifecycle.start()`/`Lifecycle.stop`, on any Beans implementing the `Lifecycle` interface, when the `ApplicationContext` is started/stopped through the `DefaultLifecycleManager`
   - You can disable starting `Lifecycle` Beans by using setting this property to false:
     - `essentials.life-cycles.start-life-cycles=false`

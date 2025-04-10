@@ -26,6 +26,10 @@ public final class LockName extends CharSequenceType<LockName> implements Identi
         super(value);
     }
 
+    public LockName(String value) {
+        super(value);
+    }
+
     public static LockName of(CharSequence value) {
         return new LockName(value);
     }

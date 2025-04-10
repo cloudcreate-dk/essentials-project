@@ -28,6 +28,10 @@ public final class InboxName extends CharSequenceType<InboxName> implements Iden
         super(value);
     }
 
+    public InboxName(String value) {
+        super(value);
+    }
+
     public static InboxName of(CharSequence value) {
         return new InboxName(value);
     }

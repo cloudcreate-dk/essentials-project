@@ -16,6 +16,7 @@
 
 package dk.cloudcreate.essentials.components.queue.springdata.mongodb;
 
+import dk.cloudcreate.essentials.components.foundation.json.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.DurableQueuesIT;
 import dk.cloudcreate.essentials.components.foundation.test.messaging.queue.test_data.*;
@@ -34,6 +35,7 @@ import org.testcontainers.junit.jupiter.*;
 import java.time.Duration;
 import java.util.UUID;
 
+import static dk.cloudcreate.essentials.components.queue.springdata.mongodb.MongoDurableQueues.createDefaultObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
@@ -52,8 +54,15 @@ class SingleOperationTransactionMongoDurableQueuesIT extends DurableQueuesIT<Mon
     private MongoTemplate mongoTemplate;
 
     @Override
-    protected MongoDurableQueues createDurableQueues(SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory) {
+    protected JSONSerializer createJSONSerializer() {
+        return new JacksonJSONSerializer(createDefaultObjectMapper());
+    }
+
+    @Override
+    protected MongoDurableQueues createDurableQueues(SpringMongoTransactionAwareUnitOfWorkFactory unitOfWorkFactory,
+                                                     JSONSerializer jsonSerializer) {
         return new MongoDurableQueues(mongoTemplate,
+                                      jsonSerializer,
                                       Duration.ofSeconds(5));
     }
 

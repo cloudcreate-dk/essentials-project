@@ -27,6 +27,10 @@ public final class QueueEntryId extends CharSequenceType<QueueEntryId> {
         super(value);
     }
 
+    public QueueEntryId(String value) {
+        super(value);
+    }
+
     public static QueueEntryId of(CharSequence value) {
         return new QueueEntryId(value);
     }

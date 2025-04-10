@@ -41,6 +41,17 @@ public interface DurableQueuesInterceptor extends Interceptor {
     }
 
     /**
+     * Intercept {@link HandleQueuedMessage} calls
+     *
+     * @param operation        the operation
+     * @param interceptorChain the interceptor chain (call {@link InterceptorChain#proceed()} to continue the processing chain)
+     */
+    default Void intercept(HandleQueuedMessage operation, InterceptorChain<HandleQueuedMessage, Void, DurableQueuesInterceptor> interceptorChain) {
+        return interceptorChain.proceed();
+    }
+
+
+    /**
      * Intercept {@link GetQueuedMessage} calls
      *
      * @param operation        the operation

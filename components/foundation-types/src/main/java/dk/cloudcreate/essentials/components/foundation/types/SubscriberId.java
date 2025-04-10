@@ -28,6 +28,10 @@ public final class SubscriberId extends CharSequenceType<SubscriberId> implement
         super(value);
     }
 
+    public SubscriberId(String value) {
+        super(value);
+    }
+
     public static SubscriberId of(CharSequence value) {
         return new SubscriberId(value);
     }

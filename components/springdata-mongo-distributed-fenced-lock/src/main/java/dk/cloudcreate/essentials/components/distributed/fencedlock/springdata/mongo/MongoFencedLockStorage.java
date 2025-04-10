@@ -19,10 +19,12 @@ package dk.cloudcreate.essentials.components.distributed.fencedlock.springdata.m
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
 import dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil;
 import dk.cloudcreate.essentials.components.foundation.transaction.mongo.ClientSessionAwareUnitOfWork;
+import dk.cloudcreate.essentials.shared.Exceptions;
 import org.slf4j.*;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.MongoTransactionException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.*;
@@ -30,6 +32,7 @@ import org.springframework.data.mongodb.core.query.*;
 import java.time.*;
 import java.util.*;
 
+import static dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil.isWriteConflict;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
@@ -60,13 +63,13 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
     public static final    Long   UNINITIALIZED_LOCK_TOKEN             = -1L;
     public static final    String DEFAULT_FENCED_LOCKS_COLLECTION_NAME = "fenced_locks";
 
-    protected final MongoTemplate  mongoTemplate;
-    protected final String         fencedLocksCollectionName;
+    protected final MongoTemplate mongoTemplate;
+    protected final String        fencedLocksCollectionName;
 
     /**
      * Create a {@link MongoFencedLockStorage} using default collection name {@link #DEFAULT_FENCED_LOCKS_COLLECTION_NAME}
      *
-     * @param mongoTemplate  the mongo template
+     * @param mongoTemplate the mongo template
      */
     public MongoFencedLockStorage(MongoTemplate mongoTemplate) {
         this(mongoTemplate,
@@ -156,15 +159,15 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
 
     @Override
     public final void initializeLockStorage(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
-                                      ClientSessionAwareUnitOfWork unitOfWork) {
+                                            ClientSessionAwareUnitOfWork unitOfWork) {
         // Do nothing as mongo doesn't support listCollections, etc in a multi document transaction
     }
 
     @Override
     public final boolean insertLockIntoDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
-                                    ClientSessionAwareUnitOfWork unitOfWork,
-                                    DBFencedLock initialLock,
-                                    OffsetDateTime lockAcquiredAndLastConfirmedTimestamp) {
+                                          ClientSessionAwareUnitOfWork unitOfWork,
+                                          DBFencedLock initialLock,
+                                          OffsetDateTime lockAcquiredAndLastConfirmedTimestamp) {
         var dbInitialLock = new MongoFencedLock(initialLock);
         dbInitialLock.setLastIssuedFencedToken(getInitialTokenValue());
         dbInitialLock.setLockedByLockManagerInstanceId(lockManager.getLockManagerInstanceId());
@@ -181,9 +184,9 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
 
     @Override
     public final boolean updateLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
-                                  ClientSessionAwareUnitOfWork unitOfWork,
-                                  DBFencedLock timedOutLock,
-                                  DBFencedLock newLockReadyToBeAcquiredLocally) {
+                                        ClientSessionAwareUnitOfWork unitOfWork,
+                                        DBFencedLock timedOutLock,
+                                        DBFencedLock newLockReadyToBeAcquiredLocally) {
         var tokenOfLockToBeUpdated = timedOutLock.getCurrentToken();
         var query = new Query(Criteria.where("name").is(timedOutLock.getName())
                                       .and("lastIssuedFencedToken").is(tokenOfLockToBeUpdated)
@@ -195,17 +198,25 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
                 .set("lockAcquiredTimestamp", newLockReadyToBeAcquiredLocally.getLockAcquiredTimestamp().toInstant())
                 .set("lockLastConfirmedTimestamp", newLockReadyToBeAcquiredLocally.getLockLastConfirmedTimestamp().toInstant());
 
-        var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
-
-        return result.getModifiedCount() == 1;
+        try {
+            var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
+            return result.getModifiedCount() == 1;
+        } catch (Exception e) {
+            if (isWriteConflict(e)) {
+                log.trace("[{}] WriteConflict updating lock to token '{}'", newLockReadyToBeAcquiredLocally.getName(), newLockReadyToBeAcquiredLocally.getCurrentToken());
+                return false;
+            } else {
+                return Exceptions.sneakyThrow(e);
+            }
+        }
     }
 
 
     @Override
     public final boolean confirmLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
-                                   ClientSessionAwareUnitOfWork unitOfWork,
-                                   DBFencedLock fencedLock,
-                                   OffsetDateTime confirmedTimestamp) {
+                                         ClientSessionAwareUnitOfWork unitOfWork,
+                                         DBFencedLock fencedLock,
+                                         OffsetDateTime confirmedTimestamp) {
         var query = new Query(Criteria.where("name").is(fencedLock.getName())
                                       .and("lastIssuedFencedToken").is(fencedLock.getCurrentToken())
                                       .and("lockedByLockManagerInstanceId").is(fencedLock.getLockedByLockManagerInstanceId()));
@@ -213,45 +224,73 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
         var update = new Update()
                 .set("lockLastConfirmedTimestamp", confirmedTimestamp.toInstant());
 
-        var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
-
-        return result.getModifiedCount() == 1;
+        try {
+            var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
+            return result.getModifiedCount() == 1;
+        } catch (Exception e) {
+            if (isWriteConflict(e)) {
+                log.trace("[{}] WriteConflict confirming lock with token '{}'", fencedLock.getName(), fencedLock.getCurrentToken());
+                return false;
+            } else {
+                return Exceptions.sneakyThrow(e);
+            }
+        }
     }
 
     @Override
     public final boolean releaseLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
-                                   ClientSessionAwareUnitOfWork unitOfWork,
-                                   DBFencedLock fencedLock) {
+                                         ClientSessionAwareUnitOfWork unitOfWork,
+                                         DBFencedLock fencedLock) {
         var query = new Query(Criteria.where("name").is(fencedLock.getName())
                                       .and("lastIssuedFencedToken").is(fencedLock.getCurrentToken()));
 
         var update = new Update().unset("lockedByLockManagerInstanceId");
 
-        var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
-
-        return result.getModifiedCount() == 1;
+        try {
+            var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
+            return result.getModifiedCount() == 1;
+        } catch (Exception e) {
+            if (isWriteConflict(e)) {
+                log.trace("[{}] WriteConflict releasing lock with token '{}'", fencedLock.getName(), fencedLock.getCurrentToken());
+                return false;
+            } else if (e instanceof MongoTransactionException) {
+                log.trace("[{}] Transactional issue releasing lock with token '{}'", fencedLock.getName(), fencedLock.getCurrentToken(), e);
+                return false;
+            } else {
+                return Exceptions.sneakyThrow(e);
+            }
+        }
     }
 
     @Override
     public final Optional<DBFencedLock> lookupLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
-                                                 ClientSessionAwareUnitOfWork unitOfWork,
-                                                 LockName lockName) {
-        var lock_ = mongoTemplate.findOne(Query.query(Criteria.where("name").is(lockName.toString())),
-                                          MongoFencedLock.class,
-                                          this.fencedLocksCollectionName);
-        return Optional.ofNullable(lock_)
-                       .map(lock -> new DBFencedLock(lockManager,
-                                                     lockName,
-                                                     lock.getLastIssuedFencedToken(),
-                                                     lock.getLockedByLockManagerInstanceId(),
-                                                     lock.lockAcquiredTimestamp != null ? lock.lockAcquiredTimestamp.atOffset(ZoneOffset.UTC) : null,
-                                                     lock.lockLastConfirmedTimestamp != null ? lock.lockLastConfirmedTimestamp.atOffset(ZoneOffset.UTC) : null));
+                                                       ClientSessionAwareUnitOfWork unitOfWork,
+                                                       LockName lockName) {
+        try {
+            var lock_ = mongoTemplate.findOne(Query.query(Criteria.where("name").is(lockName.toString())),
+                                              MongoFencedLock.class,
+                                              this.fencedLocksCollectionName);
+            return Optional.ofNullable(lock_)
+                           .map(lock -> new DBFencedLock(lockManager,
+                                                         lockName,
+                                                         lock.getLastIssuedFencedToken(),
+                                                         lock.getLockedByLockManagerInstanceId(),
+                                                         lock.lockAcquiredTimestamp != null ? lock.lockAcquiredTimestamp.atOffset(ZoneOffset.UTC) : null,
+                                                         lock.lockLastConfirmedTimestamp != null ? lock.lockLastConfirmedTimestamp.atOffset(ZoneOffset.UTC) : null));
+        } catch (Exception e) {
+            if (e instanceof MongoTransactionException) {
+                log.trace("[{}] Transactional issue looking up Lock", lockName);
+                return Optional.empty();
+            } else {
+                return Exceptions.sneakyThrow(e);
+            }
+        }
 
     }
 
     @Override
     public final DBFencedLock createUninitializedLock(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
-                                                LockName lockName) {
+                                                      LockName lockName) {
         return new DBFencedLock(lockManager,
                                 lockName,
                                 getUninitializedTokenValue(),
@@ -262,11 +301,11 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
 
     @Override
     public final DBFencedLock createInitializedLock(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
-                                              LockName name,
-                                              long currentToken,
-                                              String lockedByLockManagerInstanceId,
-                                              OffsetDateTime lockAcquiredTimestamp,
-                                              OffsetDateTime lockLastConfirmedTimestamp) {
+                                                    LockName name,
+                                                    long currentToken,
+                                                    String lockedByLockManagerInstanceId,
+                                                    OffsetDateTime lockAcquiredTimestamp,
+                                                    OffsetDateTime lockLastConfirmedTimestamp) {
         return new DBFencedLock(requireNonNull(lockManager, "lockManager is null"),
                                 requireNonNull(name, "name is null"),
                                 currentToken,
@@ -287,24 +326,39 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
 
     @Override
     public final void deleteLockInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
-                               ClientSessionAwareUnitOfWork unitOfWork,
-                               LockName nameOfLockToDelete) {
+                                     ClientSessionAwareUnitOfWork unitOfWork,
+                                     LockName nameOfLockToDelete) {
         var query = Query.query(Criteria.where("name").is(nameOfLockToDelete.value()));
 
         // Execute the delete operation
-        var result = mongoTemplate.remove(query, MongoFencedLock.class, this.fencedLocksCollectionName);
-
-        if (result.getDeletedCount() == 1) {
-            log.debug("[{}] Deleted lock '{}'", lockManager.getLockManagerInstanceId(),
-                      nameOfLockToDelete);
+        try {
+            var result = mongoTemplate.remove(query, MongoFencedLock.class, this.fencedLocksCollectionName);
+            if (result.getDeletedCount() == 1) {
+                log.debug("[{}] Deleted lock '{}'", lockManager.getLockManagerInstanceId(),
+                          nameOfLockToDelete);
+            }
+        } catch (Exception e) {
+            if (isWriteConflict(e)) {
+                log.trace("[{}] WriteConflict deleting lock", nameOfLockToDelete);
+            } else {
+                Exceptions.sneakyThrow(e);
+            }
         }
     }
 
     @Override
     public final void deleteAllLocksInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager,
-                                   ClientSessionAwareUnitOfWork unitOfWork) {
-        var result = mongoTemplate.remove(new Query(), MongoFencedLock.class, this.fencedLocksCollectionName);
-        log.debug("[{}] Deleted all {} locks", lockManager.getLockManagerInstanceId(), result.getDeletedCount());
+                                         ClientSessionAwareUnitOfWork unitOfWork) {
+        try {
+            var result = mongoTemplate.remove(new Query(), MongoFencedLock.class, this.fencedLocksCollectionName);
+            log.debug("[{}] Deleted all {} locks", lockManager.getLockManagerInstanceId(), result.getDeletedCount());
+        } catch (Exception e) {
+            if (isWriteConflict(e)) {
+                log.trace("[{}] WriteConflict deleting all locks", lockManager.getLockManagerInstanceId());
+            } else {
+                Exceptions.sneakyThrow(e);
+            }
+        }
     }
 
     private static class MongoFencedLock {
