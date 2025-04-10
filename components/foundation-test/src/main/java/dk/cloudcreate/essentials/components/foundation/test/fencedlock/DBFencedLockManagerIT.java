@@ -64,6 +64,8 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
 
     protected abstract void restoreDatabaseConnection();
 
+    protected abstract boolean isConnectionRestored();
+
     public static void deleteAllLocksInDBWithRetry(DBFencedLockManager<?, ?> lockManager) {
         int maxRetries = 5;
         int retryCount = 0;
@@ -460,7 +462,7 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         disruptDatabaseConnection();
 
         // Then Node 1 should NOT have released the lock and node 2 should not have acquired the lock
-        Thread.sleep(5000);
+        Thread.sleep(2000);
         System.out.println("------ Checking the node 1 didn't release the lock ------");
         assertThat(lockNode1Callback.lockReleased).isNull();
         assertThat(lockNode1Callback.lockAcquired.isLocked()).isTrue();
@@ -473,7 +475,7 @@ public abstract class DBFencedLockManagerIT<LOCK_MANAGER extends DBFencedLockMan
         System.out.println("------ Restoring the database connection ------");
         restoreDatabaseConnection();
 
-        Thread.sleep(7000);
+        Awaitility.waitAtMost(Duration.ofSeconds(10)).until(this::isConnectionRestored);
         System.out.println("------ Checking which node has the lock ------");
         if (lockNode1Callback.lockReleased != null) {
             System.out.println("====== Node 1 lost the lock and node 2 should have acquired it ======");
