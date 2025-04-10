@@ -231,6 +231,12 @@ public abstract class SpringTransactionAwareUnitOfWorkFactory<TRX_MGR extends Pl
                     }
                 });
                 afterRollbackAfterCallingLifecycleCallbackResources(unitOfWork);
+            } else if (status == TransactionSynchronization.STATUS_COMMITTED) {
+                unitOfWork.status = UnitOfWorkStatus.Committed;
+            } else if (status == TransactionSynchronization.STATUS_UNKNOWN) {
+                // We assume unknown status means the transaction didn't complete, hence we will mark is as rolled-back
+                log.warn("Transaction status was UNKNOWN. Marking the UnitOfWork as Rolled-back as its assumed the transaction didn't commit on the DB server");
+                unitOfWork.status = UnitOfWorkStatus.RolledBack;
             }
             unitOfWork.cleanup();
             removeUnitOfWork();
