@@ -16,9 +16,12 @@
 
 package dk.cloudcreate.essentials.components.foundation.mongo;
 
+import org.springframework.data.mongodb.UncategorizedMongoDbException;
+
 import java.util.Locale;
 import java.util.regex.Pattern;
 
+import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
 public final class MongoUtil {
@@ -28,7 +31,7 @@ public final class MongoUtil {
     /**
      * Validates if the provided collection name is valid and safe to use.<br>
      * The method provided is designed as an initial layer of defense against users providing unsafe collection names, by applying naming conventions intended to reduce the risk of malicious input.<br>
-     * However, Essentials components as well as {@link #checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc..<br>
+     * However, Essentials components as well as {@link #checkIsValidCollectionName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting MongoDB configuration and associated Queries/Updates/etc.<br>
      * <b>The responsibility for implementing protective measures against malicious input lies exclusively with the users/developers using the Essentials components and its supporting classes.<br>
      * Users must ensure thorough sanitization and validation of API input parameters,  collection names.<br>
      * Insufficient attention to these practices may leave the application vulnerable to attacks, potentially endangering the security and integrity of the database.<br>
@@ -69,5 +72,15 @@ public final class MongoUtil {
         if (!VALID_NAME_PATTERN.matcher(collectionName).matches()) {
             throw new InvalidCollectionNameException(msg("Invalid Collection name: '{}'. Names only contain letters, underscore or digits", collectionName));
         }
+    }
+
+    /**
+     * Check if the exception is a Mongo write conflict
+     * @param e the exception to check
+     * @return true if the exception is a write conflict, otherwise false
+     */
+    public static boolean isWriteConflict(Throwable e) {
+        requireNonNull(e, "No exception provided");
+        return e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"));
     }
 }

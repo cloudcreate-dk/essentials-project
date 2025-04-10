@@ -24,7 +24,7 @@ import org.slf4j.*;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.*;
+import org.springframework.data.mongodb.MongoTransactionException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.*;
@@ -32,6 +32,7 @@ import org.springframework.data.mongodb.core.query.*;
 import java.time.*;
 import java.util.*;
 
+import static dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil.isWriteConflict;
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
 
@@ -201,7 +202,7 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
             var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
             return result.getModifiedCount() == 1;
         } catch (Exception e) {
-            if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
+            if (isWriteConflict(e)) {
                 log.trace("[{}] WriteConflict updating lock to token '{}'", newLockReadyToBeAcquiredLocally.getName(), newLockReadyToBeAcquiredLocally.getCurrentToken());
                 return false;
             } else {
@@ -227,7 +228,7 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
             var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
             return result.getModifiedCount() == 1;
         } catch (Exception e) {
-            if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
+            if (isWriteConflict(e)) {
                 log.trace("[{}] WriteConflict confirming lock with token '{}'", fencedLock.getName(), fencedLock.getCurrentToken());
                 return false;
             } else {
@@ -249,7 +250,7 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
             var result = mongoTemplate.updateFirst(query, update, MongoFencedLock.class, this.fencedLocksCollectionName);
             return result.getModifiedCount() == 1;
         } catch (Exception e) {
-            if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
+            if (isWriteConflict(e)) {
                 log.trace("[{}] WriteConflict releasing lock with token '{}'", fencedLock.getName(), fencedLock.getCurrentToken());
                 return false;
             } else if (e instanceof MongoTransactionException) {
@@ -337,7 +338,7 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
                           nameOfLockToDelete);
             }
         } catch (Exception e) {
-            if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
+            if (isWriteConflict(e)) {
                 log.trace("[{}] WriteConflict deleting lock", nameOfLockToDelete);
             } else {
                 Exceptions.sneakyThrow(e);
@@ -352,7 +353,7 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
             var result = mongoTemplate.remove(new Query(), MongoFencedLock.class, this.fencedLocksCollectionName);
             log.debug("[{}] Deleted all {} locks", lockManager.getLockManagerInstanceId(), result.getDeletedCount());
         } catch (Exception e) {
-            if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
+            if (isWriteConflict(e)) {
                 log.trace("[{}] WriteConflict deleting all locks", lockManager.getLockManagerInstanceId());
             } else {
                 Exceptions.sneakyThrow(e);

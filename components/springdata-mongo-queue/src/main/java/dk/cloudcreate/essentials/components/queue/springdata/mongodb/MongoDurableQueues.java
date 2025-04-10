@@ -56,6 +56,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static dk.cloudcreate.essentials.components.foundation.mongo.MongoUtil.isWriteConflict;
 import static dk.cloudcreate.essentials.shared.Exceptions.rethrowIfCriticalError;
 import static dk.cloudcreate.essentials.shared.FailFast.*;
 import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
@@ -1104,7 +1105,7 @@ public final class MongoDurableQueues implements DurableQueues {
                                                            return Optional.<QueuedMessage>empty();
                                                        }
                                                    } catch (Exception e) {
-                                                       if (e instanceof UncategorizedMongoDbException && e.getMessage() != null && (e.getMessage().contains("WriteConflict") || e.getMessage().contains("Write Conflict"))) {
+                                                       if (isWriteConflict(e)) {
                                                            log.trace("[{}] WriteConflict finding next message ready for delivery. Will retry", queueName);
                                                            if (transactionalMode == TransactionalMode.FullyTransactional) {
                                                                unitOfWorkFactory.getRequiredUnitOfWork().markAsRollbackOnly(e);
