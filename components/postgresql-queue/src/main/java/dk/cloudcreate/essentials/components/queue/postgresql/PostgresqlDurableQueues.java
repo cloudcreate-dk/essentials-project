@@ -1076,6 +1076,23 @@ public final class PostgresqlDurableQueues implements DurableQueues {
         return getTotalMessagesQueuedFor(queueName) > 0;
     }
 
+
+    @Override
+    public final boolean hasOrderedMessageQueuedForKey(QueueName queueName, String key) {
+        requireNonNull(queueName, "No queueName provided");
+        requireNonNull(key, "No key provided");
+        return unitOfWorkFactory.withUnitOfWork(handleAwareUnitOfWork -> handleAwareUnitOfWork.handle().createQuery(bind("SELECT count(*) FROM {:tableName} \n" +
+                                                                                                                           " WHERE \n" +
+                                                                                                                           "    queue_name = :queueName AND\n" +
+                                                                                                                           "    key = :key AND\n" +
+                                                                                                                           "    delivery_mode = 'IN_ORDER'",
+                                                                                                                   arg("tableName", sharedQueueTableName)))
+                                                                                .bind("queueName", queueName)
+                                                                                .bind("key", key)
+                                                                                .mapTo(Long.class)
+                                                                                .one()) > 0;
+    }
+
     @Override
     public final long getTotalMessagesQueuedFor(GetTotalMessagesQueuedFor operation) {
         requireNonNull(operation, "You must specify a GetTotalMessagesQueuedFor instance");

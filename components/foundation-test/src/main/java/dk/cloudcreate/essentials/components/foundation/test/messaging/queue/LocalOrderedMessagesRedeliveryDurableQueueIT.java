@@ -180,7 +180,7 @@ public abstract class LocalOrderedMessagesRedeliveryDurableQueueIT<DURABLE_QUEUE
             var lastSentMessageOrder = messageKeyIndexNextMessageOrder.get(intMsgKey);
             for (int i = 0; i < lastSentMessageOrder; i++) {
                 assertThat(messagesInReceivedOrder.get(i).order)
-                        .describedAs("Message with Key %s and received as msg number %d (zero based)", strMsgKey, i)
+                        .describedAs("Message with Key '%s' and received as msg number %d (zero based) has identical message order %d", strMsgKey, i, messagesInReceivedOrder.get(i).order)
                         .isEqualTo(i);
             }
         });

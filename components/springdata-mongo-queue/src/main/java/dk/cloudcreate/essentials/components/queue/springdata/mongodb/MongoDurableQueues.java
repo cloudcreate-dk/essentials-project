@@ -1314,6 +1314,17 @@ public final class MongoDurableQueues implements DurableQueues {
         return getTotalMessagesQueuedFor(queueName) > 0;
     }
 
+
+    @Override
+    public final boolean hasOrderedMessageQueuedForKey(QueueName queueName, String key) {
+        requireNonNull(queueName, "No queueName provided");
+        requireNonNull(key, "No key provided");
+        return mongoTemplate.count(query(where("queueName").is(queueName)
+                                         .and("key").is(key)
+                                         .and("deliveryMode").is(QueuedMessage.DeliveryMode.IN_ORDER.name())),
+                                   this.sharedQueueCollectionName) > 0;
+    }
+
     @Override
     public final long getTotalMessagesQueuedFor(GetTotalMessagesQueuedFor operation) {
         requireNonNull(operation, "You must specify a GetTotalMessagesQueuedFor instance");

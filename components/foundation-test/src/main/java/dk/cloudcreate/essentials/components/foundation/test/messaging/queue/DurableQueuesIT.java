@@ -358,6 +358,96 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
     }
 
     @Test
+    void verify_hasOrderedMessageQueuedForKey() {
+        // Given
+        var queueName = QueueName.of("TestQueue");
+        durableQueues.purgeQueue(queueName);
+        var otherQueueName = QueueName.of("OtherQueueName");
+        durableQueues.purgeQueue(otherQueueName);
+
+        var key1 = "Key1";
+        var key2 = "Key2";
+        var nonExistentKey = "NonExistentKey";
+
+        // When no messages are queued
+        // Then
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key1)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key1)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, nonExistentKey)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, nonExistentKey)).isFalse();
+
+        // When queuing an ordered message with key1
+        usingDurableQueue(() -> {
+            durableQueues.queueMessage(queueName, OrderedMessage.of("Message1", key1, 0));
+        });
+
+        // Then
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key1)).isTrue();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key1)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, nonExistentKey)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, nonExistentKey)).isFalse();
+
+        // When queuing an ordered message with key2
+        usingDurableQueue(() -> {
+            durableQueues.queueMessage(queueName, OrderedMessage.of("Message2", key2, 0));
+        });
+
+        // Then
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key1)).isTrue();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key1)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key2)).isTrue();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, nonExistentKey)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, nonExistentKey)).isFalse();
+
+        // When acknowledging all messages
+        var queuedMessages = durableQueues.getQueuedMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 10);
+        usingDurableQueue(() -> {
+            queuedMessages.forEach(message -> durableQueues.acknowledgeMessageAsHandled(message.getId()));
+        });
+
+
+        // Then
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key1)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key1)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, nonExistentKey)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, nonExistentKey)).isFalse();
+
+        // When queuing a dead letter message with key1
+        usingDurableQueue(() -> {
+            durableQueues.queueMessageAsDeadLetterMessage(queueName, 
+                                                         OrderedMessage.of("DeadLetterMessage", key1, 1),
+                                                         new RuntimeException("On purpose"));
+        });
+
+        // Then - should still return true for key1 since the method ignores the dead letter flag
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key1)).isTrue();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key1)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, nonExistentKey)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, nonExistentKey)).isFalse();
+
+        // When deleting all dead-letter messages
+        var deadLetterMessages = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 10);
+        usingDurableQueue(() -> {
+            deadLetterMessages.forEach(message -> durableQueues.deleteMessage(message.getId()));
+        });
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key1)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key1)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, key2)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(queueName, nonExistentKey)).isFalse();
+        assertThat(durableQueues.hasOrderedMessageQueuedForKey(otherQueueName, nonExistentKey)).isFalse();
+    }
+
+    @Test
     void verify_failed_messages_are_redelivered() {
         // Given
         var queueName = QueueName.of("TestQueue");
