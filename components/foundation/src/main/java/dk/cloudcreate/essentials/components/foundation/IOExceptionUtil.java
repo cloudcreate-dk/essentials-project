@@ -21,6 +21,7 @@ import dk.cloudcreate.essentials.shared.Exceptions;
 import org.jdbi.v3.core.ConnectionException;
 
 import java.io.IOException;
+import java.sql.SQLTransientException;
 import java.util.concurrent.*;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
@@ -41,8 +42,11 @@ public final class IOExceptionUtil {
         requireNonNull(e, "No exception provided");
         var message = e.getMessage() != null ? e.getMessage() : "";
 
+        var rootCause = Exceptions.getRootCause(e);
         return e instanceof IOException ||
-                Exceptions.getRootCause(e) instanceof IOException ||
+                rootCause instanceof IOException ||
+                e instanceof SQLTransientException ||
+                rootCause instanceof SQLTransientException ||
                 containsKnownErrorMessage(message) ||
                 isJdbiRelatedException(e) ||
                 isMongoRelatedException(e);

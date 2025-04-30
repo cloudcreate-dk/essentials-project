@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.net.ConnectException;
-import java.sql.SQLException;
+import java.sql.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,6 +31,12 @@ public class IOExceptionUtilTest {
     @Test
     void shouldIdentifyIOException_whenRootCauseIsIOException() {
         var ioException = new IOException("Root IO Exception");
+        assertThat(IOExceptionUtil.isIOException(ioException)).isTrue();
+    }
+
+    @Test
+    void shouldIdentifyIOException_whenRootCauseIsSQLTransientException() {
+        var ioException = new SQLTransientException("Root IO Exception");
         assertThat(IOExceptionUtil.isIOException(ioException)).isTrue();
     }
 
