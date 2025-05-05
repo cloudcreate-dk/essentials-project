@@ -18,6 +18,7 @@ package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import dk.cloudcreate.essentials.components.foundation.IOExceptionUtil;
+import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.QueuedMessage.DeliveryMode;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.operations.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
@@ -193,6 +194,10 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
         stop();
     }
 
+    @Override
+    public RedeliveryPolicy getRedeliveryPolicy() {
+        return consumeFromQueue.getRedeliveryPolicy();
+    }
 
     private void pollQueue() {
         if (!started) {
@@ -403,7 +408,7 @@ public abstract class DefaultDurableQueueConsumer<DURABLE_QUEUES extends Durable
                                             (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
                                             () -> {
                                                 consumeFromQueue.queueMessageHandler.handle(queuedMessage);
-                                                return (Void)null;
+                                                return (Void) null;
                                             })
                     .proceed();
 

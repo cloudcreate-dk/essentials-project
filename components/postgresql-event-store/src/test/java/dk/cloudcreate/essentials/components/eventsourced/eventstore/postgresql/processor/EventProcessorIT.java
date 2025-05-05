@@ -43,6 +43,7 @@ import dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQu
 import dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.cloudcreate.essentials.jackson.types.EssentialTypesJacksonModule;
 import dk.cloudcreate.essentials.reactive.command.CmdHandler;
+import dk.cloudcreate.essentials.shared.collections.Lists;
 import dk.cloudcreate.essentials.types.CharSequenceType;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.postgres.PostgresPlugin;
@@ -53,8 +54,12 @@ import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
 import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory.standardSingleTenantConfiguration;
+import static dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.processor.EventProcessorIT.TestOrderEventProcessor.TEST_ORDERS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -87,6 +92,7 @@ public class EventProcessorIT {
     private PostgresqlFencedLockManager      fencedLockManager;
     private Inboxes.DurableQueueBasedInboxes inboxes;
     private DurableLocalCommandBus           commandBus;
+    private DurableSubscriptionRepository    durableSubscriptionRepository;
 
     @BeforeEach
     void setup() {
@@ -122,11 +128,13 @@ public class EventProcessorIT {
                                                        .setUnitOfWorkFactory(unitOfWorkFactory)
                                                        .buildAndStart();
 
+        durableSubscriptionRepository = new PostgresqlDurableSubscriptionRepository(jdbi, eventStore);
+
         eventStoreSubscriptionManager = EventStoreSubscriptionManager.builder()
                                                                      .setEventStore(eventStore)
                                                                      .setFencedLockManager(fencedLockManager)
-                                                                     .setDurableSubscriptionRepository(new PostgresqlDurableSubscriptionRepository(jdbi, eventStore))
-                                                                     .setSnapshotResumePointsEvery(Duration.ofMinutes(1))
+                                                                     .setDurableSubscriptionRepository(durableSubscriptionRepository)
+                                                                     .setSnapshotResumePointsEvery(Duration.ofSeconds(1))
                                                                      .build();
         eventStoreSubscriptionManager.start();
 
@@ -194,12 +202,12 @@ public class EventProcessorIT {
         // Fetch the aggregate event stream for this order
         Awaitility.waitAtMost(Duration.ofSeconds(2))
                   .until(() -> unitOfWorkFactory.withUnitOfWork(() -> {
-                      var streamOpt = eventStore.fetchStream(TestOrderEventProcessor.TEST_ORDERS, orderId);
+                      var streamOpt = eventStore.fetchStream(TEST_ORDERS, orderId);
                       return streamOpt.isPresent() && streamOpt.get().eventList().size() == 2;
                   }));
 
         // We expect two events: first the OrderPlacedEvent then the OrderConfirmedEvent
-        var events = unitOfWorkFactory.withUnitOfWork(() -> eventStore.fetchStream(TestOrderEventProcessor.TEST_ORDERS, orderId).get().eventList());
+        var events = unitOfWorkFactory.withUnitOfWork(() -> eventStore.fetchStream(TEST_ORDERS, orderId).get().eventList());
         assertThat(events).hasSize(2);
         var event0 = events.get(0);
         var event1 = events.get(1);
@@ -258,6 +266,74 @@ public class EventProcessorIT {
         var deadLetterMessages = durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 10);
         assertThat(deadLetterMessages).hasSize(1);
         assertThat(deadLetterMessages.get(0).getPayload()).isInstanceOf(FailingCommandSentViaInbox.class);
+    }
+
+    @Test
+    public void testResetAllSubscriptions() {
+        IntStream.range(0, 5).forEach(i -> {
+            var orderId      = OrderId.random();
+            var orderDetails = "Test order details";
+            var placeCmd     = new PlaceOrderCommand(orderId, orderDetails);
+            commandBus.send(placeCmd);
+        });
+        var subscriberId = AbstractEventProcessor.resolveSubscriberId(TEST_ORDERS, testProcessor.getProcessorName());
+        Awaitility.waitAtMost(Duration.ofSeconds(2)).untilAsserted(() -> {
+            var currentEventOrder = eventStoreSubscriptionManager.getCurrentEventOrder(subscriberId, TEST_ORDERS);
+            assertThat(currentEventOrder)
+                    .hasValueSatisfying(order ->
+                                                assertThat(order.longValue()).isEqualTo(11L) // 11 = 5 (aggregates) * 2 (events) + 1 (for the next global event order)
+                                       );
+        });
+
+        var queueName = testProcessor.getInboxForTesting().name().asQueueName();
+        assertThat(durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName)).isEqualTo(0);
+        assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
+        // Send the failing command using the processor's inbox (asynchronous, fire-and-forget)
+        var failingCmd = new FailingCommandSentViaInbox(OrderId.random(), "Intentional failure for testing");
+        testProcessor.getInboxForTesting().addMessageReceived(failingCmd);
+
+        assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(1);
+
+        // Set a callback to verify that we do reset resumePoints
+        testProcessor.setResetCallback(resetPoints -> {
+            Awaitility.waitAtMost(Duration.ofSeconds(2)).untilAsserted(() -> {
+                var currentEventOrder = eventStoreSubscriptionManager.getCurrentEventOrder(subscriberId, TEST_ORDERS);
+                System.out.println("After resetting: Current event order: " + currentEventOrder.get());
+                assertThat(currentEventOrder)
+                        .hasValueSatisfying(order ->
+                                                    assertThat(order.longValue()).isEqualTo(1)
+                                           )
+                        .describedAs("After resetting: Current event order");
+                var currentResumePoint = durableSubscriptionRepository.getResumePoint(subscriberId, TEST_ORDERS);
+                System.out.println("After resetting: Current resume point: " + currentEventOrder.get());
+                assertThat(currentResumePoint)
+                        .hasValueSatisfying(resumePoint -> assertThat(resumePoint.getResumeFromAndIncluding().longValue()).isEqualTo(1))
+                        .describedAs("After resetting: Current resume point");
+            });
+        });
+        testProcessor.resetAllSubscriptions();
+
+        // Check subscriptions catchup again
+        Awaitility.waitAtMost(Duration.ofSeconds(3)).untilAsserted(() -> {
+            var currentEventOrder = eventStoreSubscriptionManager.getCurrentEventOrder(subscriberId, TEST_ORDERS);
+            System.out.println("After resetting: Current event order: " + currentEventOrder.get());
+            assertThat(currentEventOrder)
+                    .hasValueSatisfying(order ->
+                                                assertThat(order.longValue()).isEqualTo(11)
+                                       )
+                    .describedAs("After resetting: Current event order");
+            var currentResumePoint = durableSubscriptionRepository.getResumePoint(subscriberId, TEST_ORDERS);
+            System.out.println("After resetting: Current resume point: " + currentEventOrder.get());
+            assertThat(currentResumePoint)
+                    .hasValueSatisfying(resumePoint -> assertThat(resumePoint.getResumeFromAndIncluding().longValue()).isEqualTo(11))
+                    .describedAs("After resetting: Current resume point");
+        });
+
+        // Assert Inbox is purged
+        Awaitility.waitAtMost(Duration.ofSeconds(3)).untilAsserted(() -> {
+            assertThat(durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName)).isEqualTo(0);
+            assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0);
+        });
     }
 
     // --------------------------
@@ -361,12 +437,30 @@ public class EventProcessorIT {
 
         private final PostgresqlEventStore<?> eventStore;
 
+        private final ConcurrentMap<AggregateType, GlobalEventOrder> resetPoints = new ConcurrentHashMap<>();
+
+        private Consumer<ConcurrentMap<AggregateType, GlobalEventOrder>> resetCallback;
+
         public TestOrderEventProcessor(EventProcessorDependencies eventProcessorDependencies,
                                        PostgresqlEventStore<?> eventStore) {
+            this(eventProcessorDependencies, eventStore,
+                 resetPoints -> {
+                     throw new IllegalStateException("No reset callback configured");
+                 });
+        }
+
+        public TestOrderEventProcessor(EventProcessorDependencies eventProcessorDependencies,
+                                       PostgresqlEventStore<?> eventStore,
+                                       Consumer<ConcurrentMap<AggregateType, GlobalEventOrder>> resetCallback) {
             super(eventProcessorDependencies);
             this.eventStore = eventStore;
-            eventStore.addAggregateEventStreamConfiguration(TestOrderEventProcessor.TEST_ORDERS,
+            this.resetCallback = resetCallback;
+            eventStore.addAggregateEventStreamConfiguration(TEST_ORDERS,
                                                             AggregateIdSerializer.serializerFor(OrderId.class));
+        }
+
+        public void setResetCallback(Consumer<ConcurrentMap<AggregateType, GlobalEventOrder>> resetCallback) {
+            this.resetCallback = resetCallback;
         }
 
         @Override
@@ -389,20 +483,34 @@ public class EventProcessorIT {
             return RedeliveryPolicy.fixedBackoff(Duration.ofMillis(200), 3);
         }
 
+        @Override
+        protected void onSubscriptionsReset(AggregateType aggregateType, GlobalEventOrder resubscribeFromAndIncluding) {
+            if (resetPoints.containsKey(aggregateType)) {
+                throw new IllegalStateException("resetPoints already contains key for " + aggregateType);
+            }
+            resetPoints.put(aggregateType, resubscribeFromAndIncluding);
+            resetCallback.accept(resetPoints);
+        }
+
         // ----- Command Handlers -----
 
         @CmdHandler
         public void handle(PlaceOrderCommand cmd) {
-            // Start a new event stream for this order
-            var event = new OrderPlacedEvent(cmd.orderId, cmd.orderDetails);
-            eventStore.startStream(TEST_ORDERS, cmd.orderId, List.of(event));
+            if (!eventStore.hasEventStream(TEST_ORDERS, cmd.orderId)) {
+                // Start a new event stream for this order
+                var event = new OrderPlacedEvent(cmd.orderId, cmd.orderDetails);
+                eventStore.startStream(TEST_ORDERS, cmd.orderId, List.of(event));
+            }
         }
 
         @CmdHandler
         public void handle(ConfirmOrderCommand cmd) {
-            // Append the confirmation event to the existing stream
-            var event = new OrderConfirmedEvent(cmd.orderId);
-            eventStore.appendToStream(TEST_ORDERS, cmd.orderId, event);
+            var eventStream = eventStore.fetchStream(TEST_ORDERS, cmd.orderId);
+            if (eventStream.isPresent() && !Lists.last(eventStream.get().eventList()).get().event().getEventTypeAsJavaClass().get().equals(OrderConfirmedEvent.class)) {
+                // Append the confirmation event to the existing stream
+                var event = new OrderConfirmedEvent(cmd.orderId);
+                eventStore.appendToStream(TEST_ORDERS, cmd.orderId, event);
+            }
         }
 
 
@@ -433,7 +541,7 @@ public class EventProcessorIT {
 
     // -------------------------------------------------------------------------------------------------------------------
 
-    private ObjectMapper createObjectMapper() {
+    public static ObjectMapper createObjectMapper() {
         var objectMapper = JsonMapper.builder()
                                      .disable(MapperFeature.AUTO_DETECT_GETTERS)
                                      .disable(MapperFeature.AUTO_DETECT_IS_GETTERS)
@@ -459,7 +567,7 @@ public class EventProcessorIT {
         return objectMapper;
     }
 
-    private static class TestPersistableEventMapper implements PersistableEventMapper {
+    public static class TestPersistableEventMapper implements PersistableEventMapper {
         private final CorrelationId correlationId   = CorrelationId.random();
         private final EventId       causedByEventId = EventId.random();
 

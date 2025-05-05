@@ -257,6 +257,8 @@ public class EssentialsComponentsConfiguration {
                                                    .setJsonSerializer(jsonSerializer)
                                                    .setSharedQueueTableName(properties.getDurableQueues().getSharedQueueTableName())
                                                    .setMultiTableChangeListener(optionalMultiTableChangeListener.orElse(null))
+                                                   .setUseCentralizedMessageFetcher(properties.getDurableQueues().isUseCentralizedMessageFetcher())
+                                                   .setCentralizedMessageFetcherPollingInterval(properties.getDurableQueues().getCentralizedMessageFetcherPollingInterval())
                                                    .setQueuePollingOptimizerFactory(consumeFromQueue -> new QueuePollingOptimizer.SimpleQueuePollingOptimizer(consumeFromQueue,
                                                                                                                                                               (long) (consumeFromQueue.getPollingInterval().toMillis() *
                                                                                                                                                                       properties.getDurableQueues()

@@ -74,7 +74,7 @@ To use `EventSourced Aggregates` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials.components/groupId>
     <artifactId>eventsourced-aggregates</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 

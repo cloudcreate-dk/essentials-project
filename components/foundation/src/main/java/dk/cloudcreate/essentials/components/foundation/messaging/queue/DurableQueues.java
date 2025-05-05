@@ -644,6 +644,16 @@ public interface DurableQueues extends Lifecycle {
      */
     boolean hasMessagesQueuedFor(QueueName queueName);
 
+
+    /**
+     * Check if there are any ordered messages queued (ignoring the dead letter message flag) with the specified key in the given queue
+     *
+     * @param queueName the name of the queue to check
+     * @param key the key to check for
+     * @return true if there are ordered messages queued with the specified key in the given queue, otherwise false
+     */
+    boolean hasOrderedMessageQueuedForKey(QueueName queueName, String key);
+
     /**
      * Get the total number of messages queued (i.e. not including Dead Letter Messages) for the given queue
      *

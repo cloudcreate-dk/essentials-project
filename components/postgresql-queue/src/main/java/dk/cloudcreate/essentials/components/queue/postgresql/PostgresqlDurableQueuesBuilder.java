@@ -57,6 +57,13 @@ public final class PostgresqlDurableQueuesBuilder {
     private Duration                                                      messageHandlingTimeout       = Duration.ofSeconds(30);
 
     /**
+     * Controls whether the PostgresqlDurableQueues should use the CentralizedMessageFetcher
+     * for optimized message fetching. Default is true.
+     */
+    private boolean  useCentralizedMessageFetcher             = true;
+    private Duration centralizedMessageFetcherPollingInterval = Duration.ofMillis(20);
+
+    /**
      * @param unitOfWorkFactory the {@link UnitOfWorkFactory} needed to access the database
      * @return this builder instance
      */
@@ -146,6 +153,32 @@ public final class PostgresqlDurableQueuesBuilder {
         return this;
     }
 
+    /**
+     * Set whether to use the {@link CentralizedMessageFetcher} for optimized message fetching across multiple queues.
+     * When enabled (default), the {@link PostgresqlDurableQueues} will use {@link CentralizedMessageFetcherDurableQueueConsumer}
+     * instances to handle messages. When disabled, it will use the traditional {@link DefaultDurableQueueConsumer} instances.
+     *
+     * @param useCentralizedMessageFetcher true to use centralized fetching (default), false to use the legacy consumer approach
+     * @return this builder instance
+     */
+    public PostgresqlDurableQueuesBuilder setUseCentralizedMessageFetcher(boolean useCentralizedMessageFetcher) {
+        this.useCentralizedMessageFetcher = useCentralizedMessageFetcher;
+        return this;
+    }
+
+    /**
+     * Set the polling interval for the {@link CentralizedMessageFetcher}.
+     * This value determines how frequently the fetcher checks for new messages when none are immediately available.
+     * Default value is 20 milliseconds.
+     *
+     * @param centralizedMessageFetcherPollingInterval the polling interval duration
+     * @return this builder instance
+     */
+    public PostgresqlDurableQueuesBuilder setCentralizedMessageFetcherPollingInterval(Duration centralizedMessageFetcherPollingInterval) {
+        this.centralizedMessageFetcherPollingInterval = centralizedMessageFetcherPollingInterval;
+        return this;
+    }
+
     public PostgresqlDurableQueues build() {
         return new PostgresqlDurableQueues(unitOfWorkFactory,
                                            jsonSerializer != null ? jsonSerializer : new JacksonJSONSerializer(createDefaultObjectMapper()),
@@ -153,6 +186,8 @@ public final class PostgresqlDurableQueuesBuilder {
                                            multiTableChangeListener,
                                            queuePollingOptimizerFactory,
                                            transactionalMode,
-                                           messageHandlingTimeout);
+                                           messageHandlingTimeout,
+                                           useCentralizedMessageFetcher,
+                                           centralizedMessageFetcherPollingInterval);
     }
 }

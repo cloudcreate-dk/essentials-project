@@ -18,34 +18,25 @@ package dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.
 
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.*;
-import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.AggregateIdSerializer;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.serializer.json.EventJSON;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.*;
 import dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.types.*;
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
 import dk.cloudcreate.essentials.components.foundation.fencedlock.*;
-import dk.cloudcreate.essentials.components.foundation.json.JSONDeserializationException;
 import dk.cloudcreate.essentials.components.foundation.messaging.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.cloudcreate.essentials.components.foundation.messaging.queue.*;
 import dk.cloudcreate.essentials.components.foundation.reactive.command.*;
 import dk.cloudcreate.essentials.components.foundation.transaction.*;
-import dk.cloudcreate.essentials.components.foundation.types.SubscriberId;
 import dk.cloudcreate.essentials.reactive.Handler;
 import dk.cloudcreate.essentials.reactive.command.*;
-import dk.cloudcreate.essentials.types.LongRange;
 import org.slf4j.*;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.*;
+import java.util.function.Consumer;
 
 import static dk.cloudcreate.essentials.shared.FailFast.requireNonNull;
-import static dk.cloudcreate.essentials.shared.MessageFormatter.msg;
-import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.toMap;
 
 /**
  * Event Modeling style Event Sourced Event Processor and Command Handler, which is capable of both containing {@link CmdHandler} as well as {@link MessageHandler}
@@ -190,20 +181,13 @@ import static java.util.stream.Collectors.toMap;
  * }
  * }</pre>
  */
-public abstract class EventProcessor implements Lifecycle {
-    protected final Logger                        log = LoggerFactory.getLogger(this.getClass());
-    private final   EventStoreSubscriptionManager eventStoreSubscriptionManager;
-    private final   Inboxes                       inboxes;
-    protected final DurableLocalCommandBus        commandBus;
-    private final   EventStore                    eventStore;
+public abstract class EventProcessor extends AbstractEventProcessor {
+    protected final Logger log = LoggerFactory.getLogger(this.getClass());
 
-    private boolean                         started;
-    private List<EventStoreSubscription>    eventStoreSubscriptions;
-    private Consumer<Message>               inboxMessageHandlerDelegate;
-    private AnnotatedCommandHandler         commandBusHandlerDelegate;
-    private Inbox                           inbox;
-    private PatternMatchingMessageHandler   patternMatchingInboxMessageHandlerDelegate;
-    private List<MessageHandlerInterceptor> messageHandlerInterceptors;
+    private final Inboxes                       inboxes;
+    private       Consumer<Message>             inboxMessageHandlerDelegate;
+    private       Inbox                         inbox;
+    private       PatternMatchingMessageHandler patternMatchingInboxMessageHandlerDelegate;
 
     /**
      * Create a new {@link EventProcessor} instance
@@ -223,9 +207,9 @@ public abstract class EventProcessor implements Lifecycle {
      * Create a new {@link EventProcessor} instance
      *
      * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions<br>
-     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only queue a reference to
-     *                                      the {@link PersistedEvent} and before the message is forwarded to the corresponding {@link MessageHandler} then we load the {@link PersistedEvent}'s
-     *                                      payload and forward it to the {@link MessageHandler} annotated method
+     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only query references to
+     *                                      the {@link PersistedEvent}. Before an event reference message is forwarded to the corresponding {@link MessageHandler} we load the {@link PersistedEvent}'s
+     *                                      payload and forward it to the {@link MessageHandler} annotated method. This avoids double storing event payloads
      * @param inboxes                       the {@link Inboxes} instance used to create an {@link Inbox}, with the name returned from {@link #getProcessorName()}.
      *                                      This {@link Inbox} is used for forwarding {@link PersistedEvent}'s received via {@link EventStoreSubscription}'s, because {@link EventStoreSubscription}'s
      *                                      doesn't handle message retry, etc.
@@ -237,12 +221,8 @@ public abstract class EventProcessor implements Lifecycle {
                              Inboxes inboxes,
                              DurableLocalCommandBus commandBus,
                              List<MessageHandlerInterceptor> messageHandlerInterceptors) {
-        this.eventStoreSubscriptionManager = requireNonNull(eventStoreSubscriptionManager, "No eventStoreSubscriptionManager provided");
+        super(eventStoreSubscriptionManager, commandBus, messageHandlerInterceptors);
         this.inboxes = requireNonNull(inboxes, "No inboxes instance provided");
-        this.commandBus = requireNonNull(commandBus, "No commandBus provided");
-        this.eventStore = requireNonNull(eventStoreSubscriptionManager.getEventStore(), "No eventStore is associated with the eventStoreSubscriptionManager provided");
-        this.messageHandlerInterceptors = new CopyOnWriteArrayList<>(requireNonNull(messageHandlerInterceptors, "No messageHandlerInterceptors list provided"));
-        setupCommandHandler();
     }
 
     /**
@@ -250,9 +230,9 @@ public abstract class EventProcessor implements Lifecycle {
      * to provide custom interceptors, or you can use the {@link EventProcessor#EventProcessor(EventStoreSubscriptionManager, Inboxes, DurableLocalCommandBus, List)} constructor)
      *
      * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions<br>
-     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only queue a reference to
-     *                                      the {@link PersistedEvent} and before the message is forwarded to the corresponding {@link MessageHandler} then we load the {@link PersistedEvent}'s
-     *                                      payload and forward it to the {@link MessageHandler} annotated method
+     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only query references to
+     *                                      the {@link PersistedEvent}. Before an event reference message is forwarded to the corresponding {@link MessageHandler} we load the {@link PersistedEvent}'s
+     *                                      payload and forward it to the {@link MessageHandler} annotated method. This avoids double storing event payloads
      * @param inboxes                       the {@link Inboxes} instance used to create an {@link Inbox}, with the name returned from {@link #getProcessorName()}.
      *                                      This {@link Inbox} is used for forwarding {@link PersistedEvent}'s received via {@link EventStoreSubscription}'s, because {@link EventStoreSubscription}'s
      *                                      doesn't handle message retry, etc.
@@ -267,70 +247,13 @@ public abstract class EventProcessor implements Lifecycle {
              List.of());
     }
 
-    private void setupCommandHandler() {
-        commandBusHandlerDelegate = new AnnotatedCommandHandler(this);
-        commandBus.addCommandHandler(commandBusHandlerDelegate);
-    }
-
     private void setupMessageHandlerDelegate() {
         if (patternMatchingInboxMessageHandlerDelegate != null) {
             return;
         }
         patternMatchingInboxMessageHandlerDelegate = new PatternMatchingMessageHandler(this, getMessageHandlerInterceptors());
         patternMatchingInboxMessageHandlerDelegate.allowUnmatchedMessages();
-        inboxMessageHandlerDelegate = (msg) -> {
-            if (msg instanceof OrderedMessage orderedMessage && EventReferenceOrderedMessage.isEventReference(orderedMessage)) {
-                var aggregateType         = (AggregateType) orderedMessage.getPayload();
-                var aggregateIdSerializer = resolveAggregateIdSerializer(aggregateType);
-
-                var stringAggregateId = orderedMessage.getKey();
-                var aggregateId       = aggregateIdSerializer.deserialize(stringAggregateId);
-
-                var eventOrder = orderedMessage.order;
-                log.trace("Looking up event for aggregate '{}' with id '{}' and event-order {}",
-                          aggregateType,
-                          aggregateId,
-                          eventOrder);
-                var events = eventStore.fetchStream(aggregateType,
-                                                    aggregateId,
-                                                    LongRange.only(eventOrder))
-                                       .orElseThrow(() -> new IllegalArgumentException(msg("Couldn't find a matching event for aggregate '{}' with id '{}' and event-order {}",
-                                                                                           aggregateType,
-                                                                                           aggregateId,
-                                                                                           eventOrder)))
-                                       .eventList();
-                if (events.size() != 1) {
-                    throw new IllegalArgumentException(msg("Couldn't find a matching event for aggregate '{}' with id '{}' and event-order {}",
-                                                           aggregateType,
-                                                           aggregateId,
-                                                           eventOrder));
-                }
-                var persistedEvent = events.get(0);
-                log.debug("[{}:{}] Handling Event of type '{}'", aggregateType, aggregateId, persistedEvent.event().getEventTypeOrNamePersistenceValue());
-                try {
-                    patternMatchingInboxMessageHandlerDelegate.accept(OrderedMessage.of(persistedEvent.event().deserialize(),
-                                                                                        stringAggregateId,
-                                                                                        eventOrder,
-                                                                                        msg.getMetaData()));
-                } catch (JSONDeserializationException e) {
-                    log.error("Failed to deserialize PersistedEvent '{}'", persistedEvent.event().getEventTypeOrNamePersistenceValue(), e);
-                    throw e;
-                }
-            } else {
-                patternMatchingInboxMessageHandlerDelegate.accept(msg);
-            }
-        };
-    }
-
-    /**
-     * Default: The {@link MessageHandlerInterceptor}'s provided in the {@link EventProcessor#EventProcessor(EventStoreSubscriptionManager, Inboxes, DurableLocalCommandBus, List)} constructor<br>
-     * You can also override this method to provide your own {@link MessageHandlerInterceptor}'s that should be used when calling {@link MessageHandler} annotated methods<br>
-     * This method will be called during {@link EventProcessor#start()} time
-     *
-     * @return the {@link MessageHandlerInterceptor}'s that should be used when calling {@link MessageHandler} annotated methods
-     */
-    protected List<MessageHandlerInterceptor> getMessageHandlerInterceptors() {
-        return messageHandlerInterceptors;
+        inboxMessageHandlerDelegate = handleQueuedMessageConsumer(patternMatchingInboxMessageHandlerDelegate);
     }
 
     @Override
@@ -351,14 +274,15 @@ public abstract class EventProcessor implements Lifecycle {
                                                         .redeliveryPolicy(getInboxRedeliveryPolicy())
                                                         .build(),
                                              inboxMessageHandlerDelegate);
+            durableQueueName = inbox.name().asQueueName();
 
             eventStoreSubscriptions = subscribeToEventsRelatedTo.stream()
                                                                 .map(aggregateType -> {
-                                                                    var subscriberId = SubscriberId.of(processorName + ":" + aggregateType);
+                                                                    var subscriberId = resolveSubscriberId(aggregateType, processorName);
                                                                     var subscription = eventStoreSubscriptionManager.exclusivelySubscribeToAggregateEventsAsynchronously(
                                                                             subscriberId,
                                                                             aggregateType,
-                                                                            startSubscriptionFromGlobalEventOrder(),
+                                                                            resolveStartSubscriptionFromGlobalEventOrder(),
                                                                             Optional.empty(),
                                                                             new FencedLockAwareSubscriber() {
                                                                                 @Override
@@ -408,97 +332,23 @@ public abstract class EventProcessor implements Lifecycle {
         return started;
     }
 
-
-    /**
-     * This method returns true if one or more of the underlying {@link FencedLock}'s have been acquired.<br>
-     * Otherwise it returns false
-     *
-     * @return see description above
-     */
-    public boolean isActive() {
-        return eventStoreSubscriptions.stream()
-                                      .anyMatch(EventStoreSubscription::isActive);
-    }
-
-    /**
-     * Resets all {@link AggregateType} subscriptions fromAndIncluding {@link GlobalEventOrder#FIRST_GLOBAL_EVENT_ORDER}<br>
-     * {@link #onSubscriptionsReset(AggregateType, GlobalEventOrder)} will be called for each {@link AggregateType}<br>
-     * <br>
-     * This method also calls {@link Inbox#deleteAllMessages()}
-     *
-     * @see #resetSubscriptions(Map)
-     */
     public void resetAllSubscriptions() {
-        Map<AggregateType, GlobalEventOrder> resetParameters = eventStoreSubscriptions.stream()
-                                                                                      .map(EventStoreSubscription::aggregateType)
-                                                                                      .collect(toMap(identity(), aggregateType -> GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER));
-        var resetInbox = true;
-        resetSubscriptions(resetParameters, resetInbox);
+        resetAllSubscriptions(queueName -> inbox.deleteAllMessages());
     }
 
-    /**
-     * Reset the specific {@link AggregateType} fromAndIncluding the specified {@link GlobalEventOrder}<br>
-     * {@link #onSubscriptionsReset(AggregateType, GlobalEventOrder)} will be called for each {@link AggregateType}<br>
-     * <br>
-     * Note: This method does NOT call {@link Inbox#deleteAllMessages()}
-     *
-     * @param resetAggregateSubscriptionsFromAndIncluding a map of {@link AggregateType} and reset-fromAndIncluding {@link GlobalEventOrder}
-     */
-    public void resetSubscriptions(Map<AggregateType, GlobalEventOrder> resetAggregateSubscriptionsFromAndIncluding) {
-        resetSubscriptions(resetAggregateSubscriptionsFromAndIncluding, false);
+    public void resetSubscriptions(Map<AggregateType, GlobalEventOrder> resetAggregateSubscriptionsFromAndIncluding,
+                                   boolean resetInbox) {
+        resetSubscriptions(resetAggregateSubscriptionsFromAndIncluding,
+                           resetInbox,
+                           queueName -> inbox.deleteAllMessages());
+
     }
 
-    private void resetSubscriptions(Map<AggregateType, GlobalEventOrder> resetAggregateSubscriptionsFromAndIncluding,
+    public void doResetSubscription(EventStoreSubscription eventStoreSubscription,
+                                    GlobalEventOrder resubscribeFromAndIncluding,
                                     boolean resetInbox) {
-        requireNonNull(resetAggregateSubscriptionsFromAndIncluding, "resetAggregateSubscriptionsFromAndIncluding is null");
-        AtomicBoolean isResetInbox = new AtomicBoolean(resetInbox);
-        resetAggregateSubscriptionsFromAndIncluding.forEach((aggregateType, resubscribeFromAndIncluding) -> {
-            findSubscription(aggregateType).ifPresentOrElse(eventStoreSubscription -> {
-                                                                doResetSubscription(eventStoreSubscription, resubscribeFromAndIncluding, isResetInbox.get());
-                                                                isResetInbox.set(false);
-                                                            },
-                                                            () -> {
-                                                                throw new IllegalArgumentException(msg("[{}] Cannot reset subscription for {} '{}' since the {} doesn't subscribe to events for this aggregate type",
-                                                                                                       getProcessorName(),
-                                                                                                       AggregateType.class.getSimpleName(),
-                                                                                                       aggregateType,
-                                                                                                       EventProcessor.class.getSimpleName()));
-                                                            });
-        });
-    }
 
-    private void doResetSubscription(EventStoreSubscription eventStoreSubscription,
-                                     GlobalEventOrder resubscribeFromAndIncluding,
-                                     boolean resetInbox) {
-
-        log.info("[{}] Resetting subscription for '{}' restartingFromAndIncluding globalEventOrder '{}'",
-                 getProcessorName(),
-                 eventStoreSubscription.subscriberId(),
-                 resubscribeFromAndIncluding);
-
-        eventStoreSubscription.resetFrom(resubscribeFromAndIncluding, r -> {
-            if (resetInbox) {
-                log.info("[{}] Deleting all messages for inbox '{}'", getProcessorName(), inbox.name());
-                inbox.deleteAllMessages();
-            }
-            onSubscriptionsReset(eventStoreSubscription.aggregateType(), r);
-        });
-    }
-
-    private Optional<EventStoreSubscription> findSubscription(AggregateType aggregateType) {
-        return eventStoreSubscriptions.stream()
-                                      .filter(eventStoreSubscription -> eventStoreSubscription.aggregateType().equals(aggregateType))
-                                      .findFirst();
-    }
-
-    /**
-     * Will be called when {@link #resetAllSubscriptions()} or {@link #resetSubscriptions(Map)} - override this method
-     * perform any reset related side effects that may be required (e.g. resetting a view)
-     *
-     * @param aggregateType               the {@link AggregateType} for which the subscription is being reset
-     * @param resubscribeFromAndIncluding the {@link GlobalEventOrder} that the subscription will restart from and including
-     */
-    protected void onSubscriptionsReset(AggregateType aggregateType, GlobalEventOrder resubscribeFromAndIncluding) {
+        doResetSubscription(eventStoreSubscription, resubscribeFromAndIncluding, resetInbox, queueName -> inbox.deleteAllMessages());
     }
 
     /**
@@ -516,33 +366,12 @@ public abstract class EventProcessor implements Lifecycle {
             var aggregateType         = event.aggregateType();
             var aggregateIdSerializer = resolveAggregateIdSerializer(aggregateType);
             log.debug("[{}:{}] Forwarding-To-Inbox Event of type '{}'", aggregateType, event.aggregateId(), event.event().getEventTypeOrNamePersistenceValue());
-            forwardToInbox.addMessageReceived(new EventReferenceOrderedMessage(aggregateType,
-                                                                               aggregateIdSerializer.serialize(event.aggregateId()),
-                                                                               event.eventOrder(),
-                                                                               new MessageMetaData(event.metaData().deserialize())));
+            forwardToInbox.addMessageReceived(new AbstractEventProcessor.EventReferenceOrderedMessage(aggregateType,
+                                                                                                      aggregateIdSerializer.serialize(event.aggregateId()),
+                                                                                                      event.eventOrder(),
+                                                                                                      new MessageMetaData(event.metaData().deserialize())));
         }
     }
-
-    private AggregateIdSerializer resolveAggregateIdSerializer(AggregateType aggregateType) {
-        return ((ConfigurableEventStore<?>) eventStore).getAggregateEventStreamConfiguration(aggregateType).aggregateIdSerializer;
-    }
-
-    /**
-     * Get the name of the event processor.<br>
-     * This name is used as value for the underlying {@link EventStoreSubscription#subscriberId()}'s
-     * and for the {@link InboxName}
-     *
-     * @return the name of the event processor
-     */
-    public abstract String getProcessorName();
-
-
-    /**
-     * Get the {@link AggregateType}'s who's events this {@link EventProcessor} is reacting to
-     *
-     * @return the {@link AggregateType}'s who's events this {@link EventProcessor} is reacting to
-     */
-    protected abstract List<AggregateType> reactsToEventsRelatedToAggregateTypes();
 
     /**
      * Get the {@link MessageConsumptionMode} used by the consume event messages forwarded to the underlying {@link Inbox}<br>
@@ -579,22 +408,26 @@ public abstract class EventProcessor implements Lifecycle {
                                .build();
     }
 
-    private Function<AggregateType, GlobalEventOrder> startSubscriptionFromGlobalEventOrder() {
-        if (isStartSubscriptionFromLatestEvent()) {
-            return aggregateType -> eventStore.getUnitOfWorkFactory().withUnitOfWork(() -> eventStore.findHighestGlobalEventOrderPersisted(aggregateType)
-                                                                                                     .map(GlobalEventOrder::increment)
-                                                                                                     .orElse(GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER));
-        }
-        return aggregateType -> GlobalEventOrder.FIRST_GLOBAL_EVENT_ORDER;
+    /**
+     * For backwards compatibility: Get the number of message consumption threads that will consume queued messages from the underlying {@link Inbox}.
+     * This method delegates to {@link #getNumberOfParallelInboxMessageConsumers()}.
+     *
+     * @return the number of message consumption threads that will consume queued messages from the underlying {@link Inbox}.
+     */
+    @Override
+    protected final int getNumberOfParallelQueuedMessageConsumers() {
+        return getNumberOfParallelInboxMessageConsumers();
     }
 
     /**
-     * New subscriptions should start consuming events from the latest event. Default false
+     * For backwards compatibility: Retrieves the {@link RedeliveryPolicy} used for durable queues managed by the event processor.
+     * This method delegates the retrieval to {@link #getInboxRedeliveryPolicy()}.
      *
-     * @return is new subscriptions should start consuming events from the latest event.
+     * @return the {@link RedeliveryPolicy} configured for durable queues.
      */
-    protected boolean isStartSubscriptionFromLatestEvent() {
-        return false;
+    @Override
+    protected final RedeliveryPolicy getDurableQueueRedeliveryPolicy() {
+        return getInboxRedeliveryPolicy();
     }
 
     @Override
@@ -606,42 +439,25 @@ public abstract class EventProcessor implements Lifecycle {
                 " }";
     }
 
+    /**
+     * Retrieves the underlying {@link Inbox} associated with the {@link EventProcessor}.
+     *
+     * @return the {@link Inbox} instance used for managing messages within the {@link EventProcessor}.
+     */
     protected final Inbox getInbox() {
         return inbox;
     }
 
-    protected final EventStore getEventStore() {
-        return eventStore;
-    }
-
-    protected final DurableLocalCommandBus getCommandBus() {
-        return commandBus;
-    }
-
     /**
-     * Variant of {@link OrderedMessage} that stores the {@link AggregateType} associated with the Message as the payload,
-     * the {@link PersistedEvent#aggregateId()} as the {@link OrderedMessage#getKey()} and
-     * the {@link PersistedEvent#eventOrder()} as the {@link OrderedMessage#getOrder()}
+     * Backwards compatible variant of {@link AbstractEventProcessor.EventReferenceOrderedMessage}
      */
-    public static class EventReferenceOrderedMessage extends OrderedMessage {
-        /**
-         * {@link MessageMetaData} key, that's used as a flag to indicate
-         * that an {@link OrderedMessage} is an {@link EventReferenceOrderedMessage}
-         */
-        public static final String EVENT_REFERENCE_METADATA_KEY = "EVENT_REFERENCE";
-
+    public static class EventReferenceOrderedMessage extends AbstractEventProcessor.EventReferenceOrderedMessage {
         public EventReferenceOrderedMessage(AggregateType aggregateType, Object aggregateId, EventOrder eventOrder) {
-            this(aggregateType, aggregateId, eventOrder, MessageMetaData.of());
+            super(aggregateType, aggregateId, eventOrder);
         }
 
         public EventReferenceOrderedMessage(AggregateType aggregateType, Object aggregateId, EventOrder eventOrder, MessageMetaData metaData) {
-            super(aggregateType, aggregateId.toString(), eventOrder.longValue(), metaData);
-            metaData.put(EVENT_REFERENCE_METADATA_KEY, "true");
-        }
-
-        public static boolean isEventReference(OrderedMessage msg) {
-            requireNonNull(msg, "No msg provided");
-            return "true".equals(msg.getMetaData().get(EVENT_REFERENCE_METADATA_KEY));
+            super(aggregateType, aggregateId, eventOrder, metaData);
         }
     }
 }

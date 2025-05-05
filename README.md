@@ -45,12 +45,13 @@ Essentials is released under version 2.0 of the [Apache License](https://www.apa
 
 ## Versions
 
-| Essentials version                                                                   | Java compatibility | Spring Boot compatibility | Notes                      |
-|--------------------------------------------------------------------------------------|--------------------|---------------------------|----------------------------|
-| [0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)            | 11-16              | 2.7.x                     | No longer being maintained |
+| Essentials version                                                             | Java compatibility | Spring Boot compatibility | Notes                      |
+|--------------------------------------------------------------------------------|--------------------|---------------------------|----------------------------|
+| [0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)      | 11-16              | 2.7.x                     | No longer being maintained |
 | [0.20.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_0_x) | 17+                | 3.0.x                     | No longer being maintained |
 | [0.30.*](https://github.com/cloudcreate-dk/essentials-project/tree/springboot_3_1_x) | 17+                | 3.1.x                     | No longer being maintained |
-| [0.40.*](https://github.com/cloudcreate-dk/essentials-project/tree/main)             | 17+                | 3.2.x                     | Under active development   |
+| [0.40.*-0.40.23](https://github.com/cloudcreate-dk/essentials-project/tree/main) | 17+                | 3.2.x                     |    |
+| [0.40.24-](https://github.com/cloudcreate-dk/essentials-project/tree/main)     | 17+                | 3.3.x                     | Under active development   |
 
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
@@ -126,7 +127,7 @@ To use `Shared` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>shared</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 
@@ -167,7 +168,7 @@ To use `Types` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 
@@ -183,7 +184,7 @@ To use `Reactive` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>reactive</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 
@@ -265,7 +266,7 @@ To use `Immutable` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 
@@ -316,7 +317,7 @@ To use `Immutable-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>immutable-jackson</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 
@@ -339,7 +340,7 @@ To use `Types-Jackson` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jackson</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 
@@ -385,7 +386,7 @@ To use `Types-SpringData-Mongo` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-springdata-mongo</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 
@@ -432,7 +433,7 @@ To use `Types-Spring-Web` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-spring-web</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 
@@ -508,7 +509,7 @@ To use `Types-JDBI` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-jdbi</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 
@@ -524,7 +525,7 @@ To use `Types-Avro` just add the following Maven dependency:
 <dependency>
     <groupId>dk.cloudcreate.essentials</groupId>
     <artifactId>types-avro</artifactId>
-    <version>0.40.23</version>
+    <version>0.40.24</version>
 </dependency>
 ```
 

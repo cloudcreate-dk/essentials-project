@@ -278,9 +278,11 @@ public class EssentialsComponentsProperties {
 
         private Double pollingDelayIntervalIncrementFactor = 0.5d;
 
-        private Duration          maxPollingInterval     = Duration.ofMillis(2000);
-        private TransactionalMode transactionalMode      = TransactionalMode.SingleOperationTransaction;
-        private Duration          messageHandlingTimeout = Duration.ofSeconds(30);
+        private Duration          maxPollingInterval                       = Duration.ofMillis(2000);
+        private TransactionalMode transactionalMode                        = TransactionalMode.SingleOperationTransaction;
+        private Duration          messageHandlingTimeout                   = Duration.ofSeconds(30);
+        private boolean           useCentralizedMessageFetcher             = true;
+        private Duration          centralizedMessageFetcherPollingInterval = Duration.ofMillis(20);
 
         private boolean verboseTracing = false;
 
@@ -408,7 +410,8 @@ public class EssentialsComponentsProperties {
          * When the {@link PostgresqlDurableQueues} polling returns 0 messages, what should the increase in the {@link ConsumeFromQueue#getPollingInterval()}
          * be? (logic: new_polling_interval = current_polling_interval + base_polling_interval * polling_delay_interval_increment_factor)<br>
          * Default is 0.5d<br>
-         * This is used to avoid polling a the {@link DurableQueues} for a queue that isn't experiencing a lot of messages
+         * This is used to avoid polling a the {@link DurableQueues} for a queue that isn't experiencing a lot of messages<br>
+         * Only relevant when #setUseCentralizedMessageFetcher(boolean) is set to false
          *
          * @return the increase in the {@link ConsumeFromQueue#getPollingInterval()} when the {@link DurableQueues} polling returns 0 messages
          */
@@ -420,7 +423,8 @@ public class EssentialsComponentsProperties {
          * When the {@link PostgresqlDurableQueues} polling returns 0 messages, what should the increase in the {@link ConsumeFromQueue#getPollingInterval()}
          * be? (logic: new_polling_interval = current_polling_interval + base_polling_interval * polling_delay_interval_increment_factor)<br>
          * Default is 0.5d<br>
-         * This is used to avoid polling a the {@link DurableQueues} for a queue that isn't experiencing a lot of messages
+         * This is used to avoid polling a the {@link DurableQueues} for a queue that isn't experiencing a lot of messages<br>
+         * Only relevant when #setUseCentralizedMessageFetcher(boolean) is set to false
          *
          * @param pollingDelayIntervalIncrementFactor the increase in the {@link ConsumeFromQueue#getPollingInterval()} when the {@link DurableQueues} polling returns 0 messages
          */
@@ -430,7 +434,8 @@ public class EssentialsComponentsProperties {
 
         /**
          * What is the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})<br>
-         * Default is 2 seconds
+         * Default is 2 seconds<br>
+         * Only relevant when #setUseCentralizedMessageFetcher(boolean) is set to false
          *
          * @return What is the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})
          */
@@ -440,12 +445,57 @@ public class EssentialsComponentsProperties {
 
         /**
          * What is the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})<br>
-         * Default is 2 seconds
+         * Default is 2 seconds<br>
+         * Only relevant when #setUseCentralizedMessageFetcher(boolean) is set to false
          *
          * @param maxPollingInterval the maximum polling interval (when adjusted using {@link #setPollingDelayIntervalIncrementFactor(Double)})
          */
         public void setMaxPollingInterval(Duration maxPollingInterval) {
             this.maxPollingInterval = maxPollingInterval;
+        }
+
+        /**
+         * Get whether to use the {@link CentralizedMessageFetcher} for optimized message fetching across multiple queues.
+         * When enabled (default), the {@link PostgresqlDurableQueues} will use {@link CentralizedMessageFetcherDurableQueueConsumer}
+         * instances to handle messages. When disabled, it will use the traditional {@link DefaultDurableQueueConsumer} instances.
+         *
+         * @return true if using centralized fetching (default), false if using the legacy consumer approach
+         */
+        public boolean isUseCentralizedMessageFetcher() {
+            return useCentralizedMessageFetcher;
+        }
+
+        /**
+         * Set whether to use the {@link CentralizedMessageFetcher} for optimized message fetching across multiple queues.
+         * When enabled (default), the {@link PostgresqlDurableQueues} will use {@link CentralizedMessageFetcherDurableQueueConsumer}
+         * instances to handle messages. When disabled, it will use the traditional {@link DefaultDurableQueueConsumer} instances.
+         *
+         * @param useCentralizedMessageFetcher true to use centralized fetching (default), false to use the legacy consumer approach
+         */
+        public void setUseCentralizedMessageFetcher(boolean useCentralizedMessageFetcher) {
+            this.useCentralizedMessageFetcher = useCentralizedMessageFetcher;
+        }
+
+        /**
+         * Get the polling interval for the {@link CentralizedMessageFetcher}.
+         * This value determines how frequently the fetcher checks for new messages when none are immediately available.
+         * Default value is 20 milliseconds.
+         *
+         * @return the polling interval duration
+         */
+        public Duration getCentralizedMessageFetcherPollingInterval() {
+            return centralizedMessageFetcherPollingInterval;
+        }
+
+        /**
+         * Set the polling interval for the {@link CentralizedMessageFetcher}.
+         * This value determines how frequently the fetcher checks for new messages when none are immediately available.
+         * Default value is 20 milliseconds.
+         *
+         * @param centralizedMessageFetcherPollingInterval the polling interval duration
+         */
+        public void setCentralizedMessageFetcherPollingInterval(Duration centralizedMessageFetcherPollingInterval) {
+            this.centralizedMessageFetcherPollingInterval = centralizedMessageFetcherPollingInterval;
         }
     }
 

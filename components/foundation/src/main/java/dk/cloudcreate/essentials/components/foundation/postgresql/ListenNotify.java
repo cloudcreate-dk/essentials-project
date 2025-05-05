@@ -411,7 +411,7 @@ public final class ListenNotify {
                                    log.error(msg("Failed to close the listener Handle for table '{}'", tableName),
                                              e);
 
-                                   return Flux.error(ex);
+                                   return Flux.empty();
                                }
                            }
                            handleReference.set(null);

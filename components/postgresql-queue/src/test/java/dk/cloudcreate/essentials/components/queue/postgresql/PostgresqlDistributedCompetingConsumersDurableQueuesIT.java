@@ -24,13 +24,22 @@ import org.jdbi.v3.core.Jdbi;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.*;
 
+/**
+ * Base class for distributed competing consumers IT tests
+ */
 @Testcontainers
-class PostgresqlDistributedCompetingConsumersDurableQueuesIT extends DistributedCompetingConsumersDurableQueuesIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
+abstract class PostgresqlDistributedCompetingConsumersDurableQueuesIT extends DistributedCompetingConsumersDurableQueuesIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
     @Container
-    private final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
+    protected final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
             .withDatabaseName("queue-db")
             .withUsername("test-user")
             .withPassword("secret-password");
+
+    /**
+     * Determine whether to use the centralized message fetcher
+     * @return true for centralized message fetcher, false for traditional consumer
+     */
+    protected abstract boolean useCentralizedMessageFetcher();
 
     @Override
     protected void disruptDatabaseConnection() {
@@ -46,7 +55,10 @@ class PostgresqlDistributedCompetingConsumersDurableQueuesIT extends Distributed
 
     @Override
     protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory) {
-        return PostgresqlDurableQueues.builder().setUnitOfWorkFactory(unitOfWorkFactory).build();
+        return PostgresqlDurableQueues.builder()
+                                     .setUnitOfWorkFactory(unitOfWorkFactory)
+                                     .setUseCentralizedMessageFetcher(useCentralizedMessageFetcher())
+                                     .build();
     }
 
     @Override

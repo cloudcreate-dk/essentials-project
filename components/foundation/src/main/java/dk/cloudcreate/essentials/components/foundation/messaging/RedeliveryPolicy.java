@@ -180,11 +180,36 @@ public final class RedeliveryPolicy {
      * If an exception occurs during message handling, the {@link #isPermanentError(QueuedMessage, Throwable)} will be called with
      * only the top-level exception - the associated {@link MessageDeliveryErrorHandler#isPermanentError(QueuedMessage, Throwable)} must itself check the error exceptions causal chain
      * to determine if it represents a permanent error.
+     *
      * @param queuedMessage The message being processed by the message handler
-     * @param error the exception that occurred
+     * @param error         the exception that occurred
      * @return true if the error represents a permanent error, otherwise false
      */
     public boolean isPermanentError(QueuedMessage queuedMessage, Throwable error) {
         return deliveryErrorHandler.isPermanentError(queuedMessage, error);
+    }
+
+    public Duration getInitialRedeliveryDelay() {
+        return initialRedeliveryDelay;
+    }
+
+    public Duration getFollowupRedeliveryDelay() {
+        return followupRedeliveryDelay;
+    }
+
+    public double getFollowupRedeliveryDelayMultiplier() {
+        return followupRedeliveryDelayMultiplier;
+    }
+
+    public Duration getMaximumFollowupRedeliveryThreshold() {
+        return maximumFollowupRedeliveryThreshold;
+    }
+
+    public int getMaximumNumberOfRedeliveries() {
+        return maximumNumberOfRedeliveries;
+    }
+
+    public MessageDeliveryErrorHandler getDeliveryErrorHandler() {
+        return deliveryErrorHandler;
     }
 }

@@ -243,13 +243,13 @@ public class EventStoreConfiguration {
      * Create {@link EventProcessorDependencies} which encapsulates all the dependencies required by an instance of an {@link EventProcessor}
      *
      * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions<br>
-     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only queue a reference to
-     *                                      the {@link PersistedEvent} and before the message is forwarded to the corresponding {@link MessageHandler} then we load the {@link PersistedEvent}'s
-     *                                      payload and forward it to the {@link MessageHandler} annotated method
+     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only query references to
+     *                                      the {@link PersistedEvent}. Before an event reference message is forwarded to the corresponding {@link MessageHandler} we load the {@link PersistedEvent}'s
+     *                                      payload and forward it to the {@link MessageHandler} annotated method. This avoids double storing event payloads
      * @param inboxes                       the {@link Inboxes} instance used to create an {@link Inbox}, with the name returned from {@link EventProcessor#getProcessorName()}.
      *                                      This {@link Inbox} is used for forwarding {@link PersistedEvent}'s received via {@link EventStoreSubscription}'s, because {@link EventStoreSubscription}'s
      *                                      doesn't handle message retry, etc.
-     * @param commandBus                    The {@link CommandBus} where any {@link Handler} or {@link CmdHandler} annotated methods in the subclass of the {@link EventProcessor} will be registered
+     * @param commandBus                    The {@link CommandBus} where any {@link Handler} or {@link CmdHandler} annotated methods in the subclass of the {@link AbstractEventProcessor} will be registered
      * @param messageHandlerInterceptors    The {@link MessageHandlerInterceptor}'s that will intercept calls to the {@link MessageHandler} annotated methods.<br>
      * @return {@link EventProcessorDependencies}
      */
@@ -263,6 +263,34 @@ public class EventStoreConfiguration {
                                               inboxes,
                                               commandBus,
                                               messageHandlerInterceptors);
+    }
+
+    /**
+     * Creates and provides a {@link ViewEventProcessorDependencies} bean if it is not already defined in the
+     * application context.
+     *
+     * @param eventStoreSubscriptionManager The {@link EventStoreSubscriptionManager} used for managing {@link EventStore} subscriptions<br>
+     *                                      The  {@link EventStore} instance associated with the {@link EventStoreSubscriptionManager} is used to only query references to
+     *                                      the {@link PersistedEvent}. Before an event reference message is forwarded to the corresponding {@link MessageHandler} we load the {@link PersistedEvent}'s
+     *                                      payload and forward it to the {@link MessageHandler} annotated method. This avoids double storing event payloads
+     * @param fencedLockManager             the manager providing mechanisms for distributed lock handling
+     * @param durableQueues                 a collection of durable queues used for reliable message processing
+     * @param commandBus                    The {@link CommandBus} where any {@link Handler} or {@link CmdHandler} annotated methods in the subclass of the {@link ViewEventProcessor} will be registered
+     * @param messageHandlerInterceptors    a list of interceptors that can modify or monitor message handling processes
+     * @return a new instance of {@link ViewEventProcessorDependencies} configured with the given dependencies
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public ViewEventProcessorDependencies viewEventProcessorDependencies(EventStoreSubscriptionManager eventStoreSubscriptionManager,
+                                                                         FencedLockManager fencedLockManager,
+                                                                         DurableQueues durableQueues,
+                                                                         DurableLocalCommandBus commandBus,
+                                                                         List<MessageHandlerInterceptor> messageHandlerInterceptors) {
+        return new ViewEventProcessorDependencies(eventStoreSubscriptionManager,
+                                                  fencedLockManager,
+                                                  durableQueues,
+                                                  commandBus,
+                                                  messageHandlerInterceptors);
     }
 
     /**

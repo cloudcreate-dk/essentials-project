@@ -17,6 +17,7 @@
 package dk.cloudcreate.essentials.components.foundation.messaging.queue;
 
 import dk.cloudcreate.essentials.components.foundation.Lifecycle;
+import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
 
 /**
  * {@link DurableQueues} consumer
@@ -30,5 +31,8 @@ public interface DurableQueueConsumer extends Lifecycle {
 
     String consumerName();
 
+
     void cancel();
+
+    RedeliveryPolicy getRedeliveryPolicy();
 }
