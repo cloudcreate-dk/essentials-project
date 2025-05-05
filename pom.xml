@@ -85,7 +85,7 @@
         <netty-bom.version>4.2.0.Final</netty-bom.version>
         <junit-bom.version>5.12.2</junit-bom.version>
         <testcontainers-bom.version>1.21.0</testcontainers-bom.version>
-        <jdbi3-bom.version>3.49.2</jdbi3-bom.version>
+        <jdbi3-bom.version>3.49.3</jdbi3-bom.version>
         <jackson-bom.version>2.19.0</jackson-bom.version>
         <mockito-bom.version>5.17.0</mockito-bom.version>
         <logback.version>1.5.18</logback.version>

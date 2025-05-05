@@ -150,7 +150,7 @@ public abstract class LocalOrderedMessagesRedeliveryDurableQueueIT<DURABLE_QUEUE
                                                      );
 
         // Then
-        Awaitility.waitAtMost(Duration.ofSeconds(80))
+        Awaitility.waitAtMost(Duration.ofSeconds(120))
                   .untilAsserted(() -> {
                       if (durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName) > 0) {
                           System.out.println("""

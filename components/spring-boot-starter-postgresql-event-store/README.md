@@ -108,7 +108,9 @@ then you need to check the component document to learn about the Security implic
 - `PostgresqlDurableQueues` using the `JSONSerializer` as JSON serializer
   - Supports additional properties:
   - ```
-    essentials.durable-queues.shared-queue-table-name=durable_queues
+    essentials.durable-queues.shared-queue-table-name=durable_queues 
+    essentials.durable-queues.use-centralized-message-fetcher=true (default)
+    essentials.durable-queues.centralized-message-fetcher-polling-interval=20ms (default)
     essentials.durable-queues.transactional-mode=fullytransactional or singleoperationtransaction (default)
     essentials.durable-queues.polling-delay-interval-increment-factor=0.5
     essentials.durable-queues.max-polling-interval=2s
