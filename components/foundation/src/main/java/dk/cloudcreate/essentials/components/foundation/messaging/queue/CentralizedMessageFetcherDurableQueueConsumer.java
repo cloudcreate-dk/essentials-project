@@ -151,4 +151,13 @@ public class CentralizedMessageFetcherDurableQueueConsumer implements DurableQue
     public RedeliveryPolicy getRedeliveryPolicy() {
         return redeliveryPolicy;
     }
+
+    @Override
+    public String toString() {
+        return "CentralizedMessageFetcherDurableQueueConsumer{" +
+                "queueName=" + queueName +
+                ", consumerName='" + consumerName + '\'' +
+                ", started=" + started +
+                '}';
+    }
 }
