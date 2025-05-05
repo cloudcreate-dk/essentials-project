@@ -34,13 +34,22 @@ import java.time.Duration;
 
 import static dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule.createObjectMapper;
 
+/**
+ * Base class for load testing PostgreSQL durable queues
+ */
 @Testcontainers
-class PostgresqlDurableQueuesLoadIT extends DurableQueuesLoadIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
+abstract class PostgresqlDurableQueuesLoadIT extends DurableQueuesLoadIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
     @Container
-    private final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
+    protected final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
             .withDatabaseName("queue-db")
             .withUsername("test-user")
             .withPassword("secret-password");
+    
+    /**
+     * Determine whether to use the centralized message fetcher
+     * @return true for centralized message fetcher, false for traditional consumer
+     */
+    protected abstract boolean useCentralizedMessageFetcher();
 
     @Override
     protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory) {
@@ -57,6 +66,7 @@ class PostgresqlDurableQueuesLoadIT extends DurableQueuesLoadIT<PostgresqlDurabl
                                                                                                   ),
                                                                                                   LocalEventBus.builder().build(),
                                                                                                   true))
+                                      .setUseCentralizedMessageFetcher(useCentralizedMessageFetcher())
                                       .build();
     }
 

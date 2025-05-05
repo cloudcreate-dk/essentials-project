@@ -42,6 +42,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
     protected DURABLE_QUEUES      durableQueues;
     protected ProxyJSONSerializer jsonSerializerProxy;
 
+
     @BeforeEach
     void setup() {
         unitOfWorkFactory = createUnitOfWorkFactory();
@@ -62,7 +63,15 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         }
     }
 
-    protected abstract DURABLE_QUEUES createDurableQueues(UOW_FACTORY unitOfWorkFactory, JSONSerializer jsonSerializer);
+    /**
+     * Create the durable queues implementation
+     * 
+     * @param unitOfWorkFactory the unit of work factory
+     * @param jsonSerializer the JSON serializer for message serialization
+     * @return configured durable queues implementation
+     */
+    protected abstract DURABLE_QUEUES createDurableQueues(UOW_FACTORY unitOfWorkFactory, 
+                                                         JSONSerializer jsonSerializer);
 
     protected abstract UOW_FACTORY createUnitOfWorkFactory();
 
@@ -232,7 +241,7 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         assertThat(messages.get(1)).usingRecursiveComparison().isEqualTo(message2);
         assertThat(messages.get(2)).usingRecursiveComparison().isEqualTo(message3);
 
-        // Event when the Queue is empty DurableQueues still return queues that have an active consumer
+        // Even when the Queue is empty DurableQueues still return queues that have an active consumer
         assertThat(durableQueues.getQueueNames()).isEqualTo(Set.of(queueName));
         consumer.cancel();
         assertThat(durableQueues.getQueueNames()).isEqualTo(Set.of());
@@ -659,7 +668,9 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
         var messages = new ArrayList<>(recordingQueueMessageHandler.messages);
         assertThat(messages.get(0)).usingRecursiveComparison().isEqualTo(message1);
 
-        assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0); // Dead letter messages is not counted
+        Awaitility.waitAtMost(Duration.ofSeconds(4))
+                .untilAsserted(() -> assertThat(durableQueues.getTotalMessagesQueuedFor(queueName)).isEqualTo(0));  // Dead letter messages is not counted
+
         var deadLetterMessage = withDurableQueue(() -> durableQueues.getDeadLetterMessage(message1Id));
         assertThat(deadLetterMessage).isPresent();
         assertThat(deadLetterMessage.get().getMessage()).usingRecursiveComparison().isEqualTo(message1);

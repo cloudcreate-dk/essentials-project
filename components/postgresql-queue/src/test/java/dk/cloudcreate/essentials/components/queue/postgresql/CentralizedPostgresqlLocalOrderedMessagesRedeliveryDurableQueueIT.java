@@ -14,25 +14,14 @@
  * limitations under the License.
  */
 
-package dk.cloudcreate.essentials.components.foundation.messaging.queue;
-
-import dk.cloudcreate.essentials.components.foundation.Lifecycle;
-import dk.cloudcreate.essentials.components.foundation.messaging.RedeliveryPolicy;
+package dk.cloudcreate.essentials.components.queue.postgresql;
 
 /**
- * {@link DurableQueues} consumer
- *
- * @see DefaultDurableQueueConsumer
- * @see DurableQueueConsumerNotifications
- * @see QueuePollingOptimizer
+ * Integration tests for local ordered messages redelivery using the centralized message fetcher
  */
-public interface DurableQueueConsumer extends Lifecycle {
-    QueueName queueName();
-
-    String consumerName();
-
-
-    void cancel();
-
-    RedeliveryPolicy getRedeliveryPolicy();
+class CentralizedPostgresqlLocalOrderedMessagesRedeliveryDurableQueueIT extends PostgresqlLocalOrderedMessagesRedeliveryDurableQueueIT {
+    @Override
+    protected boolean useCentralizedMessageFetcher() {
+        return true; 
+    }
 }

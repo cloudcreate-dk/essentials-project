@@ -40,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class LocalOrderedMessagesRedeliveryDurableQueueIT<DURABLE_QUEUES extends DurableQueues, UOW extends UnitOfWork, UOW_FACTORY extends UnitOfWorkFactory<UOW>> {
     public static final int            NUMBER_OF_MESSAGES = 2000;
     public static final int            PARALLEL_CONSUMERS = 20;
+    public static final int MAXIMUM_NUMBER_OF_REDELIVERIES = 5;
     private             UOW_FACTORY    unitOfWorkFactory;
     private             DURABLE_QUEUES durableQueues;
 
@@ -138,7 +139,7 @@ public abstract class LocalOrderedMessagesRedeliveryDurableQueueIT<DURABLE_QUEUE
         var stopWatch = StopWatch.start(msg("Consuming {} messages using {} parallel consumers", numberOfMessages, PARALLEL_CONSUMERS));
         var consumer = durableQueues.consumeFromQueue(ConsumeFromQueue.builder()
                                                                       .setQueueName(queueName)
-                                                                      .setRedeliveryPolicy(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(1), 5))
+                                                                      .setRedeliveryPolicy(RedeliveryPolicy.fixedBackoff(Duration.ofMillis(1), MAXIMUM_NUMBER_OF_REDELIVERIES))
                                                                       .setQueueMessageHandler(recordingQueueMessageHandler)
                                                                       .setParallelConsumers(PARALLEL_CONSUMERS)    // Required for polling DurableQueues implementations
                                                                       .setConsumerExecutorService(Executors.newScheduledThreadPool(PARALLEL_CONSUMERS, ThreadFactoryBuilder.builder()
@@ -150,7 +151,19 @@ public abstract class LocalOrderedMessagesRedeliveryDurableQueueIT<DURABLE_QUEUE
 
         // Then
         Awaitility.waitAtMost(Duration.ofSeconds(80))
-                  .untilAsserted(() -> assertThat(recordingQueueMessageHandler.messages.size()).isEqualTo(NUMBER_OF_MESSAGES));
+                  .untilAsserted(() -> {
+                      if (durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName) > 0) {
+                          System.out.println("""
+                                             ************************** !!!!!!!!!!! *****************************
+                                             There are %d dead letter message(s) queued for '%s'
+                                             Dead-letter-message(s): %s
+                                             ************************** !!!!!!!!!!! *****************************
+                                             """.formatted(durableQueues.getTotalDeadLetterMessagesQueuedFor(queueName),
+                                                           queueName,
+                                                           durableQueues.getDeadLetterMessages(queueName, DurableQueues.QueueingSortOrder.ASC, 0, 100)));
+                      }
+                      assertThat(recordingQueueMessageHandler.messages.size()).isEqualTo(NUMBER_OF_MESSAGES);
+                  });
         var timing = stopWatch.stop();
         timings.add(timing);
         System.out.println(timing);
@@ -202,7 +215,7 @@ public abstract class LocalOrderedMessagesRedeliveryDurableQueueIT<DURABLE_QUEUE
         @Override
         public void handle(QueuedMessage message) {
             var count          = counter.incrementAndGet();
-            if (count % 5 == 0) {
+            if (message.getTotalDeliveryAttempts() < count && message.getRedeliveryAttempts() < MAXIMUM_NUMBER_OF_REDELIVERIES) {
                 throw new RuntimeException("Thrown on purpose");
             }
             var orderedMessage = (OrderedMessage) message.getMessage();

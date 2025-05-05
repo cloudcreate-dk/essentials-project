@@ -33,13 +33,22 @@ import java.util.UUID;
 import static dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues.createDefaultObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Base class for single operation transaction tests
+ */
 @Testcontainers
-class SingleOperationTransactionPostgresqlDurableQueuesIT extends DurableQueuesIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWorkFactory.GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
+abstract class SingleOperationTransactionPostgresqlDurableQueuesIT extends DurableQueuesIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWorkFactory.GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
     @Container
-    private final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
+    protected final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
             .withDatabaseName("queue-db")
             .withUsername("test-user")
             .withPassword("secret-password");
+
+    /**
+     * Determine whether to use the centralized message fetcher
+     * @return true for centralized message fetcher, false for traditional consumer
+     */
+    protected abstract boolean useCentralizedMessageFetcher();
 
     @Override
     protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory,
@@ -49,6 +58,7 @@ class SingleOperationTransactionPostgresqlDurableQueuesIT extends DurableQueuesI
                                       .setTransactionalMode(TransactionalMode.SingleOperationTransaction)
                                       .setMessageHandlingTimeout(Duration.ofSeconds(5))
                                       .setJsonSerializer(jsonSerializer)
+                                      .setUseCentralizedMessageFetcher(useCentralizedMessageFetcher())
                                       .build();
     }
 

@@ -26,13 +26,22 @@ import org.testcontainers.junit.jupiter.*;
 
 import static dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues.createDefaultObjectMapper;
 
+/**
+ * Base test class for PostgresqlDurableQueues integration tests
+ */
 @Testcontainers
-class PostgresqlDurableQueuesIT extends DurableQueuesIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
+abstract class PostgresqlDurableQueuesIT extends DurableQueuesIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
     @Container
-    private final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
+    protected final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
             .withDatabaseName("queue-db")
             .withUsername("test-user")
             .withPassword("secret-password");
+
+    /**
+     * Determine whether to use the centralized message fetcher
+     * @return true for centralized message fetcher, false for traditional consumer
+     */
+    protected abstract boolean useCentralizedMessageFetcher();
 
     @Override
     protected JSONSerializer createJSONSerializer() {
@@ -45,6 +54,7 @@ class PostgresqlDurableQueuesIT extends DurableQueuesIT<PostgresqlDurableQueues,
         return PostgresqlDurableQueues.builder()
                                       .setUnitOfWorkFactory(unitOfWorkFactory)
                                       .setJsonSerializer(jsonSerializer)
+                                      .setUseCentralizedMessageFetcher(useCentralizedMessageFetcher())
                                       .build();
     }
 

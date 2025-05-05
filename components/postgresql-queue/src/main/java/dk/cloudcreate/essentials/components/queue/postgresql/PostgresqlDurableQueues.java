@@ -36,11 +36,9 @@ import dk.cloudcreate.essentials.shared.Exceptions;
 import dk.cloudcreate.essentials.shared.collections.Lists;
 import dk.cloudcreate.essentials.shared.interceptor.InterceptorChain;
 import org.jdbi.v3.core.Handle;
-import org.jdbi.v3.core.mapper.RowMapper;
-import org.jdbi.v3.core.statement.StatementContext;
 import org.slf4j.*;
 
-import java.sql.*;
+import java.sql.Types;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -58,6 +56,8 @@ import static dk.cloudcreate.essentials.shared.interceptor.InterceptorChain.newI
  * Postgresql version of the {@link DurableQueues} concept.<br>
  * Works together with {@link UnitOfWorkFactory} in order to support queuing message together with business logic (such as failing to handle an Event, etc.)<br>
  * <br>
+ * Per default this implementation uses the centralized message fetcher, {@link CentralizedMessageFetcher}, to optimize database operations
+ * and supports batch fetching of messages across multiple queues.<br>
  * <u>Security</u><br>
  * {@link DurableQueues} allows the user of the component to override the {@link #getSharedQueueTableName()}, which is the name of the table that will contain all messages (across all {@link QueueName}'s)<br>
  * <strong>Note:</strong><br>
@@ -81,29 +81,36 @@ import static dk.cloudcreate.essentials.shared.interceptor.InterceptorChain.newI
  * It is highly recommended that the {@code sharedQueueTableName} value is only derived from a controlled and trusted source.<br>
  * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the {@code sharedQueueTableName} value.<br>
  */
-public final class PostgresqlDurableQueues implements DurableQueues {
+public final class PostgresqlDurableQueues implements BatchMessageFetchingCapableDurableQueues {
     private static final Logger log                               = LoggerFactory.getLogger(PostgresqlDurableQueues.class);
     public static final  String DEFAULT_DURABLE_QUEUES_TABLE_NAME = "durable_queues";
     private static final Object NO_PAYLOAD                        = new Object();
 
-    private final HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory;
-    private final JSONSerializer                                                jsonSerializer;
-    private final String                                                        sharedQueueTableName;
-    private final ConcurrentMap<QueueName, PostgresqlDurableQueueConsumer>      durableQueueConsumers                 = new ConcurrentHashMap<>();
-    private final QueuedMessageRowMapper                                        queuedMessageMapper;
-    private final List<DurableQueuesInterceptor>                                interceptors                          = new CopyOnWriteArrayList<>();
-    private final Optional<MultiTableChangeListener<TableChangeNotification>>   multiTableChangeListener;
-    private final Function<ConsumeFromQueue, QueuePollingOptimizer>             queuePollingOptimizerFactory;
-    private final TransactionalMode                                             transactionalMode;
+    private final HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork>           unitOfWorkFactory;
+    private final JSONSerializer                                                          jsonSerializer;
+    private final String                                                                  sharedQueueTableName;
+    private final ConcurrentMap<QueueName, CentralizedMessageFetcherDurableQueueConsumer> durableQueueConsumers                 = new ConcurrentHashMap<>();
+    private final ConcurrentMap<QueueName, PostgresqlDurableQueueConsumer>                traditionalDurableQueueConsumers      = new ConcurrentHashMap<>();
+    private final QueuedMessageRowMapper                                                  queuedMessageMapper;
+    private final List<DurableQueuesInterceptor>                                          interceptors                          = new CopyOnWriteArrayList<>();
+    private final Optional<MultiTableChangeListener<TableChangeNotification>>             multiTableChangeListener;
+    private final Function<ConsumeFromQueue, QueuePollingOptimizer>                       queuePollingOptimizerFactory;
+    private final TransactionalMode                                                       transactionalMode;
+    private       CentralizedMessageFetcher                                               centralizedMessageFetcher;
+    /**
+     * Flag indicating whether to use the {@link CentralizedMessageFetcher} or the legacy
+     * {@link DefaultDurableQueueConsumer} approach for handling messages
+     */
+    private final boolean                                                                 useCentralizedMessageFetcher;
     /**
      * Only used if {@link #transactionalMode} has value {@link TransactionalMode#SingleOperationTransaction}
      */
-    private       int                                                           messageHandlingTimeoutMs;
+    private       int                                                                     messageHandlingTimeoutMs;
     /**
      * Contains the timestamp of the last performed {@link #resetMessagesStuckBeingDelivered(QueueName)} check<br>
      * Only used if {@link #transactionalMode} has value {@link TransactionalMode#SingleOperationTransaction}
      */
-    protected     ConcurrentMap<QueueName, Instant>                             lastResetStuckMessagesCheckTimestamps = new ConcurrentHashMap<>();
+    protected     ConcurrentMap<QueueName, Instant>                                       lastResetStuckMessagesCheckTimestamps = new ConcurrentHashMap<>();
 
 
     private volatile boolean started;
@@ -114,7 +121,8 @@ public final class PostgresqlDurableQueues implements DurableQueues {
 
     /**
      * Create {@link DurableQueues} with sharedQueueTableName: {@value DEFAULT_DURABLE_QUEUES_TABLE_NAME} and the default {@link JacksonJSONSerializer} using {@link #createDefaultObjectMapper()}
-     * configuration
+     * configuration<br>
+     * Uses the centralized message fetcher with a 20ms polling interval
      *
      * @param unitOfWorkFactory the {@link UnitOfWorkFactory} needed to access the database
      */
@@ -128,7 +136,8 @@ public final class PostgresqlDurableQueues implements DurableQueues {
 
     /**
      * Create {@link DurableQueues} with sharedQueueTableName: {@value DEFAULT_DURABLE_QUEUES_TABLE_NAME} and the default {@link JacksonJSONSerializer} using {@link #createDefaultObjectMapper()}
-     * configuration
+     * configuration<br>
+     * Uses the centralized message fetcher with a 20ms polling interval
      *
      * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
      * @param queuePollingOptimizerFactory optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
@@ -144,7 +153,8 @@ public final class PostgresqlDurableQueues implements DurableQueues {
     }
 
     /**
-     * Create {@link DurableQueues} with custom jsonSerializer with sharedQueueTableName: {@value DEFAULT_DURABLE_QUEUES_TABLE_NAME}
+     * Create {@link DurableQueues} with custom jsonSerializer with sharedQueueTableName: {@value DEFAULT_DURABLE_QUEUES_TABLE_NAME}<br>
+     * Uses the centralized message fetcher with a 20ms polling interval
      *
      * @param unitOfWorkFactory the {@link UnitOfWorkFactory} needed to access the database
      * @param jsonSerializer    the {@link JSONSerializer} that is used to serialize/deserialize message payloads
@@ -159,7 +169,8 @@ public final class PostgresqlDurableQueues implements DurableQueues {
     }
 
     /**
-     * Create {@link DurableQueues} with custom jsonSerializer with sharedQueueTableName: {@value DEFAULT_DURABLE_QUEUES_TABLE_NAME}
+     * Create {@link DurableQueues} with custom jsonSerializer with sharedQueueTableName: {@value DEFAULT_DURABLE_QUEUES_TABLE_NAME}<br>
+     * Uses the centralized message fetcher with a 20ms polling interval
      *
      * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
      * @param jsonSerializer               the {@link JSONSerializer} that is used to serialize/deserialize message payloads
@@ -177,7 +188,8 @@ public final class PostgresqlDurableQueues implements DurableQueues {
     }
 
     /**
-     * Create {@link DurableQueues} with custom jsonSerializer and sharedQueueTableName
+     * Create {@link DurableQueues} with custom jsonSerializer and sharedQueueTableName<br>
+     * Uses the centralized message fetcher with a 20ms polling interval
      *
      * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
      * @param jsonSerializer               the {@link JSONSerializer} that is used to serialize/deserialize message payloads
@@ -218,7 +230,8 @@ public final class PostgresqlDurableQueues implements DurableQueues {
     }
 
     /**
-     * Create {@link DurableQueues} with custom jsonSerializer and sharedQueueTableName
+     * Create {@link DurableQueues} with custom jsonSerializer and sharedQueueTableName<br>
+     * Uses the centralized message fetcher with a 20ms polling interval
      * <br>
      *
      * @param unitOfWorkFactory            the {@link UnitOfWorkFactory} needed to access the database
@@ -257,15 +270,83 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                    Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory,
                                    TransactionalMode transactionalMode,
                                    Duration messageHandlingTimeout) {
+        this(unitOfWorkFactory,
+             jsonSerializer,
+             sharedQueueTableName,
+             multiTableChangeListener,
+             queuePollingOptimizerFactory,
+             transactionalMode,
+             messageHandlingTimeout,
+             true,  // Use centralized message fetcher by default
+             Duration.ofMillis(20)); // With a 20ms polling interval by default
+    }
+
+    /**
+     * Create {@link DurableQueues} with custom jsonSerializer and sharedQueueTableName
+     * <br>
+     *
+     * @param unitOfWorkFactory                        the {@link UnitOfWorkFactory} needed to access the database
+     * @param jsonSerializer                           the {@link JSONSerializer} that is used to serialize/deserialize message payloads
+     * @param sharedQueueTableName                     the name of the table that will contain all messages (across all {@link QueueName}'s)<br>
+     *                                                 <strong>Note:</strong><br>
+     *                                                 To support customization of storage table name, the {@code sharedQueueTableName} will be directly used in constructing SQL statements
+     *                                                 through string concatenation, which exposes the component to SQL injection attacks.<br>
+     *                                                 <br>
+     *                                                 <strong>Security Note:</strong><br>
+     *                                                 <b>It is the responsibility of the user of this component to sanitize the {@code sharedQueueTableName}
+     *                                                 to ensure the security of all the SQL statements generated by this component.</b><br>
+     *                                                 The {@link PostgresqlDurableQueues} component will
+     *                                                 call the {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} method to validate the table name as a first line of defense.<br>
+     *                                                 The {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} provides an initial layer of defense against SQL injection by applying naming conventions intended to reduce the risk of malicious input.<br>
+     *                                                 However, Essentials components as well as {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting SQL against SQL injection threats.<br>
+     *                                                 <b>The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes</b>.<br>
+     *                                                 Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.<br>
+     *                                                 Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.<br>
+     *                                                 <br>
+     *                                                 It is highly recommended that the {@code sharedQueueTableName} value is only derived from a controlled and trusted source.<br>
+     *                                                 To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the {@code sharedQueueTableName} value.<br>
+     * @param multiTableChangeListener                 optional {@link MultiTableChangeListener} that allows {@link PostgresqlDurableQueues} to use {@link QueuePollingOptimizer}
+     * @param queuePollingOptimizerFactory             optional {@link QueuePollingOptimizer} factory that creates a {@link QueuePollingOptimizer} per {@link ConsumeFromQueue} command -
+     *                                                 if set to null {@link #createQueuePollingOptimizerFor(ConsumeFromQueue)} is used instead - not required when using the Centralized message fetcher
+     * @param transactionalMode                        The {@link TransactionalMode} for this {@link DurableQueues} instance. If set to {@link TransactionalMode#SingleOperationTransaction}
+     *                                                 then the consumer MUST call the {@link DurableQueues#acknowledgeMessageAsHandled(AcknowledgeMessageAsHandled)} explicitly in a new {@link UnitOfWork}
+     * @param messageHandlingTimeout                   Only required if <code>transactionalMode</code> is {@link TransactionalMode#SingleOperationTransaction}.<br>
+     *                                                 The parameter defines the timeout for messages being delivered, but haven't yet been acknowledged.
+     *                                                 After this timeout the message delivery will be reset and the message will again be a candidate for delivery
+     * @param useCentralizedMessageFetcher             Whether to use the {@link CentralizedMessageFetcher} (true) or fallback to the traditional {@link DefaultDurableQueueConsumer} (false).
+     *                                                 The centralized fetcher optimizes message fetching across multiple queues.
+     * @param centralizedMessageFetcherPollingInterval Set the polling interval for the {@link CentralizedMessageFetcher}.
+     *                                                 This value determines how frequently the fetcher checks for new messages when none are immediately available.
+     */
+    public PostgresqlDurableQueues(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
+                                   JSONSerializer jsonSerializer,
+                                   String sharedQueueTableName,
+                                   MultiTableChangeListener<TableChangeNotification> multiTableChangeListener,
+                                   Function<ConsumeFromQueue, QueuePollingOptimizer> queuePollingOptimizerFactory,
+                                   TransactionalMode transactionalMode,
+                                   Duration messageHandlingTimeout,
+                                   boolean useCentralizedMessageFetcher,
+                                   Duration centralizedMessageFetcherPollingInterval) {
         this.unitOfWorkFactory = requireNonNull(unitOfWorkFactory, "No unitOfWorkFactory instance provided");
         this.jsonSerializer = requireNonNull(jsonSerializer, "No jsonSerializer");
         this.sharedQueueTableName = requireNonNull(sharedQueueTableName, "No sharedQueueTableName provided").toLowerCase(Locale.ROOT);
         PostgresqlUtil.checkIsValidTableOrColumnName(sharedQueueTableName);
+        this.useCentralizedMessageFetcher = useCentralizedMessageFetcher;
 
-        this.queuedMessageMapper = new QueuedMessageRowMapper();
+        // Create the message row mapper for mapping SQL results to QueuedMessage objects
+        this.queuedMessageMapper = new QueuedMessageRowMapper(this::deserializeMessagePayload, this::deserializeMessageMetadata);
+
         this.multiTableChangeListener = Optional.ofNullable(multiTableChangeListener);
         this.queuePollingOptimizerFactory = queuePollingOptimizerFactory != null ? queuePollingOptimizerFactory : this::createQueuePollingOptimizerFor;
         this.transactionalMode = requireNonNull(transactionalMode, "No transactionalMode instance provided");
+
+        // Initialize the centralized message fetcher
+        if (useCentralizedMessageFetcher) {
+            this.centralizedMessageFetcher = new CentralizedMessageFetcher(this,
+                                                                           requireNonNull(centralizedMessageFetcherPollingInterval, "No centralizedMessageFetcherPollingInterval provided").toMillis(),
+                                                                           interceptors);
+        }
+
         if (transactionalMode == TransactionalMode.SingleOperationTransaction) {
             messageHandlingTimeoutMs = (int) requireNonNull(messageHandlingTimeout, "No messageHandlingTimeout provided").toMillis();
             addInterceptor(new SingleOperationTransactionDurableQueuesInterceptor(unitOfWorkFactory));
@@ -375,7 +456,18 @@ public final class PostgresqlDurableQueues implements DurableQueues {
             PostgresqlUtil.checkIsValidTableOrColumnName(sharedQueueTableName);
             interceptors.forEach(durableQueuesInterceptor -> durableQueuesInterceptor.setDurableQueues(this));
             sortInterceptorsByOrder(interceptors);
-            durableQueueConsumers.values().forEach(PostgresqlDurableQueueConsumer::start);
+
+            if (useCentralizedMessageFetcher) {
+                // Start the centralized message fetcher first
+                centralizedMessageFetcher.start();
+
+                // Then start all centralized consumers
+                durableQueueConsumers.values().forEach(CentralizedMessageFetcherDurableQueueConsumer::start);
+            } else {
+                // Start all traditional consumers
+                traditionalDurableQueueConsumers.values().forEach(PostgresqlDurableQueueConsumer::start);
+            }
+
             multiTableChangeListener.ifPresent(listener -> {
                 listener.listenToNotificationsFor(sharedQueueTableName,
                                                   QueueTableNotification.class);
@@ -388,26 +480,42 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                       e.getClass().getSimpleName(),
                                       e.id);
                             var queueName = QueueName.of(e.queueName);
-                            durableQueueConsumers.values()
-                                                 .stream()
-                                                 .filter(durableQueueConsumer -> durableQueueConsumer.queueName.equals(queueName))
-                                                 .forEach(durableQueueConsumer -> {
-                                                     durableQueueConsumer.messageAdded(new DefaultQueuedMessage(QueueEntryId.of(String.valueOf(e.id)),
-                                                                                                                queueName,
-                                                                                                                Message.of(NO_PAYLOAD),
-                                                                                                                e.addedTimestamp,
-                                                                                                                e.nextDeliveryTimestamp,
-                                                                                                                e.deliveryTimestamp,
-                                                                                                                null,
-                                                                                                                -1,
-                                                                                                                -1,
-                                                                                                                e.isDeadLetterMessage,
-                                                                                                                e.isBeingDelivered));
-                                                 });
+
+                            if (useCentralizedMessageFetcher) {
+                                // For centralized consumers, simply log the notification
+                                durableQueueConsumers.values()
+                                                     .stream()
+                                                     .filter(durableQueueConsumer -> durableQueueConsumer.queueName().equals(queueName))
+                                                     .forEach(durableQueueConsumer -> {
+                                                         // Just notify that a message was added, no need to process it directly
+                                                         // The centralized fetcher will pick it up
+                                                         log.debug("[{}] New message notification received with QueueEntryId '{}'", queueName, e.id);
+                                                     });
+                            } else {
+                                // For traditional consumers, pass the notification to the consumer to optimize polling
+                                traditionalDurableQueueConsumers.values()
+                                                                .stream()
+                                                                .filter(durableQueueConsumer -> durableQueueConsumer.queueName().equals(queueName))
+                                                                .forEach(durableQueueConsumer -> {
+                                                                    // Create a stub QueuedMessage just for notification purposes
+                                                                    var queuedMessage = new DefaultQueuedMessage(QueueEntryId.of(String.valueOf(e.id)),
+                                                                                                                 queueName,
+                                                                                                                 Message.of(NO_PAYLOAD),
+                                                                                                                 e.addedTimestamp,
+                                                                                                                 e.nextDeliveryTimestamp,
+                                                                                                                 e.deliveryTimestamp,
+                                                                                                                 null,
+                                                                                                                 -1,
+                                                                                                                 -1,
+                                                                                                                 e.isDeadLetterMessage,
+                                                                                                                 e.isBeingDelivered);
+                                                                    // Use the notification interface to optimize polling
+                                                                    durableQueueConsumer.messageAdded(queuedMessage);
+                                                                });
+                            }
                         } catch (Exception ex) {
                             log.error("Error occurred while handling notification", ex);
                         }
-
                     }
                 });
             });
@@ -421,20 +529,49 @@ public final class PostgresqlDurableQueues implements DurableQueues {
         if (started) {
             log.info("Stopping");
             PostgresqlUtil.checkIsValidTableOrColumnName(sharedQueueTableName);
-            durableQueueConsumers.values().forEach(postgresqlDurableQueueConsumer -> {
+
+            if (useCentralizedMessageFetcher) {
+                // Stop all centralized consumer instances first
+                durableQueueConsumers.values().forEach(consumer -> {
+                    try {
+                        consumer.stop();
+                    } catch (Exception ex) {
+                        if (IOExceptionUtil.isIOException(ex)) {
+                            log.debug("Error occurred while stopping CentralizedMessageFetcherDurableQueueConsumer", ex);
+                        } else {
+                            log.error("Error occurred while stopping CentralizedMessageFetcherDurableQueueConsumer", ex);
+                        }
+                    }
+                });
+
+                // Stop the centralized message fetcher
                 try {
-                    postgresqlDurableQueueConsumer.stop();
+                    centralizedMessageFetcher.stop();
                 } catch (Exception ex) {
                     if (IOExceptionUtil.isIOException(ex)) {
-                        log.debug("Error occurred while stopping DurableQueueConsumer", ex);
+                        log.debug("Error occurred while stopping CentralizedMessageFetcher", ex);
                     } else {
-                        log.error("Error occurred while stopping DurableQueueConsumer", ex);
+                        log.error("Error occurred while stopping CentralizedMessageFetcher", ex);
                     }
                 }
-            });
+            } else {
+                // Stop all traditional consumer instances
+                traditionalDurableQueueConsumers.values().forEach(consumer -> {
+                    try {
+                        consumer.stop();
+                    } catch (Exception ex) {
+                        if (IOExceptionUtil.isIOException(ex)) {
+                            log.debug("Error occurred while stopping PostgresqlDurableQueueConsumer", ex);
+                        } else {
+                            log.error("Error occurred while stopping PostgresqlDurableQueueConsumer", ex);
+                        }
+                    }
+                });
+            }
+
             multiTableChangeListener.ifPresent(listener -> {
                 try {
-                listener.unlistenToNotificationsFor(sharedQueueTableName);
+                    listener.unlistenToNotificationsFor(sharedQueueTableName);
                 } catch (Exception ex) {
                     if (IOExceptionUtil.isIOException(ex)) {
                         log.debug("Error occurred while performing unlistenToNotificationsFor '{}'", sharedQueueTableName, ex);
@@ -465,7 +602,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
 
     @Override
     public final Set<QueueName> getQueueNames() {
-        var consumerQueueNames = durableQueueConsumers.keySet();
+        var consumerQueueNames = getActiveQueueNames();
         var dbQueueNames = unitOfWorkFactory.withUnitOfWork(handleAwareUnitOfWork -> handleAwareUnitOfWork.handle()
                                                                                                           .createQuery(bind("SELECT distinct queue_name FROM {:tableName}",
                                                                                                                             arg("tableName", sharedQueueTableName)))
@@ -477,43 +614,77 @@ public final class PostgresqlDurableQueues implements DurableQueues {
 
     @Override
     public Set<QueueName> getActiveQueueNames() {
-        return durableQueueConsumers.keySet();
+        // Combine queue names from both types of consumers
+        Set<QueueName> allActiveQueueNames = new HashSet<>();
+        allActiveQueueNames.addAll(durableQueueConsumers.keySet());
+        allActiveQueueNames.addAll(traditionalDurableQueueConsumers.keySet());
+        return allActiveQueueNames;
     }
 
     @Override
     public final DurableQueueConsumer consumeFromQueue(ConsumeFromQueue operation) {
         requireNonNull(operation, "No operation provided");
-        if (durableQueueConsumers.containsKey(operation.queueName)) {
-            throw new DurableQueueException("There is already an DurableConsumer for this queue", operation.queueName);
+
+        // Check if we already have a consumer for this queue
+        if (durableQueueConsumers.containsKey(operation.queueName) ||
+                traditionalDurableQueueConsumers.containsKey(operation.queueName)) {
+            throw new DurableQueueException("There is already a DurableConsumer for this queue", operation.queueName);
         }
+
         operation.validate();
-        return durableQueueConsumers.computeIfAbsent(operation.queueName, _queueName -> {
-            PostgresqlDurableQueueConsumer consumer = (PostgresqlDurableQueueConsumer) newInterceptorChainForOperation(operation,
-                                                                                                                       interceptors,
-                                                                                                                       (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
-                                                                                                                       () -> {
-                                                                                                                           var pollingIntervalMs = operation.getPollingInterval().toMillis();
-                                                                                                                           var queuePollingOptimizer = multiTableChangeListener.map(_ignore -> queuePollingOptimizerFactory.apply(operation))
-                                                                                                                                                                               .orElseGet(QueuePollingOptimizer::None);
-                                                                                                                           return (DurableQueueConsumer) new PostgresqlDurableQueueConsumer(operation,
-                                                                                                                                                                                            unitOfWorkFactory,
-                                                                                                                                                                                            this,
-                                                                                                                                                                                            this::removeQueueConsumer,
-                                                                                                                                                                                            pollingIntervalMs,
-                                                                                                                                                                                            queuePollingOptimizer,
-                                                                                                                                                                                            interceptors);
-                                                                                                                       }).proceed();
-            if (started) {
-                consumer.start();
-            }
-            log.info("[{}] {} - {} {}",
-                     operation.queueName,
-                     operation.consumerName,
-                     started ? "Started" : "Created",
-                     consumer.getClass().getSimpleName()
-                    );
-            return consumer;
-        });
+
+        if (useCentralizedMessageFetcher) {
+            // Create and register a CentralizedMessageFetcherDurableQueueConsumer
+            return durableQueueConsumers.computeIfAbsent(operation.queueName, _queueName -> {
+                var consumer = (CentralizedMessageFetcherDurableQueueConsumer) newInterceptorChainForOperation(operation,
+                                                                                                               interceptors,
+                                                                                                               (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
+                                                                                                               () -> (DurableQueueConsumer) new CentralizedMessageFetcherDurableQueueConsumer(
+                                                                                                                       operation,
+                                                                                                                       this,
+                                                                                                                       this::removeQueueConsumer,
+                                                                                                                       centralizedMessageFetcher)).proceed();
+                if (started) {
+                    consumer.start();
+                }
+                log.info("[{}] {} - {} {}",
+                         operation.queueName,
+                         operation.consumerName,
+                         started ? "Started" : "Created",
+                         consumer.getClass().getSimpleName()
+                        );
+                return consumer;
+            });
+        } else {
+            // Create and register a traditional PostgresqlDurableQueueConsumer
+            return traditionalDurableQueueConsumers.computeIfAbsent(operation.queueName, _queueName -> {
+                var pollingIntervalMs = operation.getPollingInterval().toMillis();
+                var queuePollingOptimizer = multiTableChangeListener.map(_ignore -> queuePollingOptimizerFactory.apply(operation))
+                                                                    .orElseGet(QueuePollingOptimizer::None);
+
+                var consumer = (PostgresqlDurableQueueConsumer) newInterceptorChainForOperation(operation,
+                                                                                                interceptors,
+                                                                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
+                                                                                                () -> (DurableQueueConsumer) new PostgresqlDurableQueueConsumer(
+                                                                                                        operation,
+                                                                                                        unitOfWorkFactory,
+                                                                                                        this,
+                                                                                                        this::removeQueueConsumer,
+                                                                                                        pollingIntervalMs,
+                                                                                                        queuePollingOptimizer,
+                                                                                                        interceptors)).proceed();
+                if (started) {
+                    consumer.start();
+                }
+                log.info("[{}] {} - {} {}",
+                         operation.queueName,
+                         operation.consumerName,
+                         started ? "Started" : "Created",
+                         consumer.getClass().getSimpleName()
+                        );
+                return consumer;
+            });
+        }
     }
 
     /**
@@ -538,7 +709,20 @@ public final class PostgresqlDurableQueues implements DurableQueues {
             newInterceptorChainForOperation(operation,
                                             interceptors,
                                             (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
-                                            () -> (DurableQueueConsumer) durableQueueConsumers.remove(durableQueueConsumer.queueName()))
+                                            () -> {
+                                                var queueName = durableQueueConsumer.queueName();
+
+                                                if (durableQueueConsumer instanceof CentralizedMessageFetcherDurableQueueConsumer) {
+                                                    // Unregister from the centralized message fetcher
+                                                    centralizedMessageFetcher.unregisterConsumer(queueName);
+
+                                                    // Remove from the centralized consumers map
+                                                    return (DurableQueueConsumer) durableQueueConsumers.remove(queueName);
+                                                } else {
+                                                    // This is a traditional consumer, remove from that map
+                                                    return (DurableQueueConsumer) traditionalDurableQueueConsumers.remove(queueName);
+                                                }
+                                            })
                     .proceed();
         } catch (Exception e) {
             log.error(msg("Failed to perform {}", operation), e);
@@ -953,6 +1137,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
     public final Optional<QueuedMessage> getNextMessageReadyForDelivery(GetNextMessageReadyForDelivery operation) {
         requireNonNull(operation, "You must specify a GetNextMessageReadyForDelivery instance");
         log.trace("[{}] Entered GetNextMessageReadyForDelivery", operation.queueName);
+
         return newInterceptorChainForOperation(operation,
                                                interceptors,
                                                (interceptor, interceptorChain) -> interceptor.intercept(operation, interceptorChain),
@@ -965,6 +1150,8 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                    if (!excludedKeys.isEmpty()) {
                                                        excludeKeysLimitSql = "        AND key NOT IN (<excludedKeys>)\n";
                                                    }
+
+
                                                    var sql = bind("""
                                                                   WITH queued_message_ready_for_delivery AS (
                                                                       SELECT id FROM {:tableName} q1
@@ -975,17 +1162,18 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                                           next_delivery_ts <= :now AND
                                                                           NOT EXISTS (SELECT 1 FROM {:tableName} q2 WHERE q2.key = q1.key AND q2.queue_name = q1.queue_name AND q2.key_order < q1.key_order)
                                                                               {:excludeKeys}
-                                                                              ORDER BY key_order ASC, next_delivery_ts ASC
-                                                                              LIMIT 1
-                                                                              FOR UPDATE SKIP LOCKED
-                                                                          )
+                                                                      ORDER BY key_order ASC, next_delivery_ts ASC
+                                                                      LIMIT 1
+                                                                      FOR UPDATE SKIP LOCKED
+                                                                  )
                                                                           UPDATE {:tableName} queued_message SET
-                                                                              total_attempts = total_attempts + 1,
+                                                                              total_attempts = queued_message.total_attempts + 1,
                                                                               next_delivery_ts = NULL,
                                                                               is_being_delivered = TRUE,
                                                                               delivery_ts = :now
                                                                           FROM queued_message_ready_for_delivery
                                                                           WHERE queued_message.id = queued_message_ready_for_delivery.id
+                                                                          AND queued_message.queue_name = :queueName
                                                                           RETURNING
                                                                               queued_message.id,
                                                                               queued_message.queue_name,
@@ -1027,6 +1215,7 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                                                    log.trace("[{}] Completed GetNextMessageReadyForDelivery: {}", operation.queueName, operation);
                                                    return result;
                                                }).proceed();
+
     }
 
     /**
@@ -1082,15 +1271,15 @@ public final class PostgresqlDurableQueues implements DurableQueues {
         requireNonNull(queueName, "No queueName provided");
         requireNonNull(key, "No key provided");
         return unitOfWorkFactory.withUnitOfWork(handleAwareUnitOfWork -> handleAwareUnitOfWork.handle().createQuery(bind("SELECT count(*) FROM {:tableName} \n" +
-                                                                                                                           " WHERE \n" +
-                                                                                                                           "    queue_name = :queueName AND\n" +
-                                                                                                                           "    key = :key AND\n" +
-                                                                                                                           "    delivery_mode = 'IN_ORDER'",
-                                                                                                                   arg("tableName", sharedQueueTableName)))
-                                                                                .bind("queueName", queueName)
-                                                                                .bind("key", key)
-                                                                                .mapTo(Long.class)
-                                                                                .one()) > 0;
+                                                                                                                                 " WHERE \n" +
+                                                                                                                                 "    queue_name = :queueName AND\n" +
+                                                                                                                                 "    key = :key AND\n" +
+                                                                                                                                 "    delivery_mode = 'IN_ORDER'",
+                                                                                                                         arg("tableName", sharedQueueTableName)))
+                                                                                              .bind("queueName", queueName)
+                                                                                              .bind("key", key)
+                                                                                              .mapTo(Long.class)
+                                                                                              .one()) > 0;
     }
 
     @Override
@@ -1282,6 +1471,190 @@ public final class PostgresqlDurableQueues implements DurableQueues {
                 .proceed();
     }
 
+    /**
+     * Implementation of the batch message fetching capability to optimize database queries
+     * by fetching messages across multiple queues in a single operation.
+     *
+     * @param queueNames                   the queue names to fetch messages for
+     * @param excludeKeysPerQueue          map of queue name to set of keys to exclude (for ordered messages)
+     * @param availableWorkerSlotsPerQueue map of queue name to number of available worker slots
+     * @return list of queued messages ready for delivery
+     */
+    @Override
+    public List<QueuedMessage> fetchNextBatchOfMessages(Collection<QueueName> queueNames,
+                                                        Map<QueueName, Set<String>> excludeKeysPerQueue,
+                                                        Map<QueueName, Integer> availableWorkerSlotsPerQueue) {
+        log.trace("Fetching batch of messages for queues: {}", queueNames);
+        if (queueNames.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        try {
+            return unitOfWorkFactory.withUnitOfWork(handleAwareUnitOfWork -> {
+                resetMessagesStuckBeingDeliveredAcrossMultipleQueues(queueNames);
+
+                var now         = Instant.now();
+                var allMessages = new ArrayList<QueuedMessage>();
+
+                // Build separate queries for each queue - using the same pattern as getNextMessageReadyForDelivery
+                for (var queueName : queueNames) {
+                    if (!availableWorkerSlotsPerQueue.containsKey(queueName) ||
+                            availableWorkerSlotsPerQueue.get(queueName) <= 0) {
+                        log.trace("[{}] Skipping queue as it has no available worker slots", queueName);
+                        continue;
+                    }
+
+                    var limit        = availableWorkerSlotsPerQueue.get(queueName);
+                    var excludedKeys = excludeKeysPerQueue.getOrDefault(queueName, Collections.emptySet());
+
+                    var excludeKeysLimitSql = "";
+                    if (!excludedKeys.isEmpty()) {
+                        excludeKeysLimitSql = "        AND key NOT IN (<excludedKeys>)\n";
+                    }
+
+                    var sql = bind("""
+                                   WITH queued_message_ready_for_delivery AS (
+                                       SELECT id FROM {:tableName} q1
+                                       WHERE
+                                           queue_name = :queueName AND
+                                           is_dead_letter_message = FALSE AND
+                                           is_being_delivered = FALSE AND
+                                           next_delivery_ts <= :now AND
+                                           NOT EXISTS (SELECT 1 FROM {:tableName} q2 WHERE q2.key = q1.key AND q2.queue_name = q1.queue_name AND q2.key_order < q1.key_order)
+                                               {:excludeKeys}
+                                       ORDER BY key_order ASC, next_delivery_ts ASC
+                                       LIMIT :limit
+                                       FOR UPDATE SKIP LOCKED
+                                   )
+                                   UPDATE {:tableName} queued_message SET
+                                       total_attempts = queued_message.total_attempts + 1,
+                                       next_delivery_ts = NULL,
+                                       is_being_delivered = TRUE,
+                                       delivery_ts = :now
+                                   FROM queued_message_ready_for_delivery
+                                   WHERE queued_message.id = queued_message_ready_for_delivery.id
+                                   AND queued_message.queue_name = :queueName
+                                   RETURNING
+                                       queued_message.id,
+                                       queued_message.queue_name,
+                                       queued_message.message_payload,
+                                       queued_message.message_payload_type,
+                                       queued_message.added_ts,
+                                       queued_message.next_delivery_ts,
+                                       queued_message.delivery_ts,
+                                       queued_message.last_delivery_error,
+                                       queued_message.total_attempts,
+                                       queued_message.redelivery_attempts,
+                                       queued_message.is_dead_letter_message,
+                                       queued_message.is_being_delivered,
+                                       queued_message.meta_data,
+                                       queued_message.delivery_mode,
+                                       queued_message.key,
+                                       queued_message.key_order
+                                   """,
+                                   arg("tableName", sharedQueueTableName),
+                                   arg("excludeKeys", excludeKeysLimitSql));
+
+                    // Create and execute the query
+                    var query = handleAwareUnitOfWork.handle().createQuery(sql)
+                                                     .bind("queueName", queueName)
+                                                     .bind("now", now)
+                                                     .bind("limit", limit);
+
+                    if (!excludedKeys.isEmpty()) {
+                        query.bindList("excludedKeys", new ArrayList<>(excludedKeys));
+                    }
+
+                    try {
+                        // Fetch messages for this queue and add to results
+                        var messagesForQueue = query.map(queuedMessageMapper).list();
+                        log.debug("[{}] Batch fetched {} messages with {} slots available",
+                                  queueName,
+                                  messagesForQueue.size(),
+                                  limit);
+
+                        allMessages.addAll(messagesForQueue);
+                    } catch (DurableQueueDeserializationException e) {
+                        log.error("[{}] Marking Message as DeadLetterMessage due to DurableQueueDeserializationException while deserializing message with id '{}'", queueName, e.queueEntryId.get(), e);
+                        markAsDeadLetterMessage(e.queueEntryId.get(), e);
+                    }
+                }
+
+                log.debug("Batch fetched {} messages for {} queues: {}",
+                          allMessages.size(),
+                          queueNames.size(),
+                          queueNames);
+
+                return allMessages;
+            });
+        } catch (Exception e) {
+            log.error("Error in fetchNextBatchOfMessages: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Reset stuck messages that are marked as being delivered but haven't been acknowledged
+     * across multiple queues at once
+     *
+     * @param queueNames the queue names to check for stuck messages
+     */
+    private void resetMessagesStuckBeingDeliveredAcrossMultipleQueues(Collection<QueueName> queueNames) {
+        requireNonNull(queueNames, "No queueNames provided");
+        if (transactionalMode != TransactionalMode.SingleOperationTransaction || queueNames.isEmpty()) {
+            return;
+        }
+
+        log.trace("resetMultipleQueuesStuckBeingDelivered called for queues: {}", queueNames);
+        var now = Instant.now();
+        var queuesToReset = queueNames.stream()
+                                      .filter(queueName -> {
+                                          var lastReset = lastResetStuckMessagesCheckTimestamps.get(queueName);
+                                          return lastReset == null ||
+                                                  Duration.between(now, lastReset).abs().toMillis() > messageHandlingTimeoutMs;
+                                      })
+                                      .collect(Collectors.toList());
+
+        if (queuesToReset.isEmpty()) {
+            log.trace("No stuck messages to reset across multiple queues: {}", queueNames);
+            return;
+        }
+
+        log.debug("Looking for messages stuck marked as isBeingDelivered across queues: {}", queuesToReset);
+
+        var queueNamesForQuery = queuesToReset.stream()
+                                              .map(QueueName::toString)
+                                              .toList();
+
+        var numberOfChanges = unitOfWorkFactory.getRequiredUnitOfWork().handle().createUpdate(bind(
+                                                       "UPDATE {:tableName} SET\n" +
+                                                               "     is_being_delivered = FALSE,\n" +
+                                                               "     delivery_ts = NULL,\n" +
+                                                               "     redelivery_attempts = redelivery_attempts + 1,\n" +
+                                                               "     next_delivery_ts = :now,\n" +
+                                                               "     last_delivery_error = :error\n" +
+                                                               " WHERE is_being_delivered = TRUE\n" +
+                                                               " AND delivery_ts <= :threshold\n" +
+                                                               " AND queue_name IN (<queueNames>)",
+                                                       arg("tableName", sharedQueueTableName)))
+                                               .bind("threshold", now.minusMillis(messageHandlingTimeoutMs))
+                                               .bind("error", "Handler Processing of the Message was determined to have Timed Out")
+                                               .bind("now", now)
+                                               .bindList("queueNames", queueNamesForQuery)
+                                               .execute();
+
+        if (numberOfChanges > 0) {
+            log.debug("Reset {} messages stuck marked as isBeingDelivered across queues: {}",
+                      numberOfChanges,
+                      queuesToReset);
+        } else {
+            log.debug("No stuck messages found across queues: {}", queuesToReset);
+        }
+
+        // Update timestamps for all queues we checked
+        queuesToReset.forEach(queueName -> lastResetStuckMessagesCheckTimestamps.put(queueName, now));
+    }
+
     @Override
     public final Optional<QueuedMessage> getQueuedMessage(GetQueuedMessage operation) {
         requireNonNull(operation, "You must specify a GetQueuedMessage instance");
@@ -1447,55 +1820,6 @@ public final class PostgresqlDurableQueues implements DurableQueues {
         @Override
         public int intercept(PurgeQueue operation, InterceptorChain<PurgeQueue, Integer, DurableQueuesInterceptor> interceptorChain) {
             return unitOfWorkFactory.withUnitOfWork(interceptorChain::proceed);
-        }
-    }
-
-    private class QueuedMessageRowMapper implements RowMapper<QueuedMessage> {
-        public QueuedMessageRowMapper() {
-        }
-
-        @Override
-        public QueuedMessage map(ResultSet rs, StatementContext ctx) throws SQLException {
-            var queueName      = QueueName.of(rs.getString("queue_name"));
-            var queueEntryId = QueueEntryId.of(rs.getString("id"));
-            var messagePayload = PostgresqlDurableQueues.this.deserializeMessagePayload(queueName, queueEntryId, rs.getString("message_payload"), rs.getString("message_payload_type"));
-
-            MessageMetaData messageMetaData     = null;
-            var             metaDataColumnValue = rs.getString("meta_data");
-            if (metaDataColumnValue != null) {
-                messageMetaData = PostgresqlDurableQueues.this.deserializeMessageMetadata(queueName, queueEntryId, metaDataColumnValue);
-            } else {
-                messageMetaData = new MessageMetaData();
-            }
-
-            var     deliveryMode = QueuedMessage.DeliveryMode.valueOf(rs.getString("delivery_mode"));
-            Message message      = null;
-            switch (deliveryMode) {
-                case NORMAL:
-                    message = new Message(messagePayload,
-                                          messageMetaData);
-                    break;
-                case IN_ORDER:
-                    message = new OrderedMessage(messagePayload,
-                                                 rs.getString("key"),
-                                                 rs.getLong("key_order"),
-                                                 messageMetaData);
-                    break;
-                default:
-                    throw new IllegalStateException(msg("Unsupported deliveryMode '{}'", deliveryMode));
-            }
-
-            return new DefaultQueuedMessage(QueueEntryId.of(rs.getString("id")),
-                                            queueName,
-                                            message,
-                                            rs.getObject("added_ts", OffsetDateTime.class),
-                                            rs.getObject("next_delivery_ts", OffsetDateTime.class),
-                                            rs.getObject("delivery_ts", OffsetDateTime.class),
-                                            rs.getString("last_delivery_error"),
-                                            rs.getInt("total_attempts"),
-                                            rs.getInt("redelivery_attempts"),
-                                            rs.getBoolean("is_dead_letter_message"),
-                                            rs.getBoolean("is_being_delivered"));
         }
     }
 

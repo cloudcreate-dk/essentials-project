@@ -26,13 +26,22 @@ import org.testcontainers.junit.jupiter.*;
 
 import java.time.Duration;
 
+/**
+ * Base class for single operation transaction local competing consumers tests
+ */
 @Testcontainers
-class SingleOperationTransactionPostgresqlLocalCompetingConsumersDurableQueueIT extends LocalCompetingConsumersDurableQueueIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWorkFactory.GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
+abstract class SingleOperationTransactionPostgresqlLocalCompetingConsumersDurableQueueIT extends LocalCompetingConsumersDurableQueueIT<PostgresqlDurableQueues, GenericHandleAwareUnitOfWorkFactory.GenericHandleAwareUnitOfWork, JdbiUnitOfWorkFactory> {
     @Container
-    private final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
+    protected final PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:latest")
             .withDatabaseName("queue-db")
             .withUsername("test-user")
             .withPassword("secret-password");
+
+    /**
+     * Determine whether to use the centralized message fetcher
+     * @return true for centralized message fetcher, false for traditional consumer
+     */
+    protected abstract boolean useCentralizedMessageFetcher();
 
     @Override
     protected PostgresqlDurableQueues createDurableQueues(JdbiUnitOfWorkFactory unitOfWorkFactory) {
@@ -40,6 +49,7 @@ class SingleOperationTransactionPostgresqlLocalCompetingConsumersDurableQueueIT 
                                       .setUnitOfWorkFactory(unitOfWorkFactory)
                                       .setMessageHandlingTimeout(Duration.ofSeconds(5))
                                       .setTransactionalMode(TransactionalMode.SingleOperationTransaction)
+                                      .setUseCentralizedMessageFetcher(useCentralizedMessageFetcher())
                                       .build();
     }
 

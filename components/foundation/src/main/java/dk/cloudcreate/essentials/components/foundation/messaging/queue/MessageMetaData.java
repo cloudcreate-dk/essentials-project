@@ -36,7 +36,7 @@ public final class MessageMetaData implements Map<String, String>, Serializable 
      * to coordinate message consumption, then you can find the {@link FencedLock#getCurrentToken()}
      * of the consumer under this key
      */
-    public static String              FENCED_LOCK_TOKEN   = "FENCED_LOCK_TOKEN";
+    public static String              FENCED_LOCK_TOKEN = "FENCED_LOCK_TOKEN";
     private final Map<String, String> metaData;
 
     public MessageMetaData(Map<String, String> metaData) {
@@ -223,12 +223,15 @@ public final class MessageMetaData implements Map<String, String>, Serializable 
 
     @Override
     public boolean equals(Object o) {
-        return metaData.equals(o);
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        MessageMetaData that = (MessageMetaData) o;
+        return Objects.equals(metaData, that.metaData);
     }
 
     @Override
     public int hashCode() {
-        return metaData.hashCode();
+        return Objects.hash(metaData);
     }
 
     @Override
