@@ -1,0 +1,253 @@
+/*
+ * Copyright 2021-2025 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package dk.trustworks.essentials.components.foundation.messaging.eip.store_and_forward;
+
+import dk.trustworks.essentials.components.foundation.fencedlock.*;
+import dk.trustworks.essentials.components.foundation.messaging.queue.*;
+import dk.trustworks.essentials.components.foundation.transaction.UnitOfWork;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.function.Consumer;
+
+import static dk.trustworks.essentials.shared.FailFast.requireNonNull;
+
+/**
+ * The {@link Inbox} supports the transactional Store and Forward pattern from Enterprise Integration Patterns supporting At-Least-Once delivery guarantee.<br>
+ * The {@link Inbox} pattern is used to handle incoming messages from a message infrastructure (such as a Queue, Kafka, EventBus, etc). <br>
+ * The message is added to the {@link Inbox} in a transaction/{@link UnitOfWork} and afterwards the message is Acknowledged (ACK) with the message infrastructure the {@link UnitOfWork} is committed.<br>
+ * If the ACK fails then the message infrastructure will attempt to redeliver the message even if the {@link UnitOfWork} has been committed, since the message infrastructure and the {@link Inbox}
+ * don't share the same transactional resource. This means that messages received from the message infrastructure
+ * can be added more than once to the {@link Inbox}.<br>
+ * After the {@link UnitOfWork} has been committed, the messages will be asynchronously delivered to the message consumer in a new {@link UnitOfWork}.<br>
+ * The {@link Inbox} itself supports Message Redelivery in case the Message consumer experiences failures.<br>
+ * This means that the Message consumer, registered with the {@link Inbox}, can and will receive Messages more than once and therefore its message handling has to be idempotent.
+ * <p>
+ * If you're working with {@link OrderedMessage}'s then the {@link Inbox} consumer must be configured
+ * with {@link InboxConfig#getMessageConsumptionMode()} having value {@link MessageConsumptionMode#SingleGlobalConsumer}
+ * in order to be able to guarantee that {@link OrderedMessage}'s are delivered in {@link OrderedMessage#getOrder()} per {@link OrderedMessage#getKey()}
+ * across as many {@link InboxConfig#numberOfParallelMessageConsumers} as you wish to use.
+ */
+public interface Inbox {
+    /**
+     * Start consuming messages from the Inbox using the provided message consumer.<br>
+     * This is the same as calling {@link #setMessageConsumer(Consumer)} followed by {@link #startConsuming()}<br>
+     * Only needs to be called if the instance was created without a message consumer such as via {@link Inboxes#getOrCreateInbox(InboxConfig)}
+     * <p>
+     * If an {@link OrderedMessage} is delivered via an {@link Inbox} using a {@link FencedLock}
+     * (such as {@link Inboxes#durableQueueBasedInboxes(DurableQueues, FencedLockManager)})
+     * to coordinate message consumption, then you can find the {@link FencedLock#getCurrentToken()}
+     * of the consumer in the {@link Message#getMetaData()} under key {@link MessageMetaData#FENCED_LOCK_TOKEN}
+     *
+     * @param messageConsumer the message consumer. See {@link PatternMatchingMessageHandler}
+     * @return this inbox instance
+     */
+    Inbox consume(Consumer<Message> messageConsumer);
+
+    /**
+     * Set the message consumer. To start consuming call {@link #startConsuming()}
+     *
+     * @param messageConsumer the message consumer. See {@link PatternMatchingMessageHandler}
+     * @return this inbox instance
+     */
+    Inbox setMessageConsumer(Consumer<Message> messageConsumer);
+
+    /**
+     * Start consuming messages from the {@link Inbox}. Requires calling {@link #setMessageConsumer(Consumer)} first<br>
+     * If an {@link OrderedMessage} is delivered via an {@link Inbox} using a {@link FencedLock}
+     * (such as {@link Inboxes#durableQueueBasedInboxes(DurableQueues, FencedLockManager)})
+     * to coordinate message consumption, then you can find the {@link FencedLock#getCurrentToken()}
+     * of the consumer in the {@link Message#getMetaData()} under key {@link MessageMetaData#FENCED_LOCK_TOKEN}
+     *
+     * @return this inbox instance
+     */
+    Inbox startConsuming();
+
+    /**
+     * Stop consuming messages from the {@link Inbox}. Calling this method will remove the message consumer
+     * and to resume message consumption you need to call {@link #consume(Consumer)}
+     *
+     * @return this inbox instance
+     */
+    Inbox stopConsuming();
+
+    /**
+     * Has the instance been created with a Message consumer or has {@link #consume(Consumer)} been called
+     *
+     * @return Has the instance been created with a Message consumer or has {@link #consume(Consumer)} been called
+     */
+    boolean hasAMessageConsumer();
+
+    /**
+     * Is the provided Message consumer consuming messages from the {@link Inbox}
+     *
+     * @return Is the provided Message consumer consuming messages from the {@link Inbox}
+     */
+    boolean isConsumingMessages();
+
+    /**
+     * The name of the inbox
+     *
+     * @return the name of the inbox
+     */
+    InboxName name();
+
+    /**
+     * Delete all messages (Queued or Dead letter Messages) in the underlying storage (such as a Queue)
+     */
+    void deleteAllMessages();
+
+    /**
+     * Register or add a message (with meta-data) that has been received<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload  the message payload
+     * @param metaData the message meta-data
+     * @return this inbox instance
+     */
+    default Inbox addMessageReceived(Object payload, MessageMetaData metaData) {
+        return addMessageReceived(new Message(payload, metaData));
+    }
+
+    /**
+     * Register or add a message (with meta-data) that has been received and where the message should be delivered later<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} 
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload  the message payload
+     * @param metaData the message meta-data
+     * @param deliveryDelay    duration before the message should be delivered
+     * @return this inbox instance
+     */
+    default Inbox addMessageReceived(Object payload, MessageMetaData metaData, Duration deliveryDelay) {
+        return addMessageReceived(new Message(payload, metaData), deliveryDelay);
+    }
+
+    /**
+     * Register or add a message (without meta-data) that has been received<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} 
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload the message payload
+     */
+    default Inbox addMessageReceived(Object payload) {
+        return addMessageReceived(new Message(payload));
+    }
+
+    /**
+     * Register or add a message (without meta-data) that has been received and where the message should be delivered later<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param payload the message payload
+     * @param deliveryDelay   duration before the message should be delivered
+     */
+    default Inbox addMessageReceived(Object payload, Duration deliveryDelay) {
+        return addMessageReceived(new Message(payload), deliveryDelay);
+    }
+
+    /**
+     * Register or add a list of message payloads that have been received. The payloads will be converted to {@link Message}'s<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param payloads the list of message payloads
+     * @return this inbox instance
+     */
+    default Inbox addMessageListReceived(List<? extends Object> payloads) {
+        var messageList = requireNonNull(payloads).stream().map(Message::new).toList();
+        return addMessagesReceived(messageList);
+    }
+
+    /**
+     * Register or add a list of message payloads that have been received and where the messages should be delivered later.
+     * The payloads will be converted to {@link Message}'s<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param payloads the list of message payloads
+     * @return this inbox instance
+     */
+    default Inbox addMessageListReceived(List<? extends Object> payloads, Duration deliveryDelay) {
+        var messageList = requireNonNull(payloads).stream().map(Message::new).toList();
+        return addMessagesReceived(messageList, deliveryDelay);
+    }
+
+    /**
+     * Register or add a message that has been received<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} 
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param message the message
+     * @return this inbox instance
+     * @see OrderedMessage
+     */
+    Inbox addMessageReceived(Message message);
+
+    /**
+     * Register or add a message that has been received and where the message should be delivered later<br>
+     * This message will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork} 
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The message will be delivered asynchronously to the message consumer
+     *
+     * @param message the message
+     * @param deliveryDelay   duration before the message should be delivered
+     * @return this inbox instance
+     * @see OrderedMessage
+     */
+    Inbox addMessageReceived(Message message, Duration deliveryDelay);
+
+    /**
+     * Register or add a list of messages that has been received<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param messages the list of messages
+     * @return this inbox instance
+     * @see OrderedMessage
+     */
+    Inbox addMessagesReceived(List<Message> messages);
+
+    /**
+     * Register or add a list of messages that has been received and where the message should be delivered later<br>
+     * These messages will be stored durably (without any duplication check) in connection with the currently active {@link UnitOfWork}
+     * (or a new {@link UnitOfWork} will be created in case there isn't an active {@link UnitOfWork}).<br>
+     * The messages will be delivered asynchronously to the message consumer
+     *
+     * @param messages      the list of messages
+     * @param deliveryDelay duration before the messages should be delivered
+     * @return this inbox instance
+     * @see OrderedMessage
+     */
+    Inbox addMessagesReceived(List<Message> messages, Duration deliveryDelay);
+
+    /**
+     * Get the number of message received that haven't been processed yet (or successfully processed) by the message consumer
+     *
+     * @return the number of message received that haven't been processed yet (or successfully processed) by the message consumer
+     */
+    long getNumberOfUndeliveredMessages();
+}
