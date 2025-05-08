@@ -15,7 +15,7 @@ This library contains the smallest set of supporting building blocks needed for 
 To use `Shared` just add the following Maven dependency:
 ```
 <dependency>
-    <groupId>dk.cloudcreate.essentials</groupId>
+    <groupId>dk.trustworks.essentials</groupId>
     <artifactId>shared</artifactId>
     <version>0.40.24</version>
 </dependency>
@@ -36,8 +36,8 @@ instead we provide the minimum in terms of Tuples support.
 
 We offer two different flavors of Tuples:
 
-- The normal `dk.cloudcreate.essentials.shared.functional.tuple.Tuple` that allows elements of any types
-- The `dk.cloudcreate.essentials.shared.functional.tuple.comparable.ComparableTuple` that only allows elements that implement the Comparable interface
+- The normal `dk.trustworks.essentials.shared.functional.tuple.Tuple` that allows elements of any types
+- The `dk.trustworks.essentials.shared.functional.tuple.comparable.ComparableTuple` that only allows elements that implement the Comparable interface
 
 Example of using Tuples:
 
@@ -79,7 +79,7 @@ assertThat(result).isEqualTo(List.of("A:1", "B:2", "C:3", "D:4", "E:5"));
 
 ### Functional interfaces
 
-Apart from Tuples, then the `dk.cloudcreate.essentials.shared.functional` package also contain reusable functional interfaces, such as the `TripleFunction`, which is used in the definition of
+Apart from Tuples, then the `dk.trustworks.essentials.shared.functional` package also contain reusable functional interfaces, such as the `TripleFunction`, which is used in the definition of
 the `Triple` tuple's map function:
 
 ```
@@ -146,7 +146,7 @@ This is where the `FailFast` class comes in as it supports many more assertion m
 - `requireNonEmpty`
 
 ``` 
-import static dk.cloudcreate.essentials.shared.FailFast.*;
+import static dk.trustworks.essentials.shared.FailFast.*;
 
 public static Optional<Field> findField(Set<Field> fields,
                                         String fieldName,
@@ -208,7 +208,7 @@ In this way the **if expression** is similar to the Java ternary operation, exce
 
 With the **if expression** you no longer need to write code like this:
 ```
-import static dk.cloudcreate.essentials.shared.logic.IfExpression.If;
+import static dk.trustworks.essentials.shared.logic.IfExpression.If;
 
 int value = getValue();
 String description = If(value < 0, "Negative number")
@@ -231,7 +231,7 @@ if (value < 0) {
 The **if expression** supports both simple boolean predicate/condition and fixed value return values 
 as well as lambda predicates and return value suppliers:
 ```
-import static dk.cloudcreate.essentials.shared.logic.IfExpression.If;
+import static dk.trustworks.essentials.shared.logic.IfExpression.If;
 
 OrderId orderId = ...;
 Amount orderAmount = ...;

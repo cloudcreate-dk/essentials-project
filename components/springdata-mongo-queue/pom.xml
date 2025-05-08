@@ -21,7 +21,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>dk.cloudcreate.essentials</groupId>
+        <groupId>dk.trustworks.essentials</groupId>
         <artifactId>parent</artifactId>
         <version>${revision}</version>
         <relativePath>../../pom.xml</relativePath>
@@ -30,7 +30,7 @@
         This library focuses on providing a Durable Queue supporting message redelivery and Dead Letter Message functionality based on Spring Data Mongo
     </description>
 
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>springdata-mongo-queue</artifactId>
     <packaging>jar</packaging>
 
@@ -42,33 +42,33 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>foundation</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>foundation-test</artifactId>
             <scope>test</scope>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>types-springdata-mongo</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>reactive</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>types-jackson</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>immutable-jackson</artifactId>
             <version>${project.version}</version>
             <optional>true</optional>
@@ -186,7 +186,7 @@
                     <configuration>
                         <archive>
                             <manifestEntries>
-                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.queue.springdata.mongodb</Automatic-Module-Name>
+                                <Automatic-Module-Name>dk.trustworks.essentials.components.queue.springdata.mongodb</Automatic-Module-Name>
                             </manifestEntries>
                         </archive>
                     </configuration>

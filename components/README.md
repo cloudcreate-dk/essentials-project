@@ -4,7 +4,7 @@ Essentials Components is a set of Java version 17 (and later) components that ar
 the [Essentials](../README.md) library while providing more complex features
 or Components such as `EventStore`, `EventSourced Aggregates`, `FencedLocks`, `DurableQueues`, `DurableLocalCommandbus`, `Inbox` and `Outbox`.
 
-> Note: [For Java version 11 to 16 support, please use version 0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)
+
 
 > **NOTE:**  
 > **The libraries are WORK-IN-PROGRESS**

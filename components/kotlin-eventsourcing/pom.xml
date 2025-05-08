@@ -22,7 +22,7 @@
 
 
     <parent>
-        <groupId>dk.cloudcreate.essentials</groupId>
+        <groupId>dk.trustworks.essentials</groupId>
         <artifactId>parent</artifactId>
         <version>${revision}</version>
         <relativePath>../../pom.xml</relativePath>
@@ -32,7 +32,7 @@
         This library focuses purely on providing event sourcing support for Kotlin
     </description>
 
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>kotlin-eventsourcing</artifactId>
     <packaging>jar</packaging>
 
@@ -57,17 +57,17 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>types</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>reactive</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>postgresql-event-store</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -175,7 +175,7 @@
                     <configuration>
                         <archive>
                             <manifestEntries>
-                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.kotlin.eventsourcing</Automatic-Module-Name>
+                                <Automatic-Module-Name>dk.trustworks.essentials.components.kotlin.eventsourcing</Automatic-Module-Name>
                             </manifestEntries>
                         </archive>
                     </configuration>

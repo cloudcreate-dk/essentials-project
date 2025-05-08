@@ -24,7 +24,7 @@
         </encoder>
     </appender>
 
-    <logger name="dk.cloudcreate.essentials" level="TRACE"/>
+    <logger name="dk.trustworks.essentials" level="TRACE"/>
     <logger name="LocalEventBus - AsyncMultiThreaded" level="TRACE"/>
     <logger name="LocalEventBus - Test-MultiThread" level="TRACE"/>
     <logger name="LocalEventBus - Test-Sync-Async" level="TRACE"/>

@@ -24,10 +24,10 @@
         </encoder>
     </appender>
 
-    <logger name="dk.cloudcreate.essentials" level="TRACE"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory" level="INFO"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.transaction.jdbi.GenericHandleAwareUnitOfWorkFactory" level="INFO"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.transaction.jdbi.GenericHandleAwareUnitOfWorkFactory$GenericHandleAwareUnitOfWork" level="INFO"/>
+    <logger name="dk.trustworks.essentials" level="TRACE"/>
+    <logger name="dk.trustworks.essentials.components.foundation.transaction.UnitOfWorkFactory" level="INFO"/>
+    <logger name="dk.trustworks.essentials.components.foundation.transaction.jdbi.GenericHandleAwareUnitOfWorkFactory" level="INFO"/>
+    <logger name="dk.trustworks.essentials.components.foundation.transaction.jdbi.GenericHandleAwareUnitOfWorkFactory$GenericHandleAwareUnitOfWork" level="INFO"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>

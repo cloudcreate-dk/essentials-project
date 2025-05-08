@@ -47,7 +47,7 @@ public final class ImmutableOrder {
 To use `Immutable-Jackson` just add the following Maven dependency:
 ```
 <dependency>
-    <groupId>dk.cloudcreate.essentials</groupId>
+    <groupId>dk.trustworks.essentials</groupId>
     <artifactId>immutable-jackson</artifactId>
     <version>0.40.24</version>
 </dependency>
@@ -60,7 +60,7 @@ To use `Immutable-Jackson` just add the following Maven dependency:
     <artifactId>slf4j-api</artifactId>
 </dependency>
 <dependency>
-    <groupId>dk.cloudcreate.essentials</groupId>
+    <groupId>dk.trustworks.essentials</groupId>
     <artifactId>types-jackson</artifactId>
 </dependency>
 
@@ -88,7 +88,7 @@ To use `Immutable-Jackson` just add the following Maven dependency:
 
 ### Configuration
 
-All you need to do is to add the `dk.cloudcreate.essentials.jackson.immutable.EssentialsImmutableJacksonModule` to your `ObjectMapper`
+All you need to do is to add the `dk.trustworks.essentials.jackson.immutable.EssentialsImmutableJacksonModule` to your `ObjectMapper`
 configuration.
 
 Example:

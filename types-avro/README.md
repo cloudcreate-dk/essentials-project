@@ -15,7 +15,7 @@ This library focuses purely on providing [AVRO](https://avro.apache.org) seriali
 To use `Types-Avro` just add the following Maven dependency:
 ```
 <dependency>
-    <groupId>dk.cloudcreate.essentials</groupId>
+    <groupId>dk.trustworks.essentials</groupId>
     <artifactId>types-avro</artifactId>
     <version>0.40.24</version>
 </dependency>
@@ -60,7 +60,7 @@ This allows you to define Avro schema/IDL protocol and directly refer these logi
 Example `order.avdl`:
 
 ```
-@namespace("dk.cloudcreate.essentials.types.avro.test")
+@namespace("dk.trustworks.essentials.types.avro.test")
 protocol Test {
   record Order {
       string           id;
@@ -95,18 +95,18 @@ If the required `Conversions` and `LogicalTypeFactory` configurations are added 
                 <stringType>String</stringType>
                 <enableDecimalLogicalType>false</enableDecimalLogicalType>
                 <customLogicalTypeFactories>
-                    <logicalTypeFactory>dk.cloudcreate.essentials.types.avro.CurrencyCodeLogicalTypeFactory</logicalTypeFactory>
-                    <logicalTypeFactory>dk.cloudcreate.essentials.types.avro.AmountLogicalTypeFactory</logicalTypeFactory>
-                    <logicalTypeFactory>dk.cloudcreate.essentials.types.avro.PercentageLogicalTypeFactory</logicalTypeFactory>
-                    <logicalTypeFactory>dk.cloudcreate.essentials.types.avro.CountryCodeLogicalTypeFactory</logicalTypeFactory>
-                    <logicalTypeFactory>dk.cloudcreate.essentials.types.avro.EmailAddressLogicalTypeFactory</logicalTypeFactory>
+                    <logicalTypeFactory>dk.trustworks.essentials.types.avro.CurrencyCodeLogicalTypeFactory</logicalTypeFactory>
+                    <logicalTypeFactory>dk.trustworks.essentials.types.avro.AmountLogicalTypeFactory</logicalTypeFactory>
+                    <logicalTypeFactory>dk.trustworks.essentials.types.avro.PercentageLogicalTypeFactory</logicalTypeFactory>
+                    <logicalTypeFactory>dk.trustworks.essentials.types.avro.CountryCodeLogicalTypeFactory</logicalTypeFactory>
+                    <logicalTypeFactory>dk.trustworks.essentials.types.avro.EmailAddressLogicalTypeFactory</logicalTypeFactory>
                 </customLogicalTypeFactories>
                 <customConversions>
-                    <conversion>dk.cloudcreate.essentials.types.avro.CurrencyCodeConversion</conversion>
-                    <conversion>dk.cloudcreate.essentials.types.avro.AmountConversion</conversion>
-                    <conversion>dk.cloudcreate.essentials.types.avro.PercentageConversion</conversion>
-                    <conversion>dk.cloudcreate.essentials.types.avro.CountryCodeConversion</conversion>
-                    <conversion>dk.cloudcreate.essentials.types.avro.EmailAddressConversion</conversion>
+                    <conversion>dk.trustworks.essentials.types.avro.CurrencyCodeConversion</conversion>
+                    <conversion>dk.trustworks.essentials.types.avro.AmountConversion</conversion>
+                    <conversion>dk.trustworks.essentials.types.avro.PercentageConversion</conversion>
+                    <conversion>dk.trustworks.essentials.types.avro.CountryCodeConversion</conversion>
+                    <conversion>dk.trustworks.essentials.types.avro.EmailAddressConversion</conversion>
                 </customConversions>
             </configuration>
         </execution>
@@ -121,11 +121,11 @@ then an `Order` class that looks like this will be generated:
 public class Order extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
   ...    
   private java.lang.String                             id;
-  private dk.cloudcreate.essentials.types.Amount       totalAmountWithoutSalesTax;
-  private dk.cloudcreate.essentials.types.CurrencyCode currency;
-  private dk.cloudcreate.essentials.types.CountryCode  country;
-  private dk.cloudcreate.essentials.types.Percentage   salesTax;
-  private dk.cloudcreate.essentials.types.EmailAddress email;
+  private dk.trustworks.essentials.types.Amount       totalAmountWithoutSalesTax;
+  private dk.trustworks.essentials.types.CurrencyCode currency;
+  private dk.trustworks.essentials.types.CountryCode  country;
+  private dk.trustworks.essentials.types.Percentage   salesTax;
+  private dk.trustworks.essentials.types.EmailAddress email;
   ...
 }
 ```
@@ -204,7 +204,7 @@ public class OrderId extends CharSequenceType<OrderId> implements Identifier {
 and you want to use it in your Avro schema/IDL protocol:
 
 ```
-@namespace("dk.cloudcreate.essentials.types.avro.test")
+@namespace("dk.trustworks.essentials.types.avro.test")
 protocol Test {
   record Order {
       @logicalType("OrderId")
@@ -280,19 +280,19 @@ public class OrderIdConversion extends BaseCharSequenceConversion<OrderId> {
                 <stringType>String</stringType>
                 <enableDecimalLogicalType>false</enableDecimalLogicalType>
                 <customLogicalTypeFactories>
-                    <logicalTypeFactory>dk.cloudcreate.essentials.types.avro.CurrencyCodeLogicalTypeFactory</logicalTypeFactory>
-                    <logicalTypeFactory>dk.cloudcreate.essentials.types.avro.AmountLogicalTypeFactory</logicalTypeFactory>
-                    <logicalTypeFactory>dk.cloudcreate.essentials.types.avro.PercentageLogicalTypeFactory</logicalTypeFactory>
-                    <logicalTypeFactory>dk.cloudcreate.essentials.types.avro.CountryCodeLogicalTypeFactory</logicalTypeFactory>
-                    <logicalTypeFactory>dk.cloudcreate.essentials.types.avro.EmailAddressLogicalTypeFactory</logicalTypeFactory>
+                    <logicalTypeFactory>dk.trustworks.essentials.types.avro.CurrencyCodeLogicalTypeFactory</logicalTypeFactory>
+                    <logicalTypeFactory>dk.trustworks.essentials.types.avro.AmountLogicalTypeFactory</logicalTypeFactory>
+                    <logicalTypeFactory>dk.trustworks.essentials.types.avro.PercentageLogicalTypeFactory</logicalTypeFactory>
+                    <logicalTypeFactory>dk.trustworks.essentials.types.avro.CountryCodeLogicalTypeFactory</logicalTypeFactory>
+                    <logicalTypeFactory>dk.trustworks.essentials.types.avro.EmailAddressLogicalTypeFactory</logicalTypeFactory>
                     <logicalTypeFactory>com.myproject.types.avro.OrderIdLogicalTypeFactory</logicalTypeFactory>
                 </customLogicalTypeFactories>
                 <customConversions>
-                    <conversion>dk.cloudcreate.essentials.types.avro.CurrencyCodeConversion</conversion>
-                    <conversion>dk.cloudcreate.essentials.types.avro.AmountConversion</conversion>
-                    <conversion>dk.cloudcreate.essentials.types.avro.PercentageConversion</conversion>
-                    <conversion>dk.cloudcreate.essentials.types.avro.CountryCodeConversion</conversion>
-                    <conversion>dk.cloudcreate.essentials.types.avro.EmailAddressConversion</conversion>
+                    <conversion>dk.trustworks.essentials.types.avro.CurrencyCodeConversion</conversion>
+                    <conversion>dk.trustworks.essentials.types.avro.AmountConversion</conversion>
+                    <conversion>dk.trustworks.essentials.types.avro.PercentageConversion</conversion>
+                    <conversion>dk.trustworks.essentials.types.avro.CountryCodeConversion</conversion>
+                    <conversion>dk.trustworks.essentials.types.avro.EmailAddressConversion</conversion>
                     <conversion>com.myproject.types.avro.OrderIdConversion</conversion>
                 </customConversions>
             </configuration>
@@ -308,11 +308,11 @@ This will generate an `Order` class that now includes the `OrderId` and which wi
 public class Order extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
   ...    
   private com.myproject.types.OrderId                  id;
-  private dk.cloudcreate.essentials.types.Amount       totalAmountWithoutSalesTax;
-  private dk.cloudcreate.essentials.types.CurrencyCode currency;
-  private dk.cloudcreate.essentials.types.CountryCode  country;
-  private dk.cloudcreate.essentials.types.Percentage   salesTax;
-  private dk.cloudcreate.essentials.types.EmailAddress email;
+  private dk.trustworks.essentials.types.Amount       totalAmountWithoutSalesTax;
+  private dk.trustworks.essentials.types.CurrencyCode currency;
+  private dk.trustworks.essentials.types.CountryCode  country;
+  private dk.trustworks.essentials.types.Percentage   salesTax;
+  private dk.trustworks.essentials.types.EmailAddress email;
   ...
 }
 ```

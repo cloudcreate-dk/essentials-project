@@ -21,7 +21,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>dk.cloudcreate.essentials</groupId>
+        <groupId>dk.trustworks.essentials</groupId>
         <artifactId>parent</artifactId>
         <version>${revision}</version>
         <relativePath>../../pom.xml</relativePath>
@@ -31,7 +31,7 @@
         (i.e. it supports JSON and JSONB column types)
     </description>
 
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>postgresql-event-store</artifactId>
     <packaging>jar</packaging>
 
@@ -56,33 +56,33 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>foundation</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>postgresql-distributed-fenced-lock</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>types-jackson</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>immutable-jackson</artifactId>
             <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>types-jdbi</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>reactive</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -110,7 +110,7 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>postgresql-queue</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -200,7 +200,7 @@
                     <configuration>
                         <archive>
                             <manifestEntries>
-                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql</Automatic-Module-Name>
+                                <Automatic-Module-Name>dk.trustworks.essentials.components.eventsourced.eventstore.postgresql</Automatic-Module-Name>
                             </manifestEntries>
                         </archive>
                     </configuration>

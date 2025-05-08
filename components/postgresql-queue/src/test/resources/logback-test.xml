@@ -24,14 +24,14 @@
         </encoder>
     </appender>
 
-    <logger name="dk.cloudcreate.essentials" level="DEBUG"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.transaction.jdbi.GenericHandleAwareUnitOfWorkFactory" level="INFO"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.transaction.UnitOfWorkFactory" level="INFO"/>
-    <logger name="dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain" level="DEBUG"/>
-    <logger name="dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues" level="TRACE"/>
-    <logger name="dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues$1" level="DEBUG"/> <!-- PatternMatchingMethodInvoker -->
-    <logger name="dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer" level="TRACE"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer.MessageHandlingFailures" level="TRACE"/>
+    <logger name="dk.trustworks.essentials" level="DEBUG"/>
+    <logger name="dk.trustworks.essentials.components.foundation.transaction.jdbi.GenericHandleAwareUnitOfWorkFactory" level="INFO"/>
+    <logger name="dk.trustworks.essentials.components.foundation.transaction.UnitOfWorkFactory" level="INFO"/>
+    <logger name="dk.trustworks.essentials.shared.interceptor.DefaultInterceptorChain" level="DEBUG"/>
+    <logger name="dk.trustworks.essentials.components.queue.postgresql.PostgresqlDurableQueues" level="TRACE"/>
+    <logger name="dk.trustworks.essentials.components.queue.postgresql.PostgresqlDurableQueues$1" level="DEBUG"/> <!-- PatternMatchingMethodInvoker -->
+    <logger name="dk.trustworks.essentials.components.foundation.messaging.queue.DurableQueueConsumer" level="TRACE"/>
+    <logger name="dk.trustworks.essentials.components.foundation.messaging.queue.DurableQueueConsumer.MessageHandlingFailures" level="TRACE"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>

@@ -18,7 +18,7 @@ All `@Beans` auto-configured by this library use `@ConditionalOnMissingBean` to 
 To use `spring-boot-starter-postgresql-event-store` to add the following dependency:
 ```
 <dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
     <version>0.40.24</version>
 </dependency>
@@ -30,11 +30,11 @@ This will ensure to include the `spring-boot-starter-postgresql` starter and its
 
 >If you in your own Spring Boot application choose to override the Beans defined by this starter,
  then you need to check the component document to learn about the Security implications of each configuration.
-> - dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.subscription.PostgresqlDurableSubscriptionRepository
-> - dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypePersistenceStrategy
-> - dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory
-> - dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateEventStreamConfiguration
-> - dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.eventstream.EventStreamTableColumnNames
+> - dk.trustworks.essentials.components.eventsourced.eventstore.postgresql.subscription.PostgresqlDurableSubscriptionRepository
+> - dk.trustworks.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypePersistenceStrategy
+> - dk.trustworks.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateTypeEventStreamConfigurationFactory
+> - dk.trustworks.essentials.components.eventsourced.eventstore.postgresql.persistence.table_per_aggregate_type.SeparateTablePerAggregateEventStreamConfiguration
+> - dk.trustworks.essentials.components.eventsourced.eventstore.postgresql.eventstream.EventStreamTableColumnNames
 
 ### Beans provided by the `EventStoreConfiguration` auto-configuration:
 - `PostgresqlEventStore` using `PostgresqlEventStreamGapHandler` (using default configuration)
@@ -69,10 +69,10 @@ This will ensure to include the `spring-boot-starter-postgresql` starter and its
 
 >If you in your own Spring Boot application choose to override the Beans defined by this starter,
 then you need to check the component document to learn about the Security implications of each configuration, such as:
-> - dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues
-> - dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager
-> - dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage
-> - dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener
+> - dk.trustworks.essentials.components.queue.postgresql.PostgresqlDurableQueues
+> - dk.trustworks.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager
+> - dk.trustworks.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage
+> - dk.trustworks.essentials.components.foundation.postgresql.MultiTableChangeListener
 
 ### Beans provided by the `EssentialsComponentsConfiguration` auto-configuration:
 - Jackson/FasterXML JSON modules:
@@ -245,14 +245,14 @@ then you need to check the component document to learn about the Security implic
   - **Adjusting Log Levels:**  
     In addition to these properties, you can control which metrics are actually written to your log files by configuring the log levels for the corresponding logger classes in your logging framework (e.g. Logback or Log4j). For example:
     - For **Event Store metrics**, adjust the log level for:
-      - `dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.interceptor.micrometer.RecordExecutionTimeEventStoreInterceptor`
-      - `dk.cloudcreate.essentials.components.eventsourced.eventstore.postgresql.observability.micrometer.MeasurementEventStoreSubscriptionObserver`
+      - `dk.trustworks.essentials.components.eventsourced.eventstore.postgresql.interceptor.micrometer.RecordExecutionTimeEventStoreInterceptor`
+      - `dk.trustworks.essentials.components.eventsourced.eventstore.postgresql.observability.micrometer.MeasurementEventStoreSubscriptionObserver`
     - For **Durable Queues metrics**, adjust the log level for:
-      - `dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeDurableQueueInterceptor`
+      - `dk.trustworks.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeDurableQueueInterceptor`
     - For **Command Bus metrics**, adjust the log level for:
-      - `dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeCommandBusInterceptor`
+      - `dk.trustworks.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeCommandBusInterceptor`
     - For **Message Handler metrics**, adjust the log level for:
-      - `dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeMessageHandlerInterceptor`
+      - `dk.trustworks.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeMessageHandlerInterceptor`
     ```
 - `ReactiveHandlersBeanPostProcessor` (for auto-registering `EventHandler` and `CommandHandler` Beans with the `EventBus`'s and `CommandBus` beans found in the `ApplicationContext`)
   - You can disable post-processing by setting: `essentials.reactive-bean-post-processor-enabled=false`
@@ -328,7 +328,7 @@ Typical `pom.xml` dependencies required to use this starter
 ```
 <dependencies>
     <dependency>
-        <groupId>dk.cloudcreate.essentials.components</groupId>
+        <groupId>dk.trustworks.essentials.components</groupId>
         <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
         <version>${essentials.version}</version>
     </dependency>

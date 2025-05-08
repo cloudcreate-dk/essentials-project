@@ -780,7 +780,7 @@ To use `Postgresql Event Store` just add the following Maven dependency:
 
 ```xml
 <dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>postgresql-event-store</artifactId>
     <version>0.40.24</version>
 </dependency>

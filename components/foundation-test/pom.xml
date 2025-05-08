@@ -21,7 +21,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>dk.cloudcreate.essentials</groupId>
+        <groupId>dk.trustworks.essentials</groupId>
         <artifactId>parent</artifactId>
         <version>${revision}</version>
         <relativePath>../../pom.xml</relativePath>
@@ -32,13 +32,13 @@
         be used by other modules to test their implementation
     </description>
 
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>foundation-test</artifactId>
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>foundation</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -114,7 +114,7 @@
                     <configuration>
                         <archive>
                             <manifestEntries>
-                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.foundation.test</Automatic-Module-Name>
+                                <Automatic-Module-Name>dk.trustworks.essentials.components.foundation.test</Automatic-Module-Name>
                             </manifestEntries>
                         </archive>
                     </configuration>

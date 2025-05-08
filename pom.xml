@@ -20,7 +20,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>dk.cloudcreate.essentials</groupId>
+    <groupId>dk.trustworks.essentials</groupId>
     <artifactId>parent</artifactId>
     <packaging>pom</packaging>
     <version>${revision}</version>
@@ -33,12 +33,12 @@
         and strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations
         with many of the most popular libraries and frameworks such as Jackson, Spring Boot, Spring Data, JPA, etc.
     </description>
-    <url>https://github.com/cloudcreate-dk/essentials</url>
+    <url>https://github.com/trustworksdk/essentials-project</url>
 
     <scm>
-        <url>https://github.com/cloudcreate-dk/essentials-project</url>
-        <developerConnection>scm:https://github.com/cloudcreate-dk/essentials-project.git</developerConnection>
-        <connection>scm:https://github.com/cloudcreate-dk/essentials-project.git</connection>
+        <url>https://github.com/trustworksdk/essentials-project</url>
+        <developerConnection>scm:https://github.com/trustworksdk/essentials-project.git</developerConnection>
+        <connection>scm:https://github.com/trustworksdk/essentials-project.git</connection>
     </scm>
 
     <licenses>
@@ -54,7 +54,7 @@
             <name>Jeppe Cramon</name>
             <organization>Trustworks</organization>
             <organizationUrl>https://www.trustworks.dk</organizationUrl>
-            <url>https://github.com/cloudcreate-dk</url>
+            <url>https://github.com/jeppec</url>
         </developer>
     </developers>
 
@@ -264,13 +264,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
 
     <build>
         <resources>
@@ -564,14 +557,14 @@
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>${nexus-staging-maven-plugin.version}</version>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.7.0</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <serverId>ossrh</serverId>
-                            <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-                            <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                            <publishingServerId>central</publishingServerId>
+                            <tokenAuth>true</tokenAuth>
+                            <autoPublish>false</autoPublish>
                         </configuration>
                     </plugin>
 

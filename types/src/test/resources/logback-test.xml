@@ -24,7 +24,7 @@
         </encoder>
     </appender>
 
-    <logger name="dk.cloudcreate.essentials" level="TRACE"/>
+    <logger name="dk.trustworks.essentials" level="TRACE"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>

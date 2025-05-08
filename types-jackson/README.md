@@ -3,7 +3,7 @@
 Essentials is a set of Java version 17 (and later) building blocks built from the ground up to have no dependencies
 on other libraries, unless explicitly mentioned.
 
-> Note: [For Java version 11 to 16 support, please use version 0.9.*](https://github.com/cloudcreate-dk/essentials-project/tree/java11)
+
 
 The Essentials philosophy is to provide high level building blocks and coding constructs that allows for concise and
 strongly typed code, which doesn't depend on other libraries or frameworks, but instead allows easy integrations with
@@ -21,7 +21,7 @@ To use `Types-Jackson` just add the following Maven dependency:
 
 ```
 <dependency>
-    <groupId>dk.cloudcreate.essentials</groupId>
+    <groupId>dk.trustworks.essentials</groupId>
     <artifactId>types-jackson</artifactId>
     <version>0.40.24</version>
 </dependency>
@@ -54,7 +54,7 @@ To use `Types-Jackson` just add the following Maven dependency:
 
 ### Configuration
 
-All you need to do is to add the `dk.cloudcreate.essentials.types.EssentialTypesJacksonModule` to your `ObjectMapper`
+All you need to do is to add the `dk.trustworks.essentials.types.EssentialTypesJacksonModule` to your `ObjectMapper`
 configuration.
 
 Example:

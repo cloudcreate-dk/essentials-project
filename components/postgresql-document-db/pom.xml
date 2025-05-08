@@ -22,7 +22,7 @@
 
 
     <parent>
-        <groupId>dk.cloudcreate.essentials</groupId>
+        <groupId>dk.trustworks.essentials</groupId>
         <artifactId>parent</artifactId>
         <version>${revision}</version>
         <relativePath>../../pom.xml</relativePath>
@@ -32,7 +32,7 @@
         This kotlin library focuses purely on providing document db like support for Postgresql
     </description>
 
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>postgresql-document-db</artifactId>
     <packaging>jar</packaging>
 
@@ -57,28 +57,28 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>types</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>types-jackson</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>immutable-jackson</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>foundation</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>types-jdbi</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -197,7 +197,7 @@
                     <configuration>
                         <archive>
                             <manifestEntries>
-                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.postgresql.document.db</Automatic-Module-Name>
+                                <Automatic-Module-Name>dk.trustworks.essentials.components.postgresql.document.db</Automatic-Module-Name>
                             </manifestEntries>
                         </archive>
                     </configuration>
