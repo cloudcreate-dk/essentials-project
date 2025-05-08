@@ -1,4 +1,6 @@
 name: Release to Maven Central
+permissions:
+  contents: read
 on:
   release:
     types: [created]
