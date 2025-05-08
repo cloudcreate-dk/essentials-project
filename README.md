@@ -3,8 +3,16 @@
 Essentials is a set of Java version 17 (and later) building blocks built from the ground up to have no dependencies
 on other libraries, unless explicitly mentioned.
 
-> **NOTE:**  
-> **The libraries are WORK-IN-PROGRESS** and only **the Spring Boot 3.2.x and Java 17+ variant (version 0.40.*) is being maintained!**     
+> **NOTE:** **The libraries are WORK-IN-PROGRESS**!
+>- ---
+> [Cloud Create](https://github.com/cloudcreate-dk) originally developed the [Essentials project](https://github.com/cloudcreate-dk/essentials-project).   
+> As of May 8th 2025, [Trustworks](https://www.trustworks.dk) has assumed responsibility for further development of the project.
+> 
+> **Compatibility Note:**
+> *Trustworks' Essentials release version **0.40.24** remains API and functionally compatible with Cloud Create's version **0.40.24** (that was released on the 5th of May 2025). 
+> Migration requires only updating module names and package references from `dk.cloudcreate` to `dk.trustworks`.*
+> 
+> Essentials remain released under version 2.0 of the [Apache License](https://www.apache.org/licenses/LICENSE-2.0)
 
 # Security
 
