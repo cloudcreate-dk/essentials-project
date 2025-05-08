@@ -1,4 +1,4 @@
-@namespace("dk.cloudcreate.essentials.types.avro.test")
+@namespace("dk.trustworks.essentials.types.avro.test")
 protocol Test {
   record Money {
     @logicalType("Amount")
