@@ -20,28 +20,28 @@
         <notes><![CDATA[
    essentials modules with postgresql in the module name
    ]]></notes>
-        <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/*postgresql*.*$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/dk\.trustworks\.essentials\.components/*postgresql*.*$</packageUrl>
         <cpe>cpe:/a:postgresql:postgresql</cpe>
     </suppress>
     <suppress>
         <notes><![CDATA[
    spring-postgresql-event-store is mismatched, but only when running on GitHub
    ]]></notes>
-        <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/spring-postgresql-event-store*.*$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/dk\.trustworks\.essentials\.components/spring-postgresql-event-store*.*$</packageUrl>
         <cpe>cpe:/a:postgresql:postgresql</cpe>
     </suppress>
     <suppress>
         <notes><![CDATA[
    spring-boot-starter-postgresql
    ]]></notes>
-        <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/spring-boot-starter-postgresql*.*$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/dk\.trustworks\.essentials\.components/spring-boot-starter-postgresql*.*$</packageUrl>
         <cpe>cpe:/a:postgresql:postgresql</cpe>
     </suppress>
     <suppress>
         <notes><![CDATA[
    spring-boot-starter-postgresql-event-store
    ]]></notes>
-        <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/spring-boot-starter-postgresql-event-store*.*$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/dk\.trustworks\.essentials\.components/spring-boot-starter-postgresql-event-store*.*$</packageUrl>
         <cpe>cpe:/a:postgresql:postgresql</cpe>
     </suppress>
     <suppress>
@@ -258,14 +258,14 @@
         <notes><![CDATA[
         springdata-mongo-distributed-fenced-lock-?.?.?.jar dependency isn't the same as mongodb:mongodb
    ]]></notes>
-        <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/springdata-mongo-distributed-fenced-lock@.*$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/dk\.trustworks\.essentials\.components/springdata-mongo-distributed-fenced-lock@.*$</packageUrl>
         <cpe>cpe:/a:mongodb:mongodb</cpe>
     </suppress>
     <suppress>
         <notes><![CDATA[
         springdata-mongo-queue-?.?.?.jar dependency isn't the same as mongodb:mongodb
    ]]></notes>
-        <packageUrl regex="true">^pkg:maven/dk\.cloudcreate\.essentials\.components/springdata-mongo-queue@.*$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/dk\.trustworks\.essentials\.components/springdata-mongo-queue@.*$</packageUrl>
         <cpe>cpe:/a:mongodb:mongodb</cpe>
     </suppress>
     <suppress>

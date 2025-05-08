@@ -15,7 +15,7 @@ This library contains the smallest set of supporting reactive building blocks ne
 To use `Reactive` just add the following Maven dependency:
 ```
 <dependency>
-    <groupId>dk.cloudcreate.essentials</groupId>
+    <groupId>dk.trustworks.essentials</groupId>
     <artifactId>reactive</artifactId>
     <version>0.40.24</version>
 </dependency>
@@ -165,8 +165,8 @@ public class OrdersCommandHandler extends AnnotatedCommandHandler {
 ```
 
 ## Command Interceptors
-You can register `CommandBusInterceptor`'s (such as the `dk.cloudcreate.essentials.components.foundation.reactive.command.UnitOfWorkControllingCommandBusInterceptor`
-from the PostgresqlEventStore module from [Essentials Components](https://github.com/cloudcreate-dk/essentials-components)), which allows you to 
+You can register `CommandBusInterceptor`'s (such as the `dk.trustworks.essentials.components.foundation.reactive.command.UnitOfWorkControllingCommandBusInterceptor`
+from the PostgresqlEventStore module from [Essentials Components/postgresql-event-store](https://github.com/trustworksdk/essentials-project/tree/main/components/postgresql-event-store), which allows you to 
 intercept Commands before and after they're being handled by the `LocalCommandBus`
 
 Example:

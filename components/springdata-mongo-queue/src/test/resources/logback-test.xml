@@ -24,11 +24,11 @@
         </encoder>
     </appender>
 
-    <logger name="dk.cloudcreate.essentials" level="TRACE"/>
-    <logger name="dk.cloudcreate.essentials.shared.interceptor.DefaultInterceptorChain" level="DEBUG"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.transaction" level="INFO"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer" level="TRACE"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.messaging.queue.DurableQueueConsumer.MessageHandlingFailures" level="TRACE"/>
+    <logger name="dk.trustworks.essentials" level="TRACE"/>
+    <logger name="dk.trustworks.essentials.shared.interceptor.DefaultInterceptorChain" level="DEBUG"/>
+    <logger name="dk.trustworks.essentials.components.foundation.transaction" level="INFO"/>
+    <logger name="dk.trustworks.essentials.components.foundation.messaging.queue.DurableQueueConsumer" level="TRACE"/>
+    <logger name="dk.trustworks.essentials.components.foundation.messaging.queue.DurableQueueConsumer.MessageHandlingFailures" level="TRACE"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>

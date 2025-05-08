@@ -40,7 +40,7 @@ To use `foundation` just add the following Maven dependency:
 ```xml
 
 <dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>foundation</artifactId>
     <version>0.40.24</version>
 </dependency>

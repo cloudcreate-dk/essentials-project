@@ -21,7 +21,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>dk.cloudcreate.essentials</groupId>
+        <groupId>dk.trustworks.essentials</groupId>
         <artifactId>parent</artifactId>
         <version>${revision}</version>
         <relativePath>../../pom.xml</relativePath>
@@ -30,7 +30,7 @@
         This library focuses on providing different flavors of eventsourced aggregrates
     </description>
 
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>eventsourced-aggregates</artifactId>
     <packaging>jar</packaging>
 
@@ -42,12 +42,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>postgresql-event-store</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials</groupId>
+            <groupId>dk.trustworks.essentials</groupId>
             <artifactId>immutable-jackson</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -112,7 +112,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>postgresql-queue</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -128,7 +128,7 @@
                     <configuration>
                         <archive>
                             <manifestEntries>
-                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.eventsourced.aggregates</Automatic-Module-Name>
+                                <Automatic-Module-Name>dk.trustworks.essentials.components.eventsourced.aggregates</Automatic-Module-Name>
                             </manifestEntries>
                         </archive>
                     </configuration>

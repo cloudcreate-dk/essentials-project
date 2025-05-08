@@ -21,7 +21,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>dk.cloudcreate.essentials</groupId>
+        <groupId>dk.trustworks.essentials</groupId>
         <artifactId>parent</artifactId>
         <version>${revision}</version>
         <relativePath>../../pom.xml</relativePath>
@@ -30,13 +30,13 @@
         This library provides Spring Boot auto-configuration for the Postgresql Event Store
     </description>
 
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>spring-boot-starter-postgresql-event-store</artifactId>
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>spring-boot-starter-postgresql</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -92,12 +92,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>spring-postgresql-event-store</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>dk.cloudcreate.essentials.components</groupId>
+            <groupId>dk.trustworks.essentials.components</groupId>
             <artifactId>eventsourced-aggregates</artifactId>
             <version>${project.version}</version>
             <optional>true</optional>
@@ -200,7 +200,7 @@
                     <configuration>
                         <archive>
                             <manifestEntries>
-                                <Automatic-Module-Name>dk.cloudcreate.essentials.components.boot.autoconfigure.postgresql.eventstore</Automatic-Module-Name>
+                                <Automatic-Module-Name>dk.trustworks.essentials.components.boot.autoconfigure.postgresql.eventstore</Automatic-Module-Name>
                             </manifestEntries>
                         </archive>
                     </configuration>

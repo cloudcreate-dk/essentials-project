@@ -39,14 +39,14 @@ It is highly recommended that the snapshotTableName value is only derived from a
 # More details on Aggregate designs
 This library supports multiple flavours of Aggregate design such as:
 
-- The **modern** `dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.modern.AggregateRoot`
-- The *classic* `dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.classic.AggregateRoot`
+- The **modern** `dk.trustworks.essentials.components.eventsourced.aggregates.stateful.modern.AggregateRoot`
+- The *classic* `dk.trustworks.essentials.components.eventsourced.aggregates.stateful.classic.AggregateRoot`
 - The *classic* with separate state
-  object `dk.cloudcreate.essentials.components.eventsourced.aggregates.stateful.classic.state.AggregateRootWithState`
-- The **functional** `dk.cloudcreate.essentials.components.eventsourced.aggregates.flex.FlexAggregate`
-- The **Decider** pattern `dk.cloudcreate.essentials.components.eventsourced.aggregates.decider.Decider`
-  - See `dk.cloudcreate.essentials.components.eventsourced.aggregates.decider.DeciderTest`
-  - and `dk.cloudcreate.essentials.components.eventsourced.aggregates.decider.DeciderBasedCommandHandlerIT`
+  object `dk.trustworks.essentials.components.eventsourced.aggregates.stateful.classic.state.AggregateRootWithState`
+- The **functional** `dk.trustworks.essentials.components.eventsourced.aggregates.flex.FlexAggregate`
+- The **Decider** pattern `dk.trustworks.essentials.components.eventsourced.aggregates.decider.Decider`
+  - See `dk.trustworks.essentials.components.eventsourced.aggregates.decider.DeciderTest`
+  - and `dk.trustworks.essentials.components.eventsourced.aggregates.decider.DeciderBasedCommandHandlerIT`
 
 The **modern** `AggregateRoot`, *classic* `AggregateRoot` and *classic* `AggregateRootWithState` are all examples of a
 mutable `StatefulAggregate` design.
@@ -66,13 +66,13 @@ the `EventsToPersist` and applying events doesn't alter the state of the aggrega
 aggregate state).
 
 Check the `Order` and `FlexAggregateRepositoryIT` examples
-in `essentials-components/eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/flex`
+in `essentials-components/eventsourced-aggregates/src/test/java/dk/trustworks/essentials/components/eventsourced/aggregates/flex`
 
 To use `EventSourced Aggregates` just add the following Maven dependency:
 
 ```
 <dependency>
-    <groupId>dk.cloudcreate.essentials.components/groupId>
+    <groupId>dk.trustworks.essentials.components/groupId>
     <artifactId>eventsourced-aggregates</artifactId>
     <version>0.40.24</version>
 </dependency>
@@ -91,7 +91,7 @@ unitOfWork.commit();
 
 ### Modern stateful Order aggregate with a separate state object
 
-See `eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/modern/OrderAggregateRootRepositoryTest.java`
+See `eventsourced-aggregates/src/test/java/dk/trustworks/essentials/components/eventsourced/aggregates/modern/OrderAggregateRootRepositoryTest.java`
 for more details.
 
 ```
@@ -369,27 +369,27 @@ For other examples see:
 #### Modern `AggregateRoot`
 
 - With separate `WithState` object using `ReflectionBasedAggregateInstanceFactory`:
-    - `eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/modern/with_state/OrderAggregateRootWithStateRepositoryIT.java`
+    - `eventsourced-aggregates/src/test/java/dk/trustworks/essentials/components/eventsourced/aggregates/modern/with_state/OrderAggregateRootWithStateRepositoryIT.java`
 - **Without** separate State object using `ReflectionBasedAggregateInstanceFactory`:
-    - `eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/modern/OrderAggregateRootRepositoryIT.java`
+    - `eventsourced-aggregates/src/test/java/dk/trustworks/essentials/components/eventsourced/aggregates/modern/OrderAggregateRootRepositoryIT.java`
 
 #### Functional `FlexAggregate`
 
-- `eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/flex/FlexAggregateRepositoryIT.java`
+- `eventsourced-aggregates/src/test/java/dk/trustworks/essentials/components/eventsourced/aggregates/flex/FlexAggregateRepositoryIT.java`
 
 #### Classic `AggregateRoot`
 
 - Using `ObjenesisAggregateInstanceFactory`:
-    - `eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/classic/objenesis/OrderAggregateRootRepositoryIT.java`
+    - `eventsourced-aggregates/src/test/java/dk/trustworks/essentials/components/eventsourced/aggregates/classic/objenesis/OrderAggregateRootRepositoryIT.java`
 - Using `ReflectionBasedAggregateInstanceFactory`:
-    - `eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/classic/OrderAggregateRootRepositoryIT.java`
+    - `eventsourced-aggregates/src/test/java/dk/trustworks/essentials/components/eventsourced/aggregates/classic/OrderAggregateRootRepositoryIT.java`
 
 #### Classic `AggregateRootWithState`
 
 - Using `ObjenesisAggregateInstanceFactory`:
-    - `eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/classic/objenesis/state/OrderWithStateAggregateRootRepositoryIT.java`
+    - `eventsourced-aggregates/src/test/java/dk/trustworks/essentials/components/eventsourced/aggregates/classic/objenesis/state/OrderWithStateAggregateRootRepositoryIT.java`
 - Using `ReflectionBasedAggregateInstanceFactory`:
-    - `eventsourced-aggregates/src/test/java/dk/cloudcreate/essentials/components/eventsourced/aggregates/classic/state/OrderWithStateAggregateRootRepositoryIT.java`
+    - `eventsourced-aggregates/src/test/java/dk/trustworks/essentials/components/eventsourced/aggregates/classic/state/OrderWithStateAggregateRootRepositoryIT.java`
 
 ### AggregateType
 

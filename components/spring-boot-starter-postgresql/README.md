@@ -16,7 +16,7 @@ Most `@Beans` auto-configured by this library use `@ConditionalOnMissingBean` to
 To use `spring-boot-starter-postgresql` to add the following dependency:
 ```
 <dependency>
-    <groupId>dk.cloudcreate.essentials.components</groupId>
+    <groupId>dk.trustworks.essentials.components</groupId>
     <artifactId>spring-boot-starter-postgresql</artifactId>
     <version>0.40.24</version>
 </dependency>
@@ -26,10 +26,10 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
 
 >If you in your own Spring Boot application choose to override the Beans defined by this starter,
  then you need to check the component document to learn about the Security implications of each configuration, such as:
-> - dk.cloudcreate.essentials.components.queue.postgresql.PostgresqlDurableQueues
-> - dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager 
-> - dk.cloudcreate.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage
-> - dk.cloudcreate.essentials.components.foundation.postgresql.MultiTableChangeListener
+> - dk.trustworks.essentials.components.queue.postgresql.PostgresqlDurableQueues
+> - dk.trustworks.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockManager 
+> - dk.trustworks.essentials.components.distributed.fencedlock.postgresql.PostgresqlFencedLockStorage
+> - dk.trustworks.essentials.components.foundation.postgresql.MultiTableChangeListener
 
 ### Beans provided by the `EssentialsComponentsConfiguration` auto-configuration:
 - Jackson/FasterXML JSON modules:
@@ -167,11 +167,11 @@ To use `spring-boot-starter-postgresql` to add the following dependency:
   - **Adjusting Log Levels:**  
     In addition to these properties, you can control which metrics are actually written to your log files by configuring the log levels for the corresponding logger classes in your logging framework (e.g. Logback or Log4j). For example:
     - For durable queues metrics, adjust the log level for:  
-      `dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeDurableQueueInterceptor`
+      `dk.trustworks.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeDurableQueueInterceptor`
     - For command bus metrics, adjust the log level for:  
-      `dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeCommandBusInterceptor`
+      `dk.trustworks.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeCommandBusInterceptor`
     - For message handler metrics, adjust the log level for:  
-      `dk.cloudcreate.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeMessageHandlerInterceptor`
+      `dk.trustworks.essentials.components.foundation.interceptor.micrometer.RecordExecutionTimeMessageHandlerInterceptor`
 
   - The underlying MeasurementTaker uses different log levels depending on how slow the processing time is:
     - `DEBUG` is for all measurements independent of processing time
@@ -253,7 +253,7 @@ Typical `pom.xml` dependencies required to use this starter
 ```
 <dependencies>
     <dependency>
-        <groupId>dk.cloudcreate.essentials.components</groupId>
+        <groupId>dk.trustworks.essentials.components</groupId>
         <artifactId>spring-boot-starter-postgresql</artifactId>
         <version>${essentials.version}</version>
     </dependency>

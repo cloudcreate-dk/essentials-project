@@ -24,8 +24,8 @@
         </encoder>
     </appender>
 
-    <logger name="dk.cloudcreate.essentials" level="TRACE"/>
-    <logger name="dk.cloudcreate.essentials.components.foundation.transaction" level="INFO"/>
+    <logger name="dk.trustworks.essentials" level="TRACE"/>
+    <logger name="dk.trustworks.essentials.components.foundation.transaction" level="INFO"/>
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
