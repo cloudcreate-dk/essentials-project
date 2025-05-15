@@ -31,6 +31,7 @@ import org.springframework.data.mongodb.core.query.*;
 
 import java.time.*;
 import java.util.*;
+import java.util.function.Function;
 
 import static dk.trustworks.essentials.components.foundation.mongo.MongoUtil.isWriteConflict;
 import static dk.trustworks.essentials.shared.FailFast.requireNonNull;
@@ -359,6 +360,41 @@ public final class MongoFencedLockStorage implements FencedLockStorage<ClientSes
                 Exceptions.sneakyThrow(e);
             }
         }
+    }
+
+    @Override
+    public List<DBFencedLock> getAllLocksInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager, ClientSessionAwareUnitOfWork unitOfWork) {
+        return mongoTemplate.findAll(MongoFencedLock.class, this.fencedLocksCollectionName).stream()
+            .map(mapToDBFencedLock(lockManager))
+            .toList();
+    }
+
+    @Override
+    public List<DBFencedLock> getAllLocksInDB(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager, ClientSessionAwareUnitOfWork clientSessionAwareUnitOfWork, long startIndex, long pageSize) {
+        Query page = new Query()
+                .skip(startIndex)
+                .limit((int) pageSize);
+
+        List<MongoFencedLock> rawPage = mongoTemplate
+                .find(page, MongoFencedLock.class, this.fencedLocksCollectionName);
+
+        return rawPage.stream()
+                .map(mapToDBFencedLock(lockManager))
+                .toList();
+    }
+
+    private static Function<MongoFencedLock, DBFencedLock> mapToDBFencedLock(DBFencedLockManager<ClientSessionAwareUnitOfWork, DBFencedLock> lockManager) {
+        return lock -> new DBFencedLock(
+                lockManager,
+                lock.getName(),
+                lock.getLastIssuedFencedToken(),
+                lock.getLockedByLockManagerInstanceId(),
+                lock.lockAcquiredTimestamp != null
+                        ? lock.lockAcquiredTimestamp.atOffset(ZoneOffset.UTC)
+                        : null,
+                lock.lockLastConfirmedTimestamp != null
+                        ? lock.lockLastConfirmedTimestamp.atOffset(ZoneOffset.UTC)
+                        : null);
     }
 
     private static class MongoFencedLock {

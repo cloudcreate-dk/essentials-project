@@ -49,6 +49,18 @@ public class JacksonJSONSerializer implements JSONSerializer {
     }
 
     @Override
+    public String serializePrettyPrint(Object obj) {
+        requireNonNull(obj, "you must provide a non-null object");
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(obj);
+        } catch (Throwable e) {
+            rethrowIfCriticalError(e);
+            throw new JSONSerializationException(msg("Failed to serialize {} to JSON", obj.getClass().getName()),
+                    e);
+        }
+    }
+
+    @Override
     public byte[] serializeAsBytes(Object obj) {
         requireNonNull(obj, "you must provide a non-null object");
         try {

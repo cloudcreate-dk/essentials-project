@@ -25,8 +25,11 @@ import dk.trustworks.essentials.components.foundation.postgresql.PostgresqlUtil;
 import dk.trustworks.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWorkFactory;
 import dk.trustworks.essentials.components.foundation.types.SubscriberId;
 import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.core.statement.StatementContext;
 import org.slf4j.*;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.*;
 import java.util.*;
 
@@ -274,5 +277,35 @@ public final class PostgresqlDurableSubscriptionRepository implements DurableSub
                 log.error("Failed to save the {} ResumePoints", resumePoints.size(), e);
             }
         }
+    }
+
+    @Override
+    public List<SubscriptionResumePoint> findAllResumePoints() {
+        return unitOfWorkFactory.withUnitOfWork(uow -> uow.handle().createQuery("SELECT * FROM " + this.durableSubscriptionsTableName)
+                .map(this::mapToSubscriptionResumePoint)
+                .collectIntoList());
+    }
+
+    private SubscriptionResumePoint mapToSubscriptionResumePoint(ResultSet resultSet, StatementContext context) {
+        try {
+            return new SubscriptionResumePoint(
+                    SubscriberId.of(resultSet.getString("subscriber_id")),
+                    AggregateType.of(resultSet.getString("aggregate_type")),
+                    GlobalEventOrder.of(resultSet.getLong("resume_from_and_including_global_eventorder")),
+                    resultSet.getObject("last_updated", OffsetDateTime.class)
+            );
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    @Override
+    public List<SubscriptionResumePoint> findAllResumePoints(long startIndex, long pageSize) {
+        return unitOfWorkFactory.withUnitOfWork(uow -> uow.handle().createQuery("SELECT * FROM " + this.durableSubscriptionsTableName + " LIMIT :limit OFFSET :offset")
+                .bind("limit", pageSize)
+                .bind("offset", startIndex)
+                .map(this::mapToSubscriptionResumePoint)
+                .collectIntoList());
     }
 }

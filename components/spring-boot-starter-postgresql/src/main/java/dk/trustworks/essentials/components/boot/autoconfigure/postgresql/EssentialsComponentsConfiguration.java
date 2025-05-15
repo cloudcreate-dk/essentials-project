@@ -26,25 +26,36 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dk.trustworks.essentials.components.boot.autoconfigure.postgresql.EssentialsComponentsProperties.*;
 import dk.trustworks.essentials.components.distributed.fencedlock.postgresql.*;
 import dk.trustworks.essentials.components.foundation.fencedlock.*;
+import dk.trustworks.essentials.components.foundation.fencedlock.api.DBFencedLockApi;
+import dk.trustworks.essentials.components.foundation.fencedlock.api.DefaultDBFencedLockApi;
 import dk.trustworks.essentials.components.foundation.interceptor.micrometer.*;
 import dk.trustworks.essentials.components.foundation.json.*;
 import dk.trustworks.essentials.components.foundation.lifecycle.*;
 import dk.trustworks.essentials.components.foundation.messaging.RedeliveryPolicy;
 import dk.trustworks.essentials.components.foundation.messaging.eip.store_and_forward.*;
 import dk.trustworks.essentials.components.foundation.messaging.queue.*;
+import dk.trustworks.essentials.components.foundation.messaging.queue.api.DefaultDurableQueuesApi;
+import dk.trustworks.essentials.components.foundation.messaging.queue.api.DurableQueuesApi;
 import dk.trustworks.essentials.components.foundation.messaging.queue.micrometer.*;
+import dk.trustworks.essentials.components.foundation.messaging.queue.stats.DurableQueuesStatistics;
+import dk.trustworks.essentials.components.foundation.messaging.queue.stats.NoOpDurableQueuesStatistics;
 import dk.trustworks.essentials.components.foundation.postgresql.*;
+import dk.trustworks.essentials.components.foundation.postgresql.api.DefaultPostgresqlQueryStatisticsApi;
+import dk.trustworks.essentials.components.foundation.postgresql.api.PostgresqlQueryStatisticsApi;
 import dk.trustworks.essentials.components.foundation.reactive.command.*;
 import dk.trustworks.essentials.components.foundation.transaction.*;
 import dk.trustworks.essentials.components.foundation.transaction.jdbi.*;
 import dk.trustworks.essentials.components.foundation.transaction.spring.jdbi.SpringTransactionAwareJdbiUnitOfWorkFactory;
 import dk.trustworks.essentials.components.queue.postgresql.PostgresqlDurableQueues;
+import dk.trustworks.essentials.components.queue.postgresql.PostgresqlDurableQueuesStatistics;
 import dk.trustworks.essentials.jackson.immutable.EssentialsImmutableJacksonModule;
 import dk.trustworks.essentials.jackson.types.EssentialTypesJacksonModule;
 import dk.trustworks.essentials.reactive.*;
 import dk.trustworks.essentials.reactive.command.*;
 import dk.trustworks.essentials.reactive.command.interceptor.CommandBusInterceptor;
 import dk.trustworks.essentials.reactive.spring.ReactiveHandlersBeanPostProcessor;
+import dk.trustworks.essentials.shared.security.EssentialsAuthenticatedUser;
+import dk.trustworks.essentials.shared.security.EssentialsSecurityProvider;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
@@ -273,6 +284,22 @@ public class EssentialsComponentsConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public DurableQueuesStatistics durableQueuesStatistics(HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory,
+                                                           JSONSerializer jsonSerializer,
+                                                           EssentialsComponentsProperties properties) {
+        if (properties.getDurableQueues().isEnableQueueStatistics()) {
+            return new PostgresqlDurableQueuesStatistics(
+                    unitOfWorkFactory,
+                    jsonSerializer,
+                    properties.getDurableQueues().getSharedQueueTableName(),
+                    properties.getDurableQueues().getSharedQueueStatisticsTableName()
+            );
+        }
+        return new NoOpDurableQueuesStatistics();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public MultiTableChangeListener<TableChangeNotification> multiTableChangeListener(Jdbi jdbi,
                                                                                       JSONSerializer jsonSerializer,
                                                                                       EventBus eventBus,
@@ -475,5 +502,49 @@ public class EssentialsComponentsConfiguration {
                                                               properties.getMetrics().getDurableQueues().isEnabled(),
                                                               properties.getMetrics().getDurableQueues().toLogThresholds(),
                                                               properties.getTracingProperties().getModuleTag());
+    }
+
+    // Api ###################################################################################################
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EssentialsSecurityProvider essentialsSecurityProvider() {
+        return new EssentialsSecurityProvider.AllAccessSecurityProvider();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EssentialsAuthenticatedUser essentialsAuthenticatedUser() {
+        return new EssentialsAuthenticatedUser.AllAccessAuthenticatedUser();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public DBFencedLockApi dbFencedLockApi(EssentialsSecurityProvider securityProvider,
+                                           PostgresqlFencedLockManager fencedLockManager,
+                                           UnitOfWorkFactory<? extends UnitOfWork> unitOfWorkFactory) {
+        return new DefaultDBFencedLockApi(securityProvider,
+                fencedLockManager,
+                unitOfWorkFactory);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public DurableQueuesApi durableQueuesApi(EssentialsSecurityProvider securityProvider,
+                                             DurableQueues durableQueues,
+                                             JSONSerializer jsonSerializer,
+                                             DurableQueuesStatistics durableQueuesStatistics) {
+        return new DefaultDurableQueuesApi(securityProvider,
+                durableQueues,
+                jsonSerializer,
+                durableQueuesStatistics);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public PostgresqlQueryStatisticsApi postgresqlQueryStatisticsApi(EssentialsSecurityProvider securityProvider,
+                                                                     HandleAwareUnitOfWorkFactory<? extends HandleAwareUnitOfWork> unitOfWorkFactory) {
+        return new DefaultPostgresqlQueryStatisticsApi(securityProvider,
+                unitOfWorkFactory);
     }
 }

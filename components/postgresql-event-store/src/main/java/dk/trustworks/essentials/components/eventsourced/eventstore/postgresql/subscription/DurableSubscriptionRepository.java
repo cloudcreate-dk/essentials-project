@@ -156,4 +156,9 @@ public interface DurableSubscriptionRepository {
                         forAggregateType,
                         onFirstSubscriptionSubscribeFromAndIncludingGlobalOrder.apply(forAggregateType)));
     }
+
+    List<SubscriptionResumePoint> findAllResumePoints();
+
+    List<SubscriptionResumePoint> findAllResumePoints(long startIndex, long pageSize);
+
 }

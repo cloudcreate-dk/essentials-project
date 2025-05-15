@@ -816,11 +816,11 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
     }
 
 
-    static class RecordingQueuedMessageHandler implements QueuedMessageHandler {
+   protected static class RecordingQueuedMessageHandler implements QueuedMessageHandler {
         Consumer<Message>              functionLogic;
         ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
 
-        RecordingQueuedMessageHandler() {
+        public RecordingQueuedMessageHandler() {
         }
 
         RecordingQueuedMessageHandler(Consumer<Message> functionLogic) {
@@ -834,6 +834,10 @@ public abstract class DurableQueuesIT<DURABLE_QUEUES extends DurableQueues, UOW 
                 functionLogic.accept(message.getMessage());
             }
         }
-    }
+
+       public ConcurrentLinkedQueue<Message> getMessages() {
+           return messages;
+       }
+   }
 
 }

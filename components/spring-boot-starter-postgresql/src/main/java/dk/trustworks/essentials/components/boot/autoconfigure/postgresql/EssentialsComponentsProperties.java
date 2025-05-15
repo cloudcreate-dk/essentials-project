@@ -274,22 +274,23 @@ public class EssentialsComponentsProperties {
     }
 
     public static class DurableQueuesProperties {
-        private String sharedQueueTableName = PostgresqlDurableQueues.DEFAULT_DURABLE_QUEUES_TABLE_NAME;
+        private String sharedQueueTableName           = PostgresqlDurableQueues.DEFAULT_DURABLE_QUEUES_TABLE_NAME;
+        private String sharedQueueStatisticsTableName = PostgresqlDurableQueuesStatistics.DEFAULT_DURABLE_QUEUES_TABLE_NAME;
 
-        private Double pollingDelayIntervalIncrementFactor = 0.5d;
-
+        private Double            pollingDelayIntervalIncrementFactor      = 0.5d;
         private Duration          maxPollingInterval                       = Duration.ofMillis(2000);
         private TransactionalMode transactionalMode                        = TransactionalMode.SingleOperationTransaction;
         private Duration          messageHandlingTimeout                   = Duration.ofSeconds(30);
         private boolean           useCentralizedMessageFetcher             = true;
         private Duration          centralizedMessageFetcherPollingInterval = Duration.ofMillis(20);
 
-        private boolean verboseTracing = false;
+        private boolean verboseTracing        = false;
+        private boolean enableQueueStatistics = false;
 
         /**
          * Should the Tracing produces only include all operations or only top level operations (default false)
          *
-         * @return Should the Tracing produces only include all operations or only top level operations
+         * @return Should the Tracing produces only include all operations or only top level operations?
          */
         public boolean isVerboseTracing() {
             return verboseTracing;
@@ -298,27 +299,45 @@ public class EssentialsComponentsProperties {
         /**
          * Should the Tracing produces only include all operations or only top level operations (default false)
          *
-         * @param verboseTracing Should the Tracing produces only include all operations or only top level operations
+         * @param verboseTracing Should the Tracing produces only include all operations or only top level operations?
          */
         public void setVerboseTracing(boolean verboseTracing) {
             this.verboseTracing = verboseTracing;
         }
 
         /**
+         * Should the DurableQueuesStatistics bean be enabled (default false), creates a durable queues stats table that can queried through DurableQueuesStatistics.
+         *
+         * @return Should the DurableQueuesStatistics bean be enabled?
+         */
+        public boolean isEnableQueueStatistics() {
+            return enableQueueStatistics;
+        }
+
+        /**
+         * Should the DurableQueuesStatistics bean be enabled (default false), creates a durable queues stats table that can queried through DurableQueuesStatistics.
+         *
+         * @param enableQueueStatistics Should the DurableQueuesStatistics bean be enabled?
+         */
+        public void setEnableQueueStatistics(boolean enableQueueStatistics) {
+            this.enableQueueStatistics = enableQueueStatistics;
+        }
+
+        /**
          * Get the transactional behaviour mode of the {@link PostgresqlDurableQueues}<br>
          * Default: {@link TransactionalMode#SingleOperationTransaction}
          *
-         * @return the transactional behaviour mode of the {@link PostgresqlDurableQueues}
+         * @return the transactional behavior mode of the {@link PostgresqlDurableQueues}
          */
         public TransactionalMode getTransactionalMode() {
             return transactionalMode;
         }
 
         /**
-         * Set the transactional behaviour mode of the {@link PostgresqlDurableQueues}
+         * Set the transactional behavior mode of the {@link PostgresqlDurableQueues}
          * Default: {@link TransactionalMode#SingleOperationTransaction}
          *
-         * @param transactionalMode the transactional behaviour mode of the {@link PostgresqlDurableQueues}
+         * @param transactionalMode the transactional behavior mode of the {@link PostgresqlDurableQueues}
          */
         public void setTransactionalMode(TransactionalMode transactionalMode) {
             this.transactionalMode = transactionalMode;
@@ -327,7 +346,7 @@ public class EssentialsComponentsProperties {
         /**
          * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#SingleOperationTransaction}<br>
          * The Message Handling timeout defines the timeout for messages being delivered, but haven't yet been acknowledged.
-         * After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
+         * After this timeout the message delivery will be reset, and the message will again be a candidate for delivery<br>
          * Default is 30 seconds
          *
          * @return the Message Handling timeout
@@ -339,7 +358,7 @@ public class EssentialsComponentsProperties {
         /**
          * Get the Message Handling timeout - Only relevant for {@link TransactionalMode#SingleOperationTransaction}<br>
          * The Message Handling timeout defines the timeout for messages being delivered, but haven't yet been acknowledged.
-         * After this timeout the message delivery will be reset and the message will again be a candidate for delivery<br>
+         * After this timeout the message delivery will be reset, and the message will again be a candidate for delivery<br>
          * Default is 30 seconds
          *
          * @param messageHandlingTimeout the Message Handling timeout
@@ -404,6 +423,64 @@ public class EssentialsComponentsProperties {
          */
         public void setSharedQueueTableName(String sharedQueueTableName) {
             this.sharedQueueTableName = sharedQueueTableName;
+        }
+
+        /**
+         * Get the name of the table that will contain all messages (across all {@link QueueName}'s)<br>
+         * Default is {@value PostgresqlDurableQueues#DEFAULT_DURABLE_QUEUES_TABLE_NAME}<br>
+         * <br>
+         * <strong>Note:</strong><br>
+         * To support customization of storage table name, the {@link #getSharedQueueStatisticsTableName()} will be directly used in constructing SQL statements
+         * through string concatenation, which exposes the component to SQL injection attacks.<br>
+         * <br>
+         * <strong>Security Note:</strong><br>
+         * It is the responsibility of the user of this component to sanitize the {@code sharedQueueStatisticsTableName}
+         * to ensure the security of all the SQL statements generated by this component. The {@link PostgresqlDurableQueuesStatistics} component will
+         * call the {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} method to validate the table name as a first line of defense.<br>
+         * The {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} provides an initial layer of defense against SQL injection by applying naming conventions intended to reduce the risk of malicious input.<br>
+         * However, Essentials components as well as {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting SQL against SQL injection threats.<br>
+         * <b>The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.</b><br>
+         * Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.<br>
+         * Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.<br>
+         * <br>
+         * It is highly recommended that the {@code sharedQueueStatisticsTableName} value is only derived from a controlled and trusted source.<br>
+         * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the {@code sharedQueueStatisticsTableName} value.<br>
+         * <b>Failure to adequately sanitize and validate this value could expose the application to SQL injection
+         * vulnerabilities, compromising the security and integrity of the database.</b>
+         *
+         * @return the name of the table that will contain all messages (across all {@link QueueName}'s)
+         */
+        public String getSharedQueueStatisticsTableName() {
+            return sharedQueueStatisticsTableName;
+        }
+
+        /**
+         * Set the name of the table that will contain all messages (across all {@link QueueName}'s)<br>
+         * Default is {@value PostgresqlDurableQueuesStatistics#DEFAULT_DURABLE_QUEUES_TABLE_NAME}<br>
+         * <br>
+         * <strong>Note:</strong><br>
+         * To support customization of storage table name, the {@code sharedQueueStatisticsTableName} will be directly used in constructing SQL statements
+         * through string concatenation, which exposes the component to SQL injection attacks.<br>
+         * <br>
+         * <strong>Security Note:</strong><br>
+         * It is the responsibility of the user of this component to sanitize the {@code sharedQueueStatisticsTableName}
+         * to ensure the security of all the SQL statements generated by this component. The {@link PostgresqlDurableQueues} component will
+         * call the {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} method to validate the table name as a first line of defense.<br>
+         * The {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} provides an initial layer of defense against SQL injection by applying naming conventions intended to reduce the risk of malicious input.<br>
+         * However, Essentials components as well as {@link PostgresqlUtil#checkIsValidTableOrColumnName(String)} does not offer exhaustive protection, nor does it assure the complete security of the resulting SQL against SQL injection threats.<br>
+         * <b>The responsibility for implementing protective measures against SQL Injection lies exclusively with the users/developers using the Essentials components and its supporting classes.</b><br>
+         * Users must ensure thorough sanitization and validation of API input parameters,  column, table, and index names.<br>
+         * Insufficient attention to these practices may leave the application vulnerable to SQL injection, potentially endangering the security and integrity of the database.<br>
+         * <br>
+         * It is highly recommended that the {@code sharedQueueStatisticsTableName} value is only derived from a controlled and trusted source.<br>
+         * To mitigate the risk of SQL injection attacks, external or untrusted inputs should never directly provide the {@code sharedQueueTableName} value.<br>
+         * <b>Failure to adequately sanitize and validate this value could expose the application to SQL injection
+         * vulnerabilities, compromising the security and integrity of the database.</b>
+         *
+         * @param sharedQueueStatisticsTableName the name of the table that will contain all messages (across all {@link QueueName}'s)
+         */
+        public void setSharedQueueStatisticsTableName(String sharedQueueStatisticsTableName) {
+            this.sharedQueueStatisticsTableName = sharedQueueStatisticsTableName;
         }
 
         /**

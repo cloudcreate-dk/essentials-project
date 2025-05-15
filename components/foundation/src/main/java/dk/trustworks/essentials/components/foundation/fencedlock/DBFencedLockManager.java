@@ -708,6 +708,47 @@ public abstract class DBFencedLockManager<UOW extends UnitOfWork, LOCK extends D
     }
 
     /**
+     * <pre>
+     * Retrieves all locks currently stored in the database.
+     *
+     * This method uses a transactional operation to fetch all locks while handling
+     * potential errors that may occur during the database operation.
+     * </pre>
+     *
+     * @return a list of all locks found in the database
+     * @throws UnitOfWorkException if an error occurs while performing the unit of work
+     */
+    public List<LOCK> getAllLocksInDB() {
+        return withUnitOfWork(uow -> lockStorage.getAllLocksInDB(this, uow),
+                e -> {
+                    throw new UnitOfWorkException(msg("[{}] Failed to get all Locks in the lock storage", lockManagerInstanceId), e);
+                }
+        );
+    }
+
+    /**
+     * <pre>
+     * Releases a lock in the database specified by the provided lock name.
+     * This method performs the operation as part of a unit of work and handles exceptions
+     * that may occur during the process.
+     * </pre>
+     * @param lockName the name of the lock to be released in the database
+     * @return {@code true} if the lock is successfully released, otherwise {@code false}
+     * @throws UnitOfWorkException if an error occurs during the unit of work execution
+     */
+    public boolean releaseLockInDB(LockName lockName) {
+        return withUnitOfWork(uow -> {
+                    return lockStorage.lookupLockInDB(this, uow, lockName)
+                            .map(lock -> lockStorage.releaseLockInDB(this, uow, lock))
+                            .orElse(Boolean.FALSE);
+                },
+                e -> {
+                    throw new UnitOfWorkException(msg("[{}] Failed to release Lock {} the lock storage", lockManagerInstanceId, lockName), e);
+                }
+        );
+    }
+
+    /**
      * Use a {@link UnitOfWork} to perform transactional changes
      *
      * @param unitOfWorkConsumer the consumer of the created {@link UnitOfWork}

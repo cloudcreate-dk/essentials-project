@@ -30,6 +30,18 @@ public interface JSONSerializer {
     String serialize(Object obj);
 
     /**
+     * Serializes the given object into a JSON string with pretty-print formatting.
+     * This method delegates to the {@code serialize} method for JSON serialization.
+     *
+     * @param obj the object to serialize
+     * @return the serialized JSON string with pretty-print formatting
+     * @throws JSONSerializationException in case the json couldn't be deserialized to the specified java type
+     */
+    default String serializePrettyPrint(Object obj) {
+        return serialize(obj);
+    }
+
+    /**
      * Serialize the object to JSON
      *
      * @param obj the object to serialize

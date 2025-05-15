@@ -309,4 +309,12 @@ public interface AggregateEventStreamPersistenceStrategy<CONFIG extends Aggregat
      * @return the matching {@link PersistedEvent}'s
      */
     List<PersistedEvent> loadEvents(EventStoreUnitOfWork unitOfWork, AggregateType aggregateType, List<EventId> eventIds);
+
+    /**
+     * Retrieves a map containing the table names for event streams that are separated
+     * per aggregate type.
+     *
+     * @return a map where the key is the aggregate type and the value is the corresponding table name
+     */
+    Map<AggregateType, String> getSeparateTablePerAggregateEventStreamTableNames();
 }

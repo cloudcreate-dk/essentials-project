@@ -16,8 +16,11 @@
 
 package dk.trustworks.essentials.components.foundation.postgresql;
 
+import dk.trustworks.essentials.shared.Exceptions;
 import org.jdbi.v3.core.Handle;
+import org.postgresql.util.PSQLException;
 
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -37,6 +40,33 @@ public final class PostgresqlUtil {
         return handle.createQuery("SELECT substring(version() from 'PostgreSQL ([0-9]+)')")
                      .mapTo(Integer.class)
                      .first();
+    }
+
+    /**
+     * Check if pg extension like 'pg_cron' is available
+     *
+     * @param handle
+     * @param extension
+     * @return boolean
+     */
+    public static boolean isPGExtensionAvailable(Handle handle, String extension) {
+        requireNonNull(handle, "No handle provided");
+        requireNonNull(extension, "No extension provided");
+        return handle.createQuery("""
+                                    SELECT exists(
+                                        SELECT 1
+                                        FROM pg_extension
+                                        WHERE extname = :extension
+                                    );
+                """)
+                .bind("extension", extension)
+                .mapTo(Boolean.class)
+                .first();
+    }
+
+    public static boolean isPGExtensionNotLoadedException(Exception e) {
+        Throwable rootCause = Exceptions.getRootCause(e);
+        return rootCause instanceof PSQLException && rootCause.getMessage() != null && rootCause.getMessage().contains("must be loaded via \"shared_preload_libraries\"");
     }
 
     /**

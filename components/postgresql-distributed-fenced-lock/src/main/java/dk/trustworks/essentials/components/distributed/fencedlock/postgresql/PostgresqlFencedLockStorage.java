@@ -21,9 +21,11 @@ import dk.trustworks.essentials.components.foundation.fencedlock.*;
 import dk.trustworks.essentials.components.foundation.postgresql.PostgresqlUtil;
 import dk.trustworks.essentials.components.foundation.transaction.jdbi.HandleAwareUnitOfWork;
 import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.core.mapper.RowViewMapper;
 import org.slf4j.*;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static dk.trustworks.essentials.shared.FailFast.requireNonNull;
@@ -285,5 +287,32 @@ public final class PostgresqlFencedLockStorage implements FencedLockStorage<Hand
                                     .createUpdate("DELETE FROM " + this.fencedLocksTableName)
                                     .execute();
         log.debug("[{}] Deleted all {} locks", lockManager.getLockManagerInstanceId(), rowsUpdated);
+    }
+
+    @Override
+    public List<DBFencedLock> getAllLocksInDB(DBFencedLockManager<HandleAwareUnitOfWork, DBFencedLock> lockManager, HandleAwareUnitOfWork unitOfWork) {
+        return unitOfWork.handle()
+            .createQuery("SELECT * FROM " + this.fencedLocksTableName)
+            .map(mapRowToDBFencedLock(lockManager))
+            .collectIntoList();
+    }
+
+    @Override
+    public List<DBFencedLock> getAllLocksInDB(DBFencedLockManager<HandleAwareUnitOfWork, DBFencedLock> lockManager, HandleAwareUnitOfWork unitOfWork, long startIndex, long pageSize) {
+        return unitOfWork.handle()
+                .createQuery("SELECT * FROM " + this.fencedLocksTableName + " LIMIT :limit OFFSET :offset")
+                .bind("offset", startIndex)
+                .bind("limit", pageSize)
+                .map(mapRowToDBFencedLock(lockManager))
+                .collectIntoList();
+    }
+
+    private static RowViewMapper<DBFencedLock> mapRowToDBFencedLock(DBFencedLockManager<HandleAwareUnitOfWork, DBFencedLock> lockManager) {
+        return row -> new DBFencedLock(lockManager,
+                row.getColumn("lock_name", LockName.class),
+                row.getColumn("last_issued_fence_token", Long.class),
+                row.getColumn("locked_by_lockmanager_instance_id", String.class),
+                row.getColumn("lock_acquired_ts", OffsetDateTime.class),
+                row.getColumn("lock_last_confirmed_ts", OffsetDateTime.class));
     }
 }
